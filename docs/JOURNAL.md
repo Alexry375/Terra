@@ -72,3 +72,15 @@
   hold-out à graine inédite verts. Promu dans `engine/` — un bogue de chemin
   relatif attrapé à la promotion (tests pointant vers le workspace), corrigé
   et revalidé. Déjà ~6 500 parties/s avec effets stubbés. [VÉRIFIÉ 24-07]
+- Chantier `moteur-cartes-1` cadré, scellé et lancé (sous-agent en cours) :
+  extraction des VP des 388 cartes + couche d'effets + lot ≥ 50 cartes
+  fidèles au texte imprimé. Cadrage payant : trois pièges désamorcés AVANT le
+  seal — (1) bogue oracle supplémentaire (`NitrogenRichAsteroid.java` teste
+  `== 3` tags Plante au lieu de « 3 ou plus ») → règle contractuelle « le
+  texte imprimé gagne » ; (2) la sonde d'audit `--probe` aurait échoué sur
+  les cartes à prérequis (Farming exige la température blanche, départ =
+  violet) → spec corrigée (pose forcée + champ `prereq_ok` séparé) ;
+  (3) logique jq des contrôles testée dans les deux sens sur un état-cible
+  simulé + contre-test négatif (altération d'un champ d'origine détectée).
+  Hold-out : 5 témoins VP + 5 témoins d'effets vérifiés à la source Java +
+  graine inédite. [VÉRIFIÉ 24-07]

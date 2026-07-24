@@ -83,9 +83,22 @@ Dernière mise à jour : 2026-07-23
 
 ## Travaux en cours
 
-- Aucun sous-agent en cours. Prochain chantier : `moteur-cartes-1` (premier
-  lot d'effets de cartes + extraction des VP, testé contre l'oracle Java).
+- **`moteur-cartes-1` : sous-agent EN COURS (lancé le 24-07)**. Contrat scellé
+  (4 contrôles rouges au seal, testés dans les deux sens sur état-cible
+  simulé + contre-test négatif) : (A) extraction des VP des 388 cartes depuis
+  les classes Java → `cards_v2.json` (champs `vp` + `vp_dynamic`, origine
+  intacte) ; (B) couche d'effets déclarative + lot ≥ 50 cartes complètes
+  (10 imposées dont Comet/Farming/Lichen), sonde `--probe` (JSON de deltas,
+  `prereq_ok`/`played` séparés — la sonde force la pose), interrupteur
+  `--effects on|off`, ≥ 77 tests. Hold-out : 3 scripts (5 témoins VP,
+  5 témoins d'effets vérifiés à la source Java, graine inédite).
+  Règle du contrat : conflit Java vs texte imprimé → le texte imprimé gagne.
   [VÉRIFIÉ 24-07]
+- Bogue oracle Java supplémentaire attrapé pendant le cadrage :
+  `NitrogenRichAsteroid.java` teste `== 3` tags Plante là où la carte dit
+  « 3 ou plus ». Sémantique des prérequis Java vérifiée : liste de couleurs
+  EXACTES (`Planet.isValidParameter`), température départ = violet
+  (`PlanetFactory.java:32`), Farming exige la zone blanche. [VÉRIFIÉ 24-07]
 
 ## Acquis : workspace `moteur-squelette` (livré et audité OK le 24-07)
 
