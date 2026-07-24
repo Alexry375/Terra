@@ -58,8 +58,8 @@ Dernière mise à jour : 2026-07-24
    références publiées dépassent une 3060 seule ; arbitrage après conception du
    simulateur rapide. [DÉCLARÉ]
 4. **Interfaces de jeu** : en ligne, et/ou plateau physique par caméra. Reporté à
-   après le moteur et l'IA. Le module Tabletop Simulator reste une piste pour
-   les visuels de cartes (non vérifié). [DÉCLARÉ]
+   après le moteur et l'IA. Visuels de cartes : chaîne Tabletop Simulator
+   VALIDÉE (voir §Acquis scans). [VÉRIFIÉ 24-07]
 
 ## Acquis (audités)
 
@@ -87,6 +87,34 @@ Dernière mise à jour : 2026-07-24
     (`/simulations`, datasets, encodage d'état ~321 entrées) réutilisable ;
     le réseau lui-même (MLP figé, 1 coup de profondeur) non.
   - GPL-3.0 : consommer via API ou données, ne pas lier le code de Terra.
+
+## Acquis : reconnaissance scans de cartes (24-07)
+
+- **Chaîne d'extraction Tabletop Simulator validée de bout en bout sans
+  posséder le jeu** : API Steam `GetPublishedFileDetails` → `file_url` du
+  save → `strings` + grep des URLs `steamusercontent` → réécrire l'hôte
+  mort `cloud-3.steamusercontent.com` en `images.steamusercontent.com` →
+  planches 4096×4000 (10×7, ~40 cartes), qualité impression, texte net.
+  Mod base anglais : `2831959805` (60 images). AE confirmé (phases I-V,
+  12 corporations). Échantillons vus par la main (zoom 4 corporations
+  lisible). Téléchargement complet dans `data/scans/base/` (hors git).
+  [VÉRIFIÉ 24-07]
+- **Discovery : seul un mod ESPAGNOL confirmé** (`3009184792`, 155 images,
+  toutes extensions) ; le mod anglais `2793118592` = base seule (700 URLs,
+  0 occurrence « Discovery »). Piste anglaise Discovery À TROUVER ; repli :
+  photos d'Alexis + planches espagnoles pour les visuels. [VÉRIFIÉ 24-07]
+- **DÉCOUVERTE DE RÈGLES (scan lu par la main)** : le titane et l'acier
+  EXISTENT dans Ares Expedition — PhoboLog : « Each titanium you have
+  reduces the cost of [space] cards an additional 1 MC » ; Mining Guild :
+  « Each time you play steel production… ». Mon souvenir « pas de titane
+  en AE » était FAUX (Alexis avait raison). Conséquence : le champ
+  `description` de cards.json (« pay 6 MC less ») peut être une PARAPHRASE
+  du dev russe et non le texte imprimé (Asteroid Mining imprimée donne
+  peut-être « 2 titane »). À arbitrer à l'audit de `moteur-cartes-2`
+  (point d'enquête déjà au contrat) + photos du livret par Alexis
+  (annoncées). Sources texte complémentaires trouvées :
+  `alrusdi/tmae-content` (xlsx 219 cartes base, 2021),
+  `sebwieser/ares-expedition` (Python, 2023). [VÉRIFIÉ 24-07]
 
 ## Travaux en cours
 

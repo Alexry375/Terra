@@ -110,3 +110,15 @@
   AVANT le seal (Lichen coûte 5, pas 7 — vérification carte par carte).
   Checks testés dans les deux sens + 3 contre-tests de falsification
   détectés. Hold-out : 4 scripts cachés. [VÉRIFIÉ 24-07]
+- Reconnaissance scans (sous-agent Opus, 2 gels d'infrastructure surmontés) :
+  chaîne Tabletop Simulator validée sans posséder le jeu (API Steam →
+  save → URLs → hôte réécrit) ; planches 4096×4000 qualité impression ;
+  base anglaise complète (mod 2831959805), Discovery confirmée seulement
+  en espagnol (3009184792). Téléchargement base lancé dans data/scans/
+  (hors git). [VÉRIFIÉ 24-07]
+- CORRECTION DE FOND grâce au premier scan lu : le titane et l'acier
+  existent bien dans Ares Expedition (PhoboLog, Mining Guild) — mon
+  affirmation inverse à Alexis était fausse, il avait raison. Le champ
+  description de cards.json est donc possiblement une paraphrase, pas le
+  texte imprimé : impact à arbitrer à l'audit du lot 2 (Asteroid Mining
+  et consorts) puis avec les photos du livret d'Alexis. [VÉRIFIÉ 24-07]
