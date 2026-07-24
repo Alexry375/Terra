@@ -131,3 +131,17 @@
   est un compteur de réduction (×3 MC/Espace), pas une ressource dépensée —
   cohérent avec le scan PhoboLog. Promu dans engine/ (152 tests verts,
   67 générations ON vs 114 OFF). Verdict ok. [VÉRIFIÉ 24-07]
+- RÈGLES OFFICIELLES AU DÉPÔT : Alexis a photographié ses deux livrets FR
+  (23 photos : base 19 pages + Découverte 4 pages, complet). Créé
+  docs/regles/ (référence unique, hiérarchie des sources écrite) :
+  transcription mot à mot par 5 sous-agents Opus 4.8 en parallèle,
+  assemblée en livret-base.md + livret-decouverte.md ; règles condensées
+  (~215 l.) ; registre cas-tranches.md. Audit par échantillon de la main :
+  3 pages relues contre photos, fidèles (1 correction d'icône Récompense
+  Industriel). TITANE/ACIER TRANCHÉ par le livret p. 18 : « savoir-faire »,
+  compteurs permanents de réduction (2 MC acier/Construction, 3 MC
+  titane/Espace), pas des ressources dépensées — le modèle Java et notre
+  encodage sont bons ; migration vers compteurs à prévoir pour Advanced
+  Alloys/Phobolog/Aquifer Pumping/Solarpunk. Points ouverts consignés :
+  listes complètes Objectifs/Récompenses/Phases améliorées (scans),
+  contradiction p. 14/p. 20 sur la phase Actions. [VÉRIFIÉ 24-07]

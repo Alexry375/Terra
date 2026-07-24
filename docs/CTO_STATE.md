@@ -115,11 +115,36 @@ Dernière mise à jour : 2026-07-24
   en AE » était FAUX (Alexis avait raison). Conséquence : le champ
   `description` de cards.json (« pay 6 MC less ») peut être une PARAPHRASE
   du dev russe et non le texte imprimé (Asteroid Mining imprimée donne
-  peut-être « 2 titane »). À arbitrer à l'audit de `moteur-cartes-2`
-  (point d'enquête déjà au contrat) + photos du livret par Alexis
-  (annoncées). Sources texte complémentaires trouvées :
+  peut-être « 2 titane »). TRANCHÉ le 24-07 par le livret (voir Acquis
+  règles ci-dessous). Sources texte complémentaires trouvées :
   `alrusdi/tmae-content` (xlsx 219 cartes base, 2021),
   `sebwieser/ares-expedition` (Python, 2023). [VÉRIFIÉ 24-07]
+
+## Acquis : règles officielles transcrites (24-07, photos d'Alexis)
+
+- **`docs/regles/` = référence unique sur les règles** : 23 photos du livret
+  FRANÇAIS (19 pages base + 4 pages Découverte, livret complet), transcrites
+  mot à mot par 5 sous-agents Opus 4.8 (`transcription-brute/photo-NN.md`),
+  assemblées en `livret-base.md` (pages 2-20) et `livret-decouverte.md`
+  (pages 1-4). Audit par échantillon : pages 2, 18 et Découverte 3 relues
+  par la main contre les photos — fidèles (1 correction : icônes de la
+  Récompense Industriel = acier/titane). Originaux pleine taille hors git
+  (`data/regles/photos-originales/`). [VÉRIFIÉ 24-07]
+- **Aide-mémoire moteur** : `docs/regles/notes/regles-condensees.md`
+  (~215 lignes, valeurs chiffrées, dérivé des livrets). Registre des points
+  ambigus : `docs/regles/notes/cas-tranches.md` (4 tranchés, 3 en attente).
+  [VÉRIFIÉ 24-07]
+- **TITANE/ACIER TRANCHÉ par le livret p. 18** (« Savoir-faire — acier et
+  titane ») : ce sont des SAVOIR-FAIRE, compteurs permanents de réduction
+  (2 MC/acier sur badge Construction, 3 MC/titane sur badge Espace), PAS
+  des ressources dépensées — exactement le modèle du Java. L'encodage
+  actuel (réductions fixes) est équivalent tant qu'aucune carte ne
+  multiplie le savoir-faire ; migration vers 2 compteurs/joueur à prévoir
+  pour Advanced Alloys, Phobolog, Aquifer Pumping, Solarpunk. [VÉRIFIÉ 24-07]
+- Points restant ouverts (détail dans cas-tranches.md) : listes complètes
+  des 11 Objectifs / 7 Récompenses et des 10 cartes Phase améliorées
+  (à tirer des scans/tuiles physiques), portée exacte de la phase Actions
+  (« cartes » p. 14 vs « cartes bleues » p. 20). [VÉRIFIÉ 24-07]
 
 ## Travaux en cours
 
