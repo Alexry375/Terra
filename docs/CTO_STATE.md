@@ -10,15 +10,32 @@ Dernière mise à jour : 2026-07-23
 - Rien encore : le dépôt vient d'être créé, il ne contient que les documents de
   pilotage. [VÉRIFIÉ 23-07]
 
+## Étude du terrain (2026-07-23) — voir `docs/ETUDE_TERRAIN.md`
+
+- Meilleur simulateur existant : `nikitinalexx/ares-expedition` (GPL-3.0, Java,
+  Discovery couvert, embryon d'IA, dormant depuis déc. 2025). [VÉRIFIÉ 23-07 —
+  vérification contradictoire 3-0 par le harnais de recherche]
+- Aucune base de cartes JSON base+Discovery n'existe ; extraction depuis le code
+  Java de nikitinalexx ou ressaisie nécessaire. [VÉRIFIÉ 23-07]
+- Précédent IA le plus pertinent : `bnordli/rftg` (Race for the Galaxy,
+  mécaniques quasi identiques, IA forte sur matériel modeste). [VÉRIFIÉ 23-07]
+- Recommandation CTO issue de l'étude : réutiliser nikitinalexx comme référence
+  de règles et source de cartes + construire un simulateur rapide dédié à
+  l'entraînement. [DÉCLARÉ — jugement, pas un fait]
+
 ## Décisions ouvertes (attendent Alexis ou une étude)
 
-1. **Choix du moteur de règles** : réutiliser un simulateur existant (à auditer)
-   ou écrire le nôtre. Aucune étude faite. [DÉCLARÉ]
-2. **Approche d'apprentissage** (auto-apprentissage par parties contre soi-même
-   façon AlphaZero, ou autre). Aucune étude faite. [DÉCLARÉ]
-3. **Entraînement local (RTX 3060) ou machines louées en ligne.** [DÉCLARÉ]
+1. **Valider la recommandation** « nikitinalexx comme référence + simulateur
+   d'entraînement maison ». Attend Alexis. [DÉCLARÉ]
+2. **Approche d'apprentissage** : cadrage fait (MCTS à actions simultanées +
+   traitement de l'information cachée ; ReBeL exclu), architecture précise à
+   étudier. [DÉCLARÉ]
+3. **Entraînement local (RTX 3060) ou machines louées en ligne** : les
+   références publiées dépassent une 3060 seule ; arbitrage après conception du
+   simulateur rapide. [DÉCLARÉ]
 4. **Interfaces de jeu** : en ligne, et/ou plateau physique par caméra. Reporté à
-   après le moteur et l'IA. [DÉCLARÉ]
+   après le moteur et l'IA. Le module Tabletop Simulator reste une piste pour
+   les visuels de cartes (non vérifié). [DÉCLARÉ]
 
 ## Verrous et risques connus
 

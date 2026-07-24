@@ -8,7 +8,7 @@
 - **Objectif final** : construire une intelligence artificielle **imbattable par des
   humains** au jeu de société *Terraforming Mars : Expédition Arès*.
 - **Échéance** : aucune définie à ce jour (ne pas en inventer).
-- **Fuseau horaire d'Alexis** : Europe/Paris.
+- **Fuseau horaire d'Alexis** : America/Martinique.
 
 ## Périmètre souhaité (exprimé par Alexis le 2026-07-23)
 
