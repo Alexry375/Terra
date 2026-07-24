@@ -3,7 +3,7 @@
 > Source de vérité du projet. Ancrée au code (`fichier:ligne`) dès qu'il y aura du
 > code. [VÉRIFIÉ JJ-MM] = relu à la source ce jour-là. [DÉCLARÉ] = non re-vérifié.
 
-Dernière mise à jour : 2026-07-23
+Dernière mise à jour : 2026-07-24
 
 ## Ce qui marche
 
@@ -120,10 +120,10 @@ Dernière mise à jour : 2026-07-23
   moteur Java ; conflit « 7 awards Discovery vs 6 dans le Java » noté).
   Moteur promu dans `engine/` (chemins adaptés, 27 tests re-vérifiés).
   [VÉRIFIÉ 24-07]
-- Trous connus à combler aux chantiers suivants : VP imprimés absents de
-  `data/cards.json` (extraction à ajouter), effets/prérequis des cartes
-  stubbés, améliorations de phases neutres, 7e award à élucider,
-  revendication des milestones simplifiée. [VÉRIFIÉ 24-07]
+- Trous relevés à l'audit : VP imprimés absents et effets stubbés (comblés
+  par `moteur-cartes-1` — voir section dédiée) ; restent : améliorations de
+  phases neutres, 7e award à élucider, revendication des milestones
+  simplifiée. [VÉRIFIÉ 24-07]
 
 ## Acquis : workspace `retag-cartes` (livré et audité OK le 24-07)
 
