@@ -28,3 +28,11 @@ consigné dans `notes/cas-tranches.md`.
 - Mulligan de la main initiale : 8 cartes, tout ou rien.
 - Mulligan des 2 corporations proposées, avant de voir les projets.
 - Le paquet exclut les 17 cartes du pack promotionnel 2021 (non possédé).
+- **Ordre du tour J1/J2** (décision 24-07) : un premier joueur est désigné et
+  alterne à chaque manche ; dans une phase, les joueurs agissent en alternance
+  jusqu'à ce que plus personne ne souhaite jouer. (Le livret, lui, fait tout
+  résoudre « en simultané » sans ordre — la règle p. 14 « pendant la phase où
+  un paramètre atteint son maximum, tous les joueurs peuvent continuer et
+  reçoivent tous les avantages » reste appliquée.)
+- **Égalité au score final = égalité** (décision 24-07) : pas de départage par
+  chaleur + MC + plantes (le livret p. 16 départage ; nous non).

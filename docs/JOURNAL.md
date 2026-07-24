@@ -158,3 +158,14 @@
   (flow.rs:696-702). E3 départage d'égalité absent, E4 défausse +3 MC
   restreinte à la phase III, E5 conversion fin de phase sur état courant.
   Corrections à intégrer avant/avec moteur-cartes-3. [VÉRIFIÉ 24-07]
+- Décisions d'Alexis sur les écarts et règles (24-07 après-midi) :
+  (1) règle maison CONFIRMÉE « J1/J2 alterné à chaque manche, actions en
+  alternance jusqu'à double passe » — même en connaissant la règle p. 14 ;
+  (2) règle maison « égalité au score = égalité », pas de départage p. 16 ;
+  (3) correction E2 (bonus Construction : pioche AVANT ou après la pose)
+  jugée importante par Alexis — prioritaire ; (4) E4 expliqué (défausse
+  +3 MC « à tout moment » p. 5 + paiement de cartes par défausse p. 13,
+  non modélisés — affordabilité sous-estimée). Règles maison consignées
+  dans docs/regles/README.md. Corrections E2/E4/E6 + règles maison à
+  intégrer en tête de moteur-cartes-3 ; E3 devient sans objet (égalité
+  maison) ; E1 sans objet pratique (parties avec Découverte). [VÉRIFIÉ 24-07]
