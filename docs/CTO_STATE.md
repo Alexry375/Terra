@@ -77,8 +77,10 @@ Dernière mise à jour : 2026-07-23
 
 ## Travaux en cours
 
-- Aucun sous-agent en cours. Prochain chantier prévu : `moteur-squelette`
-  (Rust), après la décision « pack 2021 » ci-dessous. [VÉRIFIÉ 24-07]
+- **Workspace `moteur-squelette`** (scellé le 24-07, 4 contrôles visibles +
+  1 hold-out à graine inédite, sous-agent lancé) : crate Rust 2 joueurs —
+  état, phases, production, fin de partie, score, mulligans maison, cartes
+  stubbées, binaire `simulate` déterministe. [VÉRIFIÉ 24-07]
 
 ## Acquis : workspace `retag-cartes` (livré et audité OK le 24-07)
 
@@ -96,7 +98,11 @@ Dernière mise à jour : 2026-07-23
   (20 cartes appariées Mylaana `foundations`), pas une extension maison ;
   livrées `fan` (enum scellé), sans impact pioche v1. [DÉCLARÉ par l'agent,
   cohérent]
-- **DÉCISION EN ATTENTE (Alexis)** : 17 cartes d'un SECOND pack promo
+- Décision pack 2021 (24-07) : Alexis ne possède pas les corporations
+  (certain), doute sur les 11 projets → les 17 cartes isolées en
+  `box: promo2021`, HORS pioche par défaut, réglable. Base de cartes promue
+  dans le dépôt : `data/cards.json` (pioche v1 = 264). [VÉRIFIÉ 24-07]
+- (Historique) 17 cartes d'un SECOND pack promo
   (Kickstarter 2021 : ArkLight, Celestior, DevTechs, LaunchStar, Mai-Ni,
   Zetacell + 11 projets dont Self-Replicating Bacteria, Synthetic Catastrophe,
   Processing Plant) sont marquées `base` par le moteur et comptent
