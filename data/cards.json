@@ -1,0 +1,5903 @@
+[
+ {
+  "name": "Adaptation Technology",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/AdaptationTechnology.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "SCIENCE"
+  ],
+  "description": "When playing a card with requirements, you may consider the oxygen or temperature one color higher or lower. This cannot be modified futher by other effects.",
+  "price": 12,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Advanced Alloys",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/AdvancedAlloys.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "Each titanium you have is worth 1 MC extra. Each steel you have is worth 1 MC extra.",
+  "price": 9,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Advanced Screening Tech",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/AdvancedScreeningTechnology.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "SCIENCE"
+  ],
+  "description": "Action: Reveal the top 3 cards of the deck. Place a card with a Science or Plant revealed this way into your hand. Discard the rest.",
+  "price": 6,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Ai Central",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/AiCentral.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "SCIENCE",
+   "BUILDING"
+  ],
+  "description": "Requires 5 Science. Action: Draw 2 cards.",
+  "price": 22,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Anaerobic Microorganisms",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/AnaerobicMicroorganisms.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "MICROBE"
+  ],
+  "description": "When you play an Animal, Microbe, or Plant, including this, add a microbe to this card. When you play a card, you may remove 2 microbes from this card to pay 10 MC less for that card.",
+  "price": 10,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Anti-Gravity Technology",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/AntiGravityTechnology.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "SCIENCE"
+  ],
+  "description": "Requires 5 SCT. When you play a card, gain 2 heat and 2 plants.",
+  "price": 18,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Aquifer Pumping",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/AquiferPumping.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "Action: Spend 10 MC to flip an ocean tile. Reduce this by 2 MC per steel you have.",
+  "price": 14,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Arctic Algae",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/ArcticAlgae.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "PLANT"
+  ],
+  "description": "Requires red temperature or warmer. When you flip an ocean tile, gain 4 plants.",
+  "price": 19,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Artificial Jungle",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/ArtificialJungle.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [],
+  "description": "Action: Spend 1 plant to draw a card.",
+  "price": 5,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Assembly Lines",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/AssemblyLines.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "SPACE"
+  ],
+  "description": "When you use an \"Action:\" effect on one of your cards, gain 1 MC.",
+  "price": 13,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Asset Liquidation",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/AssetLiquidation.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "SCIENCE"
+  ],
+  "description": "You may play an additional blue or red card this phase. ACTION: Action: Spend 1 TR to draw 3 cards.",
+  "price": 0,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Bacterial Aggregates",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/BacterialAggregates.java",
+  "category": "blue",
+  "expansion": "discovery",
+  "tags": [
+   "MICROBE",
+   "EARTH"
+  ],
+  "description": "When you play an Earth tag, put a microbe on this card (max 5). Draw an additional card in 5th phase for each microbe on this card.",
+  "price": 7,
+  "box": "promo",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Birds",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/Birds.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "ANIMAL"
+  ],
+  "description": "Requires white oxygen. Add an animal to this card. 1 VP per animal on this card.",
+  "price": 15,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Brainstorming Session",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/BrainstormingSession.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "SPACE"
+  ],
+  "description": "Action: Reveal the top card of the deck. If it is green, discard it and gain 1 MC. Otherwise, draw it.",
+  "price": 8,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Birds",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/BuffedBirds.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "ANIMAL"
+  ],
+  "description": "Requires white oxygen. Add an animal to this card. 1 VP per animal on this card.",
+  "price": 15,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Rebalance maison de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Community Gardens",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/BuffedCommunityGardens.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "PLANT"
+  ],
+  "description": "Action: Gain 2 MC. *if you chose the action phase this round, also gain 1 plant.",
+  "price": 10,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Rebalance maison de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Drone Assisted Construction",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/BuffedDroneAssistedConstruction.java",
+  "category": "blue",
+  "expansion": "discovery",
+  "tags": [
+   "SPACE"
+  ],
+  "description": "Action: Gain 2 MC. *if you played an upgraded phase this turn, gain 2 MC.",
+  "price": 7,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Rebalance maison de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Extreme-Cold Fungus",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/BuffedExtremeColdFungus.java",
+  "category": "blue",
+  "expansion": "experimental",
+  "tags": [
+   "MICROBE",
+   "PLANT"
+  ],
+  "description": "Requires purple temperature. Gain 1 plant or add a microbe to ANOTHER* card.",
+  "price": 6,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Rebalance maison de l'auteur du moteur (non officielle). Extension maison 'experimental' de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Farming Co-ops",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/BuffedFarmingCoops.java",
+  "category": "blue",
+  "expansion": "experimental",
+  "tags": [
+   "PLANT"
+  ],
+  "description": "Gain 3 plants ACTION: Action: Discard a card in hand to gain 3 plants.",
+  "price": 7,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Rebalance maison de l'auteur du moteur (non officielle). Extension maison 'experimental' de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Filter Feeders",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/BuffedFilterFeeders.java",
+  "category": "blue",
+  "expansion": "experimental",
+  "tags": [
+   "ANIMAL"
+  ],
+  "description": "When you add any number of microbes to ANOTHER* card, add an animal to this card. 1 VP per 2 animals on this card.",
+  "price": 9,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Rebalance maison de l'auteur du moteur (non officielle). Extension maison 'experimental' de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "GHG Production Bacteria",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/BuffedGhgProductionBacteria.java",
+  "category": "blue",
+  "expansion": "experimental",
+  "tags": [
+   "SCIENCE",
+   "MICROBE"
+  ],
+  "description": "Add 2 microbes to this card. ACTION: Action: Add 1 microbe to this card, or remove 2 microbes to raise the temperature 1 step.",
+  "price": 10,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Rebalance maison de l'auteur du moteur (non officielle). Extension maison 'experimental' de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Greenhouses",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/BuffedGreenHouses.java",
+  "category": "blue",
+  "expansion": "experimental",
+  "tags": [
+   "BUILDING",
+   "PLANT"
+  ],
+  "description": "Requires yellow temperature or warmer. Action: Spend up to 4 heat to gain that amount of plants.",
+  "price": 11,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Rebalance maison de l'auteur du moteur (non officielle). Extension maison 'experimental' de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Hydro-Electric Energy",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/BuffedHydroElectricEnergy.java",
+  "category": "blue",
+  "expansion": "experimental",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "Spend 1 MC to get 2 heat.  *if you chose the action phase this round, gain 2 additional heat.",
+  "price": 11,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Rebalance maison de l'auteur du moteur (non officielle). Extension maison 'experimental' de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Regolith Eaters",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/BuffedRegolithEaters.java",
+  "category": "blue",
+  "expansion": "experimental",
+  "tags": [
+   "SCIENCE",
+   "MICROBE"
+  ],
+  "description": "Add 2 microbes to this card. ACTION: Action: Add 1 microbe to this card, or remove 2 microbes to raise oxygen 1 step.",
+  "price": 10,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Rebalance maison de l'auteur du moteur (non officielle). Extension maison 'experimental' de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Wood Burning Stoves",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/BuffedWoodBurningStoves.java",
+  "category": "blue",
+  "expansion": "experimental",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "Gain 4 plants. ACTION: Action: Spend 4 plants to raise temperature 1 step. *if you chose the action phase this round, spend 3 plants.",
+  "price": 9,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Rebalance maison de l'auteur du moteur (non officielle). Extension maison 'experimental' de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Caretaker Contract",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/CaretakerContract.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [],
+  "description": "Requires yellow temperature or warmer. Action: Spend 8 heat to raise your TR 1 step.",
+  "price": 18,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Circuit Board Factory",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/CircuitBoardFactory.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "Action: Draw a card",
+  "price": 14,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "City Council",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/CityCouncil.java",
+  "category": "blue",
+  "expansion": "discovery",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "Action: Draw a card. Draw an additional card for each Milestone you have",
+  "price": 21,
+  "box": "promo",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Community Afforestation",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/CommunityAfforestation.java",
+  "category": "blue",
+  "expansion": "discovery",
+  "tags": [
+   "PLANT"
+  ],
+  "description": "Action: Spend 14 MC to build a forest. Reduce this by 4 MC for every Milestone you have.",
+  "price": 13,
+  "box": "promo",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Community Gardens",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/CommunityGardens.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "PLANT"
+  ],
+  "description": "Action: Gain 2 MC. *if you chose the action phase this round, also gain 1 plant.",
+  "price": 20,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Composting Factory",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/CompostingFactory.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "Cards you discard for MC are worth an additional MC.",
+  "price": 13,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Conserved Biome",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/ConservedBiome.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "BUILDING",
+   "MICROBE",
+   "ANIMAL"
+  ],
+  "description": "Add a microbe to ANOTHER* card or add an animal to ANOTHER* card. 1 VP per 2 forests you have.",
+  "price": 25,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Decomposers",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/Decomposers.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "MICROBE"
+  ],
+  "description": "Requires red oxygen or higher. When you play an Animal, Microbe, or Plant, including this, add a microbe here or remove a microbe from here to draw a card.",
+  "price": 7,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Decomposing Fungus",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/DecomposingFungus.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "MICROBE"
+  ],
+  "description": "Place 2 microbes on this card. ACTION: Action: Remove 1 animal or 1 microbe from one of your cards to gain 3 plants.",
+  "price": 10,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Developed Infrastructure",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/DevelopedInfrastructure.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [],
+  "description": "Action: Spend 10 MC to raise the temperature 1 step. Reduce this by 5 МС if you have 5 or more blue cards in play.",
+  "price": 12,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Development Center",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/DevelopmentCenter.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "SCIENCE",
+   "BUILDING"
+  ],
+  "description": "Action: Spend 2 heat to draw a card.",
+  "price": 7,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Drone Assisted Construction",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/DroneAssistedConstruction.java",
+  "category": "blue",
+  "expansion": "discovery",
+  "tags": [
+   "SPACE"
+  ],
+  "description": "Action: Gain 2 MC. *if you played an upgraded phase this turn, gain 2 MC.",
+  "price": 15,
+  "box": "discovery",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Earth Catapult",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/EarthCatapult.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "BUILDING",
+   "EARTH"
+  ],
+  "description": "When you play a card, you pay 2 MC less for it.",
+  "price": 24,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Ecological Zone",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/EcologicalZone.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "PLANT",
+   "ANIMAL"
+  ],
+  "description": "When you play a Animal or Plant, including these, add an animal to this card. 1 VP per 2 animals on this card.",
+  "price": 11,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Energy Subsidies",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/EnergySubsidies.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "SPACE"
+  ],
+  "description": "When you play an Energy tag, you pay 4 МС less for it and you draw a card.",
+  "price": 5,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Experimental Technology",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/ExperimentalTechnology.java",
+  "category": "blue",
+  "expansion": "discovery",
+  "tags": [
+   "SCIENCE",
+   "EARTH"
+  ],
+  "description": "Action: Spend 1 TR to upgrade a phase card.",
+  "price": 4,
+  "box": "discovery",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Extended Resources",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/ExtendedResources.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "SCIENCE",
+   "BUILDING"
+  ],
+  "description": "When you keep cards during the research phase, keep one additional card.",
+  "price": 10,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Extreme-Cold Fungus",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/ExtremeColdFungus.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "MICROBE"
+  ],
+  "description": "Requires purple temperature. Gain 1 plant or add a microbe to ANOTHER* card.",
+  "price": 10,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Farmers Market",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/FarmersMarket.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "PLANT"
+  ],
+  "description": "Action: Spend 1 MC to gain 2 plants.",
+  "price": 12,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Farming Co-ops",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/FarmingCoops.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "PLANT"
+  ],
+  "description": "Gain 3 plants ACTION: Action: Discard a card in hand to gain 3 plants.",
+  "price": 15,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Fibrous Composite Material",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/FibrousCompositeMaterial.java",
+  "category": "blue",
+  "expansion": "discovery",
+  "tags": [
+   "SCIENCE"
+  ],
+  "description": "Add 3 science resources to this card. ACTION: Action: Add 1 science to this card or remove 3 science to upgrade a phase.",
+  "price": 8,
+  "box": "discovery",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Filter Feeders",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/FilterFeeders.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "ANIMAL"
+  ],
+  "description": "When you add any number of microbes to ANOTHER* card, add an animal to this card. 1 VP per 3 animals on this card.",
+  "price": 9,
+  "box": "promo2021",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Carte aussi vendue dans le 'Ares Expedition Promo Pack' (KS 2021, page produit FryxGames) ; conservée box=base conformément au contrat scellé (promo = Expansion Promo Pack uniquement) — voir divergences.md §Limites."
+ },
+ {
+  "name": "Fish",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/Fish.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "ANIMAL"
+  ],
+  "description": "Requires red temperature or warmer. When you flip an ocean tile, add 1 animal to this card. 1 VP per animal on this card.",
+  "price": 11,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Gas-Cooled Reactors",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/GasCooledReactors.java",
+  "category": "blue",
+  "expansion": "discovery",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "Action: Spend 12 MC to raise the temperature. Reduce this by 2 MC for every upgraded phase card you have.",
+  "price": 16,
+  "box": "promo",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "GHG Production Bacteria",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/GhgProductionBacteria.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "SCIENCE",
+   "MICROBE"
+  ],
+  "description": "Requires red oxygen or higher. Action: Add 1 microbe to this card, or remove 2 microbes to raise the temperature 1 step.",
+  "price": 10,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Greenhouses",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/GreenHouses.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "BUILDING",
+   "PLANT"
+  ],
+  "description": "Requires yellow temperature or warmer. Action: Spend up to 4 heat to gain that amount of plants.",
+  "price": 11,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Herbivores",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/Herbivores.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "ANIMAL"
+  ],
+  "description": "Requires 5 oceans to be flipped. When you raise oxygen, flip an ocean tile, or raise temperature, add 1 animal to this card. 1 VP per 2 animals on this card.",
+  "price": 25,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Hohmann Transfer Shipping",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/HohmannTransferShipping.java",
+  "category": "blue",
+  "expansion": "discovery",
+  "tags": [
+   "SPACE",
+   "EARTH"
+  ],
+  "description": "Upgrade a Phase card. When you play a card, you pay 1 MC less for it.",
+  "price": 17,
+  "box": "discovery",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Hydro-Electric Energy",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/HydroElectricEnergy.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "Spend 1 MC to get 2 heat.  *if you chose the action phase this round, gain 1 additional heat.",
+  "price": 11,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Impact Analysis",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/ImpactAnalysis.java",
+  "category": "blue",
+  "expansion": "discovery",
+  "tags": [
+   "SCIENCE",
+   "EARTH"
+  ],
+  "description": "Effect: When you play an Event tag, draw a card.",
+  "price": 11,
+  "box": "discovery",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Interns",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/Interns.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "SCIENCE"
+  ],
+  "description": "When you draw cards during the research phase, draw two additional cards.",
+  "price": 3,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Interplanetary Conference",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/InterplanetaryConference.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "EARTH"
+  ],
+  "description": "When you play an Earth or Jupiter tag, excluding this, you pay 3 MC less and draw a card.",
+  "price": 6,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Interplanetary Relations",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/InterplanetaryRelations.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "SPACE",
+   "JUPITER"
+  ],
+  "description": "When you draw cards during the research phase, draw one additional card and keep one additional card. 1 VP per 4 cards you have played.",
+  "price": 35,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Interplanetary Superhighway",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/InterplanetarySuperhighway.java",
+  "category": "blue",
+  "expansion": "infrastructure",
+  "tags": [
+   "SCIENCE",
+   "SPACE",
+   "EARTH"
+  ],
+  "description": "Action: Spend 10 MC to raise infrastructure. Reduce this by 5 MC if you have at least 4 science.",
+  "price": 15,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Marquee 'infrastructure' dans le moteur ; correspond tres probablement a l'extension OFFICIELLE 'Ares Expedition: Foundations' (20 project cards, page produit FryxGames ; Mylaana origin='foundations'). box=fan impose par le contrat scelle (enum sans valeur foundations) — voir divergences.md §Limites."
+ },
+ {
+  "name": "Ironworks",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/IronWorks.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "Action: Spend 4 heat to raise oxygen 1 step.",
+  "price": 12,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Livestock",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/Livestock.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "ANIMAL"
+  ],
+  "description": "Requires yellow oxygen or higher. When you raise the temperature, add 1 animal to this card. 1 VP per animal on this card.",
+  "price": 15,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Maglev Trains",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/MaglevTrains.java",
+  "category": "blue",
+  "expansion": "infrastructure",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "Draw a card. If infrastructure was yellow or higher at the phase start, draw an additional card.",
+  "price": 16,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Marquee 'infrastructure' dans le moteur ; correspond tres probablement a l'extension OFFICIELLE 'Ares Expedition: Foundations' (20 project cards, page produit FryxGames ; Mylaana origin='foundations'). box=fan impose par le contrat scelle (enum sans valeur foundations) — voir divergences.md §Limites."
+ },
+ {
+  "name": "Mars University",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/MarsUniversity.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "SCIENCE",
+   "BUILDING"
+  ],
+  "description": "When you play a Science tag, including this, you may discard a card. If that card had a Plant tag, draw two cards. Otherwise, draw a card.",
+  "price": 10,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Matter Generator",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/MatterGenerator.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "BUILDING",
+   "ENERGY"
+  ],
+  "description": "Draw 2 Cards. Action: Discard a card in hand to gain 6 MC.",
+  "price": 13,
+  "box": "promo2021",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Carte aussi vendue dans le 'Ares Expedition Promo Pack' (KS 2021, page produit FryxGames) ; conservée box=base conformément au contrat scellé (promo = Expansion Promo Pack uniquement) — voir divergences.md §Limites."
+ },
+ {
+  "name": "Matter Manufactoring",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/MatterManufactoring.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "SCIENCE"
+  ],
+  "description": "Action: Spend 1 MC to draw a card.",
+  "price": 9,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Media Group",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/MediaGroup.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "EARTH"
+  ],
+  "description": "When you play an Event, you pay 5 MC less for it.",
+  "price": 11,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Microorganism Industry",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/MicroorganismIndustry.java",
+  "category": "blue",
+  "expansion": "experimental",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "When you add any number of microbes to ANOTHER* card, gain 2 MC.",
+  "price": 5,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Extension maison 'experimental' de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Nitrite Reducting Bacteria",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/NitriteReductingBacteria.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "MICROBE"
+  ],
+  "description": "Add 3 microbes to this card. ACTION: Action: Add 1 microbe to this card or remove 3 microbes to flip an ocean tile.",
+  "price": 11,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Olympus Conference",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/OlympusConference.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "SCIENCE",
+   "BUILDING",
+   "EARTH"
+  ],
+  "description": "When you play a Science tag, including this, draw a card.",
+  "price": 15,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Optimal Aerobraking",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/OptimalAerobraking.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "SPACE"
+  ],
+  "description": "When you play an Event tag, you gain 2 heat and 2 plants.",
+  "price": 10,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Orbital Outpost",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/OrbitalOutpost.java",
+  "category": "blue",
+  "expansion": "discovery",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "When you play a card with 1 or fewer tags, you pay 3 MC less for it.",
+  "price": 16,
+  "box": "promo",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Penguins",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/Penguins.java",
+  "category": "blue",
+  "expansion": "experimental",
+  "tags": [
+   "ANIMAL"
+  ],
+  "description": "Requires 8 oceans. Add an animal to this card. 1 VP per animal on this card.",
+  "price": 7,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Extension maison 'experimental' de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Pets",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/Pets.java",
+  "category": "blue",
+  "expansion": "infrastructure",
+  "tags": [
+   "ANIMAL"
+  ],
+  "description": "When you increase the infrastructure, add 1 animal to this card. 1 VP per 2 animals on this card.",
+  "price": 10,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Marquee 'infrastructure' dans le moteur ; correspond tres probablement a l'extension OFFICIELLE 'Ares Expedition: Foundations' (20 project cards, page produit FryxGames ; Mylaana origin='foundations'). box=fan impose par le contrat scelle (enum sans valeur foundations) — voir divergences.md §Limites."
+ },
+ {
+  "name": "Physics Complex",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/PhysicsComplex.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "SCIENCE",
+   "BUILDING"
+  ],
+  "description": "Requires 4 Science tags. When you raise the temperature, add 1 science resource to this card. 1 VP per 2 science res on this card.",
+  "price": 5,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Power Infrastructure",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/PowerInfrastructure.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "BUILDING",
+   "ENERGY"
+  ],
+  "description": "Action: Spend any amount of heat to gain that amount of MC.",
+  "price": 4,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Progressive Policies",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/ProgressivePolicies.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "SCIENCE"
+  ],
+  "description": "Action: Spend 10 MC to raise the oxygen 1 step. Reduce this by 5 МС if you have 4 or more Event tags.",
+  "price": 8,
+  "box": "promo2021",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Carte aussi vendue dans le 'Ares Expedition Promo Pack' (KS 2021, page produit FryxGames) ; conservée box=base conformément au contrat scellé (promo = Expansion Promo Pack uniquement) — voir divergences.md §Limites."
+ },
+ {
+  "name": "Recycled Detritus",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/RecycledDetritus.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [],
+  "description": "When you play an Event, draw 2 cards.",
+  "price": 24,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Redrafted Contracts",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/RedraftedContracts.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [],
+  "description": "Action: Discard up to three cards in hand. Draw that many cards.",
+  "price": 4,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Regolith Eaters",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/RegolithEaters.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "SCIENCE",
+   "MICROBE"
+  ],
+  "description": "Requires red temperature or warmer. Action: Add 1 microbe to this card, or remove 2 microbes from this card to raise oxygen 1 step.",
+  "price": 10,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Research Grant",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/ResearchGrant.java",
+  "category": "blue",
+  "expansion": "discovery",
+  "tags": [
+   "DYNAMIC",
+   "DYNAMIC",
+   "DYNAMIC"
+  ],
+  "description": "You may play an additional blue or red card this phase. ACTION: Action: Place a tag not already present on this card and add to this card (Max 3). This counts as playing that tag.",
+  "price": 3,
+  "box": "promo",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Research Outpost",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/ResearchOutpost.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "SCIENCE",
+   "BUILDING"
+  ],
+  "description": "When you play a card, you pay 1 MC less for it.",
+  "price": 6,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Restructured Resources",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/RestructuredResources.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [],
+  "description": "When you play a card, you may spend 1 plant to reduce that card's cost by 5 MC.",
+  "price": 7,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Sawmill",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/Sawmill.java",
+  "category": "blue",
+  "expansion": "infrastructure",
+  "tags": [
+   "BUILDING",
+   "ENERGY"
+  ],
+  "description": "Action: Spend 10 MC to raise infrastructure. Reduce this by 2 MC for every Plant tag you have.",
+  "price": 18,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Marquee 'infrastructure' dans le moteur ; correspond tres probablement a l'extension OFFICIELLE 'Ares Expedition: Foundations' (20 project cards, page produit FryxGames ; Mylaana origin='foundations'). box=fan impose par le contrat scelle (enum sans valeur foundations) — voir divergences.md §Limites."
+ },
+ {
+  "name": "Self-Replicating Bacteria",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/SelfReplicatingBacteria.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "MICROBE"
+  ],
+  "description": "Add a microbe to this card, or remove 5 microbes from this card to play a card from your hand. You pay 25 MC less for it.",
+  "price": 8,
+  "box": "promo2021",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Carte aussi vendue dans le 'Ares Expedition Promo Pack' (KS 2021, page produit FryxGames) ; conservée box=base conformément au contrat scellé (promo = Expansion Promo Pack uniquement) — voir divergences.md §Limites."
+ },
+ {
+  "name": "Small Animals",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/SmallAnimals.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "ANIMAL"
+  ],
+  "description": "Requires red temperature or warmer. When you build a forest, add 1 animal to this card. 1 VP per 2 animals on this card.",
+  "price": 9,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Software Streamlining",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/SoftwareStreamlining.java",
+  "category": "blue",
+  "expansion": "discovery",
+  "tags": [
+   "SCIENCE",
+   "BUILDING"
+  ],
+  "description": "Upgrade a phase card. ACTION: Action: Draw two cards, then discard two cards.",
+  "price": 14,
+  "box": "discovery",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Solarpunk",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/SolarPunk.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "SPACE",
+   "PLANT"
+  ],
+  "description": "Action: Spend 15 MC to build a Forest and raise oxygen 1 step. Reduce this by 2 MC per titanium you have.",
+  "price": 15,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Standard Technology",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/StandardTechnology.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "SCIENCE"
+  ],
+  "description": "You pay 4 MC less for standard actions that cost MC.",
+  "price": 15,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Steelworks",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/Steelworks.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "Action: Spend 6 heat to gain 2 MC and raise oxygen 1 step.",
+  "price": 15,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Symbiotic Fungus",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/SymbioticFungus.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "MICROBE"
+  ],
+  "description": "Requires red temperature or warmer. Add a microbe to ANOTHER* card.",
+  "price": 3,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Tardigrades",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/Tardigrades.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "MICROBE"
+  ],
+  "description": "Action: Add 1 microbe to this card. 1 VP per 3 microbes on this card.",
+  "price": 6,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Think Tank",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/ThinkTank.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "SCIENCE"
+  ],
+  "description": "Action: Spend 2 MC to draw a card. 1 VP per 3 blue cards you have in play.",
+  "price": 13,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "United Planetary Alliance",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/UnitedPlanetaryAlliance.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "SCIENCE",
+   "EARTH"
+  ],
+  "description": "When you draw cards during the research phase, draw one additional card and keep one additional card.",
+  "price": 11,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Viral Enhancers",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/ViralEnhancers.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "MICROBE",
+   "PLANT"
+  ],
+  "description": "When you play a Plant, Microbe, or Animal tags, including these, gain 1 plant or add  1 animal or microbe to ANOTHER* card.",
+  "price": 8,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Virtual Employee Development",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/VirtualEmployeeDevelopment.java",
+  "category": "blue",
+  "expansion": "discovery",
+  "tags": [
+   "SCIENCE"
+  ],
+  "description": "Action: Upgrade a phase card.",
+  "price": 10,
+  "box": "discovery",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Volcanic Pools",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/VolcanicPools.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "SPACE"
+  ],
+  "description": "Action: Spend 12 MC to flip an ocean tile. Reduce this by 1 MC per Energy tag you have.",
+  "price": 17,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Volcanic Soil",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/VolcanicSoil.java",
+  "category": "blue",
+  "expansion": "discovery",
+  "tags": [
+   "BUILDING",
+   "PLANT",
+   "JUPITER"
+  ],
+  "description": "When you raise the temperature, gain 2 plants.",
+  "price": 24,
+  "box": "discovery",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Water Import from Europa",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/WaterImportFromEuropa.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "SPACE",
+   "JUPITER"
+  ],
+  "description": "Spend 12 MC to flip an ocean tile. Reduce this by 1 MC per titanium income you have. 1 VP per Jupiter you have.",
+  "price": 22,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Wood Burning Stoves",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/WoodBurningStoves.java",
+  "category": "blue",
+  "expansion": "base",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "Gain 4 plants. ACTION: Action: Spend 4 plants to raise temperature 1 step. *if you chose the action phase this round, spend 3 plants.",
+  "price": 13,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Zoos",
+  "java_class": "src/main/java/com/terraforming/ares/cards/blue/Zoos.java",
+  "category": "blue",
+  "expansion": "discovery",
+  "tags": [
+   "ANIMAL"
+  ],
+  "description": "When you gain a Milestone, add 1 animal to this card. 1 VP per animal on this card.",
+  "price": 7,
+  "box": "promo",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Arclight",
+  "java_class": "src/main/java/com/terraforming/ares/cards/buffedCorporations/BuffedArclightCorporation.java",
+  "category": "buffedCorporation",
+  "expansion": "buffed_corporation",
+  "tags": [
+   "PLANT",
+   "ANIMAL"
+  ],
+  "description": "46 Mc. When you play an Animal/Plant/Microbe tag including this, add an Animal to this card. 1 vp for 2 animals on this card.",
+  "price": 46,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Rebalance maison de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Ecoline",
+  "java_class": "src/main/java/com/terraforming/ares/cards/buffedCorporations/BuffedEcolineCorporation.java",
+  "category": "buffedCorporation",
+  "expansion": "buffed_corporation",
+  "tags": [
+   "PLANT"
+  ],
+  "description": "42 Mc. 1 plant production. 1 Plant card. When you exchange plants for forest, pay 1 plant less.",
+  "price": 42,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Rebalance maison de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Helion Corporation",
+  "java_class": "src/main/java/com/terraforming/ares/cards/buffedCorporations/BuffedHelionCorporation.java",
+  "category": "buffedCorporation",
+  "expansion": "buffed_corporation",
+  "tags": [
+   "SPACE"
+  ],
+  "description": "36 Mc. 3 Heat income. You may use Heat as Mc, but not vise versa.",
+  "price": 36,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Rebalance maison de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Inventrix",
+  "java_class": "src/main/java/com/terraforming/ares/cards/buffedCorporations/BuffedInventrix.java",
+  "category": "buffedCorporation",
+  "expansion": "buffed_corporation",
+  "tags": [
+   "SCIENCE"
+  ],
+  "description": "39 Mc. Take 3 cards. When playing a card with requirements, you may consider the oxygen or temperature one color higher or lower. This cannot be modified futher by other effects.",
+  "price": 39,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Rebalance maison de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Mining Guild",
+  "java_class": "src/main/java/com/terraforming/ares/cards/buffedCorporations/BuffedMiningGuildCorporation.java",
+  "category": "buffedCorporation",
+  "expansion": "buffed_corporation",
+  "tags": [
+   "BUILDING",
+   "BUILDING"
+  ],
+  "description": "37 Mc. 1 Steel income. 1 card with Building tag. Whenever you play a card that increases Steel income, gain 1 TR.",
+  "price": 37,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Rebalance maison de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Phobolog",
+  "java_class": "src/main/java/com/terraforming/ares/cards/buffedCorporations/BuffedPhobologCorporation.java",
+  "category": "buffedCorporation",
+  "expansion": "buffed_corporation",
+  "tags": [
+   "SPACE"
+  ],
+  "description": "27 Mc. 1 Titanium income. 1 Space card. Each Titanium you have is worth 1 MC extra.",
+  "price": 27,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Rebalance maison de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Saturn Systems",
+  "java_class": "src/main/java/com/terraforming/ares/cards/buffedCorporations/BuffedSaturnSystemsCorporation.java",
+  "category": "buffedCorporation",
+  "expansion": "buffed_corporation",
+  "tags": [
+   "JUPITER"
+  ],
+  "description": "28 Mc. 1 Titanium income. 1 Space card. Whenever you play a Jupiter tag, excluding this, gain 1 TR.",
+  "price": 28,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Rebalance maison de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Unmi",
+  "java_class": "src/main/java/com/terraforming/ares/cards/buffedCorporations/BuffedUnmiCorporation.java",
+  "category": "buffedCorporation",
+  "expansion": "buffed_corporation",
+  "tags": [],
+  "description": "50 Mc. When you first raise RT during the phase, you may spend 6 MC to get 1 extra RT.",
+  "price": 50,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Rebalance maison de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Zetacell",
+  "java_class": "src/main/java/com/terraforming/ares/cards/buffedCorporations/BuffedZetacellCorporation.java",
+  "category": "buffedCorporation",
+  "expansion": "buffed_corporation",
+  "tags": [],
+  "description": "47 Mc. Take 5 card and then discard 4. When you flip an ocean, get 2 MC and 2 Plants.",
+  "price": 47,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Rebalance maison de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Apollo Industries",
+  "java_class": "src/main/java/com/terraforming/ares/cards/corporations/ApolloIndustriesCorporation.java",
+  "category": "corporation",
+  "expansion": "discovery",
+  "tags": [
+   "SPACE"
+  ],
+  "description": "33 Mc. Upgrade your phase 2 card. Effect: When you play a Science tag, draw a card.",
+  "price": 33,
+  "box": "discovery",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Arclight",
+  "java_class": "src/main/java/com/terraforming/ares/cards/corporations/ArclightCorporation.java",
+  "category": "corporation",
+  "expansion": "base",
+  "tags": [
+   "PLANT",
+   "ANIMAL"
+  ],
+  "description": "43 Mc. When you play an Animal or Plant tag including this, add an Animal to this card. 1 vp for 2 animals on this card.",
+  "price": 43,
+  "box": "promo2021",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Carte aussi vendue dans le 'Ares Expedition Promo Pack' (KS 2021, page produit FryxGames) ; conservée box=base conformément au contrat scellé (promo = Expansion Promo Pack uniquement) — voir divergences.md §Limites."
+ },
+ {
+  "name": "Austellar",
+  "java_class": "src/main/java/com/terraforming/ares/cards/corporations/AustellarCorporation.java",
+  "category": "corporation",
+  "expansion": "discovery",
+  "tags": [
+   "DYNAMIC"
+  ],
+  "description": "42 Mc. Choose a tag and add to this card. Place a cube of your player color on a Milestone of your choice. Effect: When you gain the Milestone with your player cube on it, gain 3 TR.",
+  "price": 42,
+  "box": "promo",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Celestior Corporation",
+  "java_class": "src/main/java/com/terraforming/ares/cards/corporations/CelestiorCorporation.java",
+  "category": "corporation",
+  "expansion": "base",
+  "tags": [
+   "SPACE"
+  ],
+  "description": "50 Mc. Blue action bonus that is not implemented yet",
+  "price": 50,
+  "box": "promo2021",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Carte aussi vendue dans le 'Ares Expedition Promo Pack' (KS 2021, page produit FryxGames) ; conservée box=base conformément au contrat scellé (promo = Expansion Promo Pack uniquement) — voir divergences.md §Limites."
+ },
+ {
+  "name": "Credicor",
+  "java_class": "src/main/java/com/terraforming/ares/cards/corporations/CredicorCorporation.java",
+  "category": "corporation",
+  "expansion": "base",
+  "tags": [],
+  "description": "48 Mc. When you play a card with a printed cost of 20 or more, get a 4 MC discount.",
+  "price": 48,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "DevTechs",
+  "java_class": "src/main/java/com/terraforming/ares/cards/corporations/DevTechs.java",
+  "category": "corporation",
+  "expansion": "base",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "40 Mc. Draw 5 cards from the deck and take all green cards. Discard other.",
+  "price": 40,
+  "box": "promo2021",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Carte aussi vendue dans le 'Ares Expedition Promo Pack' (KS 2021, page produit FryxGames) ; conservée box=base conformément au contrat scellé (promo = Expansion Promo Pack uniquement) — voir divergences.md §Limites."
+ },
+ {
+  "name": "DummyCard",
+  "java_class": "src/main/java/com/terraforming/ares/cards/corporations/DummyCard.java",
+  "category": "corporation",
+  "expansion": "none",
+  "tags": [],
+  "description": "",
+  "price": 0,
+  "notes": "pas de .name() dans CardMetadata ; nom = nom de classe Java; aucune description dans CardMetadata; getExpansion() retourne null dans le code (carte placeholder)",
+  "box": "none",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Ecoline",
+  "java_class": "src/main/java/com/terraforming/ares/cards/corporations/EcolineCorporation.java",
+  "category": "corporation",
+  "expansion": "base",
+  "tags": [
+   "PLANT"
+  ],
+  "description": "27 Mc. 1 plant production. When you exchange plants for forest, pay 1 plant less.",
+  "price": 27,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Exocorp",
+  "java_class": "src/main/java/com/terraforming/ares/cards/corporations/ExocorpCorporation.java",
+  "category": "corporation",
+  "expansion": "discovery",
+  "tags": [
+   "SCIENCE"
+  ],
+  "description": "26 Mc. Upgrade your phase 5 card. Effect: Cards you discard for MC are worth an additional 1 MC.",
+  "price": 26,
+  "box": "discovery",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Helion Corporation",
+  "java_class": "src/main/java/com/terraforming/ares/cards/corporations/HelionCorporation.java",
+  "category": "corporation",
+  "expansion": "base",
+  "tags": [
+   "SPACE"
+  ],
+  "description": "28 Mc. 3 Heat income. You may use Heat as Mc, but not vise versa.",
+  "price": 28,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Hyperion Systems",
+  "java_class": "src/main/java/com/terraforming/ares/cards/corporations/HyperionSystemsCorporation.java",
+  "category": "corporation",
+  "expansion": "discovery",
+  "tags": [
+   "EARTH"
+  ],
+  "description": "30 Mc. Upgrade your phase 3 card. Action: Gain 1 MC. *If you chose the action phase this turn, gain an additional 1 MC.",
+  "price": 30,
+  "box": "discovery",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Interplanetary Cinematics",
+  "java_class": "src/main/java/com/terraforming/ares/cards/corporations/InterplanetaryCinematics.java",
+  "category": "corporation",
+  "expansion": "base",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "46 Mc. 1 steel production. When you play an Event, you pay 2 MC less for it.",
+  "price": 46,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Inventrix",
+  "java_class": "src/main/java/com/terraforming/ares/cards/corporations/Inventrix.java",
+  "category": "corporation",
+  "expansion": "base",
+  "tags": [
+   "SCIENCE"
+  ],
+  "description": "33 Mc. Take 3 cards. When playing a card with requirements, you may consider the oxygen or temperature one color higher or lower. This cannot be modified futher by other effects.",
+  "price": 33,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "LaunchStar Incorporated",
+  "java_class": "src/main/java/com/terraforming/ares/cards/corporations/LaunchStarIncorporated.java",
+  "category": "corporation",
+  "expansion": "base",
+  "tags": [
+   "SCIENCE"
+  ],
+  "description": "36 Mc. Draw cards until Blue is found. Take it and discard other. Blue cards cost 3 MC less.",
+  "price": 36,
+  "box": "promo2021",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Carte aussi vendue dans le 'Ares Expedition Promo Pack' (KS 2021, page produit FryxGames) ; conservée box=base conformément au contrat scellé (promo = Expansion Promo Pack uniquement) — voir divergences.md §Limites."
+ },
+ {
+  "name": "Teractor Corporation",
+  "java_class": "src/main/java/com/terraforming/ares/cards/corporations/MayNiProductionsCorporation.java",
+  "category": "corporation",
+  "expansion": "base",
+  "tags": [
+   "EARTH"
+  ],
+  "description": "48 Mc. You may play a card from hand that costs 12 MC or less. Whenever you play a Green card, take a card and discard a card.",
+  "price": 48,
+  "box": "promo2021",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "name errone dans le moteur : cette classe est la corporation 'Mai-Ni Productions' (Ares Expedition Promo Pack KS 2021), pas Teractor ; description/prix (48 MC) sont ceux de Mai-Ni. Non corrige (contrat : aucun champ d'origine altere). Carte aussi vendue dans le 'Ares Expedition Promo Pack' (KS 2021, page produit FryxGames) ; conservée box=base conformément au contrat scellé (promo = Expansion Promo Pack uniquement) — voir divergences.md §Limites."
+ },
+ {
+  "name": "Mining Guild",
+  "java_class": "src/main/java/com/terraforming/ares/cards/corporations/MiningGuildCorporation.java",
+  "category": "corporation",
+  "expansion": "base",
+  "tags": [
+   "BUILDING",
+   "BUILDING"
+  ],
+  "description": "27 Mc. 1 Steel income. Whenever you play a card that increases Steel income, gain 1 TR.",
+  "price": 27,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Modpro",
+  "java_class": "src/main/java/com/terraforming/ares/cards/corporations/ModproCorporation.java",
+  "category": "corporation",
+  "expansion": "discovery",
+  "tags": [
+   "DYNAMIC"
+  ],
+  "description": "37 Mc. Choose a tag and add to this card. Action: reveal 4 cards from the deck and take those that match tag on your corporation.",
+  "price": 37,
+  "box": "promo",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Nebu Labs",
+  "java_class": "src/main/java/com/terraforming/ares/cards/corporations/NebuLabsCorporation.java",
+  "category": "corporation",
+  "expansion": "discovery",
+  "tags": [],
+  "description": "25 Mc. Update a phase card. Effect: When you reveal an upgraded phase card, gain 2 MC.",
+  "price": 25,
+  "box": "promo",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Phobolog",
+  "java_class": "src/main/java/com/terraforming/ares/cards/corporations/PhobologCorporation.java",
+  "category": "corporation",
+  "expansion": "base",
+  "tags": [
+   "SPACE"
+  ],
+  "description": "20 Mc. 1 Titanium income. Each Titanium you have is worth 1 MC extra.",
+  "price": 20,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Saturn Systems",
+  "java_class": "src/main/java/com/terraforming/ares/cards/corporations/SaturnSystemsCorporation.java",
+  "category": "corporation",
+  "expansion": "base",
+  "tags": [
+   "JUPITER"
+  ],
+  "description": "24 Mc. 1 Titanium income. Whenever you play a Jupiter tag, excluding this, gain 1 TR.",
+  "price": 24,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Sultira",
+  "java_class": "src/main/java/com/terraforming/ares/cards/corporations/SultiraCorporation.java",
+  "category": "corporation",
+  "expansion": "discovery",
+  "tags": [
+   "ENERGY"
+  ],
+  "description": "38 Mc. Upgrade your phase 1 card. When you play an Energy tag, get 2 Heat.",
+  "price": 38,
+  "box": "discovery",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Teractor Corporation",
+  "java_class": "src/main/java/com/terraforming/ares/cards/corporations/TeractorCorporation.java",
+  "category": "corporation",
+  "expansion": "base",
+  "tags": [
+   "EARTH"
+  ],
+  "description": "51 Mc. When you play an Earth tag get 3MC discount.",
+  "price": 51,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Tharsis Republic",
+  "java_class": "src/main/java/com/terraforming/ares/cards/corporations/TharsisCorporation.java",
+  "category": "corporation",
+  "expansion": "base",
+  "tags": [],
+  "description": "40 Mc. When you draw cards during the research phase, draw one additional card and keep one additional card",
+  "price": 40,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Thorgate Corporation",
+  "java_class": "src/main/java/com/terraforming/ares/cards/corporations/ThorgateCorporation.java",
+  "category": "corporation",
+  "expansion": "base",
+  "tags": [
+   "ENERGY"
+  ],
+  "description": "45 Mc. 1 Heat income. When you play Energy tag get 3MC discount.",
+  "price": 45,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Unmi",
+  "java_class": "src/main/java/com/terraforming/ares/cards/corporations/UnmiCorporation.java",
+  "category": "corporation",
+  "expansion": "base",
+  "tags": [],
+  "description": "35 Mc. When you first raise RT during the phase, you may spend 6 MC to get 1 extra RT.",
+  "price": 35,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Zetacell",
+  "java_class": "src/main/java/com/terraforming/ares/cards/corporations/ZetacellCorporation.java",
+  "category": "corporation",
+  "expansion": "base",
+  "tags": [],
+  "description": "43 Mc. Take 5 card and then discard 4. When you flip an ocean, get 2 MC and 2 Plants.",
+  "price": 43,
+  "box": "promo2021",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Carte aussi vendue dans le 'Ares Expedition Promo Pack' (KS 2021, page produit FryxGames) ; conservée box=base conformément au contrat scellé (promo = Expansion Promo Pack uniquement) — voir divergences.md §Limites."
+ },
+ {
+  "name": "Atmosphere Rupture",
+  "java_class": "src/main/java/com/terraforming/ares/cards/crysis/AtmosphereRupture.java",
+  "category": "crysis",
+  "expansion": "crysis",
+  "tags": [],
+  "description": "IMMEDIATE: Lose 5 MC or 1 TR | OPTIONS: Lose 5 MC / Lose 1 TR",
+  "price": null,
+  "notes": "carte Crysis : pas de getExpansion() dans CrysisCard ; expansion=crysis deduite du package + mode Crysis (Expansion.CRYSIS)",
+  "box": "crysis",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Atmospheric Escape",
+  "java_class": "src/main/java/com/terraforming/ares/cards/crysis/AtmosphericEscape.java",
+  "category": "crysis",
+  "expansion": "crysis",
+  "tags": [],
+  "description": "IMMEDIATE: Gain 2 heat or 2 plants. Decrease the temperature | OPTIONS: Gain 2 heat / Gain 2 plants | PERSISTENT OPTIONS: Remove an ocean / Reduce the oxygen",
+  "price": null,
+  "notes": "carte Crysis : pas de getExpansion() dans CrysisCard ; expansion=crysis deduite du package + mode Crysis (Expansion.CRYSIS)",
+  "box": "crysis",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Barren Crater",
+  "java_class": "src/main/java/com/terraforming/ares/cards/crysis/BarrenCrater.java",
+  "category": "crysis",
+  "expansion": "crysis",
+  "tags": [],
+  "description": "IMMEDIATE: Draw a card. Decrease the oxygen 1 step. | PERSISTENT OPTIONS: Remove an ocean / Reduce the temperature",
+  "price": null,
+  "notes": "carte Crysis : pas de getExpansion() dans CrysisCard ; expansion=crysis deduite du package + mode Crysis (Expansion.CRYSIS)",
+  "box": "crysis",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Biodiversity Loss",
+  "java_class": "src/main/java/com/terraforming/ares/cards/crysis/BiodiversityLoss.java",
+  "category": "crysis",
+  "expansion": "crysis",
+  "tags": [],
+  "description": "IMMEDIATE: Lose 2 MC. Decrease the temperature 1 step.",
+  "price": null,
+  "notes": "carte Crysis : pas de getExpansion() dans CrysisCard ; expansion=crysis deduite du package + mode Crysis (Expansion.CRYSIS)",
+  "box": "crysis",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Catastrophic Erosion",
+  "java_class": "src/main/java/com/terraforming/ares/cards/crysis/CatastrophicErosion.java",
+  "category": "crysis",
+  "expansion": "crysis",
+  "tags": [],
+  "description": "IMMEDIATE: Randomly reveal a phase card from your hand. You cannot choose that phase this round.",
+  "price": null,
+  "notes": "carte Crysis : pas de getExpansion() dans CrysisCard ; expansion=crysis deduite du package + mode Crysis (Expansion.CRYSIS)",
+  "box": "crysis",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Collapsing Cities",
+  "java_class": "src/main/java/com/terraforming/ares/cards/crysis/CollapsingCities.java",
+  "category": "crysis",
+  "expansion": "crysis",
+  "tags": [],
+  "description": "IMMEDIATE: Randomly reveal a phase card from your hand. You cannot choose that phase this round. Decrease the temperature 2 steps",
+  "price": null,
+  "notes": "carte Crysis : pas de getExpansion() dans CrysisCard ; expansion=crysis deduite du package + mode Crysis (Expansion.CRYSIS)",
+  "box": "crysis",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Crop Failures",
+  "java_class": "src/main/java/com/terraforming/ares/cards/crysis/CropFailures.java",
+  "category": "crysis",
+  "expansion": "crysis",
+  "tags": [],
+  "description": "IMMEDIATE: Draw a card. Decrease the oxygen 2 steps.",
+  "price": null,
+  "notes": "carte Crysis : pas de getExpansion() dans CrysisCard ; expansion=crysis deduite du package + mode Crysis (Expansion.CRYSIS)",
+  "box": "crysis",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Disrupted Supply Lines",
+  "java_class": "src/main/java/com/terraforming/ares/cards/crysis/DisruptedSupplyLines.java",
+  "category": "crysis",
+  "expansion": "crysis",
+  "tags": [],
+  "description": "IMMEDIATE: Draw a card.",
+  "price": null,
+  "notes": "carte Crysis : pas de getExpansion() dans CrysisCard ; expansion=crysis deduite du package + mode Crysis (Expansion.CRYSIS)",
+  "box": "crysis",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Dust Clouds",
+  "java_class": "src/main/java/com/terraforming/ares/cards/crysis/DustClouds.java",
+  "category": "crysis",
+  "expansion": "crysis",
+  "tags": [],
+  "description": "IMMEDIATE: Discard a card in hand. Flip an ocean facedown",
+  "price": null,
+  "notes": "carte Crysis : pas de getExpansion() dans CrysisCard ; expansion=crysis deduite du package + mode Crysis (Expansion.CRYSIS)",
+  "box": "crysis",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Dwindling Supplies",
+  "java_class": "src/main/java/com/terraforming/ares/cards/crysis/DwindlingSupplies.java",
+  "category": "crysis",
+  "expansion": "crysis",
+  "tags": [],
+  "description": "IMMEDIATE: Decrease the oxygen and temperature by 1. Flip an ocean facedown. You may spend VP to gain 5 MC any time. Fully terraform Mars before the deck runs out and win the game.",
+  "price": null,
+  "notes": "carte Crysis : pas de getExpansion() dans CrysisCard ; expansion=crysis deduite du package + mode Crysis (Expansion.CRYSIS)",
+  "box": "crysis",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Emergency Shelters",
+  "java_class": "src/main/java/com/terraforming/ares/cards/crysis/EmergencyShelters.java",
+  "category": "crysis",
+  "expansion": "crysis",
+  "tags": [],
+  "description": "IMMEDIATE: Draw a card. Decrease the temperature 1 step.",
+  "price": null,
+  "notes": "carte Crysis : pas de getExpansion() dans CrysisCard ; expansion=crysis deduite du package + mode Crysis (Expansion.CRYSIS)",
+  "box": "crysis",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Extinction Event",
+  "java_class": "src/main/java/com/terraforming/ares/cards/crysis/ExtinctionEvent.java",
+  "category": "crysis",
+  "expansion": "crysis",
+  "tags": [],
+  "description": "IMMEDIATE: Decrease the temperature 2 steps. Decrease the oxygen 1 step. Flip 2 oceans facedown. Discard this.",
+  "price": null,
+  "notes": "carte Crysis : pas de getExpansion() dans CrysisCard ; expansion=crysis deduite du package + mode Crysis (Expansion.CRYSIS)",
+  "box": "crysis",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Greenhouse Gas Degradation",
+  "java_class": "src/main/java/com/terraforming/ares/cards/crysis/GreenhouseGasDegradation.java",
+  "category": "crysis",
+  "expansion": "crysis",
+  "tags": [],
+  "description": "IMMEDIATE: Randomly reveal a phase card from your hand. You cannot choose that phase this round. Decrease the oxygen 1 step",
+  "price": null,
+  "notes": "carte Crysis : pas de getExpansion() dans CrysisCard ; expansion=crysis deduite du package + mode Crysis (Expansion.CRYSIS)",
+  "box": "crysis",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Impact Desert",
+  "java_class": "src/main/java/com/terraforming/ares/cards/crysis/ImpactDesert.java",
+  "category": "crysis",
+  "expansion": "crysis",
+  "tags": [],
+  "description": "IMMEDIATE: Flip 2 oceans facedown.",
+  "price": null,
+  "notes": "carte Crysis : pas de getExpansion() dans CrysisCard ; expansion=crysis deduite du package + mode Crysis (Expansion.CRYSIS)",
+  "box": "crysis",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Infrastructure Collapse",
+  "java_class": "src/main/java/com/terraforming/ares/cards/crysis/InfrastructureCollapse.java",
+  "category": "crysis",
+  "expansion": "crysis",
+  "tags": [],
+  "description": "IMMEDIATE: Lose 5 MC. Flip an ocean facedown. Decrease the oxygen 1 step. | PERSISTENT OPTIONS: Reduce the temperature / Reduce the oxygen",
+  "price": null,
+  "notes": "carte Crysis : pas de getExpansion() dans CrysisCard ; expansion=crysis deduite du package + mode Crysis (Expansion.CRYSIS)",
+  "box": "crysis",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Ionospheric Tear",
+  "java_class": "src/main/java/com/terraforming/ares/cards/crysis/IonosphericTear.java",
+  "category": "crysis",
+  "expansion": "crysis",
+  "tags": [],
+  "description": "IMMEDIATE: Decrease the temperature 2 steps. | PERSISTENT OPTIONS: Remove an ocean / Reduce the oxygen",
+  "price": null,
+  "notes": "carte Crysis : pas de getExpansion() dans CrysisCard ; expansion=crysis deduite du package + mode Crysis (Expansion.CRYSIS)",
+  "box": "crysis",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Localized Tsunami",
+  "java_class": "src/main/java/com/terraforming/ares/cards/crysis/LocalizedTsunami.java",
+  "category": "crysis",
+  "expansion": "crysis",
+  "tags": [],
+  "description": "IMMEDIATE: Draw a card and then discard 2 cards. Flip an ocean facedown | PERSISTENT OPTIONS: Reduce the temperature / Reduce the oxygen",
+  "price": null,
+  "notes": "carte Crysis : pas de getExpansion() dans CrysisCard ; expansion=crysis deduite du package + mode Crysis (Expansion.CRYSIS)",
+  "box": "crysis",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Nuclear Meltdown",
+  "java_class": "src/main/java/com/terraforming/ares/cards/crysis/NuclearMeltdown.java",
+  "category": "crysis",
+  "expansion": "crysis",
+  "tags": [],
+  "description": "IMMEDIATE: Decrease the temperature 2 steps. Decrease the oxygen 1 step. Flip an ocean facedown. Discard this.",
+  "price": null,
+  "notes": "carte Crysis : pas de getExpansion() dans CrysisCard ; expansion=crysis deduite du package + mode Crysis (Expansion.CRYSIS)",
+  "box": "crysis",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Punctured Ozone",
+  "java_class": "src/main/java/com/terraforming/ares/cards/crysis/PuncturedOzone.java",
+  "category": "crysis",
+  "expansion": "crysis",
+  "tags": [],
+  "description": "IMMEDIATE: Decrease the oxygen 2 steps. Decrease the temperature 1 step. Flip an ocean facedown. Discard this.",
+  "price": null,
+  "notes": "carte Crysis : pas de getExpansion() dans CrysisCard ; expansion=crysis deduite du package + mode Crysis (Expansion.CRYSIS)",
+  "box": "crysis",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Reglaciation",
+  "java_class": "src/main/java/com/terraforming/ares/cards/crysis/Reglaciation.java",
+  "category": "crysis",
+  "expansion": "crysis",
+  "tags": [],
+  "description": "IMMEDIATE: Decrease the temperature and oxygen 1 step each. Flip and ocean facedown",
+  "price": null,
+  "notes": "carte Crysis : pas de getExpansion() dans CrysisCard ; expansion=crysis deduite du package + mode Crysis (Expansion.CRYSIS)",
+  "box": "crysis",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Second Impact",
+  "java_class": "src/main/java/com/terraforming/ares/cards/crysis/SecondImpact.java",
+  "category": "crysis",
+  "expansion": "crysis",
+  "tags": [],
+  "description": "IMMEDIATE: Decrease the oxygen and temperature 2 steps each. Flip 2 oceans facedown. Discard this.",
+  "price": null,
+  "notes": "carte Crysis : pas de getExpansion() dans CrysisCard ; expansion=crysis deduite du package + mode Crysis (Expansion.CRYSIS)",
+  "box": "crysis",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Seismic Aftershocks",
+  "java_class": "src/main/java/com/terraforming/ares/cards/crysis/SeismicAftershocks.java",
+  "category": "crysis",
+  "expansion": "crysis",
+  "tags": [],
+  "description": "IMMEDIATE: Remove one of your played green cards, or flip an ocean facedown | OPTIONS: Remove played Green card / Remove an ocean",
+  "price": null,
+  "notes": "carte Crysis : pas de getExpansion() dans CrysisCard ; expansion=crysis deduite du package + mode Crysis (Expansion.CRYSIS)",
+  "box": "crysis",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Acquired Company",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/AcquiredCompany.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING",
+   "EARTH"
+  ],
+  "description": "During the production phase, draw a card.",
+  "price": 11,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Adapted Lichen",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/AdaptedLichen.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "MICROBE",
+   "PLANT"
+  ],
+  "description": "During the production phase this produces 1 plant.",
+  "price": 6,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Advertising",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/Advertising.java",
+  "category": "green",
+  "expansion": "experimental",
+  "tags": [
+   "EARTH"
+  ],
+  "description": "When you play a card with printed cost 20+, get 1 MC production.",
+  "price": 4,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Extension maison 'experimental' de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Aerated Magma",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/AeratedMagma.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "ENERGY"
+  ],
+  "description": "Requires red oxygen or higher. During the production phase you draw a card and this produces 2 heat.",
+  "price": 18,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Airborne Radiation",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/AirborneRadiation.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "EARTH"
+  ],
+  "description": "Requires red oxygen or higher. Raise oxygen 1 step. During the production phase this produces 2 heat.",
+  "price": 15,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Algae",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/Algae.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "PLANT"
+  ],
+  "description": "Requires 5 ocean tiles to be flipped. During the production phase this produces 2 plants.",
+  "price": 9,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Archaebacteria",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/Archaebacteria.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "MICROBE"
+  ],
+  "description": "Requires purple temperature. During the production phase this produces 1 plant.",
+  "price": 5,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Architecture Blueprints",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/ArchitectureBlueprints.java",
+  "category": "green",
+  "expansion": "infrastructure",
+  "tags": [
+   "EVENT"
+  ],
+  "description": "Raise infrastructure 1 step. Draw 2 cards. Then, discard a card",
+  "price": 14,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Marquee 'infrastructure' dans le moteur ; correspond tres probablement a l'extension OFFICIELLE 'Ares Expedition: Foundations' (20 project cards, page produit FryxGames ; Mylaana origin='foundations'). box=fan impose par le contrat scelle (enum sans valeur foundations) — voir divergences.md §Limites."
+ },
+ {
+  "name": "Artificial Photosynthesis",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/ArtificialPhotosynthesis.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "SCIENCE"
+  ],
+  "description": "During the production phase, this produces 1 plant and 1 heat.",
+  "price": 11,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Asteroid Mining",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/AsteroidMining.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "SPACE",
+   "JUPITER"
+  ],
+  "description": "When you play a Space, you pay 6 MC less for it.",
+  "price": 28,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Asteroid Mining Consortium",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/AsteroidMiningConsortium.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [],
+  "description": "When you play a Space, you pay 3 MC less for it.",
+  "price": 6,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Astrofarm",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/Astrofarm.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "SPACE"
+  ],
+  "description": "Add 2 microbes to ANOTHER card. During the production phase, this produces 1 plant and 3 heat.",
+  "price": 21,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Atmospheric Insulators",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/AtmosphericInsulators.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "SPACE",
+   "EARTH"
+  ],
+  "description": "During the production phase, this produces 1 heat per Earth you have, including this.",
+  "price": 10,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Automated Factories",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/AutomatedFactories.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "You may play a green card from your hand that has a printed cost of 9 MC or less without paying its MC cost. During the production phase, draw a card.",
+  "price": 18,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Award Winning Reflector Material",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/AwardWinningReflectorMaterial.java",
+  "category": "green",
+  "expansion": "discovery",
+  "tags": [
+   "BUILDING",
+   "ENERGY"
+  ],
+  "description": "If you have a Milestone, gain 4 heat. During the production phase this produces 3 heat.",
+  "price": 14,
+  "box": "discovery",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Balanced Portfolios",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/BalancedPortfolios.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "SCIENCE"
+  ],
+  "description": "Requires you to spend 1 TR. During the production phase, this produces 3 MC.",
+  "price": 8,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Beam from a Thorium Asteroid",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/BeamFromThoriumAsteroid.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "SPACE",
+   "JUPITER",
+   "ENERGY"
+  ],
+  "description": "Requires a Jupiter tag. During the production phase, this produces 1 plant and 3 heat.",
+  "price": 23,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Bedrock Wellbore",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/BedrockWellbore.java",
+  "category": "green",
+  "expansion": "infrastructure",
+  "tags": [
+   "EVENT"
+  ],
+  "description": "Flip an ocean. Raise infrastructure 1 step.",
+  "price": 24,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Marquee 'infrastructure' dans le moteur ; correspond tres probablement a l'extension OFFICIELLE 'Ares Expedition: Foundations' (20 project cards, page produit FryxGames ; Mylaana origin='foundations'). box=fan impose par le contrat scelle (enum sans valeur foundations) — voir divergences.md §Limites."
+ },
+ {
+  "name": "Biofoundries",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/Biofoundries.java",
+  "category": "green",
+  "expansion": "discovery",
+  "tags": [
+   "BUILDING",
+   "PLANT"
+  ],
+  "description": "Upgrade a phase card. During the production phase, this produces 2 plants.",
+  "price": 27,
+  "box": "discovery",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Biological Factories",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/BiologicalFactories.java",
+  "category": "green",
+  "expansion": "discovery",
+  "tags": [
+   "BUILDING",
+   "PLANT"
+  ],
+  "description": "Upgrade your phase 4 card. Effect: During the production phase this produces 1 plant.",
+  "price": 16,
+  "box": "discovery",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Biomass Combustors",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/BiomassCombustors.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING",
+   "ENERGY"
+  ],
+  "description": "Requires you to spend 2 plants. During the production phase, this produces 5 heat.",
+  "price": 15,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Biomedical Imports",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/BiomedicalImports.java",
+  "category": "green",
+  "expansion": "discovery",
+  "tags": [
+   "SCIENCE",
+   "EVENT"
+  ],
+  "description": "Increase the oxygen once OR upgrade a phase card.",
+  "price": 9,
+  "box": "discovery",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Biothermal Power",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/BiothermalPower.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "SPACE",
+   "ENERGY"
+  ],
+  "description": "Build a forest and raise oxygen 1 step. During the production phase, this produces 1 heat.",
+  "price": 18,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Blast Furnaces",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/BlastFurnaces.java",
+  "category": "green",
+  "expansion": "discovery",
+  "tags": [],
+  "description": "Upgrade a phase card. When you play a Building, you pay 2 MC less for it.",
+  "price": 14,
+  "box": "discovery",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Blueprints",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/Blueprints.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "EARTH"
+  ],
+  "description": "During the production phase you draw a card and this produces 2 MC.",
+  "price": 17,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Genetically Modified Vegetables",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/BuffedGeneticallyModifiedVegetables.java",
+  "category": "green",
+  "expansion": "discovery",
+  "tags": [
+   "MICROBE",
+   "PLANT"
+  ],
+  "description": "During the production phase, this produces 3 plants.",
+  "price": 17,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Rebalance maison de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Building Industries",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/BuildingIndustries.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "Requires you to spend 4 heat. When you play a Building, you pay 4 MC less for it.",
+  "price": 6,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Bushes",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/Bushes.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "PLANT"
+  ],
+  "description": "Requires red temperature or warmer. Gain 2 plants. During the production phase this produces 2 plants.",
+  "price": 13,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Business Network",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/BusinessNetwork.java",
+  "category": "green",
+  "expansion": "experimental",
+  "tags": [
+   "EARTH"
+  ],
+  "description": "Action: Spend 3 MC to draw a card.",
+  "price": 4,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Extension maison 'experimental' de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Callisto Penal Mines",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/CallistoPenalMines.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING",
+   "SPACE",
+   "JUPITER"
+  ],
+  "description": "During the production phase, draw a card.",
+  "price": 20,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Callisto Skybridge",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/CallistoSkybridge.java",
+  "category": "green",
+  "expansion": "infrastructure",
+  "tags": [
+   "SPACE",
+   "JUPITER",
+   "EVENT"
+  ],
+  "description": "Raise infrastructure 1 step. If you have 3 or more other Jupiter tags, raise infrastructure an additional 1 step.",
+  "price": 17,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Marquee 'infrastructure' dans le moteur ; correspond tres probablement a l'extension OFFICIELLE 'Ares Expedition: Foundations' (20 project cards, page produit FryxGames ; Mylaana origin='foundations'). box=fan impose par le contrat scelle (enum sans valeur foundations) — voir divergences.md §Limites."
+ },
+ {
+  "name": "Cargo Ships",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/CargoShips.java",
+  "category": "green",
+  "expansion": "infrastructure",
+  "tags": [],
+  "description": "Effect: When you raise infrastructure, gain 2 heat or 2 plants.",
+  "price": 15,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Marquee 'infrastructure' dans le moteur ; correspond tres probablement a l'extension OFFICIELLE 'Ares Expedition: Foundations' (20 project cards, page produit FryxGames ; Mylaana origin='foundations'). box=fan impose par le contrat scelle (enum sans valeur foundations) — voir divergences.md §Limites."
+ },
+ {
+  "name": "Cartel",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/Cartel.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "EARTH"
+  ],
+  "description": "During the production phase, this produces 1 MC per Earth tag you have, including this.",
+  "price": 6,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Charity Donation",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/CharityDonation.java",
+  "category": "green",
+  "expansion": "experimental",
+  "tags": [
+   "EVENT"
+  ],
+  "description": "Reveal cards from the deck equal to number of players + 1. In random order starting from you, everyone takes 1 card.",
+  "price": 7,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Extension maison 'experimental' de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "CHP Combustion Turbines",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/ChpCombustionTurbines.java",
+  "category": "green",
+  "expansion": "infrastructure",
+  "tags": [
+   "SPACE",
+   "ENERGY",
+   "EVENT"
+  ],
+  "description": "Raise infrastructure 1 step. Raise oxygen 1 step. Raise temperature 1 step.",
+  "price": 30,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Marquee 'infrastructure' dans le moteur ; correspond tres probablement a l'extension OFFICIELLE 'Ares Expedition: Foundations' (20 project cards, page produit FryxGames ; Mylaana origin='foundations'). box=fan impose par le contrat scelle (enum sans valeur foundations) — voir divergences.md §Limites."
+ },
+ {
+  "name": "City Planning",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/CityPlanning.java",
+  "category": "green",
+  "expansion": "infrastructure",
+  "tags": [
+   "EVENT"
+  ],
+  "description": "Raise infrastructure 2 steps.",
+  "price": 23,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Marquee 'infrastructure' dans le moteur ; correspond tres probablement a l'extension OFFICIELLE 'Ares Expedition: Foundations' (20 project cards, page produit FryxGames ; Mylaana origin='foundations'). box=fan impose par le contrat scelle (enum sans valeur foundations) — voir divergences.md §Limites."
+ },
+ {
+  "name": "Coal Imports",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/CoalImports.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "During the production phase, this produces 3 heat.",
+  "price": 13,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Commercial District",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/CommercialDistrict.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "During the production phase, this produces 4 MC.",
+  "price": 25,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Commercial Imports",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/CommercialImports.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "SPACE",
+   "PLANT"
+  ],
+  "description": "During the production phase, this produces 1 Card, 2 Heat and 2 Plants.",
+  "price": 36,
+  "box": "promo2021",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Carte aussi vendue dans le 'Ares Expedition Promo Pack' (KS 2021, page produit FryxGames) ; conservée box=base conformément au contrat scellé (promo = Expansion Promo Pack uniquement) — voir divergences.md §Limites."
+ },
+ {
+  "name": "Communication Center",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/CommunicationCenter.java",
+  "category": "green",
+  "expansion": "experimental",
+  "tags": [
+   "SCIENCE",
+   "BUILDING"
+  ],
+  "description": "Add 2 science to this card. ACTION: When anyone plays event, get 1 science. During phase 4, remove every 3 science and get 1 card for each triplet.",
+  "price": 8,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Extension maison 'experimental' de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Communications Streamlining",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/CommunicationsStreamlining.java",
+  "category": "green",
+  "expansion": "discovery",
+  "tags": [
+   "SCIENCE",
+   "ENERGY"
+  ],
+  "description": "Upgrade your phase 3 card. Effect: When you reveal an upgraded phase card, gain 1 MC.",
+  "price": 10,
+  "box": "discovery",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Community Services",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/CommunityServices.java",
+  "category": "green",
+  "expansion": "experimental",
+  "tags": [],
+  "description": "During the production phase, this produces 1 me per Card without tag, including this.",
+  "price": 13,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Extension maison 'experimental' de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Corona Extractor",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/CoronaExtractor.java",
+  "category": "green",
+  "expansion": "experimental",
+  "tags": [
+   "SPACE",
+   "ENERGY"
+  ],
+  "description": "During the production phase, this produces 4 heat.",
+  "price": 10,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Extension maison 'experimental' de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Dandelions",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/Dandelions.java",
+  "category": "green",
+  "expansion": "discovery",
+  "tags": [
+   "PLANT"
+  ],
+  "description": "Requires red temperature or warmer. During the production phase, draw a card and this produces 1 plant.",
+  "price": 14,
+  "box": "discovery",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Deep Well Heating",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/DeepWellHeating.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING",
+   "ENERGY"
+  ],
+  "description": "Raise the temperature 1 step. During the production phase, this produces 1 heat.",
+  "price": 14,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Designed Microorganisms",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/DesignedMicroorganisms.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "SCIENCE",
+   "MICROBE"
+  ],
+  "description": "Requires red temperature or colder. During the production phase this produces 2 plants.",
+  "price": 15,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Diverse Habitats",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/DiverseHabitats.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "PLANT"
+  ],
+  "description": "During the production phase, this produces 1 MC per Animal and Plant tag you have, including this.",
+  "price": 8,
+  "box": "promo2021",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Carte aussi vendue dans le 'Ares Expedition Promo Pack' (KS 2021, page produit FryxGames) ; conservée box=base conformément au contrat scellé (promo = Expansion Promo Pack uniquement) — voir divergences.md §Limites."
+ },
+ {
+  "name": "Diversified Interests",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/DiversifiedInterests.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "PLANT"
+  ],
+  "description": "Gain 3 plants and 3 heat. During the production phase, this produces 1 plant.",
+  "price": 15,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Dusty Quarry",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/DustyQuarry.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [],
+  "description": "Requires 3 or fewer ocean tiles to be flipped. When you play a Building, you pay 2 MC less for it.",
+  "price": 2,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Economic Growth",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/EconomicGrowth.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "During the production phase, this produces 3 MC.",
+  "price": 10,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Electric Arc Furnaces",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/ElectricArcFurnaces.java",
+  "category": "green",
+  "expansion": "discovery",
+  "tags": [],
+  "description": "When you play a Building, you pay 4 MC less for it.",
+  "price": 9,
+  "box": "discovery",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Energy Storage",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/EnergyStorage.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "ENERGY"
+  ],
+  "description": "Requires you to have 7 or more TR. During the production phase, draw 2 cards.",
+  "price": 18,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Eos Chasma National Park",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/EosChasmaNationalPark.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING",
+   "PLANT"
+  ],
+  "description": "Requires red temperature or warmer. Add 1 animal to ANOTHER card and gain 3 plants. During the production phase, this produces 2 MC.",
+  "price": 16,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Exosuits",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/Exosuits.java",
+  "category": "green",
+  "expansion": "discovery",
+  "tags": [
+   "SPACE",
+   "EVENT"
+  ],
+  "description": "Upgrade a phase card. Draw a card.",
+  "price": 12,
+  "box": "discovery",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Farming",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/Farming.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "PLANT"
+  ],
+  "description": "Requires white temperature. Gain 2 plants. During the production phase, this produces 2 MC and 2 plants.",
+  "price": 20,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Floyd Continuum",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/FloydContinuum.java",
+  "category": "green",
+  "expansion": "experimental",
+  "tags": [
+   "SCIENCE"
+  ],
+  "description": "Action: Gain 3 MC per completed terraforming parameter.",
+  "price": 4,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Extension maison 'experimental' de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Food Factory",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/FoodFactory.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "Requires you to spend 2 plants. During the production phase, this produces 4 MC.",
+  "price": 9,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Fuel Factory",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/FuelFactory.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "Requires you to spend 3 heat. During the production phase, this produces 1 MC. When you play a Space, you pay 3 MC less for it.",
+  "price": 9,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Fueled Generators",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/FueledGenerators.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING",
+   "ENERGY"
+  ],
+  "description": "Requires you to spend 1 TR. During the production phase, this produces 2 heat.",
+  "price": 4,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Fusion Power",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/FusionPower.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "SCIENCE",
+   "BUILDING",
+   "ENERGY"
+  ],
+  "description": "Requires 2 Energy tags. During the production phase, draw a card.",
+  "price": 7,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Ganymede Shipyard",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/GanymedeShipyard.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "SPACE",
+   "JUPITER"
+  ],
+  "description": "When you play a Space, you pay 6 MC less for it.",
+  "price": 17,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Gene Repair",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/GeneRepair.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "SCIENCE"
+  ],
+  "description": "Requires 3 Science tags. During the production phase, this produces 2 MC.",
+  "price": 15,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Genetically Modified Vegetables",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/GeneticallyModifiedVegetables.java",
+  "category": "green",
+  "expansion": "discovery",
+  "tags": [
+   "MICROBE",
+   "PLANT"
+  ],
+  "description": "During the production phase, this produces 3 plants.",
+  "price": 26,
+  "box": "promo",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Geothermal Power",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/GeothermalPower.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING",
+   "ENERGY"
+  ],
+  "description": "During the production phase, this produces 2 heat.",
+  "price": 8,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Giant Space Mirror",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/GiantSpaceMirror.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "SPACE",
+   "ENERGY"
+  ],
+  "description": "During the production phase, this produces 3 heat.",
+  "price": 13,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Glacial Evaporation",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/GlacialEvaporation.java",
+  "category": "green",
+  "expansion": "discovery",
+  "tags": [
+   "ENERGY"
+  ],
+  "description": "During the production phase, this produces 4 heat.",
+  "price": 18,
+  "box": "promo",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Gmo Contract",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/GmoContract.java",
+  "category": "green",
+  "expansion": "experimental",
+  "tags": [
+   "MICROBE",
+   "SCIENCE"
+  ],
+  "description": "Requires a Plant tag. Whenever you play Animal,Plant or Microbe tag, you get a discount of 3.",
+  "price": 3,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Extension maison 'experimental' de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Grain Silos",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/GrainSilos.java",
+  "category": "green",
+  "expansion": "infrastructure",
+  "tags": [
+   "BUILDING",
+   "PLANT",
+   "EVENT"
+  ],
+  "description": "Raise infrastructure 2 steps. Gain 4 plants.",
+  "price": 30,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Marquee 'infrastructure' dans le moteur ; correspond tres probablement a l'extension OFFICIELLE 'Ares Expedition: Foundations' (20 project cards, page produit FryxGames ; Mylaana origin='foundations'). box=fan impose par le contrat scelle (enum sans valeur foundations) — voir divergences.md §Limites."
+ },
+ {
+  "name": "Grass",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/Grass.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "PLANT"
+  ],
+  "description": "Requires red temperature or warmer. Gain 3 plants. During the production phase, this produces 1 plant.",
+  "price": 9,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Great Dam",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/GreatDam.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING",
+   "ENERGY"
+  ],
+  "description": "Requires 2 ocean tiles to be flipped. During the production phase, this produces 2 heat.",
+  "price": 12,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Great Escarpment Consortium",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/GreatEscarpmentConsortium.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [],
+  "description": "When you play a Building, you pay 2 MC less for it.",
+  "price": 3,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Heat Reflective Glass",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/HeatReflectiveGlass.java",
+  "category": "green",
+  "expansion": "discovery",
+  "tags": [],
+  "description": "Upgrade a phase card. During the production phase, this produces 1 heat.",
+  "price": 12,
+  "box": "discovery",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Heather",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/Heather.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "PLANT"
+  ],
+  "description": "Gain 1 plant. During the production phase, this produces 1 plant.",
+  "price": 14,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Hematite Mining",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/HematiteMining.java",
+  "category": "green",
+  "expansion": "discovery",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "During the production phase, draw two cards. When you play Steel tag, you pay 2 MC less for it.",
+  "price": 28,
+  "box": "discovery",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Hi-Tech Lab",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/HiTechLab.java",
+  "category": "green",
+  "expansion": "experimental",
+  "tags": [
+   "SCIENCE",
+   "BUILDING"
+  ],
+  "description": "Action: Spend X heat to draw X cards. Take 1 and discard other.",
+  "price": 17,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Extension maison 'experimental' de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Hydroponic Gardens",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/HydroponicGardens.java",
+  "category": "green",
+  "expansion": "discovery",
+  "tags": [
+   "SPACE",
+   "MICROBE"
+  ],
+  "description": "Upgrade a phase card. During the production phase, this produces 3 MC and 1 plant.",
+  "price": 28,
+  "box": "discovery",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Ilmenite Deposits",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/IlmeniteDeposits.java",
+  "category": "green",
+  "expansion": "discovery",
+  "tags": [
+   "SPACE"
+  ],
+  "description": "When you play a Space, you pay 6 MC less for it.",
+  "price": 16,
+  "box": "discovery",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Immigration Shuttles",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/ImmigrationShuttles.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "SPACE",
+   "EARTH"
+  ],
+  "description": "During the production phase, this produces 3 MC. 1 VP per 2 Earth tags you have.",
+  "price": 20,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Import of Advanced GHG",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/ImportOfAdvancedGHG.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "SPACE",
+   "EARTH"
+  ],
+  "description": "During the production phase, this produces 2 heat.",
+  "price": 8,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Imported Construction Crews",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/ImportedConstructionCrews.java",
+  "category": "green",
+  "expansion": "discovery",
+  "tags": [
+   "EVENT"
+  ],
+  "description": "Requires yellow temperature or warmer. Upgrade 2 phase cards.",
+  "price": 10,
+  "box": "discovery",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Imported GHG",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/ImportedGHG.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "EARTH"
+  ],
+  "description": "Gain 5 heat. During the production phase, this produces 1 heat.",
+  "price": 8,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Industrial Center",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/IndustrialCenter.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "During the production phase, this produces 3 МС. When you play a Building, you pay 2 MC less for it.",
+  "price": 15,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Industrial Complex",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/IndustrialComplex.java",
+  "category": "green",
+  "expansion": "discovery",
+  "tags": [
+   "BUILDING",
+   "ENERGY"
+  ],
+  "description": "Upgrade a phase card. During the production phase, this produces 4 heat.",
+  "price": 29,
+  "box": "discovery",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Industrial Farming",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/IndustrialFarming.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "During the production phase, this produces 1 MC and 2 plants.",
+  "price": 19,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Industrial Microbes",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/IndustrialMicrobes.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING",
+   "MICROBE"
+  ],
+  "description": "During the production phase, this produces 1 heat. When you play a Building, you pay 2 MC less for it.",
+  "price": 9,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Innovative Technologies Award",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/InnovativeTechnologiesAward.java",
+  "category": "green",
+  "expansion": "discovery",
+  "tags": [
+   "EVENT"
+  ],
+  "description": "Raise your TR 1 step for each upgraded phase card you have.",
+  "price": 16,
+  "box": "promo",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Insects",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/Insects.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "MICROBE"
+  ],
+  "description": "During the production phase, this produces 1 plant per Plant you have.",
+  "price": 10,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Interplanetary Trade",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/InterplanetaryTrade.java",
+  "category": "green",
+  "expansion": "experimental",
+  "tags": [
+   "SPACE"
+  ],
+  "description": "During the production phase, this produces 1 MC per Every unique tag you have.",
+  "price": 27,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Extension maison 'experimental' de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Invasive Irrigation",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/InvasiveIrrigation.java",
+  "category": "green",
+  "expansion": "infrastructure",
+  "tags": [
+   "BUILDING",
+   "PLANT",
+   "EVENT"
+  ],
+  "description": "Flip an ocean. Raise infrastructure 2 steps.",
+  "price": 24,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Marquee 'infrastructure' dans le moteur ; correspond tres probablement a l'extension OFFICIELLE 'Ares Expedition: Foundations' (20 project cards, page produit FryxGames ; Mylaana origin='foundations'). box=fan impose par le contrat scelle (enum sans valeur foundations) — voir divergences.md §Limites."
+ },
+ {
+  "name": "Io Mining Industries",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/IoMiningIndustries.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING",
+   "SPACE",
+   "JUPITER"
+  ],
+  "description": "During the production phase, this produces 2 МС. When you play Space, you pay 6 MC less for it. 1 VP per Jupiter tag you have.",
+  "price": 37,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Jezero Crater Hospital",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/JezeroCraterHospital.java",
+  "category": "green",
+  "expansion": "infrastructure",
+  "tags": [
+   "BUILDING",
+   "EVENT"
+  ],
+  "description": "Raise infrastructure 1 step. Upgrade a phase card.",
+  "price": 20,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Marquee 'infrastructure' dans le moteur ; correspond tres probablement a l'extension OFFICIELLE 'Ares Expedition: Foundations' (20 project cards, page produit FryxGames ; Mylaana origin='foundations'). box=fan impose par le contrat scelle (enum sans valeur foundations) — voir divergences.md §Limites."
+ },
+ {
+  "name": "Kelp Farming",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/KelpFarming.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [],
+  "description": "Requires 6 ocean tiles to be flipped. Gain 2 plants. During the production phase, this produces 2 MC and 3 plants.",
+  "price": 17,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Laboratories",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/Laboratories.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "SCIENCE"
+  ],
+  "description": "During the production phase, draw a card for every 3 Science tags you have, including this.",
+  "price": 8,
+  "box": "promo2021",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Carte aussi vendue dans le 'Ares Expedition Promo Pack' (KS 2021, page produit FryxGames) ; conservée box=base conformément au contrat scellé (promo = Expansion Promo Pack uniquement) — voir divergences.md §Limites."
+ },
+ {
+  "name": "Landfill",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/Landfill.java",
+  "category": "green",
+  "expansion": "experimental",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "Raise MC income for each different TYPE of production you have NOW.",
+  "price": 2,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Extension maison 'experimental' de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Lichen",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/Lichen.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "PLANT"
+  ],
+  "description": "During the production phase, this produces 1 plant.",
+  "price": 5,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Lightning Harvest",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/LightningHarvest.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "SCIENCE",
+   "ENERGY"
+  ],
+  "description": "During the production phase, this produces 1 MC per Science tag you have, including this.",
+  "price": 13,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Local Market",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/LocalMarket.java",
+  "category": "green",
+  "expansion": "discovery",
+  "tags": [
+   "DYNAMIC"
+  ],
+  "description": "Choose a tag and add to this card. During production phase, this produces 2 MC",
+  "price": 7,
+  "box": "discovery",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Low-Atmo Shields",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/LowAtmoShields.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "Requires red oxygen or higher. During the production phase, this produces 1 MC and 2 heat.",
+  "price": 9,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "LowAtmosphere Planes",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/LowAtmospherePlanes.java",
+  "category": "green",
+  "expansion": "infrastructure",
+  "tags": [
+   "SCIENCE",
+   "EVENT"
+  ],
+  "description": "Raise infrastructure 3 steps.",
+  "price": 28,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Marquee 'infrastructure' dans le moteur ; correspond tres probablement a l'extension OFFICIELLE 'Ares Expedition: Foundations' (20 project cards, page produit FryxGames ; Mylaana origin='foundations'). box=fan impose par le contrat scelle (enum sans valeur foundations) — voir divergences.md §Limites."
+ },
+ {
+  "name": "Luna Project Office",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/LunaProjectOffice.java",
+  "category": "green",
+  "expansion": "experimental",
+  "tags": [
+   "SCIENCE"
+  ],
+  "description": "Next 2 plays of phase 5, see and take 1 more card.",
+  "price": 4,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Extension maison 'experimental' de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Lunar Beam",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/LunarBeam.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "EARTH",
+   "ENERGY"
+  ],
+  "description": "Requires you to spend 1 TR. During the production phase, this produces 4 heat.",
+  "price": 9,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Magnetic Field Generator",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/MagneticFieldGenerator.java",
+  "category": "green",
+  "expansion": "discovery",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "Upgrade a phase card. During the production phase, this produces 1 plant.",
+  "price": 18,
+  "box": "discovery",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Magnetic Shield",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/MagneticShield.java",
+  "category": "green",
+  "expansion": "experimental",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "Increase TR by 4.",
+  "price": 24,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Extension maison 'experimental' de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Manufacturing Hub",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/ManufacturingHub.java",
+  "category": "green",
+  "expansion": "discovery",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "Upgrade a phase card. During the production phase, this produces 2 MC and 1 heat.",
+  "price": 22,
+  "box": "discovery",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Martian Lumber",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/MartianLumber.java",
+  "category": "green",
+  "expansion": "experimental",
+  "tags": [
+   "BUILDING",
+   "PLANT"
+  ],
+  "description": "When playing a Plant tag, Steel may be used as 2 MC each.",
+  "price": 6,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Extension maison 'experimental' de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Martian Museum",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/MartianMuseum.java",
+  "category": "green",
+  "expansion": "discovery",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "Upgrade a phase card. During the production phase, this produces 1 MC.",
+  "price": 12,
+  "box": "discovery",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Martian Studies",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/MartianStudiesScholarship.java",
+  "category": "green",
+  "expansion": "discovery",
+  "tags": [
+   "EVENT"
+  ],
+  "description": "Upgrade a phase 2 card. Gain the \"Bonus\" this phase.",
+  "price": 11,
+  "box": "promo",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Nom officiel promo : 'Martian Studies Scholarship' ; le moteur l'abrege en 'Martian Studies'."
+ },
+ {
+  "name": "Mass Converter",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/MassConverter.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "SCIENCE",
+   "BUILDING",
+   "ENERGY"
+  ],
+  "description": "Requires 4 Science tags. During the production phase, this produces 3 heat. When you play Space, you pay 3 MC less for it.",
+  "price": 20,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Medical Lab",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/MedicalLab.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "During the production phase, this produces 1 MC per 2 Building you have, including this.",
+  "price": 15,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Metallurgy",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/Metallurgy.java",
+  "category": "green",
+  "expansion": "discovery",
+  "tags": [
+   "SCIENCE",
+   "SPACE"
+  ],
+  "description": "Upgrade a phase card. When you play a Space, you pay 3 MC less for it.",
+  "price": 19,
+  "box": "discovery",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Methane from Titan",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/MethaneFromTitan.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "SPACE",
+   "JUPITER"
+  ],
+  "description": "Requires red oxygen or higher. During the production phase, this produces 2 plants and 2 heat.",
+  "price": 35,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Micro-Mills",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/MicroMills.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "During the production phase, this produces 1 heat. When you play a Building, you pay 2 MC less for it.",
+  "price": 9,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Microbiology Patents",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/MicrobiologyPatents.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "MICROBE"
+  ],
+  "description": "During the production phase, this produces 1 MC per Microbe tag you have, including this.",
+  "price": 6,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Microloans",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/Microloans.java",
+  "category": "green",
+  "expansion": "infrastructure",
+  "tags": [],
+  "description": "Raise the infrastructure 1 step. During the production phase, this produces 2 MC.",
+  "price": 16,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Marquee 'infrastructure' dans le moteur ; correspond tres probablement a l'extension OFFICIELLE 'Ares Expedition: Foundations' (20 project cards, page produit FryxGames ; Mylaana origin='foundations'). box=fan impose par le contrat scelle (enum sans valeur foundations) — voir divergences.md §Limites."
+ },
+ {
+  "name": "Microprocessors",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/Microprocessors.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING",
+   "ENERGY"
+  ],
+  "description": "Draw 2 cards. Then, discard a card. During the production phase, this produces 3 heat.",
+  "price": 17,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Mine",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/Mine.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "When you play a Building, you pay 4 MC less for it.",
+  "price": 10,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Miranda Resort",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/MirandaResort.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "SPACE",
+   "EARTH",
+   "JUPITER"
+  ],
+  "description": "During the production phase, this produces 1 MC per Earth tag you have, including this.",
+  "price": 15,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Mohole Area",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/MoholeArea.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "During the production phase, this produces 4 heat.",
+  "price": 18,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Monocultures",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/Monocultures.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [],
+  "description": "Requires you to spend 1 TR. During the production phase, this produces 2 plants.",
+  "price": 6,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Moss",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/Moss.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "PLANT"
+  ],
+  "description": "Requires 3 ocean tiles to be flipped and for you to spend 1 plant. During the production phase, this produces 1 plant.",
+  "price": 3,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Natural Preserve",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/NaturalPreserve.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "SCIENCE",
+   "BUILDING"
+  ],
+  "description": "Requires red oxygen or higher. During the production phase, this produces 2 МС.",
+  "price": 12,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "New Portfolios",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/NewPortfolios.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "PLANT",
+   "ENERGY"
+  ],
+  "description": "During the production phase, this produces 1 МС, 1 plant and 1 heat.",
+  "price": 14,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Nitropholic Moss",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/NitropholicMoss.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "PLANT"
+  ],
+  "description": "During the production phase, this produces 2 plants.",
+  "price": 14,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Noctis Farming",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/NoctisFarming.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING",
+   "PLANT"
+  ],
+  "description": "Requires red temperature or warmer. Gain 2 plants. During the production phase, this produces 1 plant.",
+  "price": 13,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Nuclear Detonation Site",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/NuclearDetonationSite.java",
+  "category": "green",
+  "expansion": "discovery",
+  "tags": [],
+  "description": "During the production phase, this produces 3 heat.",
+  "price": 12,
+  "box": "discovery",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Nuclear Plants",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/NuclearPlants.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "During the production phase, this produces 1 MC and 3 heat.",
+  "price": 10,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Orbital Cleanup",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/OrbitalCleanup.java",
+  "category": "green",
+  "expansion": "experimental",
+  "tags": [
+   "EARTH",
+   "SPACE"
+  ],
+  "description": "Reduce ME production by 2. ACTION: Action: Gain 1 ME per science tag you have.",
+  "price": 14,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Extension maison 'experimental' de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Orbital Laboratories",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/OrbitalLaboratories.java",
+  "category": "green",
+  "expansion": "experimental",
+  "tags": [
+   "SCIENCE",
+   "PLANT",
+   "SPACE"
+  ],
+  "description": "During the production phase, this produces 2 plants. Gain 1 plant.",
+  "price": 18,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Extension maison 'experimental' de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Ore Leaching",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/OreLeaching.java",
+  "category": "green",
+  "expansion": "discovery",
+  "tags": [
+   "SPACE",
+   "JUPITER",
+   "EVENT"
+  ],
+  "description": "Upgrade a phase card. Raise the temperature 2 steps. Draw two cards.",
+  "price": 35,
+  "box": "discovery",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Oxidation Byproducts",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/OxidationByproducts.java",
+  "category": "green",
+  "expansion": "discovery",
+  "tags": [
+   "BUILDING",
+   "ENERGY"
+  ],
+  "description": "Upgrade a phase card. During the production phase, this produces 2 руфе.",
+  "price": 19,
+  "box": "discovery",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": "Officielle Discovery (ID 336 jamais enregistre dans CardFactory : bogue du moteur, carte absente du deck Java mais presente dans la boite physique) ; in_deck_v1 true impose par le contrat."
+ },
+ {
+  "name": "Perfluorocarbon Production",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/PerfluorocarbonProduction.java",
+  "category": "green",
+  "expansion": "discovery",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "Upgrade your phase 1 card. Effect: During the production phase this produces 1 heat.",
+  "price": 10,
+  "box": "discovery",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Political Influence",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/PoliticalInfluence.java",
+  "category": "green",
+  "expansion": "discovery",
+  "tags": [
+   "DYNAMIC"
+  ],
+  "description": "Choose a tag and add to this card. During production phase, this produces 3 MC",
+  "price": 10,
+  "box": "discovery",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Potatoes",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/Potatoes.java",
+  "category": "green",
+  "expansion": "experimental",
+  "tags": [
+   "PLANT"
+  ],
+  "description": "Spend 2 plants. During the production phase, this produces 2 MC.",
+  "price": 2,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Extension maison 'experimental' de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Power Grid",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/PowerGrid.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING",
+   "ENERGY"
+  ],
+  "description": "During the production phase, this produces 1 МС per Energy you have, including this.",
+  "price": 8,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Power Grid Uplink",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/PowerGridUplink.java",
+  "category": "green",
+  "expansion": "infrastructure",
+  "tags": [
+   "ENERGY",
+   "EVENT"
+  ],
+  "description": "Raise infrastructure 2 steps. Raise the temperature 1 step.",
+  "price": 32,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Marquee 'infrastructure' dans le moteur ; correspond tres probablement a l'extension OFFICIELLE 'Ares Expedition: Foundations' (20 project cards, page produit FryxGames ; Mylaana origin='foundations'). box=fan impose par le contrat scelle (enum sans valeur foundations) — voir divergences.md §Limites."
+ },
+ {
+  "name": "Power Plant",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/PowerPlant.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING",
+   "ENERGY"
+  ],
+  "description": "During the production phase, this produces 1 heat.",
+  "price": 3,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Power Supply Consortium",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/PowerSupplyConsortium.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "ENERGY"
+  ],
+  "description": "During the production phase, this produces 2 MC and 1 heat.",
+  "price": 12,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Private Investor Beach",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/PrivateInvestorBeach.java",
+  "category": "green",
+  "expansion": "discovery",
+  "tags": [
+   "EVENT"
+  ],
+  "description": "Requires a Milestone. Flip an ocean.",
+  "price": 8,
+  "box": "discovery",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Processed Metals",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/ProcessedMetals.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "SPACE",
+   "ENERGY"
+  ],
+  "description": "Draw a card for each Energy tag you have, including this. When you play a Space tag, you pay 6 MC less for it.",
+  "price": 27,
+  "box": "promo2021",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Carte aussi vendue dans le 'Ares Expedition Promo Pack' (KS 2021, page produit FryxGames) ; conservée box=base conformément au contrat scellé (promo = Expansion Promo Pack uniquement) — voir divergences.md §Limites."
+ },
+ {
+  "name": "Processing Plant",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/ProcessingPlant.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "Reveal cards from the top of the deck until you reveal a Building tag. Place it into your hand. Discard the rest. When you play a Building, you pay 4 MC less for it.",
+  "price": 19,
+  "box": "promo2021",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Carte aussi vendue dans le 'Ares Expedition Promo Pack' (KS 2021, page produit FryxGames) ; conservée box=base conformément au contrat scellé (promo = Expansion Promo Pack uniquement) — voir divergences.md §Limites."
+ },
+ {
+  "name": "Protected Valley",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/ProtectedValley.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING",
+   "PLANT"
+  ],
+  "description": "Build a forest and raise oxygen 1 step. During the production phase, this produces 2 МС.",
+  "price": 22,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "QuantLink Conferencing",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/QuantLinkConferencing.java",
+  "category": "green",
+  "expansion": "infrastructure",
+  "tags": [
+   "SCIENCE"
+  ],
+  "description": "Requires red infrastructure or higher. During the production phase, draw a card.",
+  "price": 13,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Marquee 'infrastructure' dans le moteur ; correspond tres probablement a l'extension OFFICIELLE 'Ares Expedition: Foundations' (20 project cards, page produit FryxGames ; Mylaana origin='foundations'). box=fan impose par le contrat scelle (enum sans valeur foundations) — voir divergences.md §Limites."
+ },
+ {
+  "name": "Quantum Extractor",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/QuantumExtractor.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "SCIENCE",
+   "BUILDING",
+   "ENERGY"
+  ],
+  "description": "Requires 3 Science tags. During the production phase, this produces 3 heat.",
+  "price": 16,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Rad Suits",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/RadSuits.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [],
+  "description": "Requires 2 ocean tiles to be flipped. During the production phase, this produces 2 МС.",
+  "price": 4,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Sattellite Farms",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/SatelliteFarms.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "SPACE"
+  ],
+  "description": "During the production phase, this produces 1 heat per Space you have, including this.",
+  "price": 17,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Satellites",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/Satellites.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "SPACE"
+  ],
+  "description": "During the production phase, this produces 1 MC per Space you have, including this.",
+  "price": 14,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Seed Bank",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/SeedBank.java",
+  "category": "green",
+  "expansion": "infrastructure",
+  "tags": [
+   "BUILDING",
+   "MICROBE"
+  ],
+  "description": "Requires red infrastructure or higher. During the production phase, this produces 2 plants and 3 heat.",
+  "price": 16,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Marquee 'infrastructure' dans le moteur ; correspond tres probablement a l'extension OFFICIELLE 'Ares Expedition: Foundations' (20 project cards, page produit FryxGames ; Mylaana origin='foundations'). box=fan impose par le contrat scelle (enum sans valeur foundations) — voir divergences.md §Limites."
+ },
+ {
+  "name": "Slash and Burn Agriculture",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/SlashAndBurnAgriculture.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "During the production phase, this produces 2 plants.",
+  "price": 8,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Smelting",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/Smelting.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING",
+   "ENERGY"
+  ],
+  "description": "Draw 2 cards. During the production phase, this produces 5 heat.",
+  "price": 28,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Soil Warming",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/SoilWarming.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "PLANT"
+  ],
+  "description": "Raise the temperature 1 step. During the production phase, this produces 2 plants.",
+  "price": 24,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Solar Power",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/SolarPower.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING",
+   "ENERGY"
+  ],
+  "description": "During the production phase, this produces 1 heat.",
+  "price": 10,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Solar Trapping",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/SolarTrapping.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "Draw a card and gain 3 heat. During the production phase, this produces 1 heat.",
+  "price": 10,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Soletta",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/Soletta.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "SPACE"
+  ],
+  "description": "During the production phase, this produces 5 heat.",
+  "price": 30,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Space Heater",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/SpaceHeater.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "Draw a card. During the production phase, this produces 2 heat.",
+  "price": 11,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Space Station",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/SpaceStation.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "SPACE"
+  ],
+  "description": "When you play a Space tag, you pay 3 MC less for it.",
+  "price": 14,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Sponsors",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/Sponsors.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "EARTH"
+  ],
+  "description": "During the production phase, this produces 2 МС.",
+  "price": 5,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Strip Mine",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/StripMine.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "Requires you to spend 1 TR. When you play a Building, you pay 4 less for it. When you play a Space, you pay 3 less for it.",
+  "price": 12,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Subways",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/Subways.java",
+  "category": "green",
+  "expansion": "infrastructure",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "Raise infrastructure 1 step.",
+  "price": 11,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Marquee 'infrastructure' dans le moteur ; correspond tres probablement a l'extension OFFICIELLE 'Ares Expedition: Foundations' (20 project cards, page produit FryxGames ; Mylaana origin='foundations'). box=fan impose par le contrat scelle (enum sans valeur foundations) — voir divergences.md §Limites."
+ },
+ {
+  "name": "Surface Mines",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/SurfaceMines.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "When you play a Building, you pay 2 less for it. When you play a Space, you pay 3 less for it.",
+  "price": 13,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Tall Station",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/TallStation.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [],
+  "description": "You may play a green card from your hand that has a printed cost of 9 MC or less without payind its MC cost. During the production phase, this produces 3 МС.",
+  "price": 16,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Tectonic Stress Power",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/TectonicStressPower.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING",
+   "ENERGY"
+  ],
+  "description": "During the production phase, this produces 3 heat.",
+  "price": 20,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "3D Printing",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/ThreeDPrinting.java",
+  "category": "green",
+  "expansion": "discovery",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "During the production phase, this produces 4 MC.",
+  "price": 14,
+  "box": "discovery",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Titanium Mine",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/TitaniumMine.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "When you play a Space, you pay 3 less for it.",
+  "price": 7,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Topographic Mapping",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/TopographicMapping.java",
+  "category": "green",
+  "expansion": "discovery",
+  "tags": [
+   "DYNAMIC",
+   "EVENT"
+  ],
+  "description": "Choose a tag and add to this card. Upgrade a phase card",
+  "price": 10,
+  "box": "discovery",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Tourism",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/Tourism.java",
+  "category": "green",
+  "expansion": "discovery",
+  "tags": [
+   "EARTH"
+  ],
+  "description": "Raise your TR 1 step for every your Milestone. During the production phase, this produces 2 MC.",
+  "price": 8,
+  "box": "promo",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Trading Post",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/TradingPost.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [],
+  "description": "Gain 3 plants. During the production phase, this produces 2 МС.",
+  "price": 11,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Trapped Heat",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/TrappedHeat.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [],
+  "description": "Requires red temperature or warmer. Flip an ocean tile. During the production phase, this produces 2 heat.",
+  "price": 20,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Trees",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/Trees.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "PLANT"
+  ],
+  "description": "Requires yellow temperature or warmer. Gain 1 plant. During the production phase, this produces 3 plants.",
+  "price": 17,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Tropical Resort",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/TropicalResort.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [],
+  "description": "Requires you to spend 5 heat. During the production phase, this produces 4 МС.",
+  "price": 19,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Tundra Farming",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/TundraFarming.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "PLANT"
+  ],
+  "description": "Requires yellow temperature or warmer. Gain 1 plant. During the production phase, this produces 2 МС and 1 plant.",
+  "price": 12,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Underground City",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/UndergroundCity.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "During the production phase, this produces 1 МС. When you play a Building, you pay 2 MC less for it.",
+  "price": 7,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Undersea Vents",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/UnderseaVents.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING",
+   "ENERGY"
+  ],
+  "description": "During the production phase, you draw a card and this produces 4 heat.",
+  "price": 31,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Urban Forestry",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/UrbanForestry.java",
+  "category": "green",
+  "expansion": "infrastructure",
+  "tags": [
+   "PLANT"
+  ],
+  "description": "Requires yellow infrastructure or higher. Build a forest. Gain 5 MC.",
+  "price": 12,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Marquee 'infrastructure' dans le moteur ; correspond tres probablement a l'extension OFFICIELLE 'Ares Expedition: Foundations' (20 project cards, page produit FryxGames ; Mylaana origin='foundations'). box=fan impose par le contrat scelle (enum sans valeur foundations) — voir divergences.md §Limites."
+ },
+ {
+  "name": "Venture Capitalism",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/VentureCapitalism.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [],
+  "description": "During the production phase, this produces 1 МС per Event you have.",
+  "price": 11,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Vesta Shipyard",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/VestaShipyard.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING",
+   "SPACE",
+   "JUPITER"
+  ],
+  "description": "When you play Space, you pay 3 MC less for it.",
+  "price": 16,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Warehouses",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/Warehouses.java",
+  "category": "green",
+  "expansion": "discovery",
+  "tags": [
+   "BUILDING"
+  ],
+  "description": "Upgrade a phase card. During the production phase, this produces 2 MC.",
+  "price": 17,
+  "box": "discovery",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Wave Power",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/WavePower.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "ENERGY"
+  ],
+  "description": "Requires 3 ocean tiles to be flipped. During the production phase, this produces 3 heat.",
+  "price": 9,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Windmills",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/Windmills.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "BUILDING",
+   "ENERGY"
+  ],
+  "description": "During the production phase, this produces 1 heat per Energy tag you have.",
+  "price": 10,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Worms",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/Worms.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [
+   "MICROBE"
+  ],
+  "description": "Requires red oxygen or higher. During the production phase, this produces 1 plant per Microbe tag you have, including this.",
+  "price": 11,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Zeppelins",
+  "java_class": "src/main/java/com/terraforming/ares/cards/green/Zeppelins.java",
+  "category": "green",
+  "expansion": "base",
+  "tags": [],
+  "description": "Requires red oxygen or higher. During the production phase, this produces 1 MC per Forest you have.",
+  "price": 10,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Advanced Ecosystems",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/AdvancedEcosystems.java",
+  "category": "red",
+  "expansion": "base",
+  "tags": [
+   "EVENT",
+   "MICROBE",
+   "ANIMAL"
+  ],
+  "description": "Requires an Animal, Microbe, and Plant tags.",
+  "price": 10,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Artificial Lake",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/ArtificialLake.java",
+  "category": "red",
+  "expansion": "base",
+  "tags": [
+   "EVENT"
+  ],
+  "description": "Requires yellow temperature or warmer. Flip an ocean tile.",
+  "price": 13,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Assorted Enterprises",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/AssortedEnterprises.java",
+  "category": "red",
+  "expansion": "base",
+  "tags": [
+   "EVENT"
+  ],
+  "description": "You may play an additional card this phase. That card may be a green card. You pay 2 MC less for the next card you play this phase.",
+  "price": 2,
+  "box": "promo2021",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Carte aussi vendue dans le 'Ares Expedition Promo Pack' (KS 2021, page produit FryxGames) ; conservée box=base conformément au contrat scellé (promo = Expansion Promo Pack uniquement) — voir divergences.md §Limites."
+ },
+ {
+  "name": "Atmosphere Filtering",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/AtmosphereFiltering.java",
+  "category": "red",
+  "expansion": "base",
+  "tags": [
+   "EVENT",
+   "SPACE"
+  ],
+  "description": "Requires 2 Science tags. Raise oxygen 1 step.",
+  "price": 6,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Breathing Filters",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/BreathingFilters.java",
+  "category": "red",
+  "expansion": "base",
+  "tags": [
+   "EVENT"
+  ],
+  "description": "Requires yellow oxygen or higher. ",
+  "price": 9,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Bribed Comittee",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/BribedComittee.java",
+  "category": "red",
+  "expansion": "base",
+  "tags": [
+   "EARTH",
+   "EVENT"
+  ],
+  "description": "Raise your TR 2 steps.",
+  "price": 5,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Business Contracts",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/BusinessContracts.java",
+  "category": "red",
+  "expansion": "base",
+  "tags": [
+   "EARTH",
+   "EVENT"
+  ],
+  "description": "Draw 4 cards. Then discard 2 cards.",
+  "price": 5,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "CEO's Favorite Project",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/CeosFavoriteProject.java",
+  "category": "red",
+  "expansion": "base",
+  "tags": [
+   "EVENT"
+  ],
+  "description": "Add 2 resources to a card that holds resources.",
+  "price": 3,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Colonizer Training Camp",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/ColonizerTrainingCamp.java",
+  "category": "red",
+  "expansion": "base",
+  "tags": [
+   "BUILDING",
+   "JUPITER",
+   "EVENT"
+  ],
+  "description": "Requires red oxygen or lower.",
+  "price": 10,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Comet",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/Comet.java",
+  "category": "red",
+  "expansion": "base",
+  "tags": [
+   "SPACE",
+   "EVENT"
+  ],
+  "description": "Raise the temperature 1 step. Flip an ocean tile.",
+  "price": 25,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Conscription",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/Conscription.java",
+  "category": "red",
+  "expansion": "experimental",
+  "tags": [
+   "EARTH",
+   "EVENT"
+  ],
+  "description": "You may play an additional card this phase. That card may be a green card. You pay 16 MC less for the next card you play this phase.",
+  "price": 5,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Extension maison 'experimental' de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Controlled Bloom",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/ControlledBloom.java",
+  "category": "red",
+  "expansion": "experimental",
+  "tags": [
+   "MICROBE",
+   "PLANT",
+   "EVENT"
+  ],
+  "description": "Gain 3 plants. Add 3 microbes to ANOTHER card.",
+  "price": 13,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Extension maison 'experimental' de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Convoy from Europa",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/ConvoyFromEuropa.java",
+  "category": "red",
+  "expansion": "base",
+  "tags": [
+   "SPACE",
+   "EVENT"
+  ],
+  "description": "Draw a card. Flip an ocean tile.",
+  "price": 14,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Crater",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/Crater.java",
+  "category": "red",
+  "expansion": "base",
+  "tags": [
+   "EVENT"
+  ],
+  "description": "Requires 3 EVT. Flip an ocean tile.",
+  "price": 7,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Cryogenic Shipment",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/CryogenicShipment.java",
+  "category": "red",
+  "expansion": "discovery",
+  "tags": [
+   "MICROBE",
+   "EVENT"
+  ],
+  "description": "Upgrade a Phase card. Add 3 microbes or 2 animals to ANOTHER card.",
+  "price": 12,
+  "box": "discovery",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Cyanobacteria",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/Cyanobacteria.java",
+  "category": "red",
+  "expansion": "experimental",
+  "tags": [
+   "MICROBE"
+  ],
+  "description": "Raise Oxygen 1 step. Put microbe on another card for every revealed ocean.",
+  "price": 12,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Extension maison 'experimental' de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Deimos Down",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/DeimosDown.java",
+  "category": "red",
+  "expansion": "base",
+  "tags": [
+   "SPACE",
+   "EVENT"
+  ],
+  "description": "Raise the temperature 3 steps. Gain 7 MC.",
+  "price": 30,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Diversity Support",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/DiversitySupport.java",
+  "category": "red",
+  "expansion": "experimental",
+  "tags": [
+   "EVENT"
+  ],
+  "description": "Requires 9 different tags.",
+  "price": 6,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Extension maison 'experimental' de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Dust Seals",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/DustSeals.java",
+  "category": "red",
+  "expansion": "experimental",
+  "tags": [],
+  "description": "Requires 3 or less ocean tiles.",
+  "price": 2,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Extension maison 'experimental' de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Flat Mars Theory",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/FlatMarsTheory.java",
+  "category": "red",
+  "expansion": "experimental",
+  "tags": [
+   "EARTH"
+  ],
+  "description": "Requires max 1 science. Increase your ME production 1 step for every previous generation(turn).",
+  "price": 8,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Extension maison 'experimental' de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Giant Ice Asteroid",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/GiantIceAsteroid.java",
+  "category": "red",
+  "expansion": "base",
+  "tags": [
+   "SPACE",
+   "EVENT"
+  ],
+  "description": "Raise the temperature 2 steps. Flip 2 ocean tiles.",
+  "price": 36,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Harvest",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/Harvest.java",
+  "category": "red",
+  "expansion": "experimental",
+  "tags": [
+   "PLANT",
+   "EVENT"
+  ],
+  "description": "Requires that you have 3 forests. Gain 12 MC.",
+  "price": 4,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Extension maison 'experimental' de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Ice Asteroid",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/IceAsteroid.java",
+  "category": "red",
+  "expansion": "base",
+  "tags": [
+   "SPACE",
+   "EVENT"
+  ],
+  "description": "Flip 2 ocean tiles.",
+  "price": 21,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Ice Cap Melting",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/IceCapMelting.java",
+  "category": "red",
+  "expansion": "base",
+  "tags": [
+   "EVENT"
+  ],
+  "description": "Requires white temperature. Flip an ocean tile.",
+  "price": 4,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Imported Hydrogen",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/ImportedHydrogen.java",
+  "category": "red",
+  "expansion": "base",
+  "tags": [
+   "SPACE",
+   "EARTH",
+   "EVENT"
+  ],
+  "description": "Flip an ocean tile. Gain 3 plants, or add 3 microbes or 2 animals to ANOTHER card.",
+  "price": 17,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Imported Nitrogen",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/ImportedNitrogen.java",
+  "category": "red",
+  "expansion": "base",
+  "tags": [
+   "SPACE",
+   "EARTH",
+   "EVENT"
+  ],
+  "description": "Raise your TR 1 step. Gain 4 plants. Add 2 animals to ANOTHER card. Add 3 microbes to ANOTHER card.",
+  "price": 20,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Imported Nutrients",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/ImportedNutrients.java",
+  "category": "red",
+  "expansion": "experimental",
+  "tags": [
+   "EARTH",
+   "SPACE",
+   "EVENT"
+  ],
+  "description": "Gain 4 plants. Add 4 microbes to ANOTHER card.",
+  "price": 14,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Extension maison 'experimental' de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Interstellar Colony Ship",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/InterstellarColonyShip.java",
+  "category": "red",
+  "expansion": "base",
+  "tags": [
+   "SPACE",
+   "EARTH",
+   "EVENT"
+  ],
+  "description": "Requires 4 Science tag.",
+  "price": 20,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Invention Contest",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/InventionContest.java",
+  "category": "red",
+  "expansion": "base",
+  "tags": [
+   "SCIENCE",
+   "EVENT"
+  ],
+  "description": "Draw 3 cards. Keep one of them and discard the other two.",
+  "price": 1,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Investment Loan",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/InvestmentLoan.java",
+  "category": "red",
+  "expansion": "base",
+  "tags": [
+   "EARTH",
+   "EVENT"
+  ],
+  "description": "Requires you to spend 1 TR. Gain 10 MC.",
+  "price": 1,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Lagrange Observatory",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/LagrangeObservatory.java",
+  "category": "red",
+  "expansion": "base",
+  "tags": [
+   "SCIENCE",
+   "SPACE",
+   "EVENT"
+  ],
+  "description": "Draw a card.",
+  "price": 7,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Lake Mariners",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/LakeMariners.java",
+  "category": "red",
+  "expansion": "base",
+  "tags": [
+   "EVENT"
+  ],
+  "description": "Requires yellow temperature or warmer. Flip 2 ocean tiles.",
+  "price": 17,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Large Convoy",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/LargeConvoy.java",
+  "category": "red",
+  "expansion": "base",
+  "tags": [
+   "SPACE",
+   "EARTH",
+   "EVENT"
+  ],
+  "description": "Flip an ocean tile. Draw 2 cards. Gain 5 plants or add 3 animals to ANY card.",
+  "price": 36,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Lava Flows",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/LavaFlows.java",
+  "category": "red",
+  "expansion": "base",
+  "tags": [
+   "EVENT"
+  ],
+  "description": "Raise the temperature 2 steps.",
+  "price": 17,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Local Heat Trapping",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/LocalHeatTrapping.java",
+  "category": "red",
+  "expansion": "base",
+  "tags": [
+   "EVENT"
+  ],
+  "description": "Requires you to spend 3 heat. Gain 4 plants and add 2 animals or microbes to ANOTHER card.",
+  "price": 0,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Mangrove",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/Mangrove.java",
+  "category": "red",
+  "expansion": "base",
+  "tags": [
+   "PLANT",
+   "EVENT"
+  ],
+  "description": "Requires white temperature. Build a Forest and raise oxygen 1 step.",
+  "price": 12,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Martian Survey",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/MartianSurvey.java",
+  "category": "red",
+  "expansion": "experimental",
+  "tags": [
+   "SCIENCE",
+   "EVENT"
+  ],
+  "description": "Draw 2 cards.",
+  "price": 9,
+  "box": "fan",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Extension maison 'experimental' de l'auteur du moteur (non officielle)."
+ },
+ {
+  "name": "Nitrogen-Rich Asteroid",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/NitrogenRichAsteroid.java",
+  "category": "red",
+  "expansion": "base",
+  "tags": [
+   "SPACE",
+   "EVENT"
+  ],
+  "description": "Raise your TR 2 steps. Raise the temperature 1 step. Gain 2 plants. If you have 3 or more Plant, gain 4 additional plants.",
+  "price": 30,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Permafrost Extraction",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/PermafrostExtraction.java",
+  "category": "red",
+  "expansion": "base",
+  "tags": [
+   "EVENT"
+  ],
+  "description": "Requires yellow temperature or warmer. Flip an ocean tile.",
+  "price": 8,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Phobos Falls",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/PhobosFalls.java",
+  "category": "red",
+  "expansion": "base",
+  "tags": [
+   "SPACE",
+   "EVENT"
+  ],
+  "description": "Raise the temperature 1 step. Flip an ocean tile. Draw two cards.",
+  "price": 32,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Plantation",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/Plantation.java",
+  "category": "red",
+  "expansion": "base",
+  "tags": [
+   "PLANT",
+   "EVENT"
+  ],
+  "description": "Requires 4 science tags. Build 2 forests and raise oxygen 2 steps.",
+  "price": 22,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Project Inspection",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/ProjectInspection.java",
+  "category": "red",
+  "expansion": "base",
+  "tags": [
+   "EVENT"
+  ],
+  "description": "Next 3rd phase you may use additional action twice.",
+  "price": 0,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Release of Inert Gases",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/ReleaseInertGases.java",
+  "category": "red",
+  "expansion": "base",
+  "tags": [
+   "EVENT"
+  ],
+  "description": "Raise your TR 2 steps.",
+  "price": 16,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Research",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/Research.java",
+  "category": "red",
+  "expansion": "base",
+  "tags": [
+   "SCIENCE",
+   "SCIENCE",
+   "EVENT"
+  ],
+  "description": "Draw 2 cards.",
+  "price": 5,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Special Design",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/SpecialDesign.java",
+  "category": "red",
+  "expansion": "base",
+  "tags": [
+   "EVENT"
+  ],
+  "description": "You may play an additional blue or red card this phase. For the next card you play this phase, you may consider the oxygen or temperature one color higher or lower.",
+  "price": 3,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Subterranean Reservoir",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/SubterraneanReservoir.java",
+  "category": "red",
+  "expansion": "base",
+  "tags": [
+   "EVENT"
+  ],
+  "description": "Flip an ocean tile.",
+  "price": 10,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Synthetic Catastrophe",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/SyntheticCatastrophe.java",
+  "category": "red",
+  "expansion": "base",
+  "tags": [
+   "EVENT"
+  ],
+  "description": "You may return another red card you have in play to your hand.",
+  "price": 0,
+  "box": "promo2021",
+  "in_deck_v1": false,
+  "starred": null,
+  "notes_retag": "Carte aussi vendue dans le 'Ares Expedition Promo Pack' (KS 2021, page produit FryxGames) ; conservée box=base conformément au contrat scellé (promo = Expansion Promo Pack uniquement) — voir divergences.md §Limites."
+ },
+ {
+  "name": "Technology Demonstration",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/TechnologyDemonstration.java",
+  "category": "red",
+  "expansion": "base",
+  "tags": [
+   "SPACE",
+   "SCIENCE",
+   "EVENT"
+  ],
+  "description": "Flip an ocean tile. Draw 2 cards",
+  "price": 17,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Terraforming Ganymede",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/TerraformingGanymede.java",
+  "category": "red",
+  "expansion": "base",
+  "tags": [
+   "SPACE",
+   "JUPITER",
+   "EVENT"
+  ],
+  "description": "Raise your TR 1 step per Jupiter tag you have, including this.",
+  "price": 28,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Towing a Comet",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/TowingAComet.java",
+  "category": "red",
+  "expansion": "base",
+  "tags": [
+   "SPACE",
+   "EVENT"
+  ],
+  "description": "Raise oxygen 1 step. Flip an ocean tile. Gain 2 plants",
+  "price": 22,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ },
+ {
+  "name": "Work Crews",
+  "java_class": "src/main/java/com/terraforming/ares/cards/red/WorkCrews.java",
+  "category": "red",
+  "expansion": "base",
+  "tags": [
+   "EVENT"
+  ],
+  "description": "You may play an additional blue or red card this phase. You pay 11 MC less for the next card you play this phase.",
+  "price": 5,
+  "box": "base",
+  "in_deck_v1": true,
+  "starred": null,
+  "notes_retag": ""
+ }
+]
