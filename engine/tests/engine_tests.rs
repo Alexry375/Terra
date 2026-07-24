@@ -139,13 +139,23 @@ impl Policy for TestPolicy {
 
 #[test]
 fn cards_load_248_projects_and_16_corporations() {
+    // Depuis le chantier cartes-1, la base charge TOUTES les cartes projets
+    // (green/blue/red = 331, pour que la sonde trouve aussi les cartes hors
+    // pioche — journal B2) mais la pioche v1 reste 248 cartes.
     let db = db();
-    assert_eq!(db.projects.len(), 248, "236 base + Discovery in_deck_v1");
+    assert_eq!(db.v1_project_count, 248, "236 base + Discovery in_deck_v1");
+    assert_eq!(db.projects.len(), 331, "toutes cartes green/blue/red");
     assert_eq!(db.corporations.len(), 16);
-    let greens = db.projects.iter().filter(|c| c.color == Color::Green).count();
-    let blues = db.projects.iter().filter(|c| c.color == Color::Blue).count();
-    let reds = db.projects.iter().filter(|c| c.color == Color::Red).count();
-    assert_eq!((greens, blues, reds), (136, 72, 40));
+    let v1 = |color| {
+        db.projects
+            .iter()
+            .filter(|c| c.in_deck_v1 && c.color == color)
+            .count()
+    };
+    assert_eq!(
+        (v1(Color::Green), v1(Color::Blue), v1(Color::Red)),
+        (136, 72, 40)
+    );
 }
 
 // ------------------------------------------------------- mulligans (maison)
@@ -587,7 +597,7 @@ fn score_counts_tr_forests_milestones_awards() {
     game.players[0].tag_counts[sci] = 0;
     game.players[1].tag_counts[sci] = 2; // p1 gagne Researcher : 2 / 5
 
-    let s = score(&game);
+    let s = score(&game, &db);
     // p0 : TR 12 + 4 forêts + 3 (milestone) + 5 (Celebrity) + 4 (Collector
     // égalité) + 2 (Researcher perdu) = 30
     assert_eq!(s[0], 12 + 4 + 3 + 5 + 4 + 2);

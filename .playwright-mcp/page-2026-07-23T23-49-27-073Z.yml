@@ -1,0 +1,173 @@
+- generic [ref=f14e1]:
+  - generic [ref=f14e3]:
+    - banner [ref=f14e5]:
+      - navigation [ref=f14e6]:
+        - generic [ref=f14e7]:
+          - button "Skip Navigation" [ref=f14e8] [cursor=pointer]
+          - link "Accessibility Feedback" [ref=f14e9] [cursor=pointer]:
+            - /url: /contact
+          - button "Toggle Menu" [ref=f14e10] [cursor=pointer]
+          - generic [ref=f14e16]:
+            - link [ref=f14e17] [cursor=pointer]:
+              - /url: /
+              - heading "boardgame geek" [level=1] [ref=f14e19]
+            - button "More Geek Sites" [ref=f14e21] [cursor=pointer]
+          - list [ref=f14e25]:
+            - listitem [ref=f14e26]:
+              - generic [ref=f14e27] [cursor=pointer]: Sign In
+            - listitem [ref=f14e28]:
+              - link "Join (it's free)!" [ref=f14e29] [cursor=pointer]:
+                - /url: /join
+            - listitem
+          - generic [ref=f14e33]:
+            - generic [ref=f14e34]: Search
+            - generic [ref=f14e35]:
+              - combobox "Search" [ref=f14e36]
+              - button "Search" [ref=f14e37] [cursor=pointer]
+    - main [ref=f14e44]:
+      - generic [ref=f14e48]:
+        - generic [ref=f14e49]:
+          - navigation "Breadcrumbs" [ref=f14e51]:
+            - list [ref=f14e52]:
+              - listitem:
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: "#"
+              - listitem [ref=f14e53]:
+                - link "Forums" [ref=f14e58] [cursor=pointer]:
+                  - /url: /boardgame/328871/terraforming-mars-ares-expedition/forums/0
+                - generic [ref=f14e60]: /
+              - listitem [ref=f14e61]:
+                - link "Variants" [ref=f14e66] [cursor=pointer]:
+                  - /url: /boardgame/328871/terraforming-mars-ares-expedition/forums/69
+          - navigation "Forum Menu" [ref=f14e68]:
+            - list [ref=f14e70]:
+              - listitem [ref=f14e71]:
+                - link "New Thread" [ref=f14e72] [cursor=pointer]:
+                  - /url: /thread/new?assocItemId=328871&assocItemType=thing&forumuid=3518109
+              - listitem [ref=f14e73]:
+                - link "Community Rules" [ref=f14e74] [cursor=pointer]:
+                  - /url: /community_rules
+              - listitem [ref=f14e75]:
+                - link "Bookmarks" [ref=f14e76] [cursor=pointer]:
+                  - /url: /threads/bookmarks
+              - listitem [ref=f14e77]:
+                - link "Forum Search" [ref=f14e78] [cursor=pointer]:
+                  - /url: /forums/search?objecttype=thing&objectid=328871
+        - generic [ref=f14e82]:
+          - heading [level=1] [ref=f14e83]:
+            - link "Play online" [ref=f14e85] [cursor=pointer]:
+              - /url: /thread/2870707/play-online
+          - navigation "Forum Actions" [ref=f14e86]:
+            - list [ref=f14e87]:
+              - listitem [ref=f14e88]:
+                - button "Give a thumbs up" [disabled] [ref=f14e94]
+              - listitem [ref=f14e98]:
+                - group [ref=f14e101]:
+                  - button [ref=f14e102] [cursor=pointer]
+                  - button "Subscription options" [ref=f14e106] [cursor=pointer]
+              - listitem [ref=f14e111]:
+                - button [ref=f14e114] [cursor=pointer]
+              - listitem [ref=f14e118]:
+                - button "More Actions" [ref=f14e120] [cursor=pointer]
+    - contentinfo [ref=f14e126]:
+      - generic [ref=f14e128]:
+        - generic [ref=f14e129]:
+          - heading "Footer Links" [level=1] [ref=f14e130]
+          - link [ref=f14e131] [cursor=pointer]:
+            - /url: /
+            - img "Board Game Geek" [ref=f14e132]
+        - generic [ref=f14e133]:
+          - heading "Company" [level=2] [ref=f14e134]
+          - list [ref=f14e135]:
+            - listitem [ref=f14e136]:
+              - link "About" [ref=f14e137] [cursor=pointer]:
+                - /url: /wiki/page/Welcome_to_BoardGameGeek
+            - listitem [ref=f14e138]:
+              - link "Contact" [ref=f14e139] [cursor=pointer]:
+                - /url: /contact
+            - listitem [ref=f14e140]:
+              - link "Advertise" [ref=f14e141] [cursor=pointer]:
+                - /url: https://advertising.boardgamegeek.com
+            - listitem [ref=f14e142]:
+              - link "Support BGG" [ref=f14e143] [cursor=pointer]:
+                - /url: /support
+        - generic [ref=f14e144]:
+          - heading "Policies" [level=2] [ref=f14e145]
+          - list [ref=f14e146]:
+            - listitem [ref=f14e147]:
+              - link "Community Guidelines" [ref=f14e148] [cursor=pointer]:
+                - /url: /community_rules
+            - listitem [ref=f14e149]:
+              - link "Privacy" [ref=f14e150] [cursor=pointer]:
+                - /url: /privacy
+            - listitem [ref=f14e151]:
+              - link "Terms" [ref=f14e152] [cursor=pointer]:
+                - /url: /terms
+            - listitem [ref=f14e153]:
+              - button "Manage Cookies" [ref=f14e154] [cursor=pointer]
+        - generic [ref=f14e155]:
+          - heading "Connect" [level=2] [ref=f14e156]
+          - list [ref=f14e157]:
+            - listitem [ref=f14e158]:
+              - link "Facebook" [ref=f14e159] [cursor=pointer]:
+                - /url: https://www.facebook.com/groups/132851767828/
+            - listitem [ref=f14e164]:
+              - link "Bluesky" [ref=f14e165] [cursor=pointer]:
+                - /url: https://bsky.app/profile/boardgamegeek.com
+            - listitem [ref=f14e170]:
+              - link "Instagram" [ref=f14e171] [cursor=pointer]:
+                - /url: https://www.instagram.com/boardgamegeek/
+            - listitem [ref=f14e176]:
+              - link "Youtube" [ref=f14e177] [cursor=pointer]:
+                - /url: https://www.youtube.com/user/boardgamegeektv
+            - listitem [ref=f14e182]:
+              - link "Twitch" [ref=f14e183] [cursor=pointer]:
+                - /url: https://www.twitch.tv/boardgamegeektv
+            - listitem [ref=f14e188]:
+              - link "Discord" [ref=f14e189] [cursor=pointer]:
+                - /url: https://discord.gg/XyQpPNZAmc
+          - generic [ref=f14e194]:
+            - link "Download the BGG App on the App Store" [ref=f14e195] [cursor=pointer]:
+              - /url: https://apps.apple.com/app/apple-store/id1559701270?pt=122806029&ct=bggfooter&mt=8
+            - link "Download the BGG App on the Google Play Store" [ref=f14e206] [cursor=pointer]:
+              - /url: https://play.google.com/store/apps/details?id=com.boardgamegeek.app
+      - paragraph [ref=f14e217]: Geekdo, BoardGameGeek, the Geekdo logo, and the BoardGameGeek logo are trademarks of BoardGameGeek, LLC.
+  - generic [ref=f14e218]: No results available
+  - dialog [ref=f14e219]:
+    - generic [ref=f14e220]:
+      - generic [ref=f14e221]:
+        - heading "Your Privacy" [level=2] [ref=f14e222]
+        - generic [ref=f14e223]:
+          - text: We rely on cookies to remember your preferences, login info, analyze website traffic, and serve you personalized content.
+          - link "View cookie settings" [ref=f14e224] [cursor=pointer]:
+            - /url: javascript:void(0);
+            - text: My Options
+      - generic [ref=f14e225]:
+        - button "I'm OK with that" [ref=f14e226] [cursor=pointer]
+        - button "Reject All" [ref=f14e227] [cursor=pointer]
+  - dialog "BoardGameGeek demande votre consentement pour utiliser vos données à caractère personnel dans les cas suivants :" [active] [ref=f14e231]:
+    - generic [ref=f14e233]:
+      - generic [ref=f14e234]:
+        - img "Bienvenue dans BoardGameGeek" [ref=f14e237]
+        - heading "BoardGameGeek demande votre consentement pour utiliser vos données à caractère personnel dans les cas suivants :" [level=1] [ref=f14e238]
+      - list [ref=f14e240]:
+        - listitem [ref=f14e241]:
+          - generic [ref=f14e246]: Publicités et contenu personnalisés, mesure de performance des publicités et du contenu, études d’audience et développement de services
+        - listitem [ref=f14e247]:
+          - generic [ref=f14e252]: Stocker et/ou accéder à des informations sur un appareil
+      - button "En savoir plus" [ref=f14e253] [cursor=pointer]
+      - generic [ref=f14e259]:
+        - paragraph [ref=f14e260]:
+          - text: Vos données à caractère personnel seront traitées, et les informations liées à votre appareil (cookies, identifiants uniques et autres types de données) pourront être stockées et consultées par 210 partenaires, ainsi que partagées avec lui, ou utilisées spécifiquement par ce site. Nos partenaires et nous-mêmes sommes susceptibles d'utiliser des données de géolocalisation précises.
+          - button "Liste des partenaires." [ref=f14e261] [cursor=pointer]
+        - paragraph [ref=f14e262]: Certains fournisseurs sont susceptibles de traiter vos données à caractère personnel sur la base de l'intérêt légitime. Vous pouvez vous y opposer en gérant vos options ci-dessous. Recherchez un lien en bas de cette page ou dans le menu du site pour gérer ou retirer votre consentement dans les paramètres des cookies et de confidentialité.
+    - generic [ref=f14e263]:
+      - generic [ref=f14e265]:
+        - button "Autoriser" [ref=f14e266] [cursor=pointer]:
+          - paragraph [ref=f14e268]: Autoriser
+        - button "Ne pas consentir" [ref=f14e269] [cursor=pointer]:
+          - paragraph [ref=f14e271]: Ne pas consentir
+      - button "Gérer vos préférences" [ref=f14e272] [cursor=pointer]:
+        - paragraph [ref=f14e273]: Gérer vos préférences

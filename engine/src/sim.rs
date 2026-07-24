@@ -77,7 +77,8 @@ pub struct InvariantTracker {
     prev_temperature: u8,
     prev_oxygen: u8,
     prev_oceans: u8,
-    prev_tr: [i64; NUM_PLAYERS],
+    prev_tr_increments: [u64; NUM_PLAYERS],
+    prev_tr_decrements: [u64; NUM_PLAYERS],
 }
 
 impl InvariantTracker {
@@ -86,7 +87,14 @@ impl InvariantTracker {
             prev_temperature: game.temperature,
             prev_oxygen: game.oxygen,
             prev_oceans: game.oceans_revealed,
-            prev_tr: [game.players[0].tr, game.players[1].tr],
+            prev_tr_increments: [
+                game.players[0].tr_increments,
+                game.players[1].tr_increments,
+            ],
+            prev_tr_decrements: [
+                game.players[0].tr_decrements,
+                game.players[1].tr_decrements,
+            ],
         }
     }
 }
@@ -108,14 +116,23 @@ pub fn check_invariants(
                 pl.mc, pl.heat, pl.plants
             ));
         }
-        if pl.tr != STARTING_TR + pl.tr_increments as i64 {
+        // TR : cohérence comptable (les seules baisses licites sont les
+        // dépenses « spend n TR » comptées dans tr_decrements) et compteurs
+        // monotones — remplace la monotonie brute du TR depuis que la couche
+        // d'effets autorise « Requires you to spend 1 TR » (journal B3).
+        if pl.tr != STARTING_TR + pl.tr_increments as i64 - pl.tr_decrements as i64 {
             return Err(format!(
-                "joueur {p}: TR incohérent ({} != 5 + {})",
-                pl.tr, pl.tr_increments
+                "joueur {p}: TR incohérent ({} != 5 + {} - {})",
+                pl.tr, pl.tr_increments, pl.tr_decrements
             ));
         }
-        if pl.tr < tracker.prev_tr[p] {
-            return Err(format!("joueur {p}: TR décroissant"));
+        if pl.tr < 0 {
+            return Err(format!("joueur {p}: TR négatif"));
+        }
+        if pl.tr_increments < tracker.prev_tr_increments[p]
+            || pl.tr_decrements < tracker.prev_tr_decrements[p]
+        {
+            return Err(format!("joueur {p}: compteur de TR décroissant"));
         }
     }
     if game.temperature > TEMPERATURE_MAX
@@ -133,11 +150,10 @@ pub fn check_invariants(
     let total = game.deck.len()
         + game.discard.len()
         + game.players.iter().map(|p| p.hand.len() + p.played.len()).sum::<usize>();
-    if total != db.projects.len() {
+    if total != db.v1_project_count {
         return Err(format!(
             "conservation des cartes violée: {} != {}",
-            total,
-            db.projects.len()
+            total, db.v1_project_count
         ));
     }
     let corps = game.corp_deck.len()
@@ -154,7 +170,14 @@ pub fn check_invariants(
     tracker.prev_temperature = game.temperature;
     tracker.prev_oxygen = game.oxygen;
     tracker.prev_oceans = game.oceans_revealed;
-    tracker.prev_tr = [game.players[0].tr, game.players[1].tr];
+    tracker.prev_tr_increments = [
+        game.players[0].tr_increments,
+        game.players[1].tr_increments,
+    ];
+    tracker.prev_tr_decrements = [
+        game.players[0].tr_decrements,
+        game.players[1].tr_decrements,
+    ];
     Ok(())
 }
 
@@ -180,7 +203,7 @@ pub fn play_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameOutcom
         }
     }
 
-    let scores = score(&game);
+    let scores = score(&game, db);
     GameOutcome {
         completed: game.game_over,
         generations: game.generation,

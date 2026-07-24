@@ -7,7 +7,8 @@
 //! `CollectIncomeTurnProcessor`, `DraftCardsTurnProcessor`,
 //! `PickPhaseProcessor`, `TerraformingService`, `MarsGame.assignMilestones`).
 
-use crate::cards::{CardsDb, Color, Tag};
+use crate::cards::{CardsDb, Color, Tag, VpKind};
+use crate::effects::{Eff, Req};
 use crate::policy::{ActionOpt, ConstructionBonus, Policy};
 use crate::state::*;
 use rand::rngs::StdRng;
@@ -53,7 +54,11 @@ fn draw_n(game: &mut GameState, n: usize, out: &mut Vec<u16>) {
 pub fn setup_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameState {
     let mut rng = StdRng::seed_from_u64(seed);
 
-    let mut deck: Vec<u16> = (0..db.projects.len() as u16).collect();
+    // Pioche v1 uniquement : les cartes hors pioche (in_deck_v1 == false)
+    // restent accessibles à la sonde/aux tests mais jamais distribuées.
+    let mut deck: Vec<u16> = (0..db.projects.len() as u16)
+        .filter(|&c| db.projects[c as usize].in_deck_v1)
+        .collect();
     shuffle(&mut deck, &mut rng);
     let mut corp_deck: Vec<u16> = (0..db.corporations.len() as u16).collect();
     shuffle(&mut corp_deck, &mut rng);
@@ -71,6 +76,7 @@ pub fn setup_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameState
         oceans_revealed: 0,
         temperature: 0,
         oxygen: 0,
+        infrastructure: 0,
         players: [PlayerState::new(), PlayerState::new()],
         generation: 1,
         milestones: [MilestoneSlot {
@@ -82,6 +88,7 @@ pub fn setup_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameState
         snap_temperature: 0,
         snap_oxygen: 0,
         snap_oceans: 0,
+        snap_infrastructure: 0,
     };
 
     // Milestones/awards : 3 + 3 tirés des pools (Discovery p.2 « reveal three »).
@@ -171,27 +178,142 @@ fn effective_cost(price: i64, discount: i64) -> i64 {
     (price - discount).max(0)
 }
 
-/// Indices de main constructibles pour une couleur donnée (paiement MC, D9).
-fn affordable(db: &CardsDb, player: &PlayerState, colors: &[Color], discount: i64) -> Vec<usize> {
+/// Les prérequis de la carte sont-ils satisfaits dans l'état courant ?
+/// (Paramètres globaux au niveau COURANT, tags en jeu, capacité de payer les
+/// dépenses « spend ».) Carte hors lot ou effets coupés : toujours vrai.
+pub fn requirements_met(game: &GameState, db: &CardsDb, p: usize, card_id: u16) -> bool {
+    if !db.effects_on {
+        return true;
+    }
+    let Some(spec) = db.projects[card_id as usize].effect else {
+        return true;
+    };
+    let pl = &game.players[p];
+    spec.reqs.iter().all(|req| match *req {
+        Req::TempMin(n) => game.temperature >= n,
+        Req::TempMax(n) => game.temperature <= n,
+        Req::OxyMin(n) => game.oxygen >= n,
+        Req::OceanMin(n) => game.oceans_revealed >= n,
+        Req::Tags(tag, n) => {
+            tag.index().map_or(false, |i| pl.tag_counts[i] >= n as u32)
+        }
+        Req::SpendHeat(n) => pl.heat >= n,
+        Req::SpendPlants(n) => pl.plants >= n,
+        Req::SpendTr(n) => pl.tr >= n,
+    })
+}
+
+/// Indices de main constructibles pour une couleur donnée : paiement MC (D9)
+/// ET prérequis de la couche d'effets satisfaits.
+fn affordable(
+    game: &GameState,
+    db: &CardsDb,
+    p: usize,
+    colors: &[Color],
+    discount: i64,
+) -> Vec<usize> {
+    let player = &game.players[p];
     player
         .hand
         .iter()
         .enumerate()
         .filter(|(_, &c)| {
             let card = &db.projects[c as usize];
-            colors.contains(&card.color) && effective_cost(card.price, discount) <= player.mc
+            colors.contains(&card.color)
+                && effective_cost(card.price, discount) <= player.mc
+                && requirements_met(game, db, p, c)
         })
         .map(|(i, _)| i)
         .collect()
 }
 
-/// Construit la carte d'indice de main `idx` (stub neutre : paie, entre en jeu).
-fn build_card(game: &mut GameState, db: &CardsDb, p: usize, idx: usize, discount: i64) {
+/// Applique les dépenses de prérequis puis les effets de pose d'une carte du
+/// lot. Appelé uniquement depuis `build_card` (même chemin pour `simulate`,
+/// la sonde et les tests). Les hausses de paramètres réutilisent les
+/// fonctions du squelette (TR + caps sur l'instantané de phase).
+fn apply_card_effects(game: &mut GameState, db: &CardsDb, p: usize, card_id: u16) {
+    let Some(spec) = db.projects[card_id as usize].effect else {
+        return;
+    };
+    // 1. Dépenses de pose (« Requires you to spend … »).
+    for req in spec.reqs {
+        match *req {
+            Req::SpendHeat(n) => {
+                assert!(game.players[p].heat >= n, "pose sans la chaleur à dépenser");
+                game.players[p].heat -= n;
+            }
+            Req::SpendPlants(n) => {
+                assert!(game.players[p].plants >= n, "pose sans les plantes à dépenser");
+                game.players[p].plants -= n;
+            }
+            Req::SpendTr(n) => game.players[p].spend_tr(n),
+            _ => {}
+        }
+    }
+    // 2. Effets.
+    for eff in spec.effects {
+        match *eff {
+            Eff::Mc(n) => game.players[p].mc += n,
+            Eff::Heat(n) => game.players[p].heat += n,
+            Eff::Plants(n) => game.players[p].plants += n,
+            Eff::Draw(n) => {
+                for _ in 0..n {
+                    if let Some(c) = draw_card(game) {
+                        game.players[p].hand.push(c);
+                    }
+                }
+            }
+            Eff::McProd(n) => game.players[p].mc_prod += n,
+            Eff::HeatProd(n) => game.players[p].heat_prod += n,
+            Eff::PlantProd(n) => game.players[p].plant_prod += n,
+            Eff::CardProd(n) => game.players[p].card_prod += n,
+            Eff::Temperature(n) => {
+                for _ in 0..n {
+                    raise_temperature(game, p);
+                }
+            }
+            Eff::Oxygen(n) => {
+                for _ in 0..n {
+                    raise_oxygen(game, p);
+                }
+            }
+            Eff::Ocean(n) => {
+                for _ in 0..n {
+                    reveal_ocean(game, p);
+                }
+            }
+            Eff::Tr(n) => {
+                for _ in 0..n {
+                    game.players[p].gain_tr();
+                }
+            }
+            Eff::Infrastructure(n) => {
+                for _ in 0..n {
+                    raise_infrastructure(game, p);
+                }
+            }
+            Eff::PlantsIfTags(tag, min, gain) => {
+                let i = tag.index().expect("tag conditionnel non compté");
+                if game.players[p].tag_counts[i] >= min as u32 {
+                    game.players[p].plants += gain;
+                }
+            }
+        }
+    }
+}
+
+/// Construit la carte d'indice de main `idx` : paie le prix, entre en jeu
+/// (tags/couleur), puis applique dépenses + effets du lot si les effets sont
+/// activés. Chemin UNIQUE de pose (simulate, sonde, tests).
+pub fn build_card(game: &mut GameState, db: &CardsDb, p: usize, idx: usize, discount: i64) {
     let card_id = game.players[p].hand.remove(idx);
     let cost = effective_cost(db.projects[card_id as usize].price, discount);
     assert!(game.players[p].mc >= cost, "construction sans les MC requis");
     game.players[p].mc -= cost;
     game.players[p].put_in_play(card_id, db);
+    if db.effects_on {
+        apply_card_effects(game, db, p, card_id);
+    }
 }
 
 /// Hausse d'oxygène : cap sur l'instantané de début de phase (D6). TR accordé
@@ -204,6 +326,22 @@ fn raise_oxygen(game: &mut GameState, p: usize) {
         game.oxygen += 1;
     }
     game.players[p].gain_tr();
+}
+
+/// Hausse d'infrastructure (extension Grain Silos, journal B2) : par pas,
+/// +1 TR et pioche 1 carte (sémantique Java `increaseInfrastructure`),
+/// cap sur l'instantané de phase comme les autres paramètres.
+fn raise_infrastructure(game: &mut GameState, p: usize) {
+    if game.snap_infrastructure >= INFRASTRUCTURE_MAX {
+        return;
+    }
+    if game.infrastructure < INFRASTRUCTURE_MAX {
+        game.infrastructure += 1;
+    }
+    game.players[p].gain_tr();
+    if let Some(c) = draw_card(game) {
+        game.players[p].hand.push(c);
+    }
 }
 
 fn raise_temperature(game: &mut GameState, p: usize) {
@@ -295,7 +433,7 @@ fn phase_development(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy
         } else {
             0
         };
-        let opts = affordable(db, &game.players[p], &[Color::Green], discount);
+        let opts = affordable(game, db, p, &[Color::Green], discount);
         if let Some(idx) = policy.choose_build(&mut game.rng, p, &opts) {
             assert!(opts.contains(&idx), "choix de construction hors options");
             build_card(game, db, p, idx, discount);
@@ -308,7 +446,7 @@ fn phase_development(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy
 fn phase_construction(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
     const BR: [Color; 2] = [Color::Blue, Color::Red];
     for p in 0..NUM_PLAYERS {
-        let opts = affordable(db, &game.players[p], &BR, 0);
+        let opts = affordable(game, db, p, &BR, 0);
         if let Some(idx) = policy.choose_build(&mut game.rng, p, &opts) {
             assert!(opts.contains(&idx), "choix de construction hors options");
             build_card(game, db, p, idx, 0);
@@ -321,7 +459,7 @@ fn phase_construction(game: &mut GameState, db: &CardsDb, policy: &mut dyn Polic
                     }
                 }
                 ConstructionBonus::SecondBuild => {
-                    let opts = affordable(db, &game.players[p], &BR, 0);
+                    let opts = affordable(game, db, p, &BR, 0);
                     if let Some(idx) = policy.choose_build(&mut game.rng, p, &opts) {
                         assert!(opts.contains(&idx), "choix de construction hors options");
                         build_card(game, db, p, idx, 0);
@@ -543,13 +681,44 @@ pub fn award_points(game: &GameState) -> [i64; NUM_PLAYERS] {
     pts
 }
 
+/// VP d'une carte jouée : VP fixes + VP dynamiques calculables avec l'état v1
+/// (JUPITER = tags Jupiter, EARTH = tags Terre, FOREST = forêts, BLUE_CARD =
+/// cartes bleues jouées, ANY_CARD = toutes cartes jouées ; ressources posées
+/// sur les cartes = 0 en v1). Formule Java `WinPointsService.getWinPoints` :
+/// floor(n / resources) * points.
+fn card_points(db: &CardsDb, pl: &PlayerState, card_id: u16) -> i64 {
+    let card = &db.projects[card_id as usize];
+    let mut s = card.vp;
+    if let Some(dynv) = card.vp_dynamic {
+        let n = match dynv.kind {
+            VpKind::Jupiter => pl.tag_counts[Tag::Jupiter.index().unwrap()] as i64,
+            VpKind::Earth => pl.tag_counts[Tag::Earth.index().unwrap()] as i64,
+            VpKind::Forest => pl.forests,
+            VpKind::BlueCard => pl.played_count(Color::Blue) as i64,
+            VpKind::AnyCard => pl.played.len() as i64,
+            VpKind::Unsupported => 0,
+        };
+        if dynv.resources > 0 {
+            s += (n / dynv.resources) * dynv.points;
+        }
+    }
+    s
+}
+
 /// Score final (livret p.16-17 + Discovery p.3) : TR + 1 VP par forêt +
-/// VP des cartes (0 en v1, stub D4) + 3 VP par milestone + awards.
-pub fn score(game: &GameState) -> [i64; NUM_PLAYERS] {
+/// VP des cartes jouées (fixes + dynamiques, effets ON uniquement — `--effects
+/// off` reproduit le squelette) + 3 VP par milestone + awards.
+pub fn score(game: &GameState, db: &CardsDb) -> [i64; NUM_PLAYERS] {
     let awards = award_points(game);
     let mut out = [0i64; NUM_PLAYERS];
     for p in 0..NUM_PLAYERS {
-        let mut s = game.players[p].tr + game.players[p].forests;
+        let pl = &game.players[p];
+        let mut s = pl.tr + pl.forests;
+        if db.effects_on {
+            for &c in &pl.played {
+                s += card_points(db, pl, c);
+            }
+        }
         for slot in &game.milestones {
             if slot.achieved_by[p] {
                 s += 3;

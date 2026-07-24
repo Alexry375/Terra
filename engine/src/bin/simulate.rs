@@ -1,10 +1,12 @@
 //! Binaire `simulate` : joue N parties aléatoires et écrit UNE ligne JSON
-//! finale sur stdout.
+//! finale sur stdout ; mode sonde : joue UNE carte depuis l'état fixe d'audit.
 //!
 //! Usage : simulate --games N --seed S [--cards chemin/cards.json]
+//!                  [--effects on|off] [--probe "<nom exact de carte>"]
 
 use engine::cards::CardsDb;
 use engine::policy::RandomPolicy;
+use engine::probe::run_probe;
 use engine::sim::run_simulation;
 
 fn die(msg: &str) -> ! {
@@ -16,6 +18,8 @@ fn main() {
     let mut games: u64 = 1000;
     let mut seed: u64 = 0;
     let mut cards_path = String::from("data/cards.json");
+    let mut effects_on = true;
+    let mut probe: Option<String> = None;
 
     let args: Vec<String> = std::env::args().skip(1).collect();
     let mut i = 0;
@@ -37,11 +41,53 @@ fn main() {
                 cards_path = value(i).to_string();
                 i += 2;
             }
+            "--effects" => {
+                effects_on = match value(i) {
+                    "on" => true,
+                    "off" => false,
+                    other => die(&format!("--effects invalide: {other} (on|off)")),
+                };
+                i += 2;
+            }
+            "--probe" => {
+                probe = Some(value(i).to_string());
+                i += 2;
+            }
             other => die(&format!("argument inconnu: {other}")),
         }
     }
 
-    let db = CardsDb::load(&cards_path).unwrap_or_else(|e| die(&e));
+    let mut db = CardsDb::load(&cards_path).unwrap_or_else(|e| die(&e));
+    db.effects_on = effects_on;
+
+    if let Some(name) = probe {
+        let r = run_probe(&db, &name);
+        let line = serde_json::json!({
+            "card": r.card,
+            "found": r.found,
+            "in_lot": r.in_lot,
+            "prereq_ok": r.prereq_ok,
+            "played": r.played,
+            "delta": {
+                "mc": r.delta.mc,
+                "heat": r.delta.heat,
+                "plants": r.delta.plants,
+                "hand": r.delta.hand,
+                "mc_prod": r.delta.mc_prod,
+                "heat_prod": r.delta.heat_prod,
+                "plant_prod": r.delta.plant_prod,
+                "card_prod": r.delta.card_prod,
+                "tr": r.delta.tr,
+                "temperature": r.delta.temperature,
+                "oxygen": r.delta.oxygen,
+                "oceans": r.delta.oceans,
+                "forests": r.delta.forests,
+            },
+            "vp": r.vp,
+        });
+        println!("{line}");
+        return;
+    }
 
     let mut policy = RandomPolicy;
     let s = run_simulation(&db, games, seed, &mut policy);

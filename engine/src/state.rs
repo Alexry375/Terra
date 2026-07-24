@@ -19,6 +19,10 @@ pub const TEMPERATURE_MAX: u8 = 19;
 pub const OXYGEN_MAX: u8 = 14;
 /// Nombre de tuiles océan.
 pub const NUM_OCEANS: u8 = 9;
+/// Niveau max d'infrastructure (piste Infrastructure, 15 niveaux 0..=14 —
+/// `PlanetFactory` Java). Hors condition de fin de partie v1 : seule la carte
+/// imposée Grain Silos (hors pioche v1) la fait monter, via la sonde/les tests.
+pub const INFRASTRUCTURE_MAX: u8 = 14;
 
 pub const STARTING_TR: i64 = 5;
 pub const STARTING_HAND: usize = 8;
@@ -176,6 +180,9 @@ pub struct PlayerState {
     pub phase_upgrades: [Option<PhaseUpgrade>; 5],
     /// Compteur d'audit : nombre d'incréments de TR accordés (invariant TR).
     pub tr_increments: u64,
+    /// Compteur d'audit : TR dépensés (« Requires you to spend 1 TR »).
+    /// Invariant : tr == 5 + tr_increments - tr_decrements.
+    pub tr_decrements: u64,
 }
 
 impl PlayerState {
@@ -202,6 +209,7 @@ impl PlayerState {
             extra_blue_activations: 0,
             phase_upgrades: [None; 5],
             tr_increments: 0,
+            tr_decrements: 0,
         }
     }
 
@@ -230,6 +238,15 @@ impl PlayerState {
         self.tr += 1;
         self.tr_increments += 1;
     }
+
+    /// Dépense `n` TR (« Requires you to spend n TR ») — comptabilisé pour
+    /// l'invariant. Le prérequis (tr >= n) est vérifié en amont par la couche
+    /// d'effets ; l'assert attrape tout chemin qui l'aurait contourné.
+    pub fn spend_tr(&mut self, n: i64) {
+        assert!(self.tr >= n, "dépense de TR sans le TR requis");
+        self.tr -= n;
+        self.tr_decrements += n as u64;
+    }
 }
 
 /// État complet d'une partie.
@@ -248,6 +265,9 @@ pub struct GameState {
     pub temperature: u8,
     /// Niveau d'oxygène (0..=14).
     pub oxygen: u8,
+    /// Niveau d'infrastructure (0..=14) — extension pour Grain Silos (B2),
+    /// jamais monté par la pioche v1.
+    pub infrastructure: u8,
     pub players: [PlayerState; NUM_PLAYERS],
     pub generation: u32,
     pub milestones: [MilestoneSlot; 3],
@@ -257,6 +277,7 @@ pub struct GameState {
     pub snap_temperature: u8,
     pub snap_oxygen: u8,
     pub snap_oceans: u8,
+    pub snap_infrastructure: u8,
 }
 
 impl GameState {
@@ -271,5 +292,6 @@ impl GameState {
         self.snap_temperature = self.temperature;
         self.snap_oxygen = self.oxygen;
         self.snap_oceans = self.oceans_revealed;
+        self.snap_infrastructure = self.infrastructure;
     }
 }

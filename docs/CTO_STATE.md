@@ -7,14 +7,21 @@ Dernière mise à jour : 2026-07-23
 
 ## Ce qui marche
 
-- **`engine/` : squelette du moteur Rust 2 joueurs** — état, phases I-V,
-  mulligans maison branchés au flux réel (`engine/src/flow.rs:112,132`),
-  production, conversions forcées du livret, fin de partie, score,
-  27 tests verts, binaire `simulate` déterministe (~6-7 000 parties/s déjà,
-  effets de cartes stubbés). Revalidé après promotion dans le dépôt :
-  300/300 parties graine 2024, 0 violation. [VÉRIFIÉ 24-07]
+- **`engine/` : moteur Rust 2 joueurs, effets lot 1** — état, phases I-V,
+  mulligans maison branchés au flux réel, production, conversions forcées,
+  fin de partie, score AVEC VP des cartes (fixes + dynamiques calculables :
+  tags Jupiter/Terre, forêts, cartes bleues/toutes — `flow::score`,
+  `card_points`). **Couche d'effets déclarative** `engine/src/effects.rs`
+  (table `LOT1` : 63 cartes complètes, prérequis paliers/tags/dépenses,
+  chemin unique de pose `flow::build_card`). Sonde d'audit
+  `simulate --probe "<nom>"` (JSON de deltas) ; `--effects on|off`.
+  **99 tests verts** ; revalidé après promotion : 300/300 graine 2024,
+  0 violation ; effets ON raccourcissent les parties (73 générations
+  vs 114 OFF, politique aléatoire). [VÉRIFIÉ 24-07]
 - **`data/cards.json`** : 388 cartes, pioche v1 = 264 (248 projets +
-  16 corporations). [VÉRIFIÉ 24-07]
+  16 corporations), **+ champs `vp` (74 cartes > 0) et `vp_dynamic` (22)**
+  extraits du Java par script reproductible
+  (`workspaces/moteur-cartes-1/outputs/work/extract_vp.py`). [VÉRIFIÉ 24-07]
 
 ## Étude du terrain (2026-07-23) — voir `docs/ETUDE_TERRAIN.md`
 
@@ -83,22 +90,27 @@ Dernière mise à jour : 2026-07-23
 
 ## Travaux en cours
 
-- **`moteur-cartes-1` : sous-agent EN COURS (lancé le 24-07)**. Contrat scellé
-  (4 contrôles rouges au seal, testés dans les deux sens sur état-cible
-  simulé + contre-test négatif) : (A) extraction des VP des 388 cartes depuis
-  les classes Java → `cards_v2.json` (champs `vp` + `vp_dynamic`, origine
-  intacte) ; (B) couche d'effets déclarative + lot ≥ 50 cartes complètes
-  (10 imposées dont Comet/Farming/Lichen), sonde `--probe` (JSON de deltas,
-  `prereq_ok`/`played` séparés — la sonde force la pose), interrupteur
-  `--effects on|off`, ≥ 77 tests. Hold-out : 3 scripts (5 témoins VP,
-  5 témoins d'effets vérifiés à la source Java, graine inédite).
-  Règle du contrat : conflit Java vs texte imprimé → le texte imprimé gagne.
-  [VÉRIFIÉ 24-07]
-- Bogue oracle Java supplémentaire attrapé pendant le cadrage :
-  `NitrogenRichAsteroid.java` teste `== 3` tags Plante là où la carte dit
-  « 3 ou plus ». Sémantique des prérequis Java vérifiée : liste de couleurs
-  EXACTES (`Planet.isValidParameter`), température départ = violet
-  (`PlanetFactory.java:32`), Farming exige la zone blanche. [VÉRIFIÉ 24-07]
+- Aucun sous-agent en cours. Prochain chantier : `moteur-cartes-2` (lot
+  suivant d'effets : réductions de coût, effets « when you play », premiers
+  pas des cartes bleues à actions). [VÉRIFIÉ 24-07]
+
+## Acquis : workspace `moteur-cartes-1` (livré et audité OK le 24-07)
+
+- Contrôles 4/4 + hold-out 3/3 (5 témoins VP, 5 témoins d'effets vérifiés à
+  la source Java, graine inédite), sondage indépendant graine 424242
+  (600/600, 0 violation), 10 encodages contre-vérifiés au texte imprimé par
+  la main. Verdict : ok. Promu dans `engine/` + `data/cards.json` (chemins
+  adaptés, 99 tests re-vérifiés). [VÉRIFIÉ 24-07]
+- Conflit texte/Java tranché texte : Nitrogen-Rich Asteroid (`== 3` Java vs
+  « 3 or more » imprimé). Cas Livestock (`//TODO` dans le code VP). Erreur de
+  MON contrat : Grain Silos imposée alors que `in_deck_v1=false` → la base
+  charge désormais les 331 cartes projets (pioche inchangée = 248), piste
+  infrastructure minimale ajoutée (+1 TR +1 carte par pas, hors fin de
+  partie). Invariant TR étendu (`tr == 5 + incr − decr`, cartes
+  « spend 1 TR »). [VÉRIFIÉ 24-07]
+- Reste stubbé (lots suivants) : réductions de coût, « when you play … »,
+  ressources sur cartes (vp_dynamic ANIMAL/MICROBE = 0 au score), actions
+  bleues, améliorations de phases, 7e award. [VÉRIFIÉ 24-07]
 
 ## Acquis : workspace `moteur-squelette` (livré et audité OK le 24-07)
 

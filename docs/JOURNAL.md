@@ -84,3 +84,14 @@
   simulé + contre-test négatif (altération d'un champ d'origine détectée).
   Hold-out : 5 témoins VP + 5 témoins d'effets vérifiés à la source Java +
   graine inédite. [VÉRIFIÉ 24-07]
+- Chantier `moteur-cartes-1` livré (~34 min de sous-agent) et audité OK :
+  7/7 contrôles (dont hold-out : témoins VP et effets vérifiés à la source
+  Java), 99 tests, 63 cartes aux effets complets, VP des 388 cartes extraits,
+  sonde `--probe`, `--effects on|off`. Contre-vérification de la main :
+  10 encodages relus contre le texte imprimé (10/10), sondage graine 424242.
+  L'agent a déclaré proprement mes deux contradictions de contrat (Grain
+  Silos hors pioche v1 ; relecture par sous-agent impossible dans son
+  environnement). Promu dans `engine/` + `data/cards.json` ; chemins
+  re-adaptés (leçon du squelette appliquée), 99 tests verts après promotion.
+  Signal encourageant : les effets raccourcissent les parties aléatoires
+  (73 générations contre 114 sans effets). [VÉRIFIÉ 24-07]

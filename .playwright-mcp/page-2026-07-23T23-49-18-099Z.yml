@@ -1,0 +1,84 @@
+- generic [active] [ref=f9e1]:
+  - generic [ref=f9e3]:
+    - banner [ref=f9e5]:
+      - navigation [ref=f9e6]:
+        - generic [ref=f9e7]:
+          - button "Skip Navigation" [ref=f9e8] [cursor=pointer]
+          - link "Accessibility Feedback" [ref=f9e9] [cursor=pointer]:
+            - /url: /contact
+          - button "Toggle Menu" [ref=f9e10] [cursor=pointer]
+          - generic [ref=f9e16]:
+            - link [ref=f9e17] [cursor=pointer]:
+              - /url: /
+              - heading "boardgame geek" [level=1] [ref=f9e19]
+            - button "More Geek Sites" [ref=f9e21] [cursor=pointer]
+          - generic [ref=f9e26]:
+            - generic [ref=f9e27]: Search
+            - generic [ref=f9e28]:
+              - combobox "Search" [ref=f9e29]
+              - button "Search" [ref=f9e30] [cursor=pointer]
+    - main [ref=f9e37]
+    - contentinfo [ref=f9e39]:
+      - generic [ref=f9e41]:
+        - generic [ref=f9e42]:
+          - heading "Footer Links" [level=1] [ref=f9e43]
+          - link [ref=f9e44] [cursor=pointer]:
+            - /url: /
+            - img "Board Game Geek" [ref=f9e45]
+        - generic [ref=f9e46]:
+          - heading "Company" [level=2] [ref=f9e47]
+          - list [ref=f9e48]:
+            - listitem [ref=f9e49]:
+              - link "About" [ref=f9e50] [cursor=pointer]:
+                - /url: /wiki/page/Welcome_to_BoardGameGeek
+            - listitem [ref=f9e51]:
+              - link "Contact" [ref=f9e52] [cursor=pointer]:
+                - /url: /contact
+            - listitem [ref=f9e53]:
+              - link "Advertise" [ref=f9e54] [cursor=pointer]:
+                - /url: https://advertising.boardgamegeek.com
+            - listitem [ref=f9e55]:
+              - link "Support BGG" [ref=f9e56] [cursor=pointer]:
+                - /url: /support
+        - generic [ref=f9e57]:
+          - heading "Policies" [level=2] [ref=f9e58]
+          - list [ref=f9e59]:
+            - listitem [ref=f9e60]:
+              - link "Community Guidelines" [ref=f9e61] [cursor=pointer]:
+                - /url: /community_rules
+            - listitem [ref=f9e62]:
+              - link "Privacy" [ref=f9e63] [cursor=pointer]:
+                - /url: /privacy
+            - listitem [ref=f9e64]:
+              - link "Terms" [ref=f9e65] [cursor=pointer]:
+                - /url: /terms
+            - listitem [ref=f9e66]:
+              - button "Manage Cookies" [ref=f9e67] [cursor=pointer]
+        - generic [ref=f9e68]:
+          - heading "Connect" [level=2] [ref=f9e69]
+          - list [ref=f9e70]:
+            - listitem [ref=f9e71]:
+              - link "Facebook" [ref=f9e72] [cursor=pointer]:
+                - /url: https://www.facebook.com/groups/132851767828/
+            - listitem [ref=f9e77]:
+              - link "Bluesky" [ref=f9e78] [cursor=pointer]:
+                - /url: https://bsky.app/profile/boardgamegeek.com
+            - listitem [ref=f9e83]:
+              - link "Instagram" [ref=f9e84] [cursor=pointer]:
+                - /url: https://www.instagram.com/boardgamegeek/
+            - listitem [ref=f9e89]:
+              - link "Youtube" [ref=f9e90] [cursor=pointer]:
+                - /url: https://www.youtube.com/user/boardgamegeektv
+            - listitem [ref=f9e95]:
+              - link "Twitch" [ref=f9e96] [cursor=pointer]:
+                - /url: https://www.twitch.tv/boardgamegeektv
+            - listitem [ref=f9e101]:
+              - link "Discord" [ref=f9e102] [cursor=pointer]:
+                - /url: https://discord.gg/XyQpPNZAmc
+          - generic [ref=f9e107]:
+            - link "Download the BGG App on the App Store" [ref=f9e108] [cursor=pointer]:
+              - /url: https://apps.apple.com/app/apple-store/id1559701270?pt=122806029&ct=bggfooter&mt=8
+            - link "Download the BGG App on the Google Play Store" [ref=f9e119] [cursor=pointer]:
+              - /url: https://play.google.com/store/apps/details?id=com.boardgamegeek.app
+      - paragraph [ref=f9e130]: Geekdo, BoardGameGeek, the Geekdo logo, and the BoardGameGeek logo are trademarks of BoardGameGeek, LLC.
+  - generic [ref=f9e131]: No results available

@@ -1,0 +1,18 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e3]:
+      - heading "boardgamegeek.com" [level=1] [ref=e5]
+      - heading "Vérification de sécurité en cours" [level=2] [ref=e6]
+      - paragraph [ref=e7]: Ce site utilise un service de sécurité pour se protéger contre les bots malveillants. Cette page s’affiche pendant que le site vérifie que vous n’êtes pas un bot.
+  - contentinfo [ref=e14]:
+    - generic [ref=e16]:
+      - generic [ref=e18]:
+        - text: "Ray ID:"
+        - code [ref=e19]: a1fe93f8389c2335
+      - generic [ref=e20]:
+        - generic [ref=e21]:
+          - text: Performances et sécurité par
+          - link "Cloudflare" [ref=e22] [cursor=pointer]:
+            - /url: https://www.cloudflare.com?utm_source=challenge&utm_campaign=m
+        - link "Confidentialité" [ref=e24] [cursor=pointer]:
+          - /url: https://www.cloudflare.com/fr-fr/privacypolicy/
