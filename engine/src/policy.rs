@@ -59,6 +59,18 @@ pub trait Policy {
     fn action_choice(&mut self, rng: &mut StdRng, player: usize, options: &[ActionOpt])
         -> Option<usize>;
 
+    /// Montant d'une action bleue « up to X » (lot 2 : Power Infrastructure,
+    /// Greenhouses, Redrafted Contracts). Tirage uniforme 0..=max via le RNG de
+    /// la partie. Méthode par DÉFAUT : les politiques existantes en héritent
+    /// (aucune modification de signature).
+    fn action_amount(&mut self, rng: &mut StdRng, _player: usize, max: i64) -> i64 {
+        if max <= 0 {
+            0
+        } else {
+            rng.gen_range(0..=max)
+        }
+    }
+
     /// Recherche : garder `keep` cartes parmi `drawn` — renvoie les indices gardés.
     fn research_keep(&mut self, rng: &mut StdRng, player: usize, drawn: &[u16], keep: usize)
         -> Vec<usize>;

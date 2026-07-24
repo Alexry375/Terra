@@ -273,6 +273,9 @@ pub struct GameState {
     pub milestones: [MilestoneSlot; 3],
     pub awards: [AwardKind; 3],
     pub game_over: bool,
+    /// Compteur d'audit : activations d'actions bleues ayant réellement appliqué
+    /// leur effet (lot 2). 0 en `--effects off`.
+    pub blue_actions: u64,
     // Instantané planétaire au début de la phase en cours (D6).
     pub snap_temperature: u8,
     pub snap_oxygen: u8,

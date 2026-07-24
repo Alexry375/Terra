@@ -6,8 +6,27 @@
 
 use engine::cards::CardsDb;
 use engine::policy::RandomPolicy;
-use engine::probe::run_probe;
+use engine::probe::{run_probe_action, run_probe_seq, ProbeDelta};
 use engine::sim::run_simulation;
+
+/// Sérialise un `ProbeDelta` en objet JSON (schéma commun aux deux sondes).
+fn delta_json(d: &ProbeDelta) -> serde_json::Value {
+    serde_json::json!({
+        "mc": d.mc,
+        "heat": d.heat,
+        "plants": d.plants,
+        "hand": d.hand,
+        "mc_prod": d.mc_prod,
+        "heat_prod": d.heat_prod,
+        "plant_prod": d.plant_prod,
+        "card_prod": d.card_prod,
+        "tr": d.tr,
+        "temperature": d.temperature,
+        "oxygen": d.oxygen,
+        "oceans": d.oceans,
+        "forests": d.forests,
+    })
+}
 
 fn die(msg: &str) -> ! {
     eprintln!("simulate: {msg}");
@@ -20,6 +39,7 @@ fn main() {
     let mut cards_path = String::from("data/cards.json");
     let mut effects_on = true;
     let mut probe: Option<String> = None;
+    let mut probe_action: Option<String> = None;
 
     let args: Vec<String> = std::env::args().skip(1).collect();
     let mut i = 0;
@@ -53,6 +73,10 @@ fn main() {
                 probe = Some(value(i).to_string());
                 i += 2;
             }
+            "--probe-action" => {
+                probe_action = Some(value(i).to_string());
+                i += 2;
+            }
             other => die(&format!("argument inconnu: {other}")),
         }
     }
@@ -61,29 +85,32 @@ fn main() {
     db.effects_on = effects_on;
 
     if let Some(name) = probe {
-        let r = run_probe(&db, &name);
+        // Séquence : cartes séparées par « ; » (rétro-compatible : 1 carte).
+        let names: Vec<&str> = name.split(';').map(|s| s.trim()).collect();
+        let r = run_probe_seq(&db, &names);
         let line = serde_json::json!({
             "card": r.card,
             "found": r.found,
             "in_lot": r.in_lot,
             "prereq_ok": r.prereq_ok,
             "played": r.played,
-            "delta": {
-                "mc": r.delta.mc,
-                "heat": r.delta.heat,
-                "plants": r.delta.plants,
-                "hand": r.delta.hand,
-                "mc_prod": r.delta.mc_prod,
-                "heat_prod": r.delta.heat_prod,
-                "plant_prod": r.delta.plant_prod,
-                "card_prod": r.delta.card_prod,
-                "tr": r.delta.tr,
-                "temperature": r.delta.temperature,
-                "oxygen": r.delta.oxygen,
-                "oceans": r.delta.oceans,
-                "forests": r.delta.forests,
-            },
+            "delta": delta_json(&r.delta),
             "vp": r.vp,
+            "paid": r.paid,
+        });
+        println!("{line}");
+        return;
+    }
+
+    if let Some(name) = probe_action {
+        let r = run_probe_action(&db, &name);
+        let line = serde_json::json!({
+            "card": r.card,
+            "found": r.found,
+            "in_lot": r.in_lot,
+            "has_action": r.has_action,
+            "action_applied": r.action_applied,
+            "delta": delta_json(&r.delta),
         });
         println!("{line}");
         return;
@@ -107,6 +134,7 @@ fn main() {
         "avg_score_p1": s.avg_score_p1,
         "avg_score_p2": s.avg_score_p2,
         "state_hash": format!("{:016x}", s.state_hash),
+        "blue_actions": s.blue_actions,
     });
     println!("{line}");
 }

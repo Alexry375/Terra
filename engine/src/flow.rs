@@ -8,7 +8,9 @@
 //! `PickPhaseProcessor`, `TerraformingService`, `MarsGame.assignMilestones`).
 
 use crate::cards::{CardsDb, Color, Tag, VpKind};
-use crate::effects::{Eff, Req};
+use crate::effects::{
+    Action, ActionCost, ActionEff, Eff, GlobalTrigger, Req, TrigGain,
+};
 use crate::policy::{ActionOpt, ConstructionBonus, Policy};
 use crate::state::*;
 use rand::rngs::StdRng;
@@ -85,6 +87,7 @@ pub fn setup_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameState
         }; 3],
         awards: [AwardKind::Celebrity; 3],
         game_over: false,
+        blue_actions: 0,
         snap_temperature: 0,
         snap_oxygen: 0,
         snap_oceans: 0,
@@ -178,6 +181,27 @@ fn effective_cost(price: i64, discount: i64) -> i64 {
     (price - discount).max(0)
 }
 
+/// (A) Réduction de coût applicable à une carte donnée pour un joueur donné :
+/// somme des réductions de TOUTES ses cartes persistantes déjà en jeu (lot 2).
+/// Service UNIQUE consommé par `affordable` (affordabilité) ET `build_card`
+/// (paiement) — jamais deux logiques parallèles. Calculée avant la mise en jeu
+/// de la carte, donc une carte ne se réduit jamais elle-même. 0 si effets coupés.
+pub fn card_discount(game: &GameState, db: &CardsDb, p: usize, card_id: u16) -> i64 {
+    if !db.effects_on {
+        return 0;
+    }
+    let tags = &db.projects[card_id as usize].tags;
+    let mut d = 0;
+    for &owned in &game.players[p].played {
+        if let Some(spec) = db.projects[owned as usize].effect {
+            for r in spec.reductions {
+                d += r.amount_for(tags);
+            }
+        }
+    }
+    d
+}
+
 /// Les prérequis de la carte sont-ils satisfaits dans l'état courant ?
 /// (Paramètres globaux au niveau COURANT, tags en jeu, capacité de payer les
 /// dépenses « spend ».) Carte hors lot ou effets coupés : toujours vrai.
@@ -194,6 +218,7 @@ pub fn requirements_met(game: &GameState, db: &CardsDb, p: usize, card_id: u16) 
         Req::TempMax(n) => game.temperature <= n,
         Req::OxyMin(n) => game.oxygen >= n,
         Req::OceanMin(n) => game.oceans_revealed >= n,
+        Req::OceanMax(n) => game.oceans_revealed <= n,
         Req::Tags(tag, n) => {
             tag.index().map_or(false, |i| pl.tag_counts[i] >= n as u32)
         }
@@ -220,7 +245,8 @@ fn affordable(
         .filter(|(_, &c)| {
             let card = &db.projects[c as usize];
             colors.contains(&card.color)
-                && effective_cost(card.price, discount) <= player.mc
+                && effective_cost(card.price, discount + card_discount(game, db, p, c))
+                    <= player.mc
                 && requirements_met(game, db, p, c)
         })
         .map(|(i, _)| i)
@@ -269,7 +295,7 @@ fn apply_card_effects(game: &mut GameState, db: &CardsDb, p: usize, card_id: u16
             Eff::CardProd(n) => game.players[p].card_prod += n,
             Eff::Temperature(n) => {
                 for _ in 0..n {
-                    raise_temperature(game, p);
+                    raise_temperature(game, db, p);
                 }
             }
             Eff::Oxygen(n) => {
@@ -279,7 +305,7 @@ fn apply_card_effects(game: &mut GameState, db: &CardsDb, p: usize, card_id: u16
             }
             Eff::Ocean(n) => {
                 for _ in 0..n {
-                    reveal_ocean(game, p);
+                    reveal_ocean(game, db, p);
                 }
             }
             Eff::Tr(n) => {
@@ -307,12 +333,96 @@ fn apply_card_effects(game: &mut GameState, db: &CardsDb, p: usize, card_id: u16
 /// activés. Chemin UNIQUE de pose (simulate, sonde, tests).
 pub fn build_card(game: &mut GameState, db: &CardsDb, p: usize, idx: usize, discount: i64) {
     let card_id = game.players[p].hand.remove(idx);
-    let cost = effective_cost(db.projects[card_id as usize].price, discount);
+    // Réduction totale = remise de phase (sélectionneur) + réductions des cartes
+    // en jeu (service unique `card_discount`, calculé AVANT la mise en jeu).
+    let total_discount = discount + card_discount(game, db, p, card_id);
+    let cost = effective_cost(db.projects[card_id as usize].price, total_discount);
+    assert!(cost >= 0, "prix payé négatif (réduction non plafonnée)");
     assert!(game.players[p].mc >= cost, "construction sans les MC requis");
     game.players[p].mc -= cost;
     game.players[p].put_in_play(card_id, db);
     if db.effects_on {
+        // Effet propre de la carte, puis déclencheurs « When you play … » de
+        // toutes les cartes persistantes en jeu (la carte incluse si applicable).
         apply_card_effects(game, db, p, card_id);
+        fire_play_triggers(game, db, p, card_id);
+    }
+}
+
+/// (B) Déclencheurs de pose : évalués à la pose de `played_id`, sur les tags de
+/// la carte posée, pour toutes les cartes persistantes en jeu du joueur `p`
+/// (la carte elle-même incluse ssi son déclencheur porte `include_self`).
+/// Chemin unique `build_card` (simulate, sonde, tests).
+fn fire_play_triggers(game: &mut GameState, db: &CardsDb, p: usize, played_id: u16) {
+    let played_tags = db.projects[played_id as usize].tags.clone();
+    let sources = game.players[p].played.clone();
+    for src in sources {
+        let Some(spec) = db.projects[src as usize].effect else {
+            continue;
+        };
+        for trig in spec.play_triggers {
+            if src == played_id && !trig.include_self {
+                continue;
+            }
+            let matched = trig.cond.matched_tags(&played_tags);
+            if matched == 0 {
+                continue;
+            }
+            let mult = if trig.scale_by_matched_tags {
+                matched as i64
+            } else {
+                1
+            };
+            for g in trig.gains {
+                apply_trig_gain(game, p, *g, mult);
+            }
+        }
+    }
+}
+
+/// Applique un gain de déclencheur `mult` fois (facteur = nb de tags satisfaits
+/// pour les déclencheurs « par tag », 1 sinon).
+fn apply_trig_gain(game: &mut GameState, p: usize, g: TrigGain, mult: i64) {
+    match g {
+        TrigGain::Heat(n) => game.players[p].heat += n * mult,
+        TrigGain::Plants(n) => game.players[p].plants += n * mult,
+        TrigGain::Draw(n) => {
+            for _ in 0..(n as i64 * mult) {
+                if let Some(c) = draw_card(game) {
+                    game.players[p].hand.push(c);
+                }
+            }
+        }
+    }
+}
+
+/// (B) Déclencheurs globaux du joueur agissant, fixés à une hausse effective de
+/// paramètre (Volcanic Soil sur température, Arctic Algae sur océan). Java itère
+/// `player.getPlayed()` du joueur qui provoque la hausse.
+fn fire_global_trigger(game: &mut GameState, db: &CardsDb, p: usize, is_temperature: bool) {
+    if !db.effects_on {
+        return;
+    }
+    // Collecte d'abord (lecture seule), applique ensuite (aucune allocation si
+    // le joueur n'a aucune carte à déclencheur global — cas courant).
+    let mut pending: Vec<TrigGain> = Vec::new();
+    for &src in &game.players[p].played {
+        if let Some(spec) = db.projects[src as usize].effect {
+            for g in spec.global_triggers {
+                match *g {
+                    GlobalTrigger::OnRaiseTemperature(gs) if is_temperature => {
+                        pending.extend_from_slice(gs)
+                    }
+                    GlobalTrigger::OnFlipOcean(gs) if !is_temperature => {
+                        pending.extend_from_slice(gs)
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+    for g in pending {
+        apply_trig_gain(game, p, g, 1);
     }
 }
 
@@ -344,7 +454,7 @@ fn raise_infrastructure(game: &mut GameState, p: usize) {
     }
 }
 
-fn raise_temperature(game: &mut GameState, p: usize) {
+fn raise_temperature(game: &mut GameState, db: &CardsDb, p: usize) {
     if game.snap_temperature >= TEMPERATURE_MAX {
         return;
     }
@@ -352,11 +462,13 @@ fn raise_temperature(game: &mut GameState, p: usize) {
         game.temperature += 1;
     }
     game.players[p].gain_tr();
+    // (B) déclencheurs « When you raise the temperature » du joueur agissant.
+    fire_global_trigger(game, db, p, true);
 }
 
 /// Révèle un océan : bonus de la tuile + TR. Au-delà du 9e dans la phase du
 /// max : bonus de la dernière tuile révélée (livret p.14, fallback Java).
-fn reveal_ocean(game: &mut GameState, p: usize) {
+fn reveal_ocean(game: &mut GameState, db: &CardsDb, p: usize) {
     if game.snap_oceans >= NUM_OCEANS {
         return;
     }
@@ -375,6 +487,8 @@ fn reveal_ocean(game: &mut GameState, p: usize) {
         }
     }
     game.players[p].gain_tr();
+    // (B) déclencheurs « When you flip an ocean tile » du joueur agissant.
+    fire_global_trigger(game, db, p, false);
 }
 
 /// Forêt : 8 plantes ou 20 MC → +1 forêt (VP), oxygène +1 si l'instantané le
@@ -422,6 +536,134 @@ fn action_options(
         out.push(ActionOpt::SellCard);
     }
     let _ = db;
+}
+
+/// (C) Applique l'action réelle d'une carte bleue en jeu (lot 2). Renvoie `true`
+/// si un effet a réellement été appliqué (coût payé / effet produit) — seul cas
+/// où le compteur `blue_actions` est incrémenté. Renvoie `false` si la carte n'a
+/// pas d'action, si le coût fixe n'est pas payable, ou si une action variable
+/// tire un montant nul. Les montants « up to X » sont tirés par la politique.
+pub(crate) fn apply_blue_action(
+    game: &mut GameState,
+    db: &CardsDb,
+    p: usize,
+    card_id: u16,
+    policy: &mut dyn Policy,
+) -> bool {
+    let Some(action) = db.projects[card_id as usize].effect.and_then(|e| e.action) else {
+        return false;
+    };
+    match action {
+        Action::Fixed { cost, effect } => {
+            // Payabilité (Java : *ActionValidator).
+            for c in cost {
+                let ok = match *c {
+                    ActionCost::Heat(n) => game.players[p].heat >= n,
+                    ActionCost::Mc(n) => game.players[p].mc >= n,
+                    ActionCost::Plants(n) => game.players[p].plants >= n,
+                };
+                if !ok {
+                    return false;
+                }
+            }
+            for c in cost {
+                match *c {
+                    ActionCost::Heat(n) => game.players[p].heat -= n,
+                    ActionCost::Mc(n) => game.players[p].mc -= n,
+                    ActionCost::Plants(n) => game.players[p].plants -= n,
+                }
+            }
+            for e in effect {
+                match *e {
+                    ActionEff::Draw(n) => {
+                        for _ in 0..n {
+                            if let Some(c) = draw_card(game) {
+                                game.players[p].hand.push(c);
+                            }
+                        }
+                    }
+                    ActionEff::Plants(n) => game.players[p].plants += n,
+                    ActionEff::Mc(n) => game.players[p].mc += n,
+                    ActionEff::Tr(n) => {
+                        for _ in 0..n {
+                            game.players[p].gain_tr();
+                        }
+                    }
+                    ActionEff::Oxygen(n) => {
+                        for _ in 0..n {
+                            raise_oxygen(game, p);
+                        }
+                    }
+                }
+            }
+            true
+        }
+        // « Spend any amount of heat to gain that amount of MC. »
+        Action::HeatToMc => {
+            let max = game.players[p].heat;
+            let amt = policy.action_amount(&mut game.rng, p, max).clamp(0, max);
+            if amt <= 0 {
+                return false;
+            }
+            game.players[p].heat -= amt;
+            game.players[p].mc += amt;
+            true
+        }
+        // « Spend max(0, base − nb tags per_tag) MC → flip un océan. »
+        Action::FlipOceanTagDiscount { base, per_tag } => {
+            if game.snap_oceans >= NUM_OCEANS {
+                return false;
+            }
+            let n = per_tag
+                .index()
+                .map_or(0, |i| game.players[p].tag_counts[i] as i64);
+            let cost = (base - n).max(0);
+            if game.players[p].mc < cost {
+                return false;
+            }
+            game.players[p].mc -= cost;
+            reveal_ocean(game, db, p);
+            true
+        }
+        // « Spend base − (reduction si ≥ threshold cartes bleues) MC → +1 temp. »
+        Action::RaiseTempBlueDiscount {
+            base,
+            threshold,
+            reduction,
+        } => {
+            if game.snap_temperature >= TEMPERATURE_MAX {
+                return false;
+            }
+            let blue = game.players[p].played_count(Color::Blue);
+            let cost = base - if blue >= threshold { reduction } else { 0 };
+            if game.players[p].mc < cost {
+                return false;
+            }
+            game.players[p].mc -= cost;
+            raise_temperature(game, db, p);
+            true
+        }
+        // « Discard up to `cap` cards, draw that many. »
+        Action::DiscardDraw(cap) => {
+            let max = (game.players[p].hand.len() as i64).min(cap);
+            let amt = policy.action_amount(&mut game.rng, p, max).clamp(0, max);
+            if amt <= 0 {
+                return false;
+            }
+            for _ in 0..amt {
+                let n = game.players[p].hand.len();
+                let i = game.rng.gen_range(0..n);
+                let card = game.players[p].hand.remove(i);
+                game.discard.push(card);
+            }
+            for _ in 0..amt {
+                if let Some(c) = draw_card(game) {
+                    game.players[p].hand.push(c);
+                }
+            }
+            true
+        }
+    }
 }
 
 /// Phase I — Développement (livret p.11) : chacun peut jouer 1 carte verte ;
@@ -497,7 +739,14 @@ fn phase_action(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
             assert!(choice < options.len(), "choix d'action hors options");
             match options[choice] {
                 ActionOpt::BlueAction(card) => {
-                    // Stub neutre : l'action est consommée, sans effet.
+                    // (C) Effets ON : l'action réelle de la carte bleue est
+                    // appliquée si elle est définie et payable ; le compteur
+                    // d'audit n'est incrémenté que si un effet a réellement eu
+                    // lieu. Effets OFF : no-op (squelette « à blanc »).
+                    if db.effects_on && apply_blue_action(game, db, p, card, policy) {
+                        game.blue_actions += 1;
+                    }
+                    // L'activation est consommée dans tous les cas.
                     if let Some(pos) = remaining_blue.iter().position(|&c| c == card) {
                         remaining_blue.remove(pos);
                     }
@@ -511,15 +760,15 @@ fn phase_action(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
                 ActionOpt::ForestWithMc => build_forest(game, p, false),
                 ActionOpt::TemperatureWithHeat => {
                     game.players[p].heat -= TEMPERATURE_HEAT_COST;
-                    raise_temperature(game, p);
+                    raise_temperature(game, db, p);
                 }
                 ActionOpt::TemperatureWithMc => {
                     game.players[p].mc -= TEMPERATURE_MC_COST;
-                    raise_temperature(game, p);
+                    raise_temperature(game, db, p);
                 }
                 ActionOpt::OceanWithMc => {
                     game.players[p].mc -= OCEAN_MC_COST;
-                    reveal_ocean(game, p);
+                    reveal_ocean(game, db, p);
                 }
                 ActionOpt::SellCard => {
                     let n = game.players[p].hand.len();
@@ -542,7 +791,7 @@ fn phase_action(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
         while game.players[p].heat >= TEMPERATURE_HEAT_COST && game.temperature < TEMPERATURE_MAX
         {
             game.players[p].heat -= TEMPERATURE_HEAT_COST;
-            raise_temperature(game, p);
+            raise_temperature(game, db, p);
         }
     }
 }

@@ -187,6 +187,8 @@ pub struct GameOutcome {
     pub scores: [i64; NUM_PLAYERS],
     pub violations: u64,
     pub state_hash: u64,
+    /// Activations d'actions bleues ayant appliqué un effet (lot 2).
+    pub blue_actions: u64,
 }
 
 /// Joue une partie complète (politique fournie), invariants vérifiés à chaque
@@ -210,6 +212,7 @@ pub fn play_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameOutcom
         scores,
         violations,
         state_hash: final_state_hash(&game, &scores),
+        blue_actions: game.blue_actions,
     }
 }
 
@@ -223,6 +226,8 @@ pub struct SimSummary {
     pub avg_score_p2: f64,
     pub state_hash: u64,
     pub games_per_sec: f64,
+    /// Total des activations d'actions bleues sur toutes les parties (lot 2).
+    pub blue_actions: u64,
 }
 
 /// Lance `games` parties aléatoires. Graine unique : un RNG maître seedé par
@@ -241,6 +246,7 @@ pub fn run_simulation(
     let mut sum_gens = 0u64;
     let mut sum_p1 = 0i64;
     let mut sum_p2 = 0i64;
+    let mut blue_actions = 0u64;
 
     let t0 = std::time::Instant::now();
     for _ in 0..games {
@@ -255,6 +261,7 @@ pub fn run_simulation(
         sum_gens += out.generations as u64;
         sum_p1 += out.scores[0];
         sum_p2 += out.scores[1];
+        blue_actions += out.blue_actions;
         agg.write_u64(out.state_hash);
     }
     let elapsed = t0.elapsed().as_secs_f64();
@@ -270,5 +277,6 @@ pub fn run_simulation(
         avg_score_p2: sum_p2 as f64 / n,
         state_hash: agg.0,
         games_per_sec: if elapsed > 0.0 { games as f64 / elapsed } else { 0.0 },
+        blue_actions,
     }
 }

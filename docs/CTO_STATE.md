@@ -7,7 +7,7 @@ Dernière mise à jour : 2026-07-24
 
 ## Ce qui marche
 
-- **`engine/` : moteur Rust 2 joueurs, effets lot 1** — état, phases I-V,
+- **`engine/` : moteur Rust 2 joueurs, effets lots 1+2** — état, phases I-V,
   mulligans maison branchés au flux réel, production, conversions forcées,
   fin de partie, score AVEC VP des cartes (fixes + dynamiques calculables :
   tags Jupiter/Terre, forêts, cartes bleues/toutes — `flow::score`,
@@ -15,9 +15,14 @@ Dernière mise à jour : 2026-07-24
   (table `LOT1` : 63 cartes complètes, prérequis paliers/tags/dépenses,
   chemin unique de pose `flow::build_card`). Sonde d'audit
   `simulate --probe "<nom>"` (JSON de deltas) ; `--effects on|off`.
-  **99 tests verts** ; revalidé après promotion : 300/300 graine 2024,
-  0 violation ; effets ON raccourcissent les parties (73 générations
-  vs 114 OFF, politique aléatoire). [VÉRIFIÉ 24-07]
+  **Lot 2 (110 cartes couvertes au total)** : réductions de coût (service
+  unique `flow::card_discount`, affordabilité + paiement, plancher 0),
+  déclencheurs « when you play … » et température/océan
+  (`fire_play_triggers`, `fire_global_trigger`), actions bleues réelles en
+  phase III (`apply_blue_action`, compteur `blue_actions`), sondes v2
+  (`--probe "A;B"` + `paid[]`, `--probe-action`). **152 tests verts** ;
+  revalidé après promotion : 300/300 graine 2024, 0 violation,
+  4302 actions bleues ; 67 générations ON vs 114 OFF. [VÉRIFIÉ 24-07]
 - **`data/cards.json`** : 388 cartes, pioche v1 = 264 (248 projets +
   16 corporations), **+ champs `vp` (74 cartes > 0) et `vp_dynamic` (22)**
   extraits du Java par script reproductible
@@ -118,15 +123,35 @@ Dernière mise à jour : 2026-07-24
 
 ## Travaux en cours
 
-- **`moteur-cartes-2` : sous-agent EN COURS (lancé le 24-07, Opus 4.8)**.
-  Contrat scellé : ≥ 45 nouvelles cartes (quotas : ≥ 12 actions bleues,
-  ≥ 8 déclenchées, ≥ 8 réductions), 10 imposées vérifiées à la source par
-  la main, sondes v2 (`--probe` séquence + `paid`, `--probe-action`),
-  compteur `blue_actions`, non-régression lot 1. 4 checks visibles testés
-  dans les deux sens + 3 falsifications détectées ; 4 hold-outs cachés
-  (réductions, déclencheurs, actions, graine 662607). Point d'enquête au
-  contrat : sémantique `GainType.TITANIUM`/acier de l'oracle Java.
+- Aucun sous-agent en cours. Prochain chantier : `moteur-cartes-3`
+  (ressources posées sur les cartes : microbes/animaux/science — dernière
+  grande famille de mécanismes projets ; puis VP dynamiques ANIMAL/MICROBE
+  réels au score). [VÉRIFIÉ 24-07]
+
+## Acquis : workspace `moteur-cartes-2` (livré et audité OK le 24-07)
+
+- Audit 8/8 (4 checks + 4 hold-out : réductions, déclencheurs, actions,
+  graine 662607), tampering néant ; chemin critique lu (`card_discount`
+  service unique affordabilité+paiement, `fire_play_triggers`,
+  `apply_blue_action`) ; 19/19 réductions contre-vérifiées au texte par la
+  main ; sondages indépendants graine 909090 (600/600, 0 violation) et
+  6 sondes hors hold-out exactes. Verdict : ok. Promu dans `engine/`
+  (152 tests re-vérifiés verts, 300/300 graine 2024). [VÉRIFIÉ 24-07]
+- 47 cartes neuves (A=26 réductions, B=9 déclencheurs, C=14 actions).
+  Enquête titane/acier ÉLUCIDÉE : le Java `DiscountService` consomme
+  `steelIncome`/`titaniumIncome` comme réductions (×2 MC/Building,
+  ×3 MC/Space) — cohérent avec les scans (PhoboLog) : en AE le titane est
+  un « compteur de réduction », pas une ressource dépensée. Encodage suivi :
+  texte de description (réductions fixes), titane non modélisé ; cartes qui
+  le suivent vraiment (Aquifer Pumping, Solarpunk, Advanced Alloys) hors
+  lot. Conflits déclarés : Titanium Mine (tag imprimé Building, réduction
+  Space). Exclues pour nom dupliqué « Buffed » : Greenhouses, Community
+  Gardens. Imprécision mineure du journal de l'agent : montants variables
+  de `--probe-action` = tirage aléatoire déterministe, pas « montant max ».
   [VÉRIFIÉ 24-07]
+- Reste stubbé (lots suivants) : ressources sur cartes (lot 3),
+  améliorations de phases, suivi acier/titane réel (si les photos du livret
+  le confirment comme ressource), corporations, 7e award. [VÉRIFIÉ 24-07]
 
 ## Acquis : workspace `moteur-cartes-1` (livré et audité OK le 24-07)
 

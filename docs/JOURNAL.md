@@ -122,3 +122,12 @@
   description de cards.json est donc possiblement une paraphrase, pas le
   texte imprimé : impact à arbitrer à l'audit du lot 2 (Asteroid Mining
   et consorts) puis avec les photos du livret d'Alexis. [VÉRIFIÉ 24-07]
+- Chantier `moteur-cartes-2` livré (~73 min de sous-agent Opus 4.8, 1 gel
+  d'infrastructure surmonté) et audité OK : 8/8 contrôles, 152 tests,
+  47 cartes neuves (26 réductions, 9 déclencheurs, 14 actions bleues),
+  sondes v2, compteur blue_actions (13523/1000 parties). Contre-vérifications
+  de la main : 19/19 réductions relues au texte, graine indépendante 909090,
+  6 sondes hors hold-out. Enquête titane élucidée : en AE le titane du Java
+  est un compteur de réduction (×3 MC/Espace), pas une ressource dépensée —
+  cohérent avec le scan PhoboLog. Promu dans engine/ (152 tests verts,
+  67 générations ON vs 114 OFF). Verdict ok. [VÉRIFIÉ 24-07]

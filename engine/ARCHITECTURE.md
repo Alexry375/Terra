@@ -4,7 +4,9 @@ Simulateur d'entraînement du projet Terra : état de jeu, boucle de phases,
 production, paramètres globaux, fin de partie, score, règles maison de
 mulligan, **couche d'effets déclarative** (chantier moteur-cartes-1 : lot 1 de
 63 cartes aux effets complets, VP des 388 cartes extraits, sonde d'audit
-`--probe`, interrupteur `--effects on|off`). Les cartes hors lot restent des
+`--probe`, interrupteur `--effects on|off`) **étendue au lot 2** (chantier
+moteur-cartes-2 : +47 cartes portant réductions de coût, effets déclenchés et
+actions de cartes bleues — voir §Lot 2). Les cartes hors lot restent des
 **stubs neutres** (voir §Stubbé). Parties complètes en politique aléatoire,
 déterministes à graine fixée.
 
@@ -36,6 +38,49 @@ déterministes à graine fixée.
   `outputs/lot1.md` (Nitrogen-Rich Asteroid : `== 3` en Java vs « 3 or more »
   imprimé → `>= 3` implémenté).
 
+## Lot 2 — réductions, déclencheurs, actions (chantier cartes-2)
+
+Le vocabulaire de `src/effects.rs` gagne quatre champs sur `CardEffects`
+(`reductions`, `play_triggers`, `global_triggers`, `action`) et 47 entrées
+NEUVES dans la table `LOT1` (les 10 imposées incluses ; correspondances,
+encodages et conflits texte/Java dans `outputs/lot2.md`). Le texte imprimé
+gagne toujours.
+
+- **(A) Réductions de coût** (`Reduction::AnyCard(n)` / `Tag(tag, n)`) :
+  service UNIQUE `flow::card_discount(game, db, p, card_id)` = somme des
+  réductions de TOUTES les cartes persistantes déjà en jeu du joueur (calculée
+  AVANT la mise en jeu, donc une carte ne se réduit jamais elle-même). Consommé
+  par `affordable` (filtre d'affordabilité) ET par `build_card` (paiement) —
+  chemin unique, pas de logique parallèle. `paid = max(0, prix − remise_phase −
+  remise_cartes)`, `assert paid >= 0`. **Titane/acier** : le Java
+  `DiscountService` consomme `steelIncome`/`titaniumIncome` COMME réductions
+  (×2 MC/BUILDING, ×3 MC/SPACE) ; Asteroid Mining (Java = titane 2 → −6 MC
+  Space) est encodé selon son TEXTE IMPRIMÉ « −6 MC Space » sans modéliser le
+  titane ; les cartes qui SUIVENT l'acier/titane (AquiferPumping, Solarpunk)
+  sont hors lot.
+- **(B) Déclencheurs de pose** (`PlayTrigger { cond, gains,
+  scale_by_matched_tags, include_self }`) : évalués dans `build_card` APRÈS la
+  mise en jeu, sur les tags de la carte POSÉE, pour toutes les cartes
+  persistantes en jeu du joueur. `include_self` = Java
+  `onBuiltEffectApplicableToItself` (Olympus « including this » = true, défaut
+  false) ; `scale_by_matched_tags` = Java `countCardTags` (pioche par tag).
+  **Déclencheurs globaux** (`GlobalTrigger::OnRaiseTemperature/OnFlipOcean`)
+  fixés dans `raise_temperature`/`reveal_ocean` au moment où le TR est accordé,
+  pour le seul joueur agissant (Volcanic Soil +2 plantes/pas de température,
+  Arctic Algae +4 plantes/océan).
+- **(C) Actions de cartes bleues** : le stub neutre `ActionOpt::BlueAction` de
+  `phase_action` devient un vrai moteur (`flow::apply_blue_action`). Chaque
+  carte bleue en jeu offre 1 activation par phase III (INCHANGÉ) ; à
+  l'activation, si les effets sont ON et l'action définie et payable, coût et
+  effet sont appliqués et le compteur `blue_actions` incrémenté ; sinon no-op
+  (`--effects off` = squelette « à blanc », `blue_actions: 0`). Coûts (chaleur/
+  MC/plantes), effets (pioche/plantes/MC/TR/oxygène), variantes variables
+  « up to X » (`HeatToMc`, `DiscardDraw`, coût réduit par tags Energy ou par
+  cartes bleues) dont le montant est tiré par `Policy::action_amount` (méthode
+  par défaut du trait → aucune impl existante modifiée). Le compteur vit dans
+  `GameState.blue_actions`, agrégé en `SimSummary.blue_actions` (champ JSON
+  `blue_actions` de `simulate`).
+
 ## VP des cartes et score
 
 `cards_v2.json` (Mission A, script `outputs/work/extract_vp.py`) ajoute aux
@@ -48,18 +93,32 @@ cartes bleues jouées (`BLUE_CARD`), cartes jouées (`ANY_CARD`). Les types
 portant sur des **ressources posées sur les cartes** (ANIMAL, MICROBE,
 SCIENCE…) valent **0 en v1** (ressources non modélisées).
 
-## Sonde d'audit (`simulate --probe "<nom exact>"`)
+## Sonde d'audit v2 (`--probe` séquence, `--probe-action`)
 
 État de départ fixe (`src/probe.rs`) : joueur 1 sans corporation, 100 MC,
-20 chaleur, 20 plantes, productions 0, TR 5, paramètres globaux au départ, la
-carte nommée seule en main ; pioche = cartes v1 restantes en ordre d'index,
-tuiles océan **non mélangées** (1re = +2 plantes, 2e = +4 MC). La sonde force
-la pose par `flow::build_card` (même code que `simulate`) : les prérequis non
-satisfaits ne bloquent pas (`prereq_ok` les rapporte), les dépenses « spend »
-sont réellement payées. Sortie : une ligne JSON `{card, found, in_lot,
-prereq_ok, played, delta{…}, vp}` ; `delta.mc` exclut le prix payé,
-`delta.hand` exclut la carte jouée (journal B6). `found:false` si le nom est
-inconnu ; carte hors lot : `in_lot:false`, delta nul.
+20 chaleur, 20 plantes, productions 0, TR 5, paramètres globaux au départ, les
+cartes nommées seules en main (dans l'ordre) ; pioche = cartes v1 restantes en
+ordre d'index, tuiles océan **non mélangées** (1re = +2 plantes, 2e = +4 MC).
+Même chemin de pose que `simulate` (`flow::build_card`).
+
+- **`--probe "<A>;<B>;…"`** : pose FORCÉE des cartes DANS L'ORDRE (séparateur
+  `;`). Rétro-compatible — une seule carte = comportement exact du lot 1.
+  Nouveau champ `"paid": [int, …]` = prix effectivement payé de chaque carte
+  (après réductions, ≥ 0). `delta` = cumul depuis l'état de départ, HORS prix
+  payés (`delta.mc` réintègre le total réellement déboursé — identique au lot 1
+  quand une seule carte est en jeu, remise 0) ; `found`/`in_lot`/`prereq_ok`/
+  `played`/`vp` portent sur la DERNIÈRE carte. Les réductions et déclencheurs
+  des cartes posées plus tôt s'appliquent aux poses suivantes — c'est le but de
+  la séquence (observer réductions et « when you play … »).
+- **`--probe-action "<nom>"`** : pose la carte puis active son action UNE fois
+  si elle est payable. JSON `{card, found, in_lot, has_action, action_applied,
+  delta{…}}` où `delta` isole L'ACTION SEULE (état après pose → après action,
+  dépenses de l'action comprises, ex. Development Center : `heat: -2,
+  hand: +1`). Carte sans action : `has_action:false, action_applied:false`,
+  delta nul.
+
+`found:false` si le nom est inconnu ; carte hors lot ou effets coupés :
+`in_lot:false`, réductions/déclencheurs/actions inertes.
 
 ## Représentation de l'état
 
@@ -181,16 +240,19 @@ Explicitement hors périmètre, structure prête :
   et couleur, aucun effet. Leurs `vp`/`vp_dynamic` sont néanmoins comptés au
   score (effets ON) : les VP sont des données de `cards_v2.json`,
   indépendantes de la table d'effets. *Branchement des lots suivants* :
-  ajouter des entrées à `LOT1` (et au vocabulaire si besoin) ; l'activation
-  bleue (`ActionOpt::BlueAction`, no-op qui consomme l'activation) et les
-  hooks d'événements (`raise_*`/`build_forest`) restent les points d'entrée
-  identifiés pour les effets récurrents.
-- **Hors vocabulaire v1** (restent stubs même si la carte est simple par
-  ailleurs) : réductions de coût (« pay X less »), effets déclenchés
-  récurrents (« when you play a … »), ressources posées sur les cartes,
-  productions par tag (« 1 MC per Earth tag »), pioche avec défausse
-  (« draw 4 then discard 2 »), améliorations de phases, choix du joueur à la
-  pose (« gain X OR … »), tag wild (DYNAMIC).
+  ajouter des entrées à `LOT1` (et au vocabulaire si besoin).
+- **Traité au lot 2** (n'est PLUS stub) : réductions de coût (« pay X less »),
+  effets déclenchés (« when you play a … », « when you raise the temperature /
+  flip an ocean »), actions de cartes bleues en phase III (le no-op
+  `ActionOpt::BlueAction` est devenu `flow::apply_blue_action`). Voir §Lot 2.
+- **Hors vocabulaire (restent stubs)** : ressources posées sur les cartes
+  (microbes/animaux/science — lot 3), productions par tag (« 1 MC per Earth
+  tag »), pioche avec défausse à la pose (« draw 4 then discard 2 »),
+  améliorations de phases (« Upgrade a phase card »), choix du joueur à la pose
+  (« gain X OR … »), jeu gratuit d'une carte, tag wild (DYNAMIC). Une carte
+  mêlant un mécanisme du lot 2 ET un de ceux-ci reste HORS lot 2 (fidélité
+  totale ou rien) ; idem une carte dont le nom se dédouble avec une variante
+  « Buffed » (Greenhouses, Community Gardens : ambiguës par nom, exclues).
 - **Corporations** : entrent en jeu avec leurs tags ; MC de départ = champ
   `price` du JSON (vérifié contre le Java : Credicor 48). Productions de
   départ et pouvoirs : stubbés.
@@ -203,8 +265,11 @@ Explicitement hors périmètre, structure prête :
   effet de carte).
 - **Ressources posées sur cartes** (animaux, microbes…) : inexistantes en v1 —
   l'award Collector vaut donc toujours 0-0 (égalité 4/4).
-- **Capacités acier/titane** : champs présents, toujours 0 (aucune réduction
-  de coût).
+- **Capacités acier/titane** : champs présents, toujours 0. Le lot 2 encode le
+  TEXTE IMPRIMÉ des cartes à réduction (« pay N less on <tag> ») en réductions
+  fixes, sans modéliser l'acier/titane comme ressource (le Java le fait via
+  `steelIncome`/`titaniumIncome` dans `DiscountService`) ; les cartes qui
+  SUIVENT réellement l'acier/titane restent hors lot.
 - **Paiement par défausse de cartes** : la défausse à 3 MC existe comme action
   de la phase III et à l'étape de fin, pas comme moyen de paiement d'une
   carte (simplification de politique documentée, journal D9).
@@ -255,20 +320,29 @@ Explicitement hors périmètre, structure prête :
 
 - `src/cards.rs` — chargement de `cards_v2.json`, base de cartes (VP inclus),
   résolution des effets par nom.
-- `src/effects.rs` — vocabulaire d'effets v1 (`Req`/`Eff`), table `LOT1`
-  (63 cartes), constantes de paliers de couleur.
+- `src/effects.rs` — vocabulaire d'effets (`Req`/`Eff` + lot 2 : `Reduction`,
+  `PlayTrigger`/`TrigCond`/`TrigGain`, `GlobalTrigger`, `Action`/`ActionCost`/
+  `ActionEff`), table `LOT1` (63 + 47 = 110 cartes), constantes de paliers.
 - `src/state.rs` — état de jeu, constantes sourcées, pools milestones/awards,
   compteurs d'audit TR (`tr_increments`/`tr_decrements`).
 - `src/flow.rs` — mise en place (mulligans maison), ronde, phases,
-  `requirements_met`/`build_card` (couche d'effets), score (VP cartes).
-- `src/policy.rs` — `trait Policy`, `RandomPolicy`.
-- `src/probe.rs` — état fixe et exécution de la sonde `--probe`.
-- `src/sim.rs` — invariants, empreinte FNV-1a, boucle de simulation.
+  `requirements_met`/`build_card` (couche d'effets), `card_discount` (A),
+  `fire_play_triggers`/`fire_global_trigger` (B), `apply_blue_action` (C),
+  score (VP cartes).
+- `src/policy.rs` — `trait Policy`, `RandomPolicy` ; `action_amount` (montants
+  « up to X », méthode par défaut).
+- `src/probe.rs` — état fixe, sonde séquence (`run_probe`/`run_probe_seq`,
+  `paid`) et sonde action (`run_probe_action`).
+- `src/sim.rs` — invariants, empreinte FNV-1a, boucle de simulation, compteur
+  `blue_actions`.
 - `src/bin/simulate.rs` — CLI `--games N --seed S [--cards …]
-  [--effects on|off] [--probe "<nom>"]`, une ligne JSON sur stdout.
+  [--effects on|off] [--probe "<A>;<B>;…"] [--probe-action "<nom>"]`, une ligne
+  JSON sur stdout (champ `blue_actions` en mode simulation).
 - `tests/engine_tests.rs` — 27 tests du squelette (mulligans, production,
   contrainte de phase, fin de partie, score, invariants, déterminisme…).
-- `tests/lot1_tests.rs` — 72 tests du lot 1 : un par carte (63, sonde → état
-  de jeu comparé au texte imprimé) + intégration (prérequis dans le flux réel,
-  paliers de couleur, dépense de TR, interrupteur, score VP fixes/dynamiques,
-  déterminisme de la sonde, intégrité de la table).
+- `tests/lot1_tests.rs` — 72 tests du lot 1.
+- `tests/lot2_tests.rs` — 53 tests du lot 2 : un par carte (47, sonde →
+  état de jeu comparé au texte imprimé : réductions via `paid`, déclencheurs et
+  actions via delta) + intégration (réduction dans l'affordabilité, compteur
+  `blue_actions` en flux réel, prix payé plafonné à 0, interrupteur
+  `--effects off`, intégrité du lot, déterminisme de la sonde séquence).
