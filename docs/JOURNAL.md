@@ -145,3 +145,16 @@
   Alloys/Phobolog/Aquifer Pumping/Solarpunk. Points ouverts consignés :
   listes complètes Objectifs/Récompenses/Phases améliorées (scans),
   contradiction p. 14/p. 20 sur la phase Actions. [VÉRIFIÉ 24-07]
+- AUDIT DE CONFORMITÉ moteur ↔ livret officiel (demandé par Alexis) :
+  sous-agent Opus 4.8, ~55 points de règles confrontés au code, rapport
+  docs/regles/notes/conformite-moteur-24-07.md. ~44 conformes (bornes,
+  NT, actions standard, bonus de phase, production, fin de partie, main
+  10, mulligans maison). 6 écarts réels, tous mineurs ; les 3 principaux
+  contre-vérifiés par la main dans flow.rs : E6 prérequis évalués à
+  l'état courant au lieu de l'instantané de début de phase (flow.rs:216),
+  E1 milestones/awards Découverte toujours comptés sans bascule « base »
+  (flow.rs:960-977 — mineur : nos parties réelles incluent Découverte),
+  E2 bonus phase II « piocher avant OU après » réduit à après
+  (flow.rs:696-702). E3 départage d'égalité absent, E4 défausse +3 MC
+  restreinte à la phase III, E5 conversion fin de phase sur état courant.
+  Corrections à intégrer avant/avec moteur-cartes-3. [VÉRIFIÉ 24-07]

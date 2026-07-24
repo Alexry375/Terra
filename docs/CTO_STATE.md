@@ -148,6 +148,11 @@ Dernière mise à jour : 2026-07-24
 
 ## Travaux en cours
 
+- Écarts de conformité à corriger (rapport docs/regles/notes/
+  conformite-moteur-24-07.md, 6 écarts mineurs dont E6 prérequis sur
+  instantané, E2 pioche avant/après, E3 départage) : à traiter en tête du
+  chantier moteur-cartes-3. [VÉRIFIÉ 24-07]
+
 - Aucun sous-agent en cours. Prochain chantier : `moteur-cartes-3`
   (ressources posées sur les cartes : microbes/animaux/science — dernière
   grande famille de mécanismes projets ; puis VP dynamiques ANIMAL/MICROBE
