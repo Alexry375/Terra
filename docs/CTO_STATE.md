@@ -141,17 +141,18 @@ Dernière mise à jour : 2026-07-24
   (20 cartes appariées Mylaana `foundations`), pas une extension maison ;
   livrées `fan` (enum scellé), sans impact pioche v1. [DÉCLARÉ par l'agent,
   cohérent]
-- Décision pack 2021 (24-07) : Alexis ne possède pas les corporations
-  (certain), doute sur les 11 projets → les 17 cartes isolées en
-  `box: promo2021`, HORS pioche par défaut, réglable. Base de cartes promue
-  dans le dépôt : `data/cards.json` (pioche v1 = 264). [VÉRIFIÉ 24-07]
+- Décision pack 2021 **CLOSE (24-07)** : Alexis certain de ne pas posséder
+  Synthetic Catastrophe (carte témoin la plus reconnaissable du pack) → il
+  ne possède PAS le pack KS 2021. Les 17 cartes restent `box: promo2021`,
+  HORS pioche — réglage par défaut confirmé définitif. `data/cards.json`
+  (pioche v1 = 264) inchangé. [VÉRIFIÉ 24-07]
 - (Historique) 17 cartes d'un SECOND pack promo
   (Kickstarter 2021 : ArkLight, Celestior, DevTechs, LaunchStar, Mai-Ni,
   Zetacell + 11 projets dont Self-Replicating Bacteria, Synthetic Catastrophe,
   Processing Plant) sont marquées `base` par le moteur et comptent
-  actuellement DANS la pioche v1. Mylaana les classe promo. Selon l'édition de
-  la boîte d'Alexis, il les possède ou non → round 2 de retag à lancer une
-  fois sa réponse connue. [VÉRIFIÉ 24-07]
+  actuellement DANS la pioche v1. Mylaana les classe promo. Résolu : Alexis
+  ne les possède pas (voir décision close ci-dessus), aucun round 2 requis.
+  [VÉRIFIÉ 24-07]
 
 ## Décisions de périmètre tranchées par Alexis (23-07)
 

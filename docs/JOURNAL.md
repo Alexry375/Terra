@@ -95,3 +95,9 @@
   re-adaptés (leçon du squelette appliquée), 99 tests verts après promotion.
   Signal encourageant : les effets raccourcissent les parties aléatoires
   (73 générations contre 114 sans effets). [VÉRIFIÉ 24-07]
+- Décision pack KS 2021 CLOSE : Alexis certain de ne pas posséder Synthetic
+  Catastrophe (témoin le plus reconnaissable) → pack non possédé, les
+  17 cartes `promo2021` restent hors pioche (réglage déjà en place, aucun
+  changement de données). [VÉRIFIÉ 24-07]
+- Directive Alexis : les sous-agents de chantier passent sur Opus 4.8
+  (le CTO reste sur Fable 5) ; exception possible si justifiée. [VÉRIFIÉ 24-07]
