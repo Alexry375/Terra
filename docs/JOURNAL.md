@@ -35,6 +35,18 @@
   classement historique), mais les experts la battent régulièrement — forte,
   pas surhumaine façon moteurs d'échecs. Sources BGG/Temple Gates. [VÉRIFIÉ
   23-07 — sources secondaires, pas de mesure formelle publiée]
+- **Workspace `audit-nikitinalexx` lancé puis livré et audité OK le jour même**
+  (sous-agent Claude, ~32 min). Contrat scellé (3 contrôles visibles + 1 caché
+  sur 3 cartes témoins) ; audit : 3/3 verts, hold-out exact, pas de trafiquage,
+  divergences déclarées (BGG en 403 → liste Mylaana substituée ; partie non
+  jouée jusqu'au bout). Sondage du chemin critique : les affirmations
+  surprenantes (typo cyrillique « руфе », carte non enregistrée) re-vérifiées
+  vraies à la source. Détail des acquis → `docs/CTO_STATE.md` §Acquis.
+  [VÉRIFIÉ 23-07]
+- Erreur de ma part corrigée en cours de route : j'avais présenté « aucune base
+  de cartes » de façon trompeuse ; et l'audit a aussi trouvé une implémentation
+  indépendante supplémentaire (Mylaana/AresExpedition, avec
+  `data/cards_data.json`) que l'étude de terrain avait manquée. [VÉRIFIÉ 23-07]
 - Limites honnêtes de l'étude : volet « implémentations officielles » (appli
   Asmodee, Board Game Arena, Tabletop Simulator) non couvert par des
   affirmations vérifiées ; fidélité des règles de nikitinalexx non auditée
