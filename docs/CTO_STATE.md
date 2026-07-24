@@ -7,8 +7,14 @@ Dernière mise à jour : 2026-07-23
 
 ## Ce qui marche
 
-- Rien encore : le dépôt vient d'être créé, il ne contient que les documents de
-  pilotage. [VÉRIFIÉ 23-07]
+- **`engine/` : squelette du moteur Rust 2 joueurs** — état, phases I-V,
+  mulligans maison branchés au flux réel (`engine/src/flow.rs:112,132`),
+  production, conversions forcées du livret, fin de partie, score,
+  27 tests verts, binaire `simulate` déterministe (~6-7 000 parties/s déjà,
+  effets de cartes stubbés). Revalidé après promotion dans le dépôt :
+  300/300 parties graine 2024, 0 violation. [VÉRIFIÉ 24-07]
+- **`data/cards.json`** : 388 cartes, pioche v1 = 264 (248 projets +
+  16 corporations). [VÉRIFIÉ 24-07]
 
 ## Étude du terrain (2026-07-23) — voir `docs/ETUDE_TERRAIN.md`
 
@@ -77,10 +83,22 @@ Dernière mise à jour : 2026-07-23
 
 ## Travaux en cours
 
-- **Workspace `moteur-squelette`** (scellé le 24-07, 4 contrôles visibles +
-  1 hold-out à graine inédite, sous-agent lancé) : crate Rust 2 joueurs —
-  état, phases, production, fin de partie, score, mulligans maison, cartes
-  stubbées, binaire `simulate` déterministe. [VÉRIFIÉ 24-07]
+- Aucun sous-agent en cours. Prochain chantier : `moteur-cartes-1` (premier
+  lot d'effets de cartes + extraction des VP, testé contre l'oracle Java).
+  [VÉRIFIÉ 24-07]
+
+## Acquis : workspace `moteur-squelette` (livré et audité OK le 24-07)
+
+- Contrôles 4/4, hold-out graine inédite PASS, re-sondage indépendant
+  (graine 314159 : 500/500, 0 violation). Journal : 18 décisions sourcées
+  (livret base seulement disponible en suédois — traduit et croisé avec le
+  moteur Java ; conflit « 7 awards Discovery vs 6 dans le Java » noté).
+  Moteur promu dans `engine/` (chemins adaptés, 27 tests re-vérifiés).
+  [VÉRIFIÉ 24-07]
+- Trous connus à combler aux chantiers suivants : VP imprimés absents de
+  `data/cards.json` (extraction à ajouter), effets/prérequis des cartes
+  stubbés, améliorations de phases neutres, 7e award à élucider,
+  revendication des milestones simplifiée. [VÉRIFIÉ 24-07]
 
 ## Acquis : workspace `retag-cartes` (livré et audité OK le 24-07)
 

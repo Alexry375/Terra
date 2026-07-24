@@ -67,3 +67,8 @@
 - Découverte structurante : il existe DEUX packs promo officiels. Le second
   (KS 2021, 17 cartes) est fondu dans la « base » du moteur → décision Alexis
   requise (possède-t-il ces cartes ?) avant un round 2. [VÉRIFIÉ 24-07]
+- Workspace `moteur-squelette` livré (~32 min) et audité OK : squelette Rust
+  complet, 27 tests, 1000/1000 parties sans violation, déterminisme et
+  hold-out à graine inédite verts. Promu dans `engine/` — un bogue de chemin
+  relatif attrapé à la promotion (tests pointant vers le workspace), corrigé
+  et revalidé. Déjà ~6 500 parties/s avec effets stubbés. [VÉRIFIÉ 24-07]
