@@ -36,15 +36,25 @@ Dernière mise à jour : 2026-07-23
 
 1. ~~Valider la recommandation « nikitinalexx comme référence + simulateur
    d'entraînement maison »~~ → **VALIDÉE par Alexis le 23-07**. [VÉRIFIÉ 23-07]
-2. **Approche d'apprentissage** : cadrage fait (MCTS à actions simultanées +
-   traitement de l'information cachée ; ReBeL exclu), architecture précise à
-   étudier. [DÉCLARÉ]
+2. **Approche d'apprentissage** : pari validé par Alexis le 23-07 — plancher
+   type Keldon (réseau léger auto-entraîné, faisable même sans carte graphique)
+   puis montée vers les méthodes modernes (recherche arborescente + réseau,
+   actions simultanées, information cachée ; ReBeL exclu). Architecture précise
+   à étudier. [VÉRIFIÉ 23-07 pour la décision, architecture À FAIRE]
 3. **Entraînement local (RTX 3060) ou machines louées en ligne** : les
    références publiées dépassent une 3060 seule ; arbitrage après conception du
    simulateur rapide. [DÉCLARÉ]
 4. **Interfaces de jeu** : en ligne, et/ou plateau physique par caméra. Reporté à
    après le moteur et l'IA. Le module Tabletop Simulator reste une piste pour
    les visuels de cartes (non vérifié). [DÉCLARÉ]
+
+## Travaux en cours
+
+- **Workspace `audit-nikitinalexx`** (scellé le 23-07, 3 contrôles visibles +
+  1 contrôle caché, sous-agent lancé) : lancer le simulateur, vérifier la
+  fidélité des règles sur ≥10 cartes, élucider l'anomalie 38 vs 52 (hypothèse
+  d'Alexis au contrat : cartes étoilées du tutoriel), extraire
+  `outputs/cards.json` (≥380 cartes) depuis le code Java. [VÉRIFIÉ 23-07]
 
 ## Verrous et risques connus
 
