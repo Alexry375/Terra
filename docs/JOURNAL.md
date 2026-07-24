@@ -169,3 +169,24 @@
   dans docs/regles/README.md. Corrections E2/E4/E6 + règles maison à
   intégrer en tête de moteur-cartes-3 ; E3 devient sans objet (égalité
   maison) ; E1 sans objet pratique (parties avec Découverte). [VÉRIFIÉ 24-07]
+- Chantier `moteur-conformite-1` cadré et lancé (sous-agent Opus 4.8). Choix
+  de méthode : le lot 3 annoncé est SCINDÉ en 3-A (conformité + règles
+  maison, ce lot) et 3-B (ressources sur cartes), car 3-B pose des cartes
+  qui se paient par défausse et déclenchent des effets — il doit s'appuyer
+  sur un cœur déjà corrigé. Contrat scellé : C1 prérequis de PARAMÈTRES sur
+  l'instantané de début de phase (tags/dépenses restent à l'état courant),
+  C2 pioche avant OU après en phase II, C3 défausse-paiement (3 MC/carte,
+  minimum nécessaire, surplus rendu) dans affordable ET build_card, C4 ordre
+  J1/J2 alterné avec alternance action par action en phase III, C5 égalité
+  sèche + conversion obligatoire sur l'instantané, C6 >= 170 tests, C7
+  conformite.md. Sonde étendue : --probe-mc, --probe-filler, --probe-strict,
+  champs discarded[] et prereq_ok_now (le mode strict est le seul moyen
+  d'observer C1 carte par carte — la sonde du lot 2 force la pose).
+  4 checks testés dans les DEUX sens (rouges sur l'état actuel, verts sur
+  état-cible simulé) + 6 contre-tests de falsification tous détectés.
+  4 hold-outs cachés à valeurs relevées à la source : témoins d'instantané
+  opposés (Giant Ice Asteroid;Great Dam doit bloquer / Crater après 3
+  événements doit passer — piège si l'agent bascule les tags sur
+  l'instantané), arithmétique de défausse avec surplus rendu, ordre du tour
+  sur graines inédites, non-régression lots 1-2 (vert sur le moteur actuel,
+  7782 parties/s). [VÉRIFIÉ 24-07]
