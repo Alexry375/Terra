@@ -51,3 +51,19 @@
   Asmodee, Board Game Arena, Tabletop Simulator) non couvert par des
   affirmations vérifiées ; fidélité des règles de nikitinalexx non auditée
   carte par carte ; volet légal non sourcé en droit français. [VÉRIFIÉ 23-07]
+
+## 2026-07-24 — Retag des cartes livré et audité
+
+- Workspace `retag-cartes` livré par sous-agent (~17 min) et audité OK :
+  contrôles 3/3, hold-out exact, pas de trafiquage. La base de cartes du projet
+  existe : `cards_v1.json` (388 cartes, boîte d'origine, pioche v1 = 281).
+  [VÉRIFIÉ 24-07]
+- L'agent a dépassé le contrat en bien : 2 bogues du moteur Java découverts
+  (Buffed* en base ; Mai-Ni nommée « Teractor »), et une erreur factuelle de
+  MON contrat déclarée (les cartes « infrastructure » sont très probablement
+  l'extension officielle Foundations, pas du contenu maison). Leçon CTO :
+  mes contrats doivent laisser une sortie propre aux contradictions
+  factuelles (enum extensible ou champ « contestation »). [VÉRIFIÉ 24-07]
+- Découverte structurante : il existe DEUX packs promo officiels. Le second
+  (KS 2021, 17 cartes) est fondu dans la « base » du moteur → décision Alexis
+  requise (possède-t-il ces cartes ?) avant un round 2. [VÉRIFIÉ 24-07]

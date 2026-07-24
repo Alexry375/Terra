@@ -77,13 +77,32 @@ Dernière mise à jour : 2026-07-23
 
 ## Travaux en cours
 
-- **Workspace `retag-cartes`** (scellé le 23-07, 3 contrôles visibles corrigés
-  après simulation d'état-cible + 1 contrôle caché, sous-agent lancé) :
-  ré-étiquetage des 388 cartes par boîte d'origine (base/discovery/promo/fan/
-  crysis/none), marquage de la pioche v1 (2 joueurs, base+Discovery, promo
-  exclues, étoilées incluses, Oxidation Byproducts réintégrée), croisement avec
-  Mylaana/AresExpedition. Piège documenté au contrat : les noms du code
-  divergent parfois des noms officiels (« Martian Studies »). [VÉRIFIÉ 23-07]
+- Aucun sous-agent en cours. Prochain chantier prévu : `moteur-squelette`
+  (Rust), après la décision « pack 2021 » ci-dessous. [VÉRIFIÉ 24-07]
+
+## Acquis : workspace `retag-cartes` (livré et audité OK le 24-07)
+
+- `outputs/cards_v1.json` : 388 cartes ré-étiquetées par boîte réelle
+  (base 239, discovery 42, promo 15, fan 69, crysis 22, none 1) ;
+  pioche v1 = 281 cartes ; Oxidation Byproducts réintégrée ; origine des
+  données intacte ; hold-out 7 témoins exact. [VÉRIFIÉ 24-07]
+- `outputs/divergences.md` : croisement Mylaana (317 paires) — 31 divergences
+  de nom, 4 de coût, 4 de tags, arbitrées et sourcées. [VÉRIFIÉ 24-07]
+- Bogues du moteur Java attrapés : `BuffedBirds`/`BuffedCommunityGardens`
+  marquées base ; la classe `MayNiProductionsCorporation` porte le `name`
+  erroné « Teractor Corporation » (doublon). [VÉRIFIÉ 24-07 par sondage]
+- Correctif à mon contrat, déclaré par l'agent : les 20 cartes
+  « infrastructure » = très probablement l'extension OFFICIELLE Foundations
+  (20 cartes appariées Mylaana `foundations`), pas une extension maison ;
+  livrées `fan` (enum scellé), sans impact pioche v1. [DÉCLARÉ par l'agent,
+  cohérent]
+- **DÉCISION EN ATTENTE (Alexis)** : 17 cartes d'un SECOND pack promo
+  (Kickstarter 2021 : ArkLight, Celestior, DevTechs, LaunchStar, Mai-Ni,
+  Zetacell + 11 projets dont Self-Replicating Bacteria, Synthetic Catastrophe,
+  Processing Plant) sont marquées `base` par le moteur et comptent
+  actuellement DANS la pioche v1. Mylaana les classe promo. Selon l'édition de
+  la boîte d'Alexis, il les possède ou non → round 2 de retag à lancer une
+  fois sa réponse connue. [VÉRIFIÉ 24-07]
 
 ## Décisions de périmètre tranchées par Alexis (23-07)
 
