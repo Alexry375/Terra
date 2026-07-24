@@ -21,6 +21,20 @@
   Conclusion : `nikitinalexx/ares-expedition` est le seul simulateur libre
   couvrant Discovery ; aucune base de cartes JSON n'existe ; précédent IA le
   plus proche : Race for the Galaxy (`bnordli/rftg`). [VÉRIFIÉ 23-07]
+- Alexis a **validé la stratégie à deux moteurs** (nikitinalexx comme référence
+  de règles et source de cartes + simulateur rapide maison pour
+  l'entraînement). [VÉRIFIÉ — son message du jour]
+- Correction d'une formulation trompeuse du rapport : les cartes sont bien
+  toutes répertoriées dans le code de nikitinalexx (403 classes Java, extension
+  d'origine marquée par carte) — ce qui manque, c'est un fichier de données
+  autonome réutilisable. Vérifié par clone du dépôt. Anomalie relevée :
+  52 classes projet Discovery pour 38 cartes officielles, à élucider.
+  [VÉRIFIÉ 23-07]
+- Complément sur Race for the Galaxy : l'IA de Keldon Jones (niveau difficile)
+  se classe environ dans le 1 % des meilleurs joueurs (~100e sur ~10 000 au
+  classement historique), mais les experts la battent régulièrement — forte,
+  pas surhumaine façon moteurs d'échecs. Sources BGG/Temple Gates. [VÉRIFIÉ
+  23-07 — sources secondaires, pas de mesure formelle publiée]
 - Limites honnêtes de l'étude : volet « implémentations officielles » (appli
   Asmodee, Board Game Arena, Tabletop Simulator) non couvert par des
   affirmations vérifiées ; fidélité des règles de nikitinalexx non auditée

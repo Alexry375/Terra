@@ -15,8 +15,17 @@ Dernière mise à jour : 2026-07-23
 - Meilleur simulateur existant : `nikitinalexx/ares-expedition` (GPL-3.0, Java,
   Discovery couvert, embryon d'IA, dormant depuis déc. 2025). [VÉRIFIÉ 23-07 —
   vérification contradictoire 3-0 par le harnais de recherche]
-- Aucune base de cartes JSON base+Discovery n'existe ; extraction depuis le code
-  Java de nikitinalexx ou ressaisie nécessaire. [VÉRIFIÉ 23-07]
+- Précision (vérifiée par clone du dépôt le 23-07) : les cartes SONT toutes
+  répertoriées dans le code de nikitinalexx — 403 fichiers Java, un par carte,
+  chacun portant nom, texte, coût, tags, effets ET son extension d'origine
+  (interfaces `BaseExpansion...Card`, `DiscoveryExpansion...Card`, etc. ;
+  `Card.java:37` expose `getExpansion()`). Ce qui n'existe pas, c'est un fichier
+  de données autonome (JSON) réutilisable hors de ce code ; l'extraction est un
+  travail mécanique de conversion. [VÉRIFIÉ 23-07]
+- Point à auditer : le décompte des cartes Discovery dans le code (52 classes
+  projet Discovery) dépasse les 38 cartes projet officielles — comprendre
+  pourquoi (cartes de phase ? doublons ? contenu non officiel ?). [VÉRIFIÉ 23-07
+  pour les chiffres, cause inconnue]
 - Précédent IA le plus pertinent : `bnordli/rftg` (Race for the Galaxy,
   mécaniques quasi identiques, IA forte sur matériel modeste). [VÉRIFIÉ 23-07]
 - Recommandation CTO issue de l'étude : réutiliser nikitinalexx comme référence
@@ -25,8 +34,8 @@ Dernière mise à jour : 2026-07-23
 
 ## Décisions ouvertes (attendent Alexis ou une étude)
 
-1. **Valider la recommandation** « nikitinalexx comme référence + simulateur
-   d'entraînement maison ». Attend Alexis. [DÉCLARÉ]
+1. ~~Valider la recommandation « nikitinalexx comme référence + simulateur
+   d'entraînement maison »~~ → **VALIDÉE par Alexis le 23-07**. [VÉRIFIÉ 23-07]
 2. **Approche d'apprentissage** : cadrage fait (MCTS à actions simultanées +
    traitement de l'information cachée ; ReBeL exclu), architecture précise à
    étudier. [DÉCLARÉ]
