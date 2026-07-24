@@ -13,7 +13,7 @@ use rand::rngs::StdRng;
 use std::collections::VecDeque;
 
 fn db() -> CardsDb {
-    CardsDb::load("../../inputs/cards.json").expect("cards.json doit se charger")
+    CardsDb::load("../data/cards.json").expect("cards.json doit se charger")
 }
 
 /// Politique scriptée pour les tests : décisions forcées là où le test le

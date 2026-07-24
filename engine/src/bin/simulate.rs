@@ -15,7 +15,7 @@ fn die(msg: &str) -> ! {
 fn main() {
     let mut games: u64 = 1000;
     let mut seed: u64 = 0;
-    let mut cards_path = String::from("inputs/cards.json");
+    let mut cards_path = String::from("data/cards.json");
 
     let args: Vec<String> = std::env::args().skip(1).collect();
     let mut i = 0;
