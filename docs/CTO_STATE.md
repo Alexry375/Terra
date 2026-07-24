@@ -75,6 +75,22 @@ Dernière mise à jour : 2026-07-23
     le réseau lui-même (MLP figé, 1 coup de profondeur) non.
   - GPL-3.0 : consommer via API ou données, ne pas lier le code de Terra.
 
+## Travaux en cours
+
+- **Workspace `retag-cartes`** (scellé le 23-07, 3 contrôles visibles corrigés
+  après simulation d'état-cible + 1 contrôle caché, sous-agent lancé) :
+  ré-étiquetage des 388 cartes par boîte d'origine (base/discovery/promo/fan/
+  crysis/none), marquage de la pioche v1 (2 joueurs, base+Discovery, promo
+  exclues, étoilées incluses, Oxidation Byproducts réintégrée), croisement avec
+  Mylaana/AresExpedition. Piège documenté au contrat : les noms du code
+  divergent parfois des noms officiels (« Martian Studies »). [VÉRIFIÉ 23-07]
+
+## Décisions de périmètre tranchées par Alexis (23-07)
+
+- **2 joueurs sur tout le projet** (« on jouera toujours à 2 joueurs »).
+- Cartes promo : exclues de la pioche (non possédées). Cartes étoilées
+  tutoriel : incluses. Voir `docs/CONCEPTION_SIMULATEUR.md`. [VÉRIFIÉ 23-07]
+
 ## Verrous et risques connus
 
 - L'IA a besoin d'un **simulateur complet et fidèle des règles** (extension

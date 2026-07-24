@@ -46,12 +46,17 @@ connus).
    (c) invariants globaux (conservation des ressources, bornes des paramètres
    globaux, fin de partie correcte).
 
-## Périmètre v1 (proposition)
+## Périmètre v1 (TRANCHÉ par Alexis le 23-07)
 
-- **2 joueurs** (le cas d'usage cible : battre un humain en face-à-face) ;
-  l'architecture n'interdit pas 3-4 joueurs plus tard. ❓
+- **2 joueurs — sur tout le projet** (« on jouera toujours à 2 joueurs »).
+  Le multijoueur 3-4 sort du périmètre, pas seulement de la v1.
 - Boîtes : **base + Découverte complète** (objectifs, récompenses,
-  améliorations de phases, corporations). **Cartes promo : à trancher.** ❓
+  améliorations de phases, corporations). **Cartes promo : EXCLUES de la
+  pioche** (Alexis ne les possède pas) mais conservées désactivées dans les
+  données. **Cartes étoilées tutoriel : INCLUSES**, mélangées au reste.
+- Important : *Oxidation Byproducts* (officielle Discovery, absente du deck du
+  moteur Java pour cause de bogue) DOIT être dans notre pioche — la boîte
+  physique d'Alexis la contient.
 - **Règles maison d'Alexis incluses d'emblée** : mulligan des 8 cartes projets
   (tout ou rien) et mulligan des 2 corporations (les 2 ou aucune, avant les
   cartes projets, choix final après). Ce sont des règles de départ de partie,
@@ -73,7 +78,5 @@ connus).
 
 ## Décisions en attente d'Alexis
 
-- ❓ v1 à 2 joueurs d'abord : d'accord ?
-- ❓ Les 12 cartes promo : dans votre façon de jouer avec ton ami, sont-elles
-  dans la pioche ? (Il faut que le simulateur colle à VOTRE table.)
-- ❓ Les cartes étoilées « tutoriel » du jeu de base : les jouez-vous ?
+Aucune — les trois questions de périmètre ont été tranchées le 23-07 (voir
+§Périmètre v1).
