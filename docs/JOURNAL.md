@@ -101,3 +101,12 @@
   changement de données). [VÉRIFIÉ 24-07]
 - Directive Alexis : les sous-agents de chantier passent sur Opus 4.8
   (le CTO reste sur Fable 5) ; exception possible si justifiée. [VÉRIFIÉ 24-07]
+- Chantier `moteur-cartes-2` cadré, scellé et lancé (sous-agent Opus 4.8 en
+  cours) : réductions de coût, effets déclenchés, actions bleues réelles.
+  Cadrage vérifié à la source : 10 imposées relues dans le Java (dont
+  découverte d'une bizarrerie à élucider : `AsteroidMining.java` porte un
+  revenu `GainType.TITANIUM` alors que le texte imprimé dit « pay 6 MC
+  less » → point d'enquête contractuel) ; une erreur de témoin attrapée
+  AVANT le seal (Lichen coûte 5, pas 7 — vérification carte par carte).
+  Checks testés dans les deux sens + 3 contre-tests de falsification
+  détectés. Hold-out : 4 scripts cachés. [VÉRIFIÉ 24-07]

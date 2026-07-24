@@ -90,9 +90,15 @@ Dernière mise à jour : 2026-07-24
 
 ## Travaux en cours
 
-- Aucun sous-agent en cours. Prochain chantier : `moteur-cartes-2` (lot
-  suivant d'effets : réductions de coût, effets « when you play », premiers
-  pas des cartes bleues à actions). [VÉRIFIÉ 24-07]
+- **`moteur-cartes-2` : sous-agent EN COURS (lancé le 24-07, Opus 4.8)**.
+  Contrat scellé : ≥ 45 nouvelles cartes (quotas : ≥ 12 actions bleues,
+  ≥ 8 déclenchées, ≥ 8 réductions), 10 imposées vérifiées à la source par
+  la main, sondes v2 (`--probe` séquence + `paid`, `--probe-action`),
+  compteur `blue_actions`, non-régression lot 1. 4 checks visibles testés
+  dans les deux sens + 3 falsifications détectées ; 4 hold-outs cachés
+  (réductions, déclencheurs, actions, graine 662607). Point d'enquête au
+  contrat : sémantique `GainType.TITANIUM`/acier de l'oracle Java.
+  [VÉRIFIÉ 24-07]
 
 ## Acquis : workspace `moteur-cartes-1` (livré et audité OK le 24-07)
 
