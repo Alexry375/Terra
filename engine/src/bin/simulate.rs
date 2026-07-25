@@ -6,7 +6,7 @@
 
 use engine::cards::CardsDb;
 use engine::policy::RandomPolicy;
-use engine::probe::{run_probe_action, run_probe_seq, ProbeDelta};
+use engine::probe::{run_probe_action, run_probe_seq_opts, ProbeDelta, ProbeOptions};
 use engine::sim::run_simulation;
 
 /// Sérialise un `ProbeDelta` en objet JSON (schéma commun aux deux sondes).
@@ -40,6 +40,8 @@ fn main() {
     let mut effects_on = true;
     let mut probe: Option<String> = None;
     let mut probe_action: Option<String> = None;
+    let mut probe_opts = ProbeOptions::default();
+    let mut dump_turn_order = false;
 
     let args: Vec<String> = std::env::args().skip(1).collect();
     let mut i = 0;
@@ -77,6 +79,33 @@ fn main() {
                 probe_action = Some(value(i).to_string());
                 i += 2;
             }
+            // Sonde étendue (lot 3).
+            // Accepte les deux formes : `--probe-strict "<séquence>"` et
+            // `--probe-strict` combiné à `--probe "<séquence>"`.
+            "--probe-strict" => {
+                probe_opts.strict = true;
+                match args.get(i + 1) {
+                    Some(v) if !v.starts_with("--") => {
+                        probe = Some(v.clone());
+                        i += 2;
+                    }
+                    _ => i += 1,
+                }
+            }
+            "--probe-mc" => {
+                probe_opts.mc = value(i).parse().unwrap_or_else(|_| die("--probe-mc invalide"));
+                i += 2;
+            }
+            "--probe-filler" => {
+                probe_opts.filler = value(i)
+                    .parse()
+                    .unwrap_or_else(|_| die("--probe-filler invalide"));
+                i += 2;
+            }
+            "--dump-turn-order" => {
+                dump_turn_order = true;
+                i += 1;
+            }
             other => die(&format!("argument inconnu: {other}")),
         }
     }
@@ -87,16 +116,18 @@ fn main() {
     if let Some(name) = probe {
         // Séquence : cartes séparées par « ; » (rétro-compatible : 1 carte).
         let names: Vec<&str> = name.split(';').map(|s| s.trim()).collect();
-        let r = run_probe_seq(&db, &names);
+        let r = run_probe_seq_opts(&db, &names, probe_opts);
         let line = serde_json::json!({
             "card": r.card,
             "found": r.found,
             "in_lot": r.in_lot,
             "prereq_ok": r.prereq_ok,
+            "prereq_ok_now": r.prereq_ok_now,
             "played": r.played,
             "delta": delta_json(&r.delta),
             "vp": r.vp,
             "paid": r.paid,
+            "discarded": r.discarded,
         });
         println!("{line}");
         return;
@@ -124,6 +155,15 @@ fn main() {
     // s'il figurait dans la ligne JSON. Il part donc sur stderr (D17).
     eprintln!("games_per_sec: {:.1}", s.games_per_sec);
 
+    // (C4) Ordre du tour RÉELLEMENT emprunté par la boucle de jeu, une ligne
+    // par partie, avant la ligne JSON finale (qui reste la dernière ligne).
+    if dump_turn_order {
+        for order in &s.turn_orders {
+            let seq: Vec<String> = order.iter().map(|p| p.to_string()).collect();
+            println!("turn_order:{}", seq.join(","));
+        }
+    }
+
     // Une seule ligne JSON finale, déterministe (format du prompt).
     let line = serde_json::json!({
         "games": s.games,
@@ -135,6 +175,12 @@ fn main() {
         "avg_score_p2": s.avg_score_p2,
         "state_hash": format!("{:016x}", s.state_hash),
         "blue_actions": s.blue_actions,
+        "prereq_snapshot_blocks": s.prereq_snapshot_blocks,
+        "draw_before_build": s.draw_before_build,
+        "draw_after_build": s.draw_after_build,
+        "discard_payments": s.discard_payments,
+        "draws": s.draws,
+        "turn_order_switches": s.turn_order_switches,
     });
     println!("{line}");
 }

@@ -189,6 +189,21 @@ pub struct GameOutcome {
     pub state_hash: u64,
     /// Activations d'actions bleues ayant appliqué un effet (lot 2).
     pub blue_actions: u64,
+    /// (C4) Premier joueur de chaque manche réellement jouée, lu sur l'état de
+    /// la partie (`GameState::turn_order`).
+    pub turn_order: Vec<u8>,
+    /// (C4) Alternances observées dans `turn_order`.
+    pub turn_order_switches: u64,
+    /// (C1) Cartes exclues par l'instantané de début de phase.
+    pub prereq_snapshot_blocks: u64,
+    /// (C2) Pioches du bonus construction prises avant / après la pose.
+    pub draw_before_build: u64,
+    pub draw_after_build: u64,
+    /// (C3) Cartes défaussées pour payer des cartes Projet.
+    pub discard_payments: u64,
+    /// (C5) Partie terminée sur une égalité de PV (aucun départage : règle
+    /// maison — une égalité reste une égalité).
+    pub draw: bool,
 }
 
 /// Joue une partie complète (politique fournie), invariants vérifiés à chaque
@@ -213,6 +228,14 @@ pub fn play_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameOutcom
         violations,
         state_hash: final_state_hash(&game, &scores),
         blue_actions: game.blue_actions,
+        turn_order_switches: game.turn_order_switches(),
+        turn_order: game.turn_order.clone(),
+        prereq_snapshot_blocks: game.prereq_snapshot_blocks,
+        draw_before_build: game.draw_before_build,
+        draw_after_build: game.draw_after_build,
+        discard_payments: game.discard_payments,
+        // (C5) Aucun départage n'est appliqué : deux scores égaux = une égalité.
+        draw: scores[0] == scores[1],
     }
 }
 
@@ -228,6 +251,21 @@ pub struct SimSummary {
     pub games_per_sec: f64,
     /// Total des activations d'actions bleues sur toutes les parties (lot 2).
     pub blue_actions: u64,
+    // ------------------------------------------------- lot 3 (conformité)
+    /// (C4) Ordre du tour réellement joué, une liste par partie, dans l'ordre
+    /// des parties (`--dump-turn-order` en imprime une ligne par partie).
+    pub turn_orders: Vec<Vec<u8>>,
+    /// (C4) Somme des alternances d'ordre du tour sur toutes les parties.
+    pub turn_order_switches: u64,
+    /// (C1) Total des cartes exclues par l'instantané de début de phase.
+    pub prereq_snapshot_blocks: u64,
+    /// (C2) Totaux des deux moments de pioche du bonus de construction.
+    pub draw_before_build: u64,
+    pub draw_after_build: u64,
+    /// (C3) Total des cartes défaussées pour payer des cartes Projet.
+    pub discard_payments: u64,
+    /// (C5) Parties terminées sur une égalité de PV.
+    pub draws: u64,
 }
 
 /// Lance `games` parties aléatoires. Graine unique : un RNG maître seedé par
@@ -247,6 +285,13 @@ pub fn run_simulation(
     let mut sum_p1 = 0i64;
     let mut sum_p2 = 0i64;
     let mut blue_actions = 0u64;
+    let mut turn_orders: Vec<Vec<u8>> = Vec::with_capacity(games as usize);
+    let mut turn_order_switches = 0u64;
+    let mut prereq_snapshot_blocks = 0u64;
+    let mut draw_before_build = 0u64;
+    let mut draw_after_build = 0u64;
+    let mut discard_payments = 0u64;
+    let mut draws = 0u64;
 
     let t0 = std::time::Instant::now();
     for _ in 0..games {
@@ -262,6 +307,15 @@ pub fn run_simulation(
         sum_p1 += out.scores[0];
         sum_p2 += out.scores[1];
         blue_actions += out.blue_actions;
+        turn_order_switches += out.turn_order_switches;
+        prereq_snapshot_blocks += out.prereq_snapshot_blocks;
+        draw_before_build += out.draw_before_build;
+        draw_after_build += out.draw_after_build;
+        discard_payments += out.discard_payments;
+        if out.draw {
+            draws += 1;
+        }
+        turn_orders.push(out.turn_order);
         agg.write_u64(out.state_hash);
     }
     let elapsed = t0.elapsed().as_secs_f64();
@@ -278,5 +332,12 @@ pub fn run_simulation(
         state_hash: agg.0,
         games_per_sec: if elapsed > 0.0 { games as f64 / elapsed } else { 0.0 },
         blue_actions,
+        turn_orders,
+        turn_order_switches,
+        prereq_snapshot_blocks,
+        draw_before_build,
+        draw_after_build,
+        discard_payments,
+        draws,
     }
 }

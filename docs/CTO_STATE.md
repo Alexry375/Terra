@@ -20,9 +20,12 @@ Dernière mise à jour : 2026-07-24
   déclencheurs « when you play … » et température/océan
   (`fire_play_triggers`, `fire_global_trigger`), actions bleues réelles en
   phase III (`apply_blue_action`, compteur `blue_actions`), sondes v2
-  (`--probe "A;B"` + `paid[]`, `--probe-action`). **152 tests verts** ;
-  revalidé après promotion : 300/300 graine 2024, 0 violation,
-  4302 actions bleues ; 67 générations ON vs 114 OFF. [VÉRIFIÉ 24-07]
+  (`--probe "A;B"` + `paid[]`, `--probe-action`). **Lot conformité** :
+  prérequis de paramètres sur l'instantané de début de phase, pioche avant
+  ou après en phase II, paiement d'une carte par défausse (3 MC/carte,
+  surplus rendu), règles maison J1/J2 alterné et égalité sèche.
+  **185 tests verts** ; revalidé après promotion : 300/300 graine 2024,
+  0 violation, 66 générations, ~13 000 parties/s. [VÉRIFIÉ 24-07]
 - **`data/cards.json`** : 388 cartes, pioche v1 = 264 (248 projets +
   16 corporations), **+ champs `vp` (74 cartes > 0) et `vp_dynamic` (22)**
   extraits du Java par script reproductible
@@ -148,10 +151,49 @@ Dernière mise à jour : 2026-07-24
 
 ## Travaux en cours
 
-- Écarts de conformité à corriger (rapport docs/regles/notes/
-  conformite-moteur-24-07.md, 6 écarts mineurs dont E6 prérequis sur
-  instantané, E2 pioche avant/après, E3 départage) : à traiter en tête du
-  chantier moteur-cartes-3. [VÉRIFIÉ 24-07]
+- Écarts de conformité : TRAITÉS par `moteur-conformite-1` (voir Acquis
+  ci-dessous). Prochain chantier : `moteur-cartes-3` = ressources posées
+  sur les cartes (microbes/animaux/science, ~41 cartes concernées) + VP
+  dynamiques ANIMAL/MICROBE réels au score. [VÉRIFIÉ 24-07]
+
+## Acquis : workspace `moteur-conformite-1` (livré et audité OK le 24-07)
+
+- Audit 8/8 (4 checks + 4 hold-out, dont les deux témoins d'instantané
+  OPPOSÉS : `Giant Ice Asteroid;Great Dam` doit être bloquée / `Crater`
+  après 3 événements doit passer — piège si les tags basculent à tort sur
+  l'instantané) ; tampering néant. Contre-vérifications de la main :
+  **264 cartes sondées identiques** à l'ancien moteur (rétro-compatibilité
+  totale du mode sans option), graine inédite 555777 (1000/1000, 0
+  violation), arithmétique de défausse-paiement recalculée à la main
+  (Ice Asteroid 21 MC avec 4 MC + 6 cartes, surplus rendu ; les 2 océans
+  rapportent 4 MC — identique à l'ancien moteur), instantané entre joueurs
+  confirmé, ordre du tour lu sur l'état réel (`play_round` :1157, pas une
+  formule). Verdict : ok. [VÉRIFIÉ 24-07]
+- **Corrections livrées** (`engine/`, 185 tests verts, ~13 000 parties/s) :
+  C1 prérequis de PARAMÈTRES sur l'instantané `snap_*` (`flow.rs:252`,
+  prédicat commun `reqs_satisfied` :216 ; tags et dépenses restent à l'état
+  courant) ; C2 pioche AVANT ou après en phase II (`DrawCardBefore`) ;
+  C3 défausse-paiement 3 MC/carte, minimum nécessaire, surplus rendu,
+  prédicat unique `payable` (`flow.rs:283`) + `build_card_with` ;
+  C4 règle maison J1/J2 alterné avec alternance ACTION PAR ACTION en
+  phase III (`phase_action`) ; C5 égalité sèche (compteur `draws`) +
+  conversions obligatoires sur l'instantané. Compteurs d'audit :
+  `prereq_snapshot_blocks` (rare : 2-10 par millier de parties),
+  `draw_before_build`/`draw_after_build`, `discard_payments`, `draws`,
+  `turn_order_switches`. Sonde : `--probe-mc`, `--probe-filler`,
+  `--probe-strict`, champs `discarded[]` et `prereq_ok_now`. [VÉRIFIÉ 24-07]
+- **Erreur de MON contrat, relevée par l'agent** : le cas imposé
+  « Lichen --probe-mc 5 --probe-filler 5 → delta.hand = -1 » est
+  incompatible avec la convention `delta.hand` du lot 2 (qui donne 0).
+  L'agent a fait basculer la base de calcul sur la présence de
+  `--probe-filler` et l'a déclaré. Conséquence : `delta.hand` a deux sens
+  selon les options — cosmétique (outil d'audit), à unifier si la sonde est
+  retouchée. [VÉRIFIÉ 24-07]
+- Deux tests existants adaptés (limite contractuelle : 3), tous deux au
+  niveau du HARNAIS, aucune assertion affaiblie : `snapshot_planet()` ajouté
+  dans un test lot 1 qui fabriquait un état hors flux de phase ; script
+  d'actions de `TestPolicy` réservé au joueur 0 (la phase III alterne
+  désormais). Relus par la main. [VÉRIFIÉ 24-07]
 
 - Aucun sous-agent en cours. Prochain chantier : `moteur-cartes-3`
   (ressources posées sur les cartes : microbes/animaux/science — dernière

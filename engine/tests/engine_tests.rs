@@ -101,9 +101,16 @@ impl Policy for TestPolicy {
     fn action_choice(
         &mut self,
         _rng: &mut StdRng,
-        _player: usize,
+        player: usize,
         options: &[ActionOpt],
     ) -> Option<usize> {
+        // Lot 3 / C4 : la phase III alterne action par action entre les deux
+        // joueurs. Le script d'actions décrit le joueur 0 (tous les tests qui
+        // s'en servent ne préparent que lui) ; le joueur 1 passe immédiatement,
+        // comme il le faisait déjà en consommant un `None`.
+        if player != 0 {
+            return None;
+        }
         match self.action_script.pop_front() {
             Some(Some(opt)) => {
                 let idx = options.iter().position(|&o| o == opt);

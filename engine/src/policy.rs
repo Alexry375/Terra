@@ -2,14 +2,25 @@
 //! choix ; TOUT l'aléatoire passe par le RNG de la partie (D11), fourni en
 //! paramètre — la politique elle-même ne possède pas de RNG.
 
+use crate::state::SELL_CARD_MC;
 use rand::rngs::StdRng;
 use rand::Rng;
 
-/// Bonus du sélectionneur de la phase construction (livret p.12) :
-/// piocher 1 carte OU jouer une 2e carte bleue/rouge.
+/// Bonus du sélectionneur de la phase construction (livret p.12, l.336) :
+/// « piocher une carte **avant ou après** avoir joué une carte lors de cette
+/// phase OU jouer une carte bleue/rouge supplémentaire ».
+///
+/// Les trois choix du livret (C2 du lot 3 — l'écart E2 était la réduction du
+/// bonus « pioche » au seul moment APRÈS) :
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConstructionBonus {
+    /// Piocher 1 carte APRÈS avoir joué la carte de la phase (sens historique
+    /// du variant, conservé tel quel).
     DrawCard,
+    /// Piocher 1 carte AVANT de jouer : la carte piochée peut donc être posée
+    /// dans la foulée (l'affordabilité est calculée après la pioche).
+    DrawCardBefore,
+    /// Jouer une carte bleue/rouge supplémentaire.
     SecondBuild,
 }
 
@@ -71,6 +82,32 @@ pub trait Policy {
         }
     }
 
+    /// Nombre de cartes de la main à défausser pour compléter le paiement d'une
+    /// carte Projet (livret p.13, l.348 : « des cubes MC **et/ou** défausser
+    /// d'autres cartes Projet de votre main à raison de 3 MC par carte ; si le
+    /// total payé est supérieur au coût, la différence vous est rendue »).
+    ///
+    /// `mc` = MC disponibles, `cost` = coût effectif (réductions appliquées),
+    /// `hand` = main APRÈS retrait de la carte posée (elle ne peut donc jamais
+    /// se payer elle-même). Méthode par DÉFAUT : le MINIMUM de cartes, c'est-à-
+    /// dire qu'on paie d'abord avec les MC, puis `ceil((cost - mc) / 3)` cartes.
+    /// Aucune politique du moteur ne la surcharge dans ce lot.
+    fn discard_payment_count(
+        &mut self,
+        _rng: &mut StdRng,
+        _player: usize,
+        mc: i64,
+        cost: i64,
+        hand: &[u16],
+    ) -> usize {
+        let missing = cost - mc;
+        if missing <= 0 {
+            return 0;
+        }
+        // Arrondi supérieur : 3 MC par carte, le surplus est rendu.
+        (((missing + SELL_CARD_MC - 1) / SELL_CARD_MC) as usize).min(hand.len())
+    }
+
     /// Recherche : garder `keep` cartes parmi `drawn` — renvoie les indices gardés.
     fn research_keep(&mut self, rng: &mut StdRng, player: usize, drawn: &[u16], keep: usize)
         -> Vec<usize>;
@@ -113,11 +150,13 @@ impl Policy for RandomPolicy {
         }
     }
 
+    /// Les TROIS options du livret sont tirées uniformément : pioche avant,
+    /// pioche après, seconde pose.
     fn construction_bonus(&mut self, rng: &mut StdRng, _player: usize) -> ConstructionBonus {
-        if rng.gen_bool(0.5) {
-            ConstructionBonus::DrawCard
-        } else {
-            ConstructionBonus::SecondBuild
+        match rng.gen_range(0..3u8) {
+            0 => ConstructionBonus::DrawCardBefore,
+            1 => ConstructionBonus::DrawCard,
+            _ => ConstructionBonus::SecondBuild,
         }
     }
 

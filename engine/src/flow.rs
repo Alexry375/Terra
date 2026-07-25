@@ -92,6 +92,13 @@ pub fn setup_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameState
         snap_oxygen: 0,
         snap_oceans: 0,
         snap_infrastructure: 0,
+        // (C4) Règle maison : la manche 1 commence par le joueur 0.
+        first_player: 0,
+        turn_order: Vec::new(),
+        prereq_snapshot_blocks: 0,
+        draw_before_build: 0,
+        draw_after_build: 0,
+        discard_payments: 0,
     };
 
     // Milestones/awards : 3 + 3 tirés des pools (Discovery p.2 « reveal three »).
@@ -202,23 +209,31 @@ pub fn card_discount(game: &GameState, db: &CardsDb, p: usize, card_id: u16) -> 
     d
 }
 
-/// Les prérequis de la carte sont-ils satisfaits dans l'état courant ?
-/// (Paramètres globaux au niveau COURANT, tags en jeu, capacité de payer les
-/// dépenses « spend ».) Carte hors lot ou effets coupés : toujours vrai.
-pub fn requirements_met(game: &GameState, db: &CardsDb, p: usize, card_id: u16) -> bool {
+/// Prédicat commun aux deux lectures de prérequis. `param` fournit les valeurs
+/// (température, oxygène, océans) contre lesquelles les prérequis de PARAMÈTRES
+/// sont jugés ; les prérequis de tags et de dépenses sont toujours jugés à
+/// l'état COURANT (le livret ne les mentionne pas dans la règle de l'instantané).
+fn reqs_satisfied(
+    game: &GameState,
+    db: &CardsDb,
+    p: usize,
+    card_id: u16,
+    param: (u8, u8, u8),
+) -> bool {
     if !db.effects_on {
         return true;
     }
     let Some(spec) = db.projects[card_id as usize].effect else {
         return true;
     };
+    let (temperature, oxygen, oceans) = param;
     let pl = &game.players[p];
     spec.reqs.iter().all(|req| match *req {
-        Req::TempMin(n) => game.temperature >= n,
-        Req::TempMax(n) => game.temperature <= n,
-        Req::OxyMin(n) => game.oxygen >= n,
-        Req::OceanMin(n) => game.oceans_revealed >= n,
-        Req::OceanMax(n) => game.oceans_revealed <= n,
+        Req::TempMin(n) => temperature >= n,
+        Req::TempMax(n) => temperature <= n,
+        Req::OxyMin(n) => oxygen >= n,
+        Req::OceanMin(n) => oceans >= n,
+        Req::OceanMax(n) => oceans <= n,
         Req::Tags(tag, n) => {
             tag.index().map_or(false, |i| pl.tag_counts[i] >= n as u32)
         }
@@ -228,29 +243,84 @@ pub fn requirements_met(game: &GameState, db: &CardsDb, p: usize, card_id: u16) 
     })
 }
 
-/// Indices de main constructibles pour une couleur donnée : paiement MC (D9)
-/// ET prérequis de la couche d'effets satisfaits.
+/// (C1) Les prérequis de la carte sont-ils satisfaits ? RÈGLE DU JEU : les
+/// prérequis de PARAMÈTRES (océans, oxygène, température) sont jugés sur
+/// l'INSTANTANÉ de début de phase (`snap_*`) — livret p.13, l.352 : « ce
+/// prérequis doit être rempli **au début de la phase** ». Les prérequis de tags
+/// et de dépenses (`Tags`/`Spend*`) restent jugés à l'état COURANT.
+/// Carte hors lot ou effets coupés : toujours vrai.
+pub fn requirements_met(game: &GameState, db: &CardsDb, p: usize, card_id: u16) -> bool {
+    reqs_satisfied(
+        game,
+        db,
+        p,
+        card_id,
+        (game.snap_temperature, game.snap_oxygen, game.snap_oceans),
+    )
+}
+
+/// (C1) Même prédicat, mais les prérequis de paramètres jugés à l'état COURANT.
+/// N'est PAS la règle du jeu : sert à observer l'écart que `requirements_met`
+/// corrige (compteur `prereq_snapshot_blocks`, champ de sonde `prereq_ok_now`).
+pub fn requirements_met_now(game: &GameState, db: &CardsDb, p: usize, card_id: u16) -> bool {
+    reqs_satisfied(
+        game,
+        db,
+        p,
+        card_id,
+        (game.temperature, game.oxygen, game.oceans_revealed),
+    )
+}
+
+/// (C3) Une carte de coût effectif `cost` est-elle payable par un joueur qui a
+/// `mc` MC et `hand_len` cartes en main (la carte à poser comprise) ? Livret
+/// p.13, l.348 : MC **et/ou** défausse de cartes à 3 MC/carte. La carte posée ne
+/// pouvant pas se payer elle-même, la monnaie disponible est `hand_len - 1`.
+/// Prédicat UNIQUE d'affordabilité : consommé par `affordable` (énumération des
+/// options du flux réel) et par la sonde. `build_card_with` en est la
+/// contrepartie exacte — il paie de la même façon et assère le résultat — de
+/// sorte que les deux ne peuvent pas diverger.
+pub fn payable(mc: i64, hand_len: usize, cost: i64) -> bool {
+    mc + SELL_CARD_MC * (hand_len as i64 - 1).max(0) >= cost
+}
+
+/// Indices de main constructibles pour une couleur donnée : paiement (MC et/ou
+/// défausse, C3) ET prérequis de la couche d'effets satisfaits (sur
+/// l'instantané, C1).
+///
+/// Prend `&mut GameState` pour alimenter le compteur d'audit
+/// `prereq_snapshot_blocks` à l'endroit EXACT où l'exclusion a lieu.
 fn affordable(
-    game: &GameState,
+    game: &mut GameState,
     db: &CardsDb,
     p: usize,
     colors: &[Color],
     discount: i64,
 ) -> Vec<usize> {
-    let player = &game.players[p];
-    player
-        .hand
-        .iter()
-        .enumerate()
-        .filter(|(_, &c)| {
-            let card = &db.projects[c as usize];
-            colors.contains(&card.color)
-                && effective_cost(card.price, discount + card_discount(game, db, p, c))
-                    <= player.mc
-                && requirements_met(game, db, p, c)
-        })
-        .map(|(i, _)| i)
-        .collect()
+    let hand_len = game.players[p].hand.len();
+    let mc = game.players[p].mc;
+    let mut out = Vec::new();
+    let mut blocked = 0u64;
+    for i in 0..hand_len {
+        let c = game.players[p].hand[i];
+        let card = &db.projects[c as usize];
+        if !colors.contains(&card.color) {
+            continue;
+        }
+        let cost = effective_cost(card.price, discount + card_discount(game, db, p, c));
+        if !payable(mc, hand_len, cost) {
+            continue;
+        }
+        if requirements_met(game, db, p, c) {
+            out.push(i);
+        } else if requirements_met_now(game, db, p, c) {
+            // Carte payable, autorisée par l'état courant, refusée par
+            // l'instantané de début de phase : c'est exactement l'écart E6.
+            blocked += 1;
+        }
+    }
+    game.prereq_snapshot_blocks += blocked;
+    out
 }
 
 /// Applique les dépenses de prérequis puis les effets de pose d'une carte du
@@ -328,17 +398,71 @@ fn apply_card_effects(game: &mut GameState, db: &CardsDb, p: usize, card_id: u16
     }
 }
 
-/// Construit la carte d'indice de main `idx` : paie le prix, entre en jeu
-/// (tags/couleur), puis applique dépenses + effets du lot si les effets sont
-/// activés. Chemin UNIQUE de pose (simulate, sonde, tests).
-pub fn build_card(game: &mut GameState, db: &CardsDb, p: usize, idx: usize, discount: i64) {
+/// Construit la carte d'indice de main `idx` en appliquant la règle de paiement
+/// **par défaut** du trait `Policy` (façade historique du lot 2 : même
+/// signature, appelée par la sonde et les tests). Délègue à
+/// [`build_card_with`] : il n'existe pas de seconde logique de pose ni de
+/// paiement. La boucle de jeu, elle, passe toujours par `build_card_with` avec
+/// la politique réelle de la partie — c'est elle qui décide alors du nombre de
+/// cartes défaussées. Renvoie le nombre de cartes défaussées pour payer.
+pub fn build_card(
+    game: &mut GameState,
+    db: &CardsDb,
+    p: usize,
+    idx: usize,
+    discount: i64,
+) -> usize {
+    let mut default = crate::policy::RandomPolicy;
+    build_card_with(game, db, p, idx, discount, &mut default)
+}
+
+/// Construit la carte d'indice de main `idx` : paie le coût effectif en MC
+/// et/ou en défaussant des cartes (C3, livret p.13 l.348 — 3 MC par carte,
+/// surplus rendu), entre en jeu (tags/couleur), puis applique dépenses + effets
+/// du lot si les effets sont activés.
+///
+/// Renvoie le nombre de cartes défaussées pour payer CETTE carte (0 si les MC
+/// suffisaient). La carte posée est retirée de la main AVANT le choix des cartes
+/// à défausser : elle ne peut donc jamais se payer elle-même.
+pub fn build_card_with(
+    game: &mut GameState,
+    db: &CardsDb,
+    p: usize,
+    idx: usize,
+    discount: i64,
+    policy: &mut dyn Policy,
+) -> usize {
     let card_id = game.players[p].hand.remove(idx);
     // Réduction totale = remise de phase (sélectionneur) + réductions des cartes
     // en jeu (service unique `card_discount`, calculé AVANT la mise en jeu).
     let total_discount = discount + card_discount(game, db, p, card_id);
     let cost = effective_cost(db.projects[card_id as usize].price, total_discount);
     assert!(cost >= 0, "prix payé négatif (réduction non plafonnée)");
-    assert!(game.players[p].mc >= cost, "construction sans les MC requis");
+
+    // (C3) Paiement : d'abord les MC, puis la défausse pour le reste. Le
+    // nombre de cartes vient de la politique (défaut du trait = minimum).
+    let mut discarded = 0usize;
+    if game.players[p].mc < cost {
+        let hand = game.players[p].hand.clone();
+        let n = policy.discard_payment_count(&mut game.rng, p, game.players[p].mc, cost, &hand);
+        assert!(n <= game.players[p].hand.len(), "défausse-paiement hors main");
+        // Quelles cartes : les DERNIÈRES de la main. Le livret laisse le choix
+        // libre ; prendre par la fin est déterministe, en O(1), et préserve la
+        // tête de main — ce dont dépend la sonde séquence, qui pose toujours à
+        // l'indice 0.
+        for _ in 0..n {
+            let card = game.players[p].hand.pop().expect("défausse-paiement hors main");
+            game.discard.push(card);
+            game.players[p].mc += SELL_CARD_MC;
+        }
+        discarded = n;
+        game.discard_payments += n as u64;
+    }
+    assert!(
+        game.players[p].mc >= cost,
+        "construction sans le paiement requis (MC + défausse)"
+    );
+    // Le surplus reste au joueur : « la différence vous est rendue » (p.13).
     game.players[p].mc -= cost;
     game.players[p].put_in_play(card_id, db);
     if db.effects_on {
@@ -347,6 +471,7 @@ pub fn build_card(game: &mut GameState, db: &CardsDb, p: usize, idx: usize, disc
         apply_card_effects(game, db, p, card_id);
         fire_play_triggers(game, db, p, card_id);
     }
+    discarded
 }
 
 /// (B) Déclencheurs de pose : évalués à la pose de `played_id`, sur les tags de
@@ -667,9 +792,9 @@ pub(crate) fn apply_blue_action(
 }
 
 /// Phase I — Développement (livret p.11) : chacun peut jouer 1 carte verte ;
-/// sélectionneur : -3 MC.
+/// sélectionneur : -3 MC. Un passage chacun, dans l'ordre du tour (C4).
 fn phase_development(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
-    for p in 0..NUM_PLAYERS {
+    for p in game.players_in_turn_order() {
         let discount = if game.players[p].chosen_phase == 1 {
             DEV_SELECTOR_DISCOUNT
         } else {
@@ -678,36 +803,57 @@ fn phase_development(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy
         let opts = affordable(game, db, p, &[Color::Green], discount);
         if let Some(idx) = policy.choose_build(&mut game.rng, p, &opts) {
             assert!(opts.contains(&idx), "choix de construction hors options");
-            build_card(game, db, p, idx, discount);
+            build_card_with(game, db, p, idx, discount, policy);
         }
     }
 }
 
 /// Phase II — Construction (livret p.12) : chacun peut jouer 1 carte
-/// bleue/rouge ; sélectionneur : piocher 1 carte OU en jouer une 2e.
+/// bleue/rouge ; sélectionneur : piocher 1 carte AVANT ou APRÈS avoir joué
+/// (C2), OU en jouer une 2e. Un passage chacun, dans l'ordre du tour (C4).
 fn phase_construction(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
     const BR: [Color; 2] = [Color::Blue, Color::Red];
-    for p in 0..NUM_PLAYERS {
+    for p in game.players_in_turn_order() {
+        // Le bonus est décidé AVANT la pose : c'est la seule façon d'ouvrir
+        // le moment « pioche avant » du livret (l.336).
+        let bonus = if game.players[p].chosen_phase == 2 {
+            Some(policy.construction_bonus(&mut game.rng, p))
+        } else {
+            None
+        };
+
+        // (C2) Pioche AVANT : la carte piochée entre en main avant le calcul
+        // d'affordabilité, elle peut donc être posée dans la foulée.
+        if bonus == Some(ConstructionBonus::DrawCardBefore) {
+            if let Some(c) = draw_card(game) {
+                game.players[p].hand.push(c);
+                game.draw_before_build += 1;
+            }
+        }
+
         let opts = affordable(game, db, p, &BR, 0);
         if let Some(idx) = policy.choose_build(&mut game.rng, p, &opts) {
             assert!(opts.contains(&idx), "choix de construction hors options");
-            build_card(game, db, p, idx, 0);
+            build_card_with(game, db, p, idx, 0, policy);
         }
-        if game.players[p].chosen_phase == 2 {
-            match policy.construction_bonus(&mut game.rng, p) {
-                ConstructionBonus::DrawCard => {
-                    if let Some(c) = draw_card(game) {
-                        game.players[p].hand.push(c);
-                    }
-                }
-                ConstructionBonus::SecondBuild => {
-                    let opts = affordable(game, db, p, &BR, 0);
-                    if let Some(idx) = policy.choose_build(&mut game.rng, p, &opts) {
-                        assert!(opts.contains(&idx), "choix de construction hors options");
-                        build_card(game, db, p, idx, 0);
-                    }
+
+        match bonus {
+            // (C2) Pioche APRÈS la pose.
+            Some(ConstructionBonus::DrawCard) => {
+                if let Some(c) = draw_card(game) {
+                    game.players[p].hand.push(c);
+                    game.draw_after_build += 1;
                 }
             }
+            Some(ConstructionBonus::SecondBuild) => {
+                let opts = affordable(game, db, p, &BR, 0);
+                if let Some(idx) = policy.choose_build(&mut game.rng, p, &opts) {
+                    assert!(opts.contains(&idx), "choix de construction hors options");
+                    build_card_with(game, db, p, idx, 0, policy);
+                }
+            }
+            // Déjà résolu avant la pose, ou pas de bonus.
+            Some(ConstructionBonus::DrawCardBefore) | None => {}
         }
     }
 }
@@ -717,24 +863,39 @@ fn phase_construction(game: &mut GameState, db: &CardsDb, policy: &mut dyn Polic
 /// puis conversions OBLIGATOIRES de fin de phase (D7).
 fn phase_action(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
     let mut options: Vec<ActionOpt> = Vec::with_capacity(16);
+    let order = game.players_in_turn_order();
+
+    // Chaque carte bleue jouée offre son action une fois par phase.
+    let mut remaining_blue: [Vec<u16>; NUM_PLAYERS] = Default::default();
+    let mut extra = [0u8; NUM_PLAYERS];
+    let mut passed = [false; NUM_PLAYERS];
     for p in 0..NUM_PLAYERS {
-        // Chaque carte bleue jouée offre son action une fois par phase.
-        let mut remaining_blue: Vec<u16> = game.players[p]
+        remaining_blue[p] = game.players[p]
             .played
             .iter()
             .copied()
             .filter(|&c| db.projects[c as usize].color == Color::Blue)
             .collect();
-        let mut extra = if game.players[p].chosen_phase == 3 {
+        extra[p] = if game.players[p].chosen_phase == 3 {
             game.players[p].extra_blue_activations
         } else {
             0
         };
+    }
 
-        loop {
-            action_options(game, db, p, &remaining_blue, &mut options);
+    // (C4, règle maison) Alternance ACTION PAR ACTION : chaque joueur fait UNE
+    // action à son tour, en commençant par le premier joueur de la manche ; un
+    // joueur qui passe est retiré du tour ; la phase s'arrête quand tous ont
+    // passé.
+    while !passed.iter().all(|&b| b) {
+        for p in order {
+            if passed[p] {
+                continue;
+            }
+            action_options(game, db, p, &remaining_blue[p], &mut options);
             let Some(choice) = policy.action_choice(&mut game.rng, p, &options) else {
-                break;
+                passed[p] = true;
+                continue;
             };
             assert!(choice < options.len(), "choix d'action hors options");
             match options[choice] {
@@ -747,13 +908,13 @@ fn phase_action(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
                         game.blue_actions += 1;
                     }
                     // L'activation est consommée dans tous les cas.
-                    if let Some(pos) = remaining_blue.iter().position(|&c| c == card) {
-                        remaining_blue.remove(pos);
+                    if let Some(pos) = remaining_blue[p].iter().position(|&c| c == card) {
+                        remaining_blue[p].remove(pos);
                     }
                     // Bonus du sélectionneur : une activation supplémentaire.
-                    if extra > 0 {
-                        extra -= 1;
-                        remaining_blue.push(card);
+                    if extra[p] > 0 {
+                        extra[p] -= 1;
+                        remaining_blue[p].push(card);
                     }
                 }
                 ActionOpt::ForestWithPlants => build_forest(game, p, true),
@@ -783,12 +944,16 @@ fn phase_action(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
 
     // « Viktig regel » (livret p.14) : en fin de phase d'action, on DOIT payer
     // plantes et chaleur pour hausser oxygène et température si possible,
-    // sauf paramètre déjà au max.
-    for p in 0..NUM_PLAYERS {
-        while game.players[p].plants >= FOREST_PLANT_COST && game.oxygen < OXYGEN_MAX {
+    // sauf paramètre déjà au max. (C5) Le max est jugé sur l'INSTANTANÉ de
+    // début de phase, comme les hausses individuelles (`raise_*`) — sinon un
+    // paramètre atteint pendant CETTE phase couperait l'obligation en cours de
+    // route alors que la phase l'autorise encore. Reste après la boucle.
+    for p in order {
+        while game.players[p].plants >= FOREST_PLANT_COST && game.snap_oxygen < OXYGEN_MAX {
             build_forest(game, p, true);
         }
-        while game.players[p].heat >= TEMPERATURE_HEAT_COST && game.temperature < TEMPERATURE_MAX
+        while game.players[p].heat >= TEMPERATURE_HEAT_COST
+            && game.snap_temperature < TEMPERATURE_MAX
         {
             game.players[p].heat -= TEMPERATURE_HEAT_COST;
             raise_temperature(game, db, p);
@@ -823,7 +988,8 @@ fn phase_production(game: &mut GameState, _db: &CardsDb, _policy: &mut dyn Polic
 /// sélectionneur : 5 piochées / 2 gardées.
 fn phase_research(game: &mut GameState, _db: &CardsDb, policy: &mut dyn Policy) {
     let mut drawn = Vec::with_capacity(5);
-    for p in 0..NUM_PLAYERS {
+    // Un passage chacun, dans l'ordre du tour (C4).
+    for p in game.players_in_turn_order() {
         let (n, keep) = if game.players[p].chosen_phase == 5 {
             (5usize, 2usize)
         } else {
@@ -985,6 +1151,11 @@ pub fn score(game: &GameState, db: &CardsDb) -> [i64; NUM_PLAYERS] {
 pub fn play_round(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
     assert!(!game.game_over, "play_round sur une partie terminée");
 
+    // (C4, règle maison) Ordre du tour de CETTE manche, enregistré tel qu'il va
+    // être emprunté par les phases ci-dessous (`players_in_turn_order` lit le
+    // même champ). Une entrée par manche réellement jouée.
+    game.turn_order.push(game.first_player as u8);
+
     // A. Planification (simultanée et secrète dans le jeu réel ; l'ordre
     // d'appel n'influe pas sur l'information disponible en politique v1).
     let mut picked = [false; 6];
@@ -1043,5 +1214,8 @@ pub fn play_round(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
         }
     }
 
+    // (C4, règle maison) La manche est allée à son terme : le premier joueur
+    // alterne pour la suivante.
+    game.first_player = (game.first_player + 1) % NUM_PLAYERS;
     game.generation += 1;
 }

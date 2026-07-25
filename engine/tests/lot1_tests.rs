@@ -378,6 +378,11 @@ fn requirement_thresholds_match_color_zones() {
     let archae = card_id(&db, "Archaebacteria"); // purple = niveau <= 5
     for lvl in 0u8..=19 {
         game.temperature = lvl;
+        // Lot 3 / C1 : les prérequis de paramètres sont jugés sur l'INSTANTANÉ
+        // de début de phase (livret p.13). Le test écrivait la valeur courante
+        // hors de tout flux de phase ; il prend maintenant l'instantané, ce que
+        // `play_round` fait au début de chaque phase. Paliers inchangés.
+        game.snapshot_planet();
         assert_eq!(requirements_met(&game, &db, 0, farming), lvl >= 16);
         assert_eq!(requirements_met(&game, &db, 0, trees), lvl >= 11);
         assert_eq!(requirements_met(&game, &db, 0, archae), lvl <= 5);

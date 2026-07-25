@@ -190,3 +190,18 @@
   l'instantané), arithmétique de défausse avec surplus rendu, ordre du tour
   sur graines inédites, non-régression lots 1-2 (vert sur le moteur actuel,
   7782 parties/s). [VÉRIFIÉ 24-07]
+- Chantier `moteur-conformite-1` livré (~53 min de sous-agent Opus 4.8,
+  aucun gel) et audité OK : 8/8 dont les 4 hold-outs cachés — y compris les
+  deux témoins d'instantané OPPOSÉS, que l'agent a passés sans les voir
+  (la règle n'a donc pas été sur-appliquée aux badges). Contre-vérifications
+  de la main : 264 cartes sondées rigoureusement identiques à l'ancien
+  moteur (rétro-compatibilité totale), graine inédite 555777 saine,
+  arithmétique de défausse-paiement recalculée à la main, ordre du tour lu
+  sur l'état réel. Promu : 185 tests verts, ~13 000 parties/s (le double
+  d'avant), 95 manches alternées sur la partie témoin. Verdict ok.
+  MON ERREUR DE CONTRAT, relevée par l'agent : un cas imposé de sonde
+  (delta.hand = -1) était incompatible avec la convention du lot 2 ;
+  l'agent a tranché en basculant la base de calcul selon les options et
+  l'a déclaré — cosmétique, consigné dans la carte. Deux tests existants
+  adaptés au niveau du harnais, relus, aucune assertion affaiblie.
+  [VÉRIFIÉ 24-07]

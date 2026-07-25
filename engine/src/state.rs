@@ -281,6 +281,40 @@ pub struct GameState {
     pub snap_oxygen: u8,
     pub snap_oceans: u8,
     pub snap_infrastructure: u8,
+    // ------------------------------------------------- lot 3 (conformité)
+    /// (C4, règle maison) Premier joueur de la manche en cours. Manche 1 :
+    /// joueur 0 ; alterne à chaque manche jouée entièrement.
+    pub first_player: usize,
+    /// (C4) Premier joueur de CHAQUE manche réellement jouée, dans l'ordre.
+    /// Écrit par `flow::play_round` au début de la manche : c'est l'ordre
+    /// effectivement emprunté par la boucle de jeu, pas une formule.
+    ///
+    /// Invariant sur une partie TERMINÉE (`game_over`) : `turn_order.len() ==
+    /// generation`, parce que la manche qui déclenche la fin de partie sort de
+    /// `play_round` avant l'incrément de `generation`. Sur une partie
+    /// tronquée par le plafond de `sim::MAX_GENERATIONS` (jamais atteint en
+    /// pratique), la liste compte une manche de moins que `generation`.
+    pub turn_order: Vec<u8>,
+    /// (C1) Compteur d'audit : nombre de fois qu'une carte payable a été exclue
+    /// des options de construction parce que ses prérequis de paramètres
+    /// n'étaient pas remplis sur l'INSTANTANÉ de début de phase, alors que
+    /// l'état COURANT les aurait autorisés. 0 en `--effects off`.
+    ///
+    /// C'est un compteur d'EXCLUSIONS, pas de cartes distinctes : en phase II
+    /// avec le bonus `SecondBuild`, l'énumération a lieu deux fois et une même
+    /// carte bloquée est comptée deux fois. Le mécanisme est structurellement
+    /// rare (il faut qu'un paramètre franchisse un palier PENDANT la phase, et
+    /// qu'un joueur ait ensuite en main une carte payable gênée par ce
+    /// palier) : de l'ordre de 2 à 10 par millier de parties aléatoires.
+    pub prereq_snapshot_blocks: u64,
+    /// (C2) Compteur d'audit : pioches du bonus de construction prises AVANT la
+    /// pose de la carte de la phase.
+    pub draw_before_build: u64,
+    /// (C2) Idem, pioches prises APRÈS la pose.
+    pub draw_after_build: u64,
+    /// (C3) Compteur d'audit : nombre TOTAL de cartes défaussées pour payer des
+    /// cartes Projet (3 MC / carte). Règle, donc actif aussi en `--effects off`.
+    pub discard_payments: u64,
 }
 
 impl GameState {
@@ -296,5 +330,19 @@ impl GameState {
         self.snap_oxygen = self.oxygen;
         self.snap_oceans = self.oceans_revealed;
         self.snap_infrastructure = self.infrastructure;
+    }
+
+    /// (C4) Les joueurs dans l'ordre du tour de la manche en cours.
+    pub fn players_in_turn_order(&self) -> [usize; NUM_PLAYERS] {
+        [self.first_player, (self.first_player + 1) % NUM_PLAYERS]
+    }
+
+    /// (C4) Nombre d'alternances observées dans l'ordre du tour réellement
+    /// joué (comptées sur `turn_order`, pas déduites du nombre de manches).
+    pub fn turn_order_switches(&self) -> u64 {
+        self.turn_order
+            .windows(2)
+            .filter(|w| w[0] != w[1])
+            .count() as u64
     }
 }

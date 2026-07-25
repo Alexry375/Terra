@@ -10,6 +10,16 @@ actions de cartes bleues — voir §Lot 2). Les cartes hors lot restent des
 **stubs neutres** (voir §Stubbé). Parties complètes en politique aléatoire,
 déterministes à graine fixée.
 
+**Lot 3 — conformité au livret + règles maison** (chantier
+moteur-conformite-1) : aucune carte ajoutée, quatre règles corrigées d'après le
+livret officiel (prérequis de paramètres sur l'instantané de début de phase ;
+bonus construction « piocher avant OU après » ; paiement d'une carte par
+défausse de cartes à 3 MC ; conversion obligatoire jugée sur l'instantané) et
+deux règles maison appliquées (ordre du tour J1/J2 alterné, égalité sèche sans
+départage). Chaque correction est **observable** : compteurs de conformité dans
+la ligne JSON, sonde étendue, `--dump-turn-order`. Voir §Compteurs de
+conformité, §Ordre du tour, §Sonde.
+
 ## Couche d'effets (chantier cartes-1, `src/effects.rs` + `src/probe.rs`)
 
 - **Encodage déclaratif** : chaque carte du lot 1 est une entrée
@@ -120,6 +130,40 @@ Même chemin de pose que `simulate` (`flow::build_card`).
 `found:false` si le nom est inconnu ; carte hors lot ou effets coupés :
 `in_lot:false`, réductions/déclencheurs/actions inertes.
 
+### Extensions du lot 3
+
+Deux champs s'ajoutent au JSON de `--probe`, trois options à la CLI. Le
+comportement SANS option est celui du lot 2, à l'identique.
+
+```
+{"card":"<nom>","found":true,"in_lot":true,"prereq_ok":true,
+ "prereq_ok_now":true,"played":true,
+ "paid":[<int>,…],"discarded":[<int>,…],"delta":{…},"vp":<int>}
+```
+
+- **`discarded`** : nombre de cartes défaussées pour payer **chaque** carte de
+  la séquence, dans l'ordre. Valeur renvoyée par `flow::build_card_with` — la
+  sonde ne recalcule rien.
+- **`prereq_ok_now`** : prérequis de la **dernière** carte évalués à l'état
+  **courant**, juste avant sa pose (`flow::requirements_met_now`).
+  `prereq_ok` garde son sens du lot 1 : évalué sur l'état de DÉPART de la
+  sonde — qui est aussi son instantané, donc la lecture « règle du jeu ». Les
+  deux diffèrent dès qu'une carte de la séquence a fait bouger un paramètre
+  (ex. `--probe "Ice Asteroid;Great Dam"` → `prereq_ok:false`,
+  `prereq_ok_now:true`).
+- **`--probe-mc <n>`** : MC de départ du joueur sondé (défaut 100).
+- **`--probe-filler <n>`** : `n` cartes supplémentaires en main, prises en tête
+  de pioche, servant uniquement de monnaie de défausse (défaut 0). En présence
+  de monnaie, `delta.hand` compte TOUT ce qui quitte la main (cartes posées +
+  cartes défaussées pour payer) ; sans monnaie, la convention du lot 1/2 est
+  conservée (`delta.hand` exclut la carte jouée).
+- **`--probe-strict`** : la sonde cesse de forcer la pose. Chaque carte n'est
+  posée que si ses prérequis sont remplis SELON LA RÈGLE (paramètres sur
+  l'instantané = l'état de départ ; tags et dépenses à l'état courant) ET si
+  elle est payable (MC + défausse, prédicat `flow::payable`). Premier refus =
+  la séquence s'arrête et `played` vaut `false`. C'est le seul moyen d'observer
+  la règle de l'instantané carte par carte, et il emprunte le chemin réel.
+
 ## Représentation de l'état
 
 Tout l'état d'une partie tient dans `GameState` (`src/state.rs`) :
@@ -166,25 +210,34 @@ Une ronde (`play_round`) suit le livret :
    sa ronde précédente** (livret p.10 ; `allowed_phases`). Le sélectionneur de
    la phase 3 reçoit son activation bonus ici (comme `PickPhaseProcessor`).
 2. **Exécution** : seules les phases choisies, dans l'ordre I→V, résolues pour
-   les deux joueurs (joueur 0 puis 1 — le jeu réel est simultané, l'ordre est
-   un choix d'implémentation documenté, sans impact hors partage
-   pioche/océans) :
-   - **I Développement** : 1 carte verte payée en MC ; sélectionneur : −3 MC.
+   les deux joueurs **dans l'ordre du tour de la manche** (§Ordre du tour) :
+   - **I Développement** : 1 carte verte payée en MC et/ou en cartes ;
+     sélectionneur : −3 MC. Un passage chacun, dans l'ordre du tour.
    - **II Construction** : 1 carte bleue/rouge ; sélectionneur : piocher
-     1 carte OU en jouer une 2e.
-   - **III Action** : actions des cartes bleues (stubs neutres, une activation
-     par carte et par phase ; sélectionneur : une répétition), actions
-     standard à volonté — forêt 8 plantes ou 20 MC (+1 forêt, +1 oxygène),
-     température 8 chaleur ou 14 MC, océan 15 MC (bonus de tuile),
-     vente de carte 3 MC — puis la règle obligatoire du livret p.14 : en fin
+     1 carte **AVANT ou APRÈS** avoir joué, OU en jouer une 2e. Le moment de
+     la pioche est un choix de la politique (`ConstructionBonus`) ; quand il
+     est « avant », la carte piochée entre en main avant le calcul
+     d'affordabilité et peut donc être posée dans la foulée (livret l.336).
+     Un passage chacun, dans l'ordre du tour.
+   - **III Action** : actions des cartes bleues (une activation par carte et
+     par phase ; sélectionneur : une répétition), actions standard à volonté —
+     forêt 8 plantes ou 20 MC (+1 forêt, +1 oxygène), température 8 chaleur ou
+     14 MC, océan 15 MC (bonus de tuile), vente de carte 3 MC. Les joueurs
+     jouent **action par action, en alternance** à partir du premier joueur ;
+     un joueur qui passe est retiré du tour, la phase s'arrête quand les deux
+     ont passé. Après la boucle, la règle obligatoire du livret p.14 : en fin
      de phase, conversion forcée des plantes (8→forêt) et de la chaleur
-     (8→température) tant que possible, sauf paramètre au max. Cette règle
-     garantit la progression des parties aléatoires.
+     (8→température) tant que possible, sauf paramètre déjà au max **sur
+     l'instantané de début de phase** (même lecture que les hausses
+     individuelles). Cette règle garantit la progression des parties
+     aléatoires.
    - **IV Production** : MC += production MC + TR (+4 sélectionneur) ;
      chaleur/plantes/cartes selon production.
-   - **V Recherche** : 2 piochées / 1 gardée ; sélectionneur 5 / 2.
+   - **V Recherche** : 2 piochées / 1 gardée ; sélectionneur 5 / 2. Un passage
+     chacun, dans l'ordre du tour.
    Après chaque phase : revendication des milestones, puis test de fin de
-   partie.
+   partie. La phase IV (collecte automatique) et l'étape de fin de manche
+   gardent l'ordre fixe 0 puis 1 : aucun joueur n'y « agit ».
 3. **Étape de fin** : défausse au-delà de 10 cartes en main, +3 MC par carte
    (livret p.16), génération suivante.
 
@@ -205,6 +258,57 @@ point de décision (mulligans, choix de corporation, phase, constructions,
 actions, recherche, défausse). `RandomPolicy` = politique uniforme pour
 `simulate` ; les tests injectent des politiques scriptées **dans le même
 flux** (aucun chemin de test parallèle).
+
+## Ordre du tour (règle maison, lot 3)
+
+`GameState::first_player` porte le premier joueur de la manche en cours :
+**manche 1 = joueur 0**, puis **alternance à chaque manche menée à son terme**
+(`play_round`). `GameState::turn_order: Vec<u8>` enregistre ce premier joueur
+au DÉBUT de chaque manche réellement jouée — c'est la valeur que les phases
+lisent ensuite via `players_in_turn_order()`, jamais une formule sur le numéro
+de manche. Il y a donc exactement une entrée par manche jouée.
+
+`GameState::turn_order_switches()` compte les alternances observées dans cette
+liste (`= manches − 1` tant que l'alternance est stricte). `GameOutcome` et
+`SimSummary` remontent la liste et la somme des alternances ;
+`simulate --dump-turn-order` imprime une ligne `turn_order:<p0>,<p1>,…` par
+partie, sur stdout, AVANT la ligne JSON finale (qui reste la dernière ligne).
+
+## Compteurs de conformité (lot 3)
+
+Cinq compteurs rendent les corrections observables sans lire le code. Chacun
+est incrémenté à l'endroit exact où le mécanisme a lieu — jamais dans une
+fonction de résumé, jamais depuis la sonde. Ils remontent de `GameState` à
+`GameOutcome` puis à `SimSummary`, et figurent dans la ligne JSON de
+`simulate`.
+
+| Champ JSON | Sens | Incrémenté dans | Effets OFF |
+|---|---|---|---|
+| `prereq_snapshot_blocks` | Cartes payables exclues des options parce que leurs prérequis de paramètres n'étaient pas remplis **au début de la phase**, alors que l'état courant les aurait autorisées | `flow::affordable` | 0 (pas de prérequis sans couche d'effets) |
+| `draw_before_build` | Pioches du bonus construction prises **avant** la pose | `flow::phase_construction` | > 0 (règle) |
+| `draw_after_build` | Pioches du bonus construction prises **après** la pose | `flow::phase_construction` | > 0 (règle) |
+| `discard_payments` | Cartes défaussées pour payer des cartes Projet (3 MC/carte) | `flow::build_card_with` | > 0 (règle) |
+| `draws` | Parties terminées sur une égalité de PV (aucun départage : règle maison) | `sim::run_simulation` (sur `GameOutcome::draw`) | > 0 |
+
+`turn_order_switches` complète la liste (voir §Ordre du tour).
+
+## Paiement d'une carte (lot 3)
+
+Livret p.13, l.348 : le coût se paie en cubes MC **et/ou** en défaussant
+d'autres cartes de sa main à raison de 3 MC par carte, le surplus étant rendu.
+Un service unique porte la règle des deux côtés :
+
+- `flow::payable(mc, hand_len, cost)` — `mc + 3 × (hand_len − 1) ≥ cost`. La
+  carte à poser ne peut pas se payer elle-même, d'où le `− 1`. Appelé par
+  `flow::affordable` (énumération des options) ET par la sonde.
+- `flow::build_card_with(...)` — retire la carte de la main, paie d'abord avec
+  les MC, puis défausse le nombre de cartes donné par la méthode **par
+  défaut** du trait `Policy::discard_payment_count` (= minimum,
+  `ceil((cost − mc) / 3)`, plafonné à la main), encaisse 3 MC par carte et
+  garde le surplus. Renvoie le nombre de cartes défaussées.
+- `flow::build_card(...)` reste la façade historique (même signature qu'au
+  lot 2) : elle délègue à `build_card_with` avec la règle par défaut. Il n'y a
+  qu'un seul chemin de paiement.
 
 ## Invariants vérifiés
 
@@ -324,23 +428,37 @@ Explicitement hors périmètre, structure prête :
   `PlayTrigger`/`TrigCond`/`TrigGain`, `GlobalTrigger`, `Action`/`ActionCost`/
   `ActionEff`), table `LOT1` (63 + 47 = 110 cartes), constantes de paliers.
 - `src/state.rs` — état de jeu, constantes sourcées, pools milestones/awards,
-  compteurs d'audit TR (`tr_increments`/`tr_decrements`).
-- `src/flow.rs` — mise en place (mulligans maison), ronde, phases,
-  `requirements_met`/`build_card` (couche d'effets), `card_discount` (A),
-  `fire_play_triggers`/`fire_global_trigger` (B), `apply_blue_action` (C),
-  score (VP cartes).
+  compteurs d'audit TR (`tr_increments`/`tr_decrements`), ordre du tour
+  (`first_player`, `turn_order`, `players_in_turn_order`,
+  `turn_order_switches`) et compteurs de conformité du lot 3.
+- `src/flow.rs` — mise en place (mulligans maison), ronde, phases, ordre du
+  tour, `requirements_met`/`requirements_met_now` (prérequis : instantané vs
+  état courant), `payable`/`build_card`/`build_card_with` (paiement MC +
+  défausse), `card_discount` (A), `fire_play_triggers`/`fire_global_trigger`
+  (B), `apply_blue_action` (C), score (VP cartes).
 - `src/policy.rs` — `trait Policy`, `RandomPolicy` ; `action_amount` (montants
-  « up to X », méthode par défaut).
-- `src/probe.rs` — état fixe, sonde séquence (`run_probe`/`run_probe_seq`,
-  `paid`) et sonde action (`run_probe_action`).
-- `src/sim.rs` — invariants, empreinte FNV-1a, boucle de simulation, compteur
-  `blue_actions`.
+  « up to X ») et `discard_payment_count` (nombre de cartes défaussées pour
+  payer), tous deux méthodes par défaut ; `ConstructionBonus` à trois choix
+  (`DrawCardBefore`, `DrawCard`, `SecondBuild`).
+- `src/probe.rs` — état fixe, sonde séquence (`run_probe`/`run_probe_seq`/
+  `run_probe_seq_opts`, `paid`, `discarded`, `prereq_ok_now`, `ProbeOptions`)
+  et sonde action (`run_probe_action`).
+- `src/sim.rs` — invariants, empreinte FNV-1a, boucle de simulation, compteurs
+  `blue_actions` et compteurs de conformité du lot 3 (dont `draws` et
+  `turn_order_switches`).
 - `src/bin/simulate.rs` — CLI `--games N --seed S [--cards …]
-  [--effects on|off] [--probe "<A>;<B>;…"] [--probe-action "<nom>"]`, une ligne
-  JSON sur stdout (champ `blue_actions` en mode simulation).
+  [--effects on|off] [--dump-turn-order] [--probe "<A>;<B>;…"]
+  [--probe-action "<nom>"] [--probe-strict ["<A>;<B>;…"]] [--probe-mc <n>]
+  [--probe-filler <n>]`, une ligne JSON sur stdout (champs `blue_actions`,
+  `prereq_snapshot_blocks`, `draw_before_build`, `draw_after_build`,
+  `discard_payments`, `draws`, `turn_order_switches` en mode simulation).
 - `tests/engine_tests.rs` — 27 tests du squelette (mulligans, production,
   contrainte de phase, fin de partie, score, invariants, déterminisme…).
 - `tests/lot1_tests.rs` — 72 tests du lot 1.
+- `tests/lot3_tests.rs` — 33 tests du lot 3 : un groupe par correction (C1
+  instantané, C2 pioche avant/après, C3 défausse-paiement, C4 ordre du tour,
+  C5 égalité + conversion obligatoire) plus la sonde étendue. Chaque règle
+  corrigée a au moins un test qui ÉCHOUE sur l'ancien comportement.
 - `tests/lot2_tests.rs` — 53 tests du lot 2 : un par carte (47, sonde →
   état de jeu comparé au texte imprimé : réductions via `paid`, déclencheurs et
   actions via delta) + intégration (réduction dans l'affordabilité, compteur
