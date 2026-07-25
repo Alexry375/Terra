@@ -417,3 +417,49 @@
   fait la différence entre une capacité répétable chaque tour et un effet unique
   à la pose. Exactement l'erreur qui a coûté un second tour au lot 3.
   [VÉRIFIÉ 25-07 par lecture de l'image, carte n° 34]
+
+## 2026-07-25 (suite) — Transcription des cartes : ~205/222, et un diagnostic d'infrastructure
+
+- **Transcription lancée puis relancée trois fois.** Les lecteurs se faisaient
+  couper par le garde-fou des 600 s de silence. Trois corrections successives :
+  vignettes recompressées (2,3 Mo → 262 Ko), lots ramenés de 13 à 5 cartes,
+  consigne d'annoncer chaque carte pendant le travail. [VÉRIFIÉ 25-07]
+- **DIAGNOSTIC (le vrai)** : débit **montant mesuré à 200 Ko/s** contre
+  1 900 Ko/s en descendant. Comme la conversation entière est renvoyée à chaque
+  action, un agent qui accumule des images paie ~9 s d'envoi par action après
+  5 cartes. **Faire tourner 8 agents-images en parallèle les rend 8× plus lents**
+  (ils partagent le tuyau) : la parallélisation est contre-productive sur
+  images, alors qu'elle reste bonne sur du texte. Réglages retenus pour la
+  suite : 3 agents, 3 images chacun, vignettes à ~120 Ko (660 px q78, lisibilité
+  vérifiée). [VÉRIFIÉ 25-07]
+- **Apport d'Alexis** : un agent coupé se ranime avec « continue » et garde
+  toute sa mémoire de travail (5 min au lieu de 25 pour refaire). Limite
+  découverte : on ne peut ranimer que **ses propres** agents, pas ceux d'un
+  sous-agent. [VÉRIFIÉ 25-07]
+- **Erreur de lecture attrapée** : le badge **Espace** (soleil doré sur disque
+  sombre) confondu avec **Énergie** (éclair blanc sur disque magenta) sur
+  *Energy Subsidies*. Le lecteur s'est laissé guider par le titre de la carte.
+  Les 25 cartes « Énergie » et 41 « Espace » sont à revérifier par comparaison
+  de pictogramme à la fusion. [VÉRIFIÉ 25-07 par recadrage comparatif]
+- **Les cartes Phase améliorées ne sont PAS dans les scans** : les 10 cellules
+  correspondantes sont du noir pur (luminosité mesurée 0,0). Seules les photos
+  d'Alexis pourront les fournir — elles passent de « souhaitable » à
+  **bloquantes**. [VÉRIFIÉ 25-07]
+- **Trouvaille majeure confirmée** : *Hydro-Electric Energy* (n° 34) est
+  imprimée « **Action:** Spend 1 MC to gain 2 heat. *If you chose the action
+  phase this round, gain 1 additional heat.* » — `cards.json` dit seulement
+  « Spend 1 MC to get 2 heat ». Deux erreurs : le mot « Action: » (facteur dix
+  sur la valeur de la carte) et toute la seconde phrase. [VÉRIFIÉ 25-07]
+- **Trois cartes de la famille du lot 4 découvertes hors de mon recensement**
+  (*Atmospheric Insulators*, *Worms*, *Satellite Farms*) : mon périmètre de 14
+  cartes était incomplet. Compte exact à faire à la fusion. [VÉRIFIÉ 25-07]
+- **Décision d'Alexis consignée** : après le moteur, deux chefs de projet en
+  parallèle (interface, IA). Ma recommandation, non encore tranchée par lui :
+  interface + IA-qui-calcule maintenant, IA-qui-apprend seulement quand la
+  boîte est complète. [DÉCLARÉ]
+- **Mes propres erreurs de la journée** : compte de cartes annoncé en dérive
+  (199 annoncé, 189 réel) faute d'avoir déduplique ; consigne trop étroite sur
+  la phase (une seule alors que beaucoup de cartes en portent plusieurs) ;
+  aucun symbole prévu pour les prérequis d'oxygène et de température ;
+  corporations annoncées en paysage alors qu'elles sont en portrait.
+
