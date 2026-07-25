@@ -309,3 +309,47 @@
   lot la demandent), sautée sans compensation inventée et comptée par
   `phase_upgrades_skipped`. **Prochain chantier proposé : lot 4 — productions et
   points variables par tag**, ~24 cartes. [VÉRIFIÉ 25-07]
+
+## 2026-07-25 (suite) — Lot 4 cadré et lancé : les productions qui dépendent des badges
+
+- **Périmètre repris à la source, et le chiffre annoncé était encore faux — dans
+  l'autre sens.** J'annonçais « ~24 cartes : productions ET points de victoire
+  variables par badge ». Vérification faite : les **points** variables par badge
+  sont **déjà** calculés depuis le lot 1 (`flow.rs:1551-1571`, `card_points` lit
+  le champ `vp_dynamic` de `cards.json` et sait compter les badges Terre et
+  Jupiter, les forêts, les cartes bleues et les cartes jouées). Il ne restait
+  donc que les **productions**. Périmètre réel du lot : **17 cartes**.
+  [VÉRIFIÉ 25-07]
+- **La règle centrale tranchée au livret** : `docs/regles/livret-base.md:180` —
+  « Certaines cartes de production augmentent leur production lorsque vous avez
+  plus d'un badge spécifique. Vous devrez mettre à jour votre plateau Joueur
+  chaque fois que vous jouez ce badge. » La production n'est donc PAS figée au
+  moment où la carte est posée. C'est devenu l'interdit n° 1 du contrat, et le
+  contrôle principal (une carte posée d'abord doit produire davantage quand un
+  badge arrive après). [VÉRIFIÉ 25-07]
+- **La chaîne de lecture des scans a servi dès la préparation** (elle avait été
+  montée en urgence au lot 3) : *Windmills* (n° 206) porte « including this »
+  que la base de données omet ; *Insects* (n° 152) compte les badges **Plante**,
+  qu'elle ne possède pas ; *Zeppelins* (n° 208) compte les **jetons Forêt**, pas
+  des badges. Conclusion versée au contrat : « including this » est un rappel de
+  jeu, pas une règle à part — le calcul est uniforme (compter les badges au
+  moment de la production). [VÉRIFIÉ 25-07 par lecture directe des images]
+- **Découverte en préparant les contrôles** : le champ `vp` de la sonde ne
+  rapporte que les points de la DERNIÈRE carte de la séquence (`probe.rs:534`),
+  pas le total du joueur. Deux de mes contrôles cachés reposaient dessus à tort.
+  Corrigé en demandant un champ nouveau `vp_total` (somme de `card_points` sur
+  toutes les cartes en jeu), sans toucher au champ historique. [VÉRIFIÉ 25-07]
+- **Mon erreur, deuxième lot de suite** : un contrôle caché attendait 0 MC pour
+  *Miranda Resort* accompagnée de *Terraforming Ganymede*, en oubliant que
+  Miranda porte elle-même un badge Terre. Attrapée par la vérification dans les
+  deux sens, avant scellement. C'est la deuxième fois qu'un de mes contrôles
+  cachés est faux : la vérification bidirectionnelle n'est pas une formalité.
+  [VÉRIFIÉ 25-07]
+- **Contrat scellé** : 17 cartes, vocabulaire imposé (`DerivedProd`,
+  `ProdRes`, `ProdCount`), **service unique** `derived_production`, drapeau de
+  sonde `--probe-produce` qui exécute la **vraie** phase de production, 5
+  compteurs d'audit, 8 interdits, 5 exemples de contournement nommés.
+  4 contrôles visibles rouges pour la bonne raison, verts sur un faux moteur
+  simulant l'état-cible ; 4 contrôles cachés (3 rouges maintenant, 1 de
+  non-régression vert dès le départ) ; **7 contre-tests de falsification, 7
+  détectés**. Sous-agent Opus 4.8 lancé. [VÉRIFIÉ 25-07]

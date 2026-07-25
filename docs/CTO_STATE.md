@@ -213,10 +213,37 @@ Dernière mise à jour : 2026-07-25
   d'actions de `TestPolicy` réservé au joueur 0 (la phase III alterne
   désormais). Relus par la main. [VÉRIFIÉ 24-07]
 
-- Aucun sous-agent en cours. Prochain chantier proposé : **lot 4 —
-  productions et VP variables par tag** (~24 cartes : Cartel, Satellites,
-  Lightning Harvest, Worms, Microbiology Patents, Terraforming Ganymede…).
+- **`moteur-cartes-4` SCELLÉ ET LANCÉ le 25-07** (sous-agent Opus 4.8 en
+  cours) : productions **dérivées** — les cartes dont la production dépend du
+  nombre de badges possédés, **recalculée à chaque phase de production**.
+  Périmètre arrêté à **17 cartes** après inventaire à la source (et non ~24 :
+  les points de victoire variables par badge, eux, sont **déjà** calculés par
+  `flow::card_points` via le champ `vp_dynamic` de `cards.json`, vérifié
+  `flow.rs:1551-1571`). 14 productions dérivées (Atmospheric Insulators,
+  Cartel, Insects, Lightning Harvest, Medical Lab, Microbiology Patents,
+  Miranda Resort, Power Grid, Sattellite Farms, Satellites, Venture
+  Capitalism, Windmills, Worms, Zeppelins) + Immigration Shuttles (production
+  fixe) + Terraforming Ganymede (NT par badge Jupiter) + Interplanetary
+  Relations (bonus permanent de phase Recherche). [VÉRIFIÉ 25-07]
+- **Règle tranchée au livret** : la production « 1 MC par badge X » n'est PAS
+  figée à la pose. `docs/regles/livret-base.md:180` : « Certaines cartes de
+  production augmentent leur production lorsque vous avez plus d'un badge
+  spécifique. Vous devrez mettre à jour votre plateau Joueur chaque fois que
+  vous jouez ce badge. » L'interdit n° 1 du contrat porte là-dessus.
   [VÉRIFIÉ 25-07]
+- Vérification OCR intégrée à la préparation du contrat (nouvelle capacité du
+  25-07) : **Windmills** (n° 206) porte « including this » que `cards.json`
+  omet ; **Insects** (n° 152) compte les badges **Plante**, qu'elle ne possède
+  pas ; **Zeppelins** (n° 208) compte les **jetons Forêt**, pas des badges.
+  Conclusion : « including this » est un rappel, pas une règle à part — le
+  calcul est uniforme. [VÉRIFIÉ 25-07 par lecture des scans]
+- Bidirectionnalité du contrat prouvée avant scellement : 4 contrôles visibles
+  rouges à l'état actuel pour la bonne raison, verts sur un faux moteur
+  simulant l'état-cible ; hold-outs 01/02/03 idem, hold-out 04
+  (non-régression) vert dès le départ ; **7 contre-tests de falsification, 7
+  détectés** (production figée à la pose, annoncée sans être créditée, inscrite
+  sur la piste de production, division arrondie au-dessus, mauvais badge
+  compté, compteur forfaitaire, effets coupés non neutres). [VÉRIFIÉ 25-07]
 
 ## Acquis : workspace `moteur-cartes-3` (livré, audité OK et promu le 25-07)
 
