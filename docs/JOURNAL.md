@@ -399,3 +399,21 @@
   et paralléliser plusieurs workspaces quand les territoires sont disjoints. Le
   lot 4 a consommé 240 000 : le calibre est le bon, mes lots précédents étaient
   sous-dimensionnés. [VÉRIFIÉ 25-07 — son message]
+- **Workspace `textes-cartes` scellé et lancé le 25-07** (autorisé par Alexis) :
+  transcrire, **en lisant les images**, le texte imprimé des 222 cartes de la
+  boîte de base présentes dans la pioche, avec leur **numéro imprimé** — une
+  donnée qui n'existe nulle part ailleurs dans le projet, donc impossible à
+  inventer sans lire la carte. Livrables : `textes-cartes.json`,
+  `divergences.md` (le plus précieux : chaque écart avec la paraphrase et ce
+  qu'il change dans la règle), `methode.md`. 4 contrôles visibles, 3 cachés,
+  **6 contre-tests de falsification, 6 détectés** (recopie de la paraphrase,
+  numéros séquentiels, numéro faux sur un témoin, texte de reconnaissance
+  optique brut, textes vides, cartes de l'extension inventées). Motif : mes
+  trois erreurs de contrat des lots 2, 3 et 4 viennent toutes de cette
+  paraphrase. [VÉRIFIÉ 25-07]
+- Trouvé en préparant ce contrat, et qui justifie le chantier à lui seul :
+  *Hydro-Electric Energy* est imprimée « **Action:** Spend 1 MC to gain 2 heat »
+  alors que la paraphrase dit « Spend 1 MC to get 2 heat » — le mot « Action: »
+  fait la différence entre une capacité répétable chaque tour et un effet unique
+  à la pose. Exactement l'erreur qui a coûté un second tour au lot 3.
+  [VÉRIFIÉ 25-07 par lecture de l'image, carte n° 34]
