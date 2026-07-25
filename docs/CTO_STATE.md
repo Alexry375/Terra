@@ -3,7 +3,7 @@
 > Source de vérité du projet. Ancrée au code (`fichier:ligne`) dès qu'il y aura du
 > code. [VÉRIFIÉ JJ-MM] = relu à la source ce jour-là. [DÉCLARÉ] = non re-vérifié.
 
-Dernière mise à jour : 2026-07-24
+Dernière mise à jour : 2026-07-25
 
 ## Ce qui marche
 
@@ -151,10 +151,26 @@ Dernière mise à jour : 2026-07-24
 
 ## Travaux en cours
 
-- Écarts de conformité : TRAITÉS par `moteur-conformite-1` (voir Acquis
-  ci-dessous). Prochain chantier : `moteur-cartes-3` = ressources posées
-  sur les cartes (microbes/animaux/science, ~41 cartes concernées) + VP
-  dynamiques ANIMAL/MICROBE réels au score. [VÉRIFIÉ 24-07]
+- **`moteur-cartes-3` LANCÉ le 25-07** (contrat scellé, agent Opus 4.8 au
+  travail) : ressources posées sur les cartes. Périmètre arrêté à **28 cartes**
+  après inventaire à la source — 14 conteneurs (Tardigrades, Birds, Fish,
+  Livestock, Herbivores, Physics Complex, Ecological Zone, Anaerobic
+  Microorganisms, Nitrite Reducting Bacteria, Fibrous Composite Material,
+  Decomposing Fungus, GHG Production Bacteria, Regolith Eaters, Decomposers)
+  et 14 cartes qui posent des ressources ailleurs. Le chiffre « ~41 cartes »
+  du 24-07 était une estimation par motif textuel : il incluait ~24 cartes
+  « production par tag » (Cartel, Satellites, Worms, Microbiology Patents…)
+  qui relèvent d'un mécanisme distinct — **lot 4 « productions et VP variables
+  par tag » à prévoir**. [VÉRIFIÉ 25-07]
+- Nouveau vocabulaire imposé au lot 3 : type de ressource porté par carte,
+  ajout/retrait par service unique, **alternatives (`ou`) et cibles exposées
+  au trait `Policy`** (`choose_option`, `choose_res_target`,
+  `choose_res_source`, à implémentation par défaut) — décision d'architecture :
+  ces choix doivent être APPRENABLES par l'IA, donc jamais câblés.
+  Stockage à ordre déterministe imposé (`HashMap` interdit). [VÉRIFIÉ 25-07]
+- Hors périmètre déclaré du lot 3 : l'**amélioration de carte Phase**
+  (Cryogenic Shipment, Fibrous Composite Material) reste non gérée, comptée
+  par `phase_upgrades_skipped`, sans compensation inventée. [VÉRIFIÉ 25-07]
 
 ## Acquis : workspace `moteur-conformite-1` (livré et audité OK le 24-07)
 
@@ -195,10 +211,11 @@ Dernière mise à jour : 2026-07-24
   d'actions de `TestPolicy` réservé au joueur 0 (la phase III alterne
   désormais). Relus par la main. [VÉRIFIÉ 24-07]
 
-- Aucun sous-agent en cours. Prochain chantier : `moteur-cartes-3`
-  (ressources posées sur les cartes : microbes/animaux/science — dernière
-  grande famille de mécanismes projets ; puis VP dynamiques ANIMAL/MICROBE
-  réels au score). [VÉRIFIÉ 24-07]
+- **Sous-agent EN COURS (25-07) : `moteur-cartes-3`** — ressources posées sur
+  les cartes (microbes / animaux / science), 28 cartes du deck v1, + VP
+  dynamiques ANIMAL/MICROBE/SCIENCE réels au score. Contrat scellé le 25-07,
+  4 checks visibles rouges + 4 hold-outs cachés, agent Opus 4.8 lancé.
+  [VÉRIFIÉ 25-07]
 
 ## Acquis : workspace `moteur-cartes-2` (livré et audité OK le 24-07)
 

@@ -205,3 +205,59 @@
   l'a déclaré — cosmétique, consigné dans la carte. Deux tests existants
   adaptés au niveau du harnais, relus, aucune assertion affaiblie.
   [VÉRIFIÉ 24-07]
+
+## 2026-07-25 — Lot 3 cadré et lancé : les ressources posées sur les cartes
+
+- **Inventaire du périmètre repris à la source, et correction d'un chiffre de la
+  carte d'état.** Le 24-07 j'avais annoncé « ~41 cartes concernées » pour les
+  ressources sur cartes. C'était une estimation obtenue par recherche de mots
+  dans les descriptions : elle mélangeait deux mécanismes différents. Le
+  décompte réel, carte par carte, donne **28 cartes** pour les ressources
+  (14 conteneurs + 14 poseuses), et **~24 autres cartes** relèvent d'un
+  mécanisme distinct — la production ou les points variables **par tag**
+  (Cartel, Satellites, Lightning Harvest, Worms, Microbiology Patents…), qui
+  fera l'objet d'un lot 4. [VÉRIFIÉ 25-07 — comptage sur `data/cards.json`
+  filtré sur `in_deck_v1`]
+- **Lecture des 28 classes Java à la source** avant d'écrire le contrat (clone
+  neuf du dépôt nikitinalexx, l'ancien clone n'existait plus sur le disque).
+  Points relevés qui ont servi à fixer des valeurs témoins : le modèle de
+  référence est une simple table « carte → nombre », initialisée à 0 à la pose
+  (`Player.initResources`) ; Cryogenic Shipment et Imported Hydrogen posent
+  **3 ressources si la carte visée porte des microbes, 2 si elle porte des
+  animaux** ; Ecological Zone se déclenche sur sa propre pose et compte
+  **2 tags** (Plante + Animal), donc 2 animaux d'entrée. [VÉRIFIÉ 25-07]
+- **PIÈGE TROUVÉ ET DÉSAMORCÉ — les classes « Buffed ».** Le dépôt Java contient
+  des versions rééquilibrées maison de certaines cartes. Quatre cartes du lot en
+  ont une : Birds, Extreme-Cold Fungus, GHG Production Bacteria, Regolith
+  Eaters. `BuffedBirds.java` exige un oxygène **jaune ou blanc** là où la vraie
+  `Birds.java` exige **blanc**. Un agent qui lit la mauvaise classe encode une
+  carte trop facile à jouer. Le piège est écrit dans le contrat ET vérifié par
+  un contrôle caché qui relit l'encodage livré. Je me suis moi-même fait avoir
+  au premier essai d'extraction (dictionnaire indexé par nom, la version Buffed
+  écrasant l'officielle) — d'où la consigne de filtrer sur `in_deck_v1`.
+  [VÉRIFIÉ 25-07]
+- **Décision d'architecture : les choix des cartes passent par la politique.**
+  Toute alternative (« gagne 1 plante **ou** pose 1 microbe ») et tout choix de
+  carte cible devient une méthode du trait `Policy`, avec une implémentation par
+  défaut pour ne casser aucune politique existante. Raison : l'IA future doit
+  pouvoir **apprendre** ces choix ; un choix câblé dans le moteur serait un
+  plafond de compétence définitif. Le contrat l'impose et l'interdit inverse
+  (« cible câblée sur le premier candidat ») est activement recherché.
+  [VÉRIFIÉ 25-07]
+- **Déterminisme imposé** : interdiction d'utiliser une table de hachage pour
+  stocker les ressources — son ordre de parcours n'est pas reproductible, ce qui
+  casserait les parties à graine fixe sur lesquelles repose tout l'audit.
+  Contrôlé par lecture du code livré. [VÉRIFIÉ 25-07]
+- **Contrat scellé** (`workspaces/moteur-cartes-3`) : 4 contrôles visibles,
+  testés **dans les deux sens** (rouges sur le moteur actuel, verts contre un
+  faux moteur simulant l'état-cible) et soumis à **7 tentatives de falsification
+  — 7 détectées** : compteur figé, compteur forfaitaire, effets « désactivés »
+  non neutres, cible imposée ignorée, points de victoire sans division entière,
+  toute carte rendue réceptacle, liste de ressources non triée. [VÉRIFIÉ 25-07]
+- **4 contrôles cachés** déposés hors du dépôt : fidélité des prérequis (piège
+  Buffed), arithmétique exacte des ressources (dont l'absence de compensation
+  quand l'amélioration de phase est sautée), santé sur graines inédites,
+  non-régression des lots 1/2/conformité. Les trois premiers sont rouges sur
+  l'état actuel et verts sur l'état-cible ; le quatrième est vert dès
+  maintenant — c'est son rôle. [VÉRIFIÉ 25-07]
+- Agent Opus 4.8 lancé sur le workspace. Audit à venir. [VÉRIFIÉ 25-07]
