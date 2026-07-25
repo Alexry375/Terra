@@ -12,9 +12,13 @@
 
 ## Périmètre souhaité (exprimé par Alexis le 2026-07-23)
 
-1. Jouable **en ligne** et, idéalement, en **version physique** (analyse vidéo du
-   plateau en direct, ou à défaut annonce orale des cartes par l'adversaire —
-   avec la contrainte que l'IA doit connaître sa propre main).
+1. ~~Jouable en ligne et, idéalement, en version physique (analyse vidéo du
+   plateau en direct…)~~ → **RÉVISÉ par Alexis le 25-07** : la lecture du jeu
+   physique par caméra est **abandonnée**. À la place, le projet livrera un
+   **jeu numérique avec sa propre interface**, dans lequel l'IA jouera :
+   ergonomie soignée (glisser-déposer des cartes à la souris, ressenti proche
+   d'un jeu de cartes en ligne du commerce), et non un bac à sable générique
+   comme Tabletop Simulator. Ordre : moteur de règles → interface de jeu → IA.
 2. Prise en charge de l'extension **« Découverte »** : objectifs, récompenses,
    améliorations de phases, nouvelles corporations.
 3. **Interprétabilité** : statistiques de jeu (meilleures cartes, probabilité de

@@ -353,6 +353,23 @@ pub struct GameState {
     /// action de Fibrous Composite Material. Incrémenté au moment où l'effet
     /// est atteint. Peut légitimement valoir 0 sur un échantillon de parties.
     pub phase_upgrades_skipped: u64,
+    // ------------------------------------------- lot 4 (productions dérivées)
+    /// (lot 4) MC crédités par la PRODUCTION DÉRIVÉE, tous joueurs, cumulés sur
+    /// la partie. Incrémenté dans `flow::phase_production`, à l'endroit exact du
+    /// crédit — jamais dans une fonction de résumé, jamais depuis la sonde.
+    /// 0 en `--effects off` (`flow::derived_production` renvoie alors (0,0,0)).
+    pub derived_mc: u64,
+    /// (lot 4) Idem pour la chaleur.
+    pub derived_heat: u64,
+    /// (lot 4) Idem pour les plantes.
+    pub derived_plants: u64,
+    /// (lot 4) Pas de NT gagnés par `Eff::TrPerTag` (Terraforming Ganymede),
+    /// comptés au moment de l'application de l'effet. 0 en `--effects off`.
+    pub tr_from_tags: u64,
+    /// (lot 4) Cartes supplémentaires RÉELLEMENT piochées en phase Recherche
+    /// grâce au bonus permanent (Interplanetary Relations). Incrémenté dans
+    /// `flow::phase_research`, au site de pioche. 0 en `--effects off`.
+    pub research_extra_draws: u64,
 }
 
 impl GameState {

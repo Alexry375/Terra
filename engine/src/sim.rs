@@ -214,6 +214,16 @@ pub struct GameOutcome {
     pub phase_upgrades_skipped: u64,
     /// Points de victoire venant des ressources posées, les deux joueurs.
     pub vp_from_resources: i64,
+    // ------------------------------------------- lot 4 (productions dérivées)
+    /// Ressources créditées par la PRODUCTION DÉRIVÉE (`flow::phase_production`).
+    pub derived_mc: u64,
+    pub derived_heat: u64,
+    pub derived_plants: u64,
+    /// Pas de NT gagnés par `Eff::TrPerTag`.
+    pub tr_from_tags: u64,
+    /// Cartes supplémentaires piochées en phase Recherche grâce au bonus
+    /// permanent (`flow::phase_research`).
+    pub research_extra_draws: u64,
 }
 
 /// Joue une partie complète (politique fournie), invariants vérifiés à chaque
@@ -251,6 +261,11 @@ pub fn play_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameOutcom
         res_targets_missing: game.res_targets_missing,
         phase_upgrades_skipped: game.phase_upgrades_skipped,
         vp_from_resources,
+        derived_mc: game.derived_mc,
+        derived_heat: game.derived_heat,
+        derived_plants: game.derived_plants,
+        tr_from_tags: game.tr_from_tags,
+        research_extra_draws: game.research_extra_draws,
     }
 }
 
@@ -290,6 +305,16 @@ pub struct SimSummary {
     pub res_targets_missing: u64,
     pub phase_upgrades_skipped: u64,
     pub vp_from_resources: i64,
+    // ------------------------------------------- lot 4 (productions dérivées)
+    /// Ressources créditées par la PRODUCTION DÉRIVÉE (`flow::phase_production`).
+    pub derived_mc: u64,
+    pub derived_heat: u64,
+    pub derived_plants: u64,
+    /// Pas de NT gagnés par `Eff::TrPerTag`.
+    pub tr_from_tags: u64,
+    /// Cartes supplémentaires piochées en phase Recherche grâce au bonus
+    /// permanent (`flow::phase_research`).
+    pub research_extra_draws: u64,
 }
 
 /// Lance `games` parties aléatoires. Graine unique : un RNG maître seedé par
@@ -321,6 +346,11 @@ pub fn run_simulation(
     let mut res_targets_missing = 0u64;
     let mut phase_upgrades_skipped = 0u64;
     let mut vp_from_resources = 0i64;
+    let mut derived_mc = 0u64;
+    let mut derived_heat = 0u64;
+    let mut derived_plants = 0u64;
+    let mut tr_from_tags = 0u64;
+    let mut research_extra_draws = 0u64;
 
     let t0 = std::time::Instant::now();
     for _ in 0..games {
@@ -349,6 +379,11 @@ pub fn run_simulation(
         res_targets_missing += out.res_targets_missing;
         phase_upgrades_skipped += out.phase_upgrades_skipped;
         vp_from_resources += out.vp_from_resources;
+        derived_mc += out.derived_mc;
+        derived_heat += out.derived_heat;
+        derived_plants += out.derived_plants;
+        tr_from_tags += out.tr_from_tags;
+        research_extra_draws += out.research_extra_draws;
         turn_orders.push(out.turn_order);
         agg.write_u64(out.state_hash);
     }
@@ -378,5 +413,10 @@ pub fn run_simulation(
         res_targets_missing,
         phase_upgrades_skipped,
         vp_from_resources,
+        derived_mc,
+        derived_heat,
+        derived_plants,
+        tr_from_tags,
+        research_extra_draws,
     }
 }

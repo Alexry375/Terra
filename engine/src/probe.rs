@@ -24,8 +24,8 @@
 
 use crate::cards::CardsDb;
 use crate::flow::{
-    apply_blue_action, build_card_with, card_discount, card_points, payable, requirements_met,
-    requirements_met_now,
+    apply_blue_action, build_card_with, card_discount, card_points, payable, phase_production,
+    requirements_met, requirements_met_now,
 };
 use crate::policy::{ActionOpt, ConstructionBonus, Policy, RandomPolicy};
 use crate::state::*;
@@ -84,6 +84,20 @@ pub struct ProbeResult {
     /// Une cible imposée introuvable n'est JAMAIS remplacée en silence :
     /// l'effet est sauté et l'erreur remonte ici.
     pub target_error: Option<String>,
+    /// (lot 4) La VRAIE phase IV de production a-t-elle été exécutée
+    /// (`--probe-produce`) ? `false` = comportement des lots précédents, à
+    /// l'identique.
+    pub produced: bool,
+    /// (lot 4) Ce que la PRODUCTION DÉRIVÉE a réellement crédité pendant cette
+    /// phase : `(MC, chaleur, plantes)`. Relevé sur les compteurs d'audit
+    /// incrémentés à l'endroit du crédit (`flow::phase_production`), jamais
+    /// recalculé ici (NEVER 2). `(0,0,0)` sans `--probe-produce`.
+    pub derived_prod: (i64, i64, i64),
+    /// (lot 4) Somme de `flow::card_points` sur TOUTES les cartes en jeu du
+    /// joueur 0 : points imprimés ET points variables (par badge, par carte
+    /// jouée, par ressource posée). Lu sur `card_points`, jamais recalculé.
+    /// Le champ `vp`, lui, ne rapporte que la dernière carte : il ne change pas.
+    pub vp_total: i64,
 }
 
 /// Une carte porteuse et son contenu (champ `resources` de la sonde).
@@ -365,6 +379,11 @@ fn probe_state(db: &CardsDb, ids: &[u16], opts: ProbeOptions) -> GameState {
         res_removed: 0,
         res_targets_missing: 0,
         phase_upgrades_skipped: 0,
+        derived_mc: 0,
+        derived_heat: 0,
+        derived_plants: 0,
+        tr_from_tags: 0,
+        research_extra_draws: 0,
     };
     game.snapshot_planet();
     game
@@ -444,6 +463,24 @@ pub fn run_probe_seq_scripted(
     opts: ProbeOptions,
     script: &ProbeScript,
 ) -> ProbeResult {
+    run_probe_seq_full(db, names, opts, script, false)
+}
+
+/// Sonde séquence complète du lot 4 : `produce = true` (`--probe-produce`)
+/// exécute, APRÈS la séquence, la VRAIE phase IV du moteur
+/// (`flow::phase_production`) — ni copie ni calcul parallèle.
+///
+/// `produce` n'appartient pas à `ProbeOptions` : celle-ci décrit l'ÉTAT DE
+/// DÉPART de la sonde (MC, monnaie de défausse, mode strict), alors qu'il
+/// s'agit ici d'une action jouée après la pose. `produce = false` reproduit à
+/// l'identique le comportement des lots précédents.
+pub fn run_probe_seq_full(
+    db: &CardsDb,
+    names: &[&str],
+    opts: ProbeOptions,
+    script: &ProbeScript,
+    produce: bool,
+) -> ProbeResult {
     let last = *names.last().unwrap_or(&"");
 
     let Some(last_id) = resolve(db, last) else {
@@ -461,6 +498,9 @@ pub fn run_probe_seq_scripted(
             discarded: Vec::new(),
             resources: Vec::new(),
             target_error: None,
+            produced: false,
+            derived_prod: (0, 0, 0),
+            vp_total: 0,
         };
     };
 
@@ -513,6 +553,21 @@ pub fn run_probe_seq_scripted(
         discarded.push(build_card_with(&mut game, db, 0, 0, 0, &mut pol) as i64);
     }
 
+    // (lot 4) `--probe-produce` : la VRAIE phase IV du moteur, pas une copie.
+    // Elle traite les deux joueurs — le joueur 1 de l'état de sonde n'a aucune
+    // carte en jeu, donc aucune production dérivée : la variation des compteurs
+    // d'audit est bien celle du joueur 0, relevée à l'endroit du crédit.
+    let mut derived_prod = (0i64, 0i64, 0i64);
+    if produce {
+        let before_counters = (game.derived_mc, game.derived_heat, game.derived_plants);
+        phase_production(&mut game, db, &mut pol);
+        derived_prod = (
+            (game.derived_mc - before_counters.0) as i64,
+            (game.derived_heat - before_counters.1) as i64,
+            (game.derived_plants - before_counters.2) as i64,
+        );
+    }
+
     let after = snap(&game);
     let total_paid: i64 = paid.iter().sum();
     let played = game.players[0].played.contains(&last_id);
@@ -536,6 +591,14 @@ pub fn run_probe_seq_scripted(
         discarded,
         resources: probe_resources(&game, db),
         target_error: pol.error.clone(),
+        produced: produce,
+        derived_prod,
+        // Points de victoire de TOUTES les cartes en jeu, lus sur `card_points`.
+        vp_total: game.players[0]
+            .played
+            .iter()
+            .map(|&c| card_points(db, &game.players[0], c).0)
+            .sum(),
     }
 }
 

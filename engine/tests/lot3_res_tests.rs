@@ -759,8 +759,9 @@ fn every_lot3_card_is_encoded_and_resolves_to_the_v1_deck() {
         assert!(card.in_deck_v1, "{name} doit venir du deck v1");
         assert!(card.effect.is_some(), "{name} doit être encodée");
     }
-    // 110 cartes des lots 1-2 + 28 = 138 entrées.
-    assert_eq!(engine::effects::LOT1.len(), 138);
+    // 110 cartes des lots 1-2 + 28 (lot ressources) + 17 (lot 4 : productions
+    // dérivées, NT par badge, bonus de recherche) = 155 entrées.
+    assert_eq!(engine::effects::LOT1.len(), 155);
 }
 
 #[test]

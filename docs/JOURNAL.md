@@ -353,3 +353,49 @@
   simulant l'état-cible ; 4 contrôles cachés (3 rouges maintenant, 1 de
   non-régression vert dès le départ) ; **7 contre-tests de falsification, 7
   détectés**. Sous-agent Opus 4.8 lancé. [VÉRIFIÉ 25-07]
+
+## 2026-07-25 (suite 2) — Lot 4 livré et promu, et deux décisions de périmètre d'Alexis
+
+- **Incident de harnais** : le premier agent lancé sur le lot 4 s'est figé au
+  démarrage, avant d'avoir lu son cahier des charges ; la surveillance l'a
+  déclaré perdu après 600 secondes sans activité. `outputs/` était resté vide —
+  aucun demi-travail à reprendre. Relancé à neuf. [VÉRIFIÉ 25-07]
+- **Lot 4 livré** (240 000 unités de texte consommées par l'agent, ~38 minutes) :
+  17 cartes, **271 tests verts** (231 + 40 neufs), 4/4 contrôles visibles.
+  Vocabulaire `DerivedProd`/`ProdCount`/`ResearchBonus`/`Eff::TrPerTag`,
+  services uniques `derived_production` (`flow.rs:750`) et `research_extra`
+  (`flow.rs:786`), sonde `--probe-produce` qui exécute la VRAIE phase de
+  production et relève la variation des compteurs, champ `vp_total`.
+  [VÉRIFIÉ 25-07]
+- **Audit** : 4/4 visibles, 3/4 cachés. L'unique échec porte sur le **seuil de
+  vitesse** (8 000 parties/s) : mesuré entre 7 460 et 8 800 selon la charge de
+  la machine. Mesures alternées avant/après par la main : aucune régression, le
+  lot est marginalement plus rapide. Ce n'est pas un défaut de livraison, c'est
+  mon seuil qui n'a plus de marge — à mesurer sur 10 000 parties dans les
+  prochains contrats. [VÉRIFIÉ 25-07]
+- **Contre-vérifications indépendantes avant promotion** : les 138 cartes des
+  lots précédents resondées et comparées à l'ancien binaire → **0 divergence** ;
+  les 155 cartes toutes reconnues ; graine inédite 424242 → 1000/1000, 0
+  violation ; effets coupés strictement neutres ; lecture du chemin critique
+  (rien n'est écrit sur les pistes de production, compteurs incrémentés au site
+  du crédit, un seul chemin de calcul). Verdict **ok**, promu. [VÉRIFIÉ 25-07]
+- **L'agent a signalé trois cartes hors contrat** portant le même bonus de
+  recherche et restant inertes : *United Planetary Alliance* (11 MC, texte
+  identique à Interplanetary Relations à 35 MC), *Interns*, *Extended
+  Resources*. Il ne les a pas encodées (respect du périmètre) et les a nommées.
+  À verser au prochain lot. [DÉCLARÉ par l'agent, plausible]
+- **Une relecture adversariale menée par l'agent lui-même a trouvé deux trous de
+  couverture réels** : casser la moitié « garde » du bonus de recherche, ou
+  priver le joueur 1 de production dérivée, laissait 269 tests et 4 contrôles
+  verts. Il a ajouté les tests manquants. C'est exactement le réflexe attendu.
+  [DÉCLARÉ par l'agent, cohérent avec les tests livrés]
+- **DÉCISION D'ALEXIS — la lecture du jeu physique par caméra est abandonnée.**
+  À la place : un **jeu numérique avec interface propre** (glisser-déposer à la
+  souris, ressenti d'un jeu de cartes en ligne du commerce), dans lequel l'IA
+  jouera. Ordre retenu : moteur de règles → interface → IA. Consigné dans
+  `docs/CTO_PROJET.md` et `docs/CTO_STATE.md`. [VÉRIFIÉ 25-07 — son message]
+- **DÉCISION D'ALEXIS — dimensionnement des chantiers délégués** : viser
+  ~200 000 unités de texte par workspace, regrouper plusieurs sujets si besoin,
+  et paralléliser plusieurs workspaces quand les territoires sont disjoints. Le
+  lot 4 a consommé 240 000 : le calibre est le bon, mes lots précédents étaient
+  sous-dimensionnés. [VÉRIFIÉ 25-07 — son message]

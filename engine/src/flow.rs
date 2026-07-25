@@ -9,8 +9,8 @@
 
 use crate::cards::{CardsDb, Color, Tag, VpKind};
 use crate::effects::{
-    Action, ActionCost, ActionEff, Eff, GlobalTrigger, Reduction, Req, ResAmount, ResEff,
-    ResKind, ResPut, ResStep, ResTarget, TrigGain,
+    Action, ActionCost, ActionEff, Eff, GlobalTrigger, ProdCount, ProdRes, Reduction, Req,
+    ResAmount, ResEff, ResKind, ResPut, ResStep, ResTarget, TrigGain,
 };
 use crate::policy::{ActionOpt, ConstructionBonus, Policy};
 use crate::state::*;
@@ -104,6 +104,11 @@ pub fn setup_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameState
         res_removed: 0,
         res_targets_missing: 0,
         phase_upgrades_skipped: 0,
+        derived_mc: 0,
+        derived_heat: 0,
+        derived_plants: 0,
+        tr_from_tags: 0,
+        research_extra_draws: 0,
     };
 
     // Milestones/awards : 3 + 3 tirés des pools (Discovery p.2 « reveal three »).
@@ -715,7 +720,103 @@ fn apply_eff(game: &mut GameState, db: &CardsDb, p: usize, eff: Eff, policy: &mu
                 game.players[p].plants += gain;
             }
         }
+        // (lot 4) Hausse de NT d'un pas PAR BADGE, lue à l'instant de
+        // l'application. La carte est déjà en jeu (`put_in_play` précède
+        // `apply_card_effects`, voir `build_card_with`) : son propre badge est
+        // compté sans traitement particulier — c'est cela, « including this ».
+        // Chaque pas passe par `gain_tr`, le chemin de hausse de NT existant.
+        Eff::TrPerTag(tag) => {
+            let steps = tag
+                .index()
+                .map_or(0, |i| game.players[p].tag_counts[i]);
+            for _ in 0..steps {
+                game.players[p].gain_tr();
+            }
+            game.tr_from_tags += steps as u64;
+        }
     }
+}
+
+/// (lot 4) **Production dérivée totale** d'un joueur : `(MC, chaleur, plantes)`.
+///
+/// Somme, sur les cartes EN JEU du joueur, des `DerivedProd` de la table
+/// d'effets. Le compteur (badges d'un type, ou jetons Forêt) est lu à l'instant
+/// de l'appel — c'est ce qui fait que la production « suit » les badges gagnés
+/// APRÈS la pose (livret FR p.13 l.180). La division est ENTIÈRE.
+///
+/// C'est l'UNIQUE chemin de calcul : la phase IV et la sonde le consomment tous
+/// deux, il n'existe pas de seconde implémentation (NEVER 2). Renvoie `(0,0,0)`
+/// si les effets sont coupés (`--effects off`).
+pub fn derived_production(db: &CardsDb, pl: &PlayerState) -> (i64, i64, i64) {
+    if !db.effects_on {
+        return (0, 0, 0);
+    }
+    let (mut mc, mut heat, mut plants) = (0i64, 0i64, 0i64);
+    for &c in &pl.played {
+        let Some(spec) = db.projects[c as usize].effect else {
+            continue;
+        };
+        let Some(prod) = spec.prod else {
+            continue;
+        };
+        if prod.per == 0 {
+            continue;
+        }
+        let counted = match prod.count {
+            ProdCount::Tag(t) => t.index().map_or(0, |i| pl.tag_counts[i] as i64),
+            ProdCount::Forests => pl.forests,
+        };
+        let gained = counted / prod.per as i64;
+        match prod.res {
+            ProdRes::Mc => mc += gained,
+            ProdRes::Heat => heat += gained,
+            ProdRes::Plants => plants += gained,
+        }
+    }
+    (mc, heat, plants)
+}
+
+/// (lot 4) **Bonus permanent de phase Recherche** d'un joueur :
+/// `(cartes piochées en plus, cartes gardées en plus)`.
+///
+/// Cumulé sur les cartes EN JEU (deux exemplaires du même effet ajouteraient
+/// 2/2). Consommé par la SEULE phase V — jamais par la mise en place, jamais par
+/// la production de cartes (`card_prod`), jamais par une pioche d'effet de
+/// carte. Unique implémentation (NEVER 2). `(0, 0)` si les effets sont coupés.
+pub fn research_extra(db: &CardsDb, pl: &PlayerState) -> (usize, usize) {
+    if !db.effects_on {
+        return (0, 0);
+    }
+    let (mut draw, mut keep) = (0usize, 0usize);
+    for &c in &pl.played {
+        if let Some(spec) = db.projects[c as usize].effect {
+            if let Some(bonus) = spec.research {
+                draw += bonus.draw;
+                keep += bonus.keep;
+            }
+        }
+    }
+    (draw, keep)
+}
+
+/// (lot 4) Base du livret pour la phase V (p.15) : 2 cartes piochées / 1 gardée ;
+/// sélectionneur de la phase 5 : 5 piochées / 2 gardées.
+pub fn research_base(pl: &PlayerState) -> (usize, usize) {
+    if pl.chosen_phase == 5 {
+        (5, 2)
+    } else {
+        (2, 1)
+    }
+}
+
+/// (lot 4) Cartes piochées / gardées en phase V par un joueur : base du livret
+/// (`research_base`) + bonus permanent de ses cartes en jeu (`research_extra`).
+/// Joueur ordinaire 2/1 → 3/2 ; sélectionneur 5/2 → 6/3. Chemin unique,
+/// consommé par `phase_research`.
+pub fn research_draw_keep(db: &CardsDb, pl: &PlayerState) -> (usize, usize) {
+    let (base_n, base_keep) = research_base(pl);
+    let (extra_n, extra_keep) = research_extra(db, pl);
+    (base_n + extra_n, base_keep + extra_keep)
 }
 
 /// Construit la carte d'indice de main `idx` en appliquant la règle de paiement
@@ -1402,17 +1503,27 @@ fn phase_action(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
 /// Phase IV — Production (livret p.15, `CollectIncomeTurnProcessor` Java) :
 /// MC = production MC + TR (+4 sélectionneur) ; chaleur, plantes, cartes
 /// selon production.
-fn phase_production(game: &mut GameState, _db: &CardsDb, _policy: &mut dyn Policy) {
+pub(crate) fn phase_production(game: &mut GameState, db: &CardsDb, _policy: &mut dyn Policy) {
     for p in 0..NUM_PLAYERS {
         let bonus = if game.players[p].chosen_phase == 4 {
             PRODUCTION_SELECTOR_MC
         } else {
             0
         };
+        // (lot 4) Production DÉRIVÉE : recalculée ICI, à chaque phase, à partir
+        // des cartes en jeu et des badges du moment — jamais figée à la pose,
+        // jamais inscrite sur les pistes `*_prod` (celles-ci restent réservées
+        // aux productions FIXES). Service unique, partagé avec la sonde.
+        let (d_mc, d_heat, d_plants) = derived_production(db, &game.players[p]);
         let pl = &mut game.players[p];
-        pl.mc += pl.mc_prod + pl.tr + bonus;
-        pl.heat += pl.heat_prod;
-        pl.plants += pl.plant_prod;
+        pl.mc += pl.mc_prod + pl.tr + bonus + d_mc;
+        pl.heat += pl.heat_prod + d_heat;
+        pl.plants += pl.plant_prod + d_plants;
+        // Compteurs d'audit incrémentés à l'endroit EXACT du crédit : c'est
+        // aussi ce que la sonde `--probe-produce` relève (jamais recalculé).
+        game.derived_mc += d_mc as u64;
+        game.derived_heat += d_heat as u64;
+        game.derived_plants += d_plants as u64;
         let n = game.players[p].card_prod;
         for _ in 0..n {
             if let Some(c) = draw_card(game) {
@@ -1424,16 +1535,18 @@ fn phase_production(game: &mut GameState, _db: &CardsDb, _policy: &mut dyn Polic
 
 /// Phase V — Recherche (livret p.15) : 2 piochées / 1 gardée ;
 /// sélectionneur : 5 piochées / 2 gardées.
-fn phase_research(game: &mut GameState, _db: &CardsDb, policy: &mut dyn Policy) {
-    let mut drawn = Vec::with_capacity(5);
+fn phase_research(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
+    let mut drawn = Vec::with_capacity(8);
     // Un passage chacun, dans l'ordre du tour (C4).
     for p in game.players_in_turn_order() {
-        let (n, keep) = if game.players[p].chosen_phase == 5 {
-            (5usize, 2usize)
-        } else {
-            (2usize, 1usize)
-        };
+        let (base_n, _) = research_base(&game.players[p]);
+        // (lot 4) Base du livret + bonus PERMANENT des cartes en jeu, cumulés
+        // par le service unique (2/1 → 3/2 ; sélectionneur 5/2 → 6/3).
+        let (n, keep) = research_draw_keep(db, &game.players[p]);
         draw_n(game, n, &mut drawn);
+        // Cartes RÉELLEMENT piochées en plus grâce au bonus permanent (une
+        // pioche épuisée en donnerait moins) — relevé au site de pioche.
+        game.research_extra_draws += drawn.len().saturating_sub(base_n) as u64;
         let keep = keep.min(drawn.len());
         let kept_idx = policy.research_keep(&mut game.rng, p, &drawn, keep);
         assert_eq!(kept_idx.len(), keep, "recherche: mauvais nombre de cartes gardées");

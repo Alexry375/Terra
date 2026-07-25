@@ -91,6 +91,69 @@ pub enum Eff {
     /// (Nitrogen-Rich Asteroid : le texte imprimé dit « 3 or more », le Java
     /// teste `== 3` — le texte gagne, journal B4).
     PlantsIfTags(Tag, u8, i64),
+    /// (lot 4) Hausse de NT d'UN PAS PAR BADGE du type donné, lue au moment de
+    /// l'application (Terraforming Ganymede : « Raise your TR 1 step per Jupiter
+    /// tag you have, including this »). La carte étant mise en jeu AVANT
+    /// l'application de ses effets (`put_in_play` puis `apply_card_effects`),
+    /// son propre badge est déjà compté : « including this » ne demande aucun
+    /// traitement particulier. Chaque pas emprunte le chemin de hausse de NT
+    /// existant (`PlayerState::gain_tr`, comptabilisé pour l'invariant TR).
+    TrPerTag(Tag),
+}
+
+// ================================================== lot 4 : production dérivée
+//
+// Les cartes vertes dont la production DÉPEND DU NOMBRE DE BADGES du joueur
+// (livret FR p.13 l.180 : « Certaines cartes de production augmentent leur
+// production lorsque vous avez plus d'un badge spécifique »). La quantité n'est
+// JAMAIS inscrite sur les pistes `*_prod` : elle est recalculée à chaque phase
+// IV par le service unique `flow::derived_production`.
+//
+// « including this » n'est pas une règle à part : la carte est en jeu au moment
+// du décompte, donc son propre badge compte, comme tous les autres. Le calcul
+// est uniforme — aucune carte ne s'exclut, aucune ne se compte deux fois.
+
+/// (lot 4) Ressource gagnée par une production dérivée.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProdRes {
+    Mc,
+    Heat,
+    Plants,
+}
+
+/// (lot 4) Ce que la carte compte pour calculer sa production.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProdCount {
+    /// Badges d'un type donné possédés par le joueur, corporation comprise
+    /// (`PlayerState::tag_counts`, tenu à jour par `put_in_play`).
+    Tag(Tag),
+    /// Jetons Forêt du joueur (`PlayerState::forests`) — Zeppelins, dont le
+    /// texte imprimé dit « 1 MC per forest VP you have » : des FORÊTS, pas des
+    /// badges.
+    Forests,
+}
+
+/// (lot 4) Production DÉRIVÉE : recalculée à chaque phase de production.
+/// Quantité gagnée = compteur / `per`, en division ENTIÈRE (Medical Lab :
+/// 1 MC par 2 badges Construction → 1 seul badge ne rapporte rien).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DerivedProd {
+    pub res: ProdRes,
+    pub count: ProdCount,
+    pub per: u32,
+}
+
+/// (lot 4) Bonus PERMANENT de phase Recherche (Interplanetary Relations :
+/// « When you draw cards during the research phase, draw one additional card
+/// and keep one additional card »). Cumulé sur les cartes en jeu par le service
+/// unique `flow::research_extra` et consommé par la seule phase V — jamais par
+/// la mise en place, ni par la production de cartes, ni par une pioche d'effet.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ResearchBonus {
+    /// Cartes piochées en plus.
+    pub draw: usize,
+    /// Cartes gardées en plus.
+    pub keep: usize,
 }
 
 // ================================================================ lot 2 (A/B/C)
@@ -373,6 +436,14 @@ pub struct CardEffects {
     /// (lot 3) Effets à ressources appliqués à la POSE, dans l'ordre du texte
     /// imprimé (après `effects`, avant les déclencheurs de pose).
     pub on_build: &'static [ResStep],
+    /// (lot 4) Production DÉRIVÉE de la carte, recalculée à chaque phase IV par
+    /// `flow::derived_production`. Rien n'est jamais inscrit sur les pistes
+    /// `mc_prod`/`heat_prod`/`plant_prod` : celles-ci restent réservées aux
+    /// productions FIXES.
+    pub prod: Option<DerivedProd>,
+    /// (lot 4) Bonus permanent de phase Recherche, cumulé par
+    /// `flow::research_extra`.
+    pub research: Option<ResearchBonus>,
 }
 
 /// Cherche l'encodage d'une carte par nom exact. None = carte hors lot (stub).
@@ -386,7 +457,23 @@ macro_rules! card {
         ($name, CardEffects {
             reqs: &[$($r),*], effects: &[$($e),*],
             reductions: &[], play_triggers: &[], global_triggers: &[], action: None,
-            holds: None, on_build: &[],
+            holds: None, on_build: &[], prod: None, research: None,
+        })
+    };
+    // Forme lot 4a : production DÉRIVÉE (recalculée à chaque phase IV).
+    ($name:literal, reqs: [$($r:expr),*], effects: [$($e:expr),*], prod: $pd:expr) => {
+        ($name, CardEffects {
+            reqs: &[$($r),*], effects: &[$($e),*],
+            reductions: &[], play_triggers: &[], global_triggers: &[], action: None,
+            holds: None, on_build: &[], prod: Some($pd), research: None,
+        })
+    };
+    // Forme lot 4b : bonus permanent de phase Recherche.
+    ($name:literal, reqs: [$($r:expr),*], effects: [$($e:expr),*], research: $rb:expr) => {
+        ($name, CardEffects {
+            reqs: &[$($r),*], effects: &[$($e),*],
+            reductions: &[], play_triggers: &[], global_triggers: &[], action: None,
+            holds: None, on_build: &[], prod: None, research: Some($rb),
         })
     };
     // Forme lot 2 : réductions / déclencheurs / action.
@@ -397,7 +484,7 @@ macro_rules! card {
             reqs: &[$($r),*], effects: &[$($e),*],
             reductions: &[$($rd),*], play_triggers: &[$($pt),*],
             global_triggers: &[$($gt),*], action: $act,
-            holds: None, on_build: &[],
+            holds: None, on_build: &[], prod: None, research: None,
         })
     };
     // Forme lot 3 : tous les champs explicites (ressources posées comprises).
@@ -408,7 +495,7 @@ macro_rules! card {
             reqs: &[$($r),*], effects: &[$($e),*],
             reductions: &[$($rd),*], play_triggers: &[$($pt),*],
             global_triggers: &[$($gt),*], action: $act,
-            holds: $h, on_build: &[$($ob),*],
+            holds: $h, on_build: &[$($ob),*], prod: None, research: None,
         })
     };
 }
@@ -963,4 +1050,89 @@ pub static LOT1: &[(&str, CardEffects)] = &[
     card!("Advanced Ecosystems",
           reqs: [Tags(Tag::Animal, 1), Tags(Tag::Microbe, 1), Tags(Tag::Plant, 1)],
           effects: []),
+
+    // ================================================= LOT 4 (chantier cartes-4)
+    // Productions DÉRIVÉES (« 1 <ressource> par <badge> que vous avez »), hausse
+    // de NT par badge, bonus permanent de phase Recherche. Rien de tout cela ne
+    // touche les pistes `*_prod` : la production dérivée est RECALCULÉE à chaque
+    // phase IV par `flow::derived_production` (livret FR p.13 l.180).
+    // Correspondances et lectures : `outputs/lot4.md`.
+
+    // ---- 14 productions dérivées -------------------------------------------
+    // « …produces 1 heat per Earth you have, including this. »
+    card!("Atmospheric Insulators", reqs: [], effects: [],
+          prod: DerivedProd { res: ProdRes::Heat, count: ProdCount::Tag(Tag::Earth),
+                              per: 1 }),
+    // « …produces 1 MC per Earth tag you have, including this. »
+    card!("Cartel", reqs: [], effects: [],
+          prod: DerivedProd { res: ProdRes::Mc, count: ProdCount::Tag(Tag::Earth),
+                              per: 1 }),
+    // « …produces 1 plant per Plant you have. » — la carte porte un badge
+    // MICROBE et compte les badges PLANTE, qu'elle n'a pas : seule, elle ne
+    // produit rien (scan n° 152, livret-extrait §Insects).
+    card!("Insects", reqs: [], effects: [],
+          prod: DerivedProd { res: ProdRes::Plants, count: ProdCount::Tag(Tag::Plant),
+                              per: 1 }),
+    // « …produces 1 MC per Science tag you have, including this. »
+    card!("Lightning Harvest", reqs: [], effects: [],
+          prod: DerivedProd { res: ProdRes::Mc, count: ProdCount::Tag(Tag::Science),
+                              per: 1 }),
+    // « …produces 1 MC per 2 Building you have, including this. » — division
+    // ENTIÈRE : un seul badge Construction ne rapporte rien.
+    card!("Medical Lab", reqs: [], effects: [],
+          prod: DerivedProd { res: ProdRes::Mc, count: ProdCount::Tag(Tag::Building),
+                              per: 2 }),
+    // « …produces 1 MC per Microbe tag you have, including this. »
+    card!("Microbiology Patents", reqs: [], effects: [],
+          prod: DerivedProd { res: ProdRes::Mc, count: ProdCount::Tag(Tag::Microbe),
+                              per: 1 }),
+    // « …produces 1 MC per Earth tag you have, including this. »
+    card!("Miranda Resort", reqs: [], effects: [],
+          prod: DerivedProd { res: ProdRes::Mc, count: ProdCount::Tag(Tag::Earth),
+                              per: 1 }),
+    // « …produces 1 MC per Energy you have, including this. »
+    card!("Power Grid", reqs: [], effects: [],
+          prod: DerivedProd { res: ProdRes::Mc, count: ProdCount::Tag(Tag::Energy),
+                              per: 1 }),
+    // « …produces 1 heat per Space you have, including this. » (nom orthographié
+    // « Sattellite Farms » dans cards.json — faute d'origine, clé de résolution.)
+    card!("Sattellite Farms", reqs: [], effects: [],
+          prod: DerivedProd { res: ProdRes::Heat, count: ProdCount::Tag(Tag::Space),
+                              per: 1 }),
+    // « …produces 1 MC per Space you have, including this. »
+    card!("Satellites", reqs: [], effects: [],
+          prod: DerivedProd { res: ProdRes::Mc, count: ProdCount::Tag(Tag::Space),
+                              per: 1 }),
+    // « …produces 1 MC per Event you have. » (la carte ne porte aucun badge.)
+    card!("Venture Capitalism", reqs: [], effects: [],
+          prod: DerivedProd { res: ProdRes::Mc, count: ProdCount::Tag(Tag::Event),
+                              per: 1 }),
+    // « …produces 1 heat per Energy tag you have, including this. » — le scan de
+    // la carte n° 206 porte « including this », que cards.json omet : sans effet,
+    // le calcul est uniforme.
+    card!("Windmills", reqs: [], effects: [],
+          prod: DerivedProd { res: ProdRes::Heat, count: ProdCount::Tag(Tag::Energy),
+                              per: 1 }),
+    // « Requires red oxygen or higher. …produces 1 plant per Microbe tag you
+    //   have, including this. »
+    card!("Worms", reqs: [OxyMin(OXY_R_MIN)], effects: [],
+          prod: DerivedProd { res: ProdRes::Plants, count: ProdCount::Tag(Tag::Microbe),
+                              per: 1 }),
+    // « Requires red oxygen or higher. …produces 1 MC per forest VP you have. »
+    // Des jetons FORÊT, pas des badges (scan n° 208).
+    card!("Zeppelins", reqs: [OxyMin(OXY_R_MIN)], effects: [],
+          prod: DerivedProd { res: ProdRes::Mc, count: ProdCount::Forests, per: 1 }),
+
+    // ---- les 3 autres -------------------------------------------------------
+    // « …produces 3 MC. 1 VP per 2 Earth tags you have. » Production FIXE :
+    // piste `mc_prod`, comme une carte verte ordinaire. Ses PV variables sont
+    // déjà calculés par `flow::card_points` (vp_dynamic EARTH 1/2) : rien ici.
+    card!("Immigration Shuttles", reqs: [], effects: [McProd(3)]),
+    // « Raise your TR 1 step per Jupiter tag you have, including this. »
+    card!("Terraforming Ganymede", reqs: [], effects: [TrPerTag(Tag::Jupiter)]),
+    // « When you draw cards during the research phase, draw one additional card
+    //   and keep one additional card. 1 VP per 4 cards you have played. »
+    // Les PV sont déjà calculés par `card_points` (vp_dynamic ANY_CARD 1/4).
+    card!("Interplanetary Relations", reqs: [], effects: [],
+          research: ResearchBonus { draw: 1, keep: 1 }),
 ];

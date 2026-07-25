@@ -7,7 +7,7 @@
 use engine::cards::CardsDb;
 use engine::policy::RandomPolicy;
 use engine::probe::{
-    run_probe_action_scripted, run_probe_seq_scripted, ProbeDelta, ProbeOptions, ProbeRes,
+    run_probe_action_scripted, run_probe_seq_full, ProbeDelta, ProbeOptions, ProbeRes,
     ProbeScript,
 };
 use engine::sim::run_simulation;
@@ -54,6 +54,8 @@ fn main() {
     let mut probe_action: Option<String> = None;
     let mut probe_opts = ProbeOptions::default();
     let mut probe_script = ProbeScript::default();
+    // (lot 4) `--probe-produce` : exécuter la vraie phase IV après la séquence.
+    let mut probe_produce = false;
     let mut dump_turn_order = false;
 
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -105,6 +107,11 @@ fn main() {
                     _ => i += 1,
                 }
             }
+            // (lot 4) Exécute la VRAIE phase IV après la séquence.
+            "--probe-produce" => {
+                probe_produce = true;
+                i += 1;
+            }
             "--probe-mc" => {
                 probe_opts.mc = value(i).parse().unwrap_or_else(|_| die("--probe-mc invalide"));
                 i += 2;
@@ -148,7 +155,7 @@ fn main() {
     if let Some(name) = probe {
         // Séquence : cartes séparées par « ; » (rétro-compatible : 1 carte).
         let names: Vec<&str> = name.split(';').map(|s| s.trim()).collect();
-        let r = run_probe_seq_scripted(&db, &names, probe_opts, &probe_script);
+        let r = run_probe_seq_full(&db, &names, probe_opts, &probe_script, probe_produce);
         let line = serde_json::json!({
             "card": r.card,
             "found": r.found,
@@ -162,6 +169,14 @@ fn main() {
             "discarded": r.discarded,
             "resources": resources_json(&r.resources),
             "target_error": r.target_error,
+            // (lot 4) Production dérivée réellement créditée par la phase IV.
+            "produced": r.produced,
+            "derived_prod": {
+                "mc": r.derived_prod.0,
+                "heat": r.derived_prod.1,
+                "plants": r.derived_prod.2,
+            },
+            "vp_total": r.vp_total,
         });
         println!("{line}");
         return;
@@ -223,6 +238,12 @@ fn main() {
         "res_targets_missing": s.res_targets_missing,
         "phase_upgrades_skipped": s.phase_upgrades_skipped,
         "vp_from_resources": s.vp_from_resources,
+        // (lot 4) productions dérivées, NT par badge, bonus de recherche.
+        "derived_mc": s.derived_mc,
+        "derived_heat": s.derived_heat,
+        "derived_plants": s.derived_plants,
+        "tr_from_tags": s.tr_from_tags,
+        "research_extra_draws": s.research_extra_draws,
     });
     println!("{line}");
 }

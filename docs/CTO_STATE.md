@@ -67,9 +67,15 @@ Dernière mise à jour : 2026-07-25
 3. **Entraînement local (RTX 3060) ou machines louées en ligne** : les
    références publiées dépassent une 3060 seule ; arbitrage après conception du
    simulateur rapide. [DÉCLARÉ]
-4. **Interfaces de jeu** : en ligne, et/ou plateau physique par caméra. Reporté à
-   après le moteur et l'IA. Visuels de cartes : chaîne Tabletop Simulator
-   VALIDÉE (voir §Acquis scans). [VÉRIFIÉ 24-07]
+4. ~~**Interfaces de jeu** : en ligne, et/ou plateau physique par caméra~~ →
+   **TRANCHÉ par Alexis le 25-07** : la lecture du plateau physique par caméra
+   est **abandonnée**. Le projet livrera un **jeu numérique avec interface
+   propre** (glisser-déposer à la souris, ressenti d'un jeu de cartes en ligne
+   du commerce), dans lequel l'IA jouera. Ordre retenu : moteur de règles →
+   interface → IA. Conséquence : le chantier « vision par ordinateur » sort du
+   périmètre ; un chantier « interface de jeu » y entre. Visuels de cartes :
+   chaîne Tabletop Simulator VALIDÉE (voir §Acquis scans), réutilisable pour
+   l'interface en usage privé. [VÉRIFIÉ 25-07 — message d'Alexis]
 
 ## Acquis (audités)
 
@@ -213,30 +219,44 @@ Dernière mise à jour : 2026-07-25
   d'actions de `TestPolicy` réservé au joueur 0 (la phase III alterne
   désormais). Relus par la main. [VÉRIFIÉ 24-07]
 
-- **`moteur-cartes-4` SCELLÉ ET LANCÉ le 25-07** (sous-agent Opus 4.8 en
-  cours) : productions **dérivées** — les cartes dont la production dépend du
-  nombre de badges possédés, **recalculée à chaque phase de production**.
-  Périmètre arrêté à **17 cartes** après inventaire à la source (et non ~24 :
-  les points de victoire variables par badge, eux, sont **déjà** calculés par
-  `flow::card_points` via le champ `vp_dynamic` de `cards.json`, vérifié
-  `flow.rs:1551-1571`). 14 productions dérivées (Atmospheric Insulators,
-  Cartel, Insects, Lightning Harvest, Medical Lab, Microbiology Patents,
-  Miranda Resort, Power Grid, Sattellite Farms, Satellites, Venture
-  Capitalism, Windmills, Worms, Zeppelins) + Immigration Shuttles (production
-  fixe) + Terraforming Ganymede (NT par badge Jupiter) + Interplanetary
-  Relations (bonus permanent de phase Recherche). [VÉRIFIÉ 25-07]
+- **`moteur-cartes-4` LIVRÉ, AUDITÉ OK ET PROMU le 25-07** : productions
+  **dérivées** — les cartes dont la production dépend du nombre de badges
+  possédés, **recalculée à chaque phase de production**. Périmètre : **17
+  cartes** (et non ~24 : les points de victoire variables par badge étaient
+  **déjà** calculés par `flow::card_points` via `vp_dynamic`, vérifié
+  `flow.rs:1551-1571`). 14 productions dérivées + Immigration Shuttles
+  (production fixe) + Terraforming Ganymede (NT par badge Jupiter) +
+  Interplanetary Relations (bonus permanent de phase Recherche).
+  **271 tests verts**, table à 155 entrées, ~8 500 parties/s (machine chargée ;
+  ~11 750/s au repos). [VÉRIFIÉ 25-07]
+- Vocabulaire du lot 4 : `ProdRes`, `ProdCount { Tag, Forests }`,
+  `DerivedProd { res, count, per }`, `ResearchBonus { draw, keep }`,
+  `Eff::TrPerTag`. **Services uniques** `flow::derived_production` (`flow.rs:750`)
+  et `flow::research_extra` (`flow.rs:786`), consommés par la phase de jeu ET
+  par la sonde. Rien n'est jamais inscrit sur les pistes `*_prod` : c'est
+  l'interdit central du lot. Sonde : `--probe-produce` exécute la VRAIE
+  `phase_production` et relève la variation des compteurs ; champ `vp_total`
+  (somme de `card_points` sur toutes les cartes en jeu). [VÉRIFIÉ 25-07]
 - **Règle tranchée au livret** : la production « 1 MC par badge X » n'est PAS
-  figée à la pose. `docs/regles/livret-base.md:180` : « Certaines cartes de
-  production augmentent leur production lorsque vous avez plus d'un badge
-  spécifique. Vous devrez mettre à jour votre plateau Joueur chaque fois que
-  vous jouez ce badge. » L'interdit n° 1 du contrat porte là-dessus.
-  [VÉRIFIÉ 25-07]
-- Vérification OCR intégrée à la préparation du contrat (nouvelle capacité du
-  25-07) : **Windmills** (n° 206) porte « including this » que `cards.json`
-  omet ; **Insects** (n° 152) compte les badges **Plante**, qu'elle ne possède
-  pas ; **Zeppelins** (n° 208) compte les **jetons Forêt**, pas des badges.
-  Conclusion : « including this » est un rappel, pas une règle à part — le
-  calcul est uniforme. [VÉRIFIÉ 25-07 par lecture des scans]
+  figée à la pose. `docs/regles/livret-base.md:180`. [VÉRIFIÉ 25-07]
+- Vérification OCR intégrée à la préparation du contrat : **Windmills**
+  (n° 206) porte « including this » que `cards.json` omet ; **Insects**
+  (n° 152) compte les badges **Plante**, qu'elle ne possède pas ; **Zeppelins**
+  (n° 208) compte les **jetons Forêt**. Conclusion : « including this » est un
+  rappel, pas une règle à part. [VÉRIFIÉ 25-07 par lecture des scans]
+- **Signalé par l'agent, non traité (périmètre)** : trois cartes du deck v1
+  portent le même bonus de recherche et restent inertes — *United Planetary
+  Alliance* (11 MC, texte identique à Interplanetary Relations à 35 MC),
+  *Interns*, *Extended Resources*. Le vocabulaire est en place : trois lignes
+  de table. À verser au prochain lot. [DÉCLARÉ par l'agent, plausible]
+- **Le seuil de vitesse des contrôles (8 000 parties/s) n'a plus de marge** :
+  mesuré entre 7 460 et 8 800 selon la charge de la machine. Mesures alternées
+  avant/après le lot par la main : aucune régression (le lot est marginalement
+  plus rapide). À relever ou à mesurer sur 10 000 parties dans les prochains
+  contrats. [VÉRIFIÉ 25-07]
+- **Incident de harnais** : le premier agent lancé sur ce lot s'est figé au
+  démarrage sans rien produire (surveillance : 600 s sans activité). Relancé à
+  neuf, `outputs/` était vide — aucune reprise bancale. [VÉRIFIÉ 25-07]
 - Bidirectionnalité du contrat prouvée avant scellement : 4 contrôles visibles
   rouges à l'état actuel pour la bonne raison, verts sur un faux moteur
   simulant l'état-cible ; hold-outs 01/02/03 idem, hold-out 04
