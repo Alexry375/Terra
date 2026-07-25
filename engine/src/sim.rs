@@ -2,7 +2,7 @@
 //! à chaque ronde, empreinte déterministe des états finaux.
 
 use crate::cards::CardsDb;
-use crate::flow::{play_round, score, setup_game};
+use crate::flow::{play_round, score_parts, setup_game};
 use crate::policy::Policy;
 use crate::state::*;
 use rand::rngs::StdRng;
@@ -204,6 +204,16 @@ pub struct GameOutcome {
     /// (C5) Partie terminée sur une égalité de PV (aucun départage : règle
     /// maison — une égalité reste une égalité).
     pub draw: bool,
+    // ----------------------------------- lot 3 (ressources sur les cartes)
+    /// Ressources ajoutées / retirées sur des cartes (unités).
+    pub res_added: u64,
+    pub res_removed: u64,
+    /// Poses de ressources sautées faute de cible valide.
+    pub res_targets_missing: u64,
+    /// Améliorations de carte Phase demandées et non gérées.
+    pub phase_upgrades_skipped: u64,
+    /// Points de victoire venant des ressources posées, les deux joueurs.
+    pub vp_from_resources: i64,
 }
 
 /// Joue une partie complète (politique fournie), invariants vérifiés à chaque
@@ -220,7 +230,7 @@ pub fn play_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameOutcom
         }
     }
 
-    let scores = score(&game, db);
+    let (scores, vp_from_resources) = score_parts(&game, db);
     GameOutcome {
         completed: game.game_over,
         generations: game.generation,
@@ -236,6 +246,11 @@ pub fn play_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameOutcom
         discard_payments: game.discard_payments,
         // (C5) Aucun départage n'est appliqué : deux scores égaux = une égalité.
         draw: scores[0] == scores[1],
+        res_added: game.res_added,
+        res_removed: game.res_removed,
+        res_targets_missing: game.res_targets_missing,
+        phase_upgrades_skipped: game.phase_upgrades_skipped,
+        vp_from_resources,
     }
 }
 
@@ -266,6 +281,15 @@ pub struct SimSummary {
     pub discard_payments: u64,
     /// (C5) Parties terminées sur une égalité de PV.
     pub draws: u64,
+    // ----------------------------------- lot 3 (ressources sur les cartes)
+    /// Totaux sur toutes les parties, agrégés depuis `GameOutcome` — donc
+    /// depuis les compteurs incrémentés dans les services d'ajout/retrait au
+    /// moment réel de l'opération, jamais recalculés ici.
+    pub res_added: u64,
+    pub res_removed: u64,
+    pub res_targets_missing: u64,
+    pub phase_upgrades_skipped: u64,
+    pub vp_from_resources: i64,
 }
 
 /// Lance `games` parties aléatoires. Graine unique : un RNG maître seedé par
@@ -292,6 +316,11 @@ pub fn run_simulation(
     let mut draw_after_build = 0u64;
     let mut discard_payments = 0u64;
     let mut draws = 0u64;
+    let mut res_added = 0u64;
+    let mut res_removed = 0u64;
+    let mut res_targets_missing = 0u64;
+    let mut phase_upgrades_skipped = 0u64;
+    let mut vp_from_resources = 0i64;
 
     let t0 = std::time::Instant::now();
     for _ in 0..games {
@@ -315,6 +344,11 @@ pub fn run_simulation(
         if out.draw {
             draws += 1;
         }
+        res_added += out.res_added;
+        res_removed += out.res_removed;
+        res_targets_missing += out.res_targets_missing;
+        phase_upgrades_skipped += out.phase_upgrades_skipped;
+        vp_from_resources += out.vp_from_resources;
         turn_orders.push(out.turn_order);
         agg.write_u64(out.state_hash);
     }
@@ -339,5 +373,10 @@ pub fn run_simulation(
         draw_after_build,
         discard_payments,
         draws,
+        res_added,
+        res_removed,
+        res_targets_missing,
+        phase_upgrades_skipped,
+        vp_from_resources,
     }
 }

@@ -525,7 +525,11 @@ fn lot_table_integrity() {
     // Toutes les cartes du lot sauf Grain Silos (imposée, hors pioche —
     // journal B2) viennent de la pioche v1.
     for (name, _) in engine::effects::LOT1 {
-        let card = db.projects.iter().find(|c| c.name == *name).unwrap();
+        // (lot 3) La recherche par premier nom identique ne suffit plus : quatre
+        // cartes du lot 3 ont un homonyme « Buffed » hors pioche v1 placé AVANT
+        // elles dans cards.json. On emprunte la résolution CANONIQUE du moteur —
+        // celle qui rattache les effets. L'assertion, elle, est inchangée.
+        let card = &db.projects[db.resolve_card(name).expect("carte du lot non résolue") as usize];
         assert!(
             card.in_deck_v1 || *name == "Grain Silos",
             "carte du lot hors pioche v1: {name}"

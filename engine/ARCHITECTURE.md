@@ -6,9 +6,11 @@ mulligan, **couche d'effets déclarative** (chantier moteur-cartes-1 : lot 1 de
 63 cartes aux effets complets, VP des 388 cartes extraits, sonde d'audit
 `--probe`, interrupteur `--effects on|off`) **étendue au lot 2** (chantier
 moteur-cartes-2 : +47 cartes portant réductions de coût, effets déclenchés et
-actions de cartes bleues — voir §Lot 2). Les cartes hors lot restent des
-**stubs neutres** (voir §Stubbé). Parties complètes en politique aléatoire,
-déterministes à graine fixée.
+actions de cartes bleues — voir §Lot 2) puis **au lot RESSOURCES** (chantier
+moteur-cartes-3 : +28 cartes portant les jetons microbe / animal / science
+posés sur les cartes — voir §Ressources posées sur les cartes). Les cartes hors
+lot restent des **stubs neutres** (voir §Stubbé). Parties complètes en
+politique aléatoire, déterministes à graine fixée.
 
 **Lot 3 — conformité au livret + règles maison** (chantier
 moteur-conformite-1) : aucune carte ajoutée, quatre règles corrigées d'après le
@@ -99,9 +101,12 @@ gagne toujours.
 `WinPointsInfo`). Le score (effets ON) ajoute par carte jouée : `vp` fixes +
 VP dynamiques calculables en v1 — formule Java `floor(n / resources) × points`
 avec n = tags Jupiter (`JUPITER`), tags Terre (`EARTH`), forêts (`FOREST`),
-cartes bleues jouées (`BLUE_CARD`), cartes jouées (`ANY_CARD`). Les types
-portant sur des **ressources posées sur les cartes** (ANIMAL, MICROBE,
-SCIENCE…) valent **0 en v1** (ressources non modélisées).
+cartes bleues jouées (`BLUE_CARD`), cartes jouées (`ANY_CARD`). Depuis le
+chantier cartes-3, les types portant sur des **ressources posées sur les
+cartes** (`ANIMAL`, `MICROBE`, `SCIENCE`) sont RÉELS : n = ressources posées sur
+CETTE carte (voir §Ressources posées sur les cartes). Tout se calcule dans
+`flow::card_points`, qui renvoie `(total, part venant des ressources)` — il n'y
+a pas de second chemin de score. `VpKind::Unsupported` reste 0.
 
 ## Sonde d'audit v2 (`--probe` séquence, `--probe-action`)
 
@@ -164,6 +169,95 @@ comportement SANS option est celui du lot 2, à l'identique.
   la séquence s'arrête et `played` vaut `false`. C'est le seul moyen d'observer
   la règle de l'instantané carte par carte, et il emprunte le chemin réel.
 
+### Extensions du chantier cartes-3
+
+Deux champs et deux options s'ajoutent, aux DEUX sondes (`--probe` **et**
+`--probe-action` — sans quoi les actions à ressources ne seraient pas
+observables). Sans option nouvelle, la sortie est celle du lot précédent, à
+l'identique.
+
+- **`resources`** : `[{"card","kind":"microbe|animal|science","n"}]`, toutes les
+  cartes PORTEUSES du joueur sondé après la séquence, celles à 0 comprises,
+  **triées par nom de carte**. Lu sur `PlayerState::card_resources` ; la sonde
+  n'écrit jamais de ressource.
+- **`target_error`** : première cible imposée absente des candidats (ou nom de
+  carte inconnu), `null` sinon. Une cible imposée introuvable n'est jamais
+  remplacée en silence : l'effet est sauté et l'erreur remonte ici.
+- **`--probe-choice "1,0,2"`** : pile de réponses imposées à
+  `Policy::choose_option`, consommée dans l'ordre ; épuisée → comportement par
+  défaut.
+- **`--probe-target "Tardigrades;Birds"`** : pile de cartes imposées à
+  `Policy::choose_res_target` puis `Policy::choose_res_source`, consommée dans
+  l'ordre d'appel.
+
+Les deux options imposent les réponses de la **politique**, pas des valeurs au
+moteur : la sonde emprunte donc exactement les mêmes points de décision que
+`simulate` (`probe::ProbePolicy` délègue à `RandomPolicy` dès qu'une pile est
+épuisée).
+
+Le champ **`vp`** vaut désormais : VP fixes de la dernière carte **+** points de
+victoire venant des ressources de toutes les cartes en jeu, lus sur
+`flow::card_points`. Les VP dynamiques non liés aux ressources (JUPITER,
+BLUE_CARD…) restent hors de ce champ, comme au lot 2.
+
+## Ressources posées sur les cartes (chantier cartes-3)
+
+Les jetons **microbe / animal / science** empilés sur une carte en jeu. 28
+cartes neuves dans la table `LOT1` (110 + 28 = 138 entrées) ; correspondances,
+encodages, choix exposés et limites dans `outputs/lot3.md`. Le texte imprimé
+gagne toujours.
+
+- **Stockage** : `PlayerState::card_resources: BTreeMap<u16, u32>` (identifiant
+  de carte → quantité). Pas de table de hachage : l'ordre d'itération ordonne
+  la liste de candidats présentée à la politique, donc les tirages du RNG, donc
+  la reproductibilité à graine fixe. Une carte n'y entre que si elle **porte**
+  un type (`CardEffects::holds`), à sa pose et **à 0** (`Player.initResources`
+  du Java) : une carte porteuse vide est déjà une cible valide, une carte non
+  porteuse n'est jamais un réceptacle.
+- **Service unique** : `flow::add_resources` / `flow::remove_resources`, seuls
+  points d'écriture, empruntés par la pose, les déclencheurs, les actions et la
+  sonde — même discipline que `card_discount` au lot 2. Ils incrémentent
+  `res_added` / `res_removed` au moment exact de l'opération, et assèrent que
+  la carte est bien une porteuse en jeu du joueur.
+- **Vocabulaire** (`effects.rs`) : `ResKind`, champ `holds`, `ResPut { target:
+  SelfCard | Another | Any, kinds, amount: Fixed | ByKind }`, `ResEff { Gain,
+  Put, RemoveSelf, RemoveAny, PhaseUpgrade }`, `ResStep { Do, Choose }` et le
+  champ `on_build` ; `TrigGain::ResSelf`/`Choose` et `TrigCond::AnyOfTags` pour
+  les déclencheurs de pose ; `GlobalTrigger::OnRaiseOxygen`/`OnBuildForest`
+  (Herbivores, Small Animals) ; `Action::Res` pour les actions à ressources
+  (dix cartes, dont Symbiotic Fungus, Extreme-Cold Fungus et Conserved Biome,
+  reclassées d'effet de pose en action au round 2 d'après le scan des cartes
+  imprimées) ;
+  `Reduction::PayResources` pour la réduction payée en microbes.
+- **Choix du joueur** : trois méthodes **à implémentation par défaut** sur le
+  trait `Policy` — `choose_option` (branches d'une alternative, numérotées dans
+  l'ordre du TEXTE IMPRIMÉ après filtrage des branches injouables),
+  `choose_res_target` (carte qui reçoit), `choose_res_source` (carte sur
+  laquelle retirer). Aucune politique existante n'est modifiée. Conventions :
+  `choose_option` n'est appelée qu'à partir de 2 branches jouables ;
+  `choose_res_target` est appelée même à un seul candidat ; un indice hors
+  bornes vaut **renoncement explicite** (l'effet est sauté), ce dont seule la
+  sonde se sert pour signaler une cible imposée introuvable.
+- **Absence de cible** = effet de POSE sauté, **sans compensation**, compté dans
+  `res_targets_missing`. Une ACTION dont la seule branche est injouable faute de
+  cible ne s'applique simplement pas (`action_applied` faux) et n'est pas
+  comptée : elle reste offerte à la génération suivante, exactement comme une
+  action dont le coût n'est pas payable.
+- **Amélioration de carte Phase** (Cryogenic Shipment, action de Fibrous
+  Composite Material) : mécanisme d'un lot ultérieur (`phase_upgrades` reste un
+  stub `None`). Le reste de la carte s'applique, l'amélioration est perdue et
+  comptée dans `phase_upgrades_skipped`. Aucun effet de compensation.
+- **Score** : `VpKind::Animal/Microbe/Science` ne valent plus 0. Ils comptent
+  les ressources posées sur CETTE carte, dans `flow::card_points` — unique
+  implémentation, qui renvoie `(total, part venant des ressources)` et que
+  consomment à la fois `flow::score_parts` (score de partie, compteur
+  `vp_from_resources`) et la sonde. Pas de second chemin de score.
+- **Résolution des noms de cartes** : `CardsDb::resolve_card`. `cards.json`
+  contient des homonymes `Buffed…` (variantes maison, `in_deck_v1: false`),
+  parfois AVANT la carte officielle et à un prix différent. À nom multiple,
+  seule l'entrée du deck v1 est canonique ; elle seule reçoit l'effet, le
+  jumeau reste un stub. Chemin unique (table d'effets, sonde, tests).
+
 ## Représentation de l'état
 
 Tout l'état d'une partie tient dans `GameState` (`src/state.rs`) :
@@ -183,7 +277,8 @@ Tout l'état d'une partie tient dans `GameState` (`src/state.rs`) :
   base de cartes), compteurs de tags et de couleurs, corporation choisie,
   phase choisie / phase précédente, activations bonus de la phase action,
   `phase_upgrades: [Option<PhaseUpgrade>; 5]` (structure Discovery, toujours
-  `None` en v1), et un compteur d'audit `tr_increments` pour l'invariant TR.
+  `None` en v1), `card_resources` (ressources posées sur ses cartes, chantier
+  cartes-3), et un compteur d'audit `tr_increments` pour l'invariant TR.
 - **Pioches** : `deck`/`discard` projets (248 cartes `in_deck_v1`),
   `corp_deck`/`corp_discard` (16 corporations). Pioche vide → la défausse est
   remélangée (livret p.15). Les cartes sont des indices dans `CardsDb`,
@@ -292,6 +387,17 @@ fonction de résumé, jamais depuis la sonde. Ils remontent de `GameState` à
 
 `turn_order_switches` complète la liste (voir §Ordre du tour).
 
+Le chantier cartes-3 en ajoute cinq, mêmes règles (JSON de `simulate`, tous à 0
+avec `--effects off`) :
+
+| Champ JSON | Sens | Incrémenté dans |
+|---|---|---|
+| `res_added` | ressources posées sur des cartes (en unités) | `flow::add_resources` |
+| `res_removed` | ressources retirées | `flow::remove_resources` |
+| `res_targets_missing` | poses sautées faute de carte cible valide | `flow::apply_res_eff` / `apply_choice` |
+| `phase_upgrades_skipped` | améliorations de carte Phase demandées et non gérées | `flow::apply_res_eff` |
+| `vp_from_resources` | points de victoire venant des ressources, tous joueurs | `flow::score_parts`, depuis `flow::card_points` |
+
 ## Paiement d'une carte (lot 3)
 
 Livret p.13, l.348 : le coût se paie en cubes MC **et/ou** en défaussant
@@ -349,11 +455,14 @@ Explicitement hors périmètre, structure prête :
   effets déclenchés (« when you play a … », « when you raise the temperature /
   flip an ocean »), actions de cartes bleues en phase III (le no-op
   `ActionOpt::BlueAction` est devenu `flow::apply_blue_action`). Voir §Lot 2.
-- **Hors vocabulaire (restent stubs)** : ressources posées sur les cartes
-  (microbes/animaux/science — lot 3), productions par tag (« 1 MC per Earth
+- **Traité au chantier cartes-3** (n'est PLUS stub) : ressources posées sur les
+  cartes (microbes/animaux/science) et leurs points de victoire.
+- **Hors vocabulaire (restent stubs)** : productions par tag (« 1 MC per Earth
   tag »), pioche avec défausse à la pose (« draw 4 then discard 2 »),
-  améliorations de phases (« Upgrade a phase card »), choix du joueur à la pose
-  (« gain X OR … »), jeu gratuit d'une carte, tag wild (DYNAMIC). Une carte
+  améliorations de phases (« Upgrade a phase card » — demandée par deux cartes
+  du chantier cartes-3, sautée et comptée), jeu gratuit d'une carte, tag wild
+  (DYNAMIC). Le « choix du joueur à la pose » (« gain X OR … ») est traité
+  depuis le chantier cartes-3 (`ResStep::Choose` + `Policy::choose_option`). Une carte
   mêlant un mécanisme du lot 2 ET un de ceux-ci reste HORS lot 2 (fidélité
   totale ou rien) ; idem une carte dont le nom se dédouble avec une variante
   « Buffed » (Greenhouses, Community Gardens : ambiguës par nom, exclues).
@@ -367,8 +476,10 @@ Explicitement hors périmètre, structure prête :
   `Constants.PHASE_*_UPGRADE_*`).
 - **Tag DYNAMIC (wild)** : compté comme aucun tag (le choix du tag est un
   effet de carte).
-- **Ressources posées sur cartes** (animaux, microbes…) : inexistantes en v1 —
-  l'award Collector vaut donc toujours 0-0 (égalité 4/4).
+- **Award Collector** : les ressources posées existent depuis le chantier
+  cartes-3, mais `flow::award_value` renvoie encore 0 pour cet award — le
+  corriger changerait le score des parties hors du périmètre de ce lot. Reste
+  donc 0-0 (égalité 4/4). *Branchement* : `pl.card_resources.values().sum()`.
 - **Capacités acier/titane** : champs présents, toujours 0. Le lot 2 encode le
   TEXTE IMPRIMÉ des cartes à réduction (« pay N less on <tag> ») en réductions
   fixes, sans modéliser l'acier/titane comme ressource (le Java le fait via
@@ -423,11 +534,13 @@ Explicitement hors périmètre, structure prête :
 ## Fichiers
 
 - `src/cards.rs` — chargement de `cards_v2.json`, base de cartes (VP inclus),
-  résolution des effets par nom.
+  résolution CANONIQUE par nom (`resolve_card`, filtrée sur `in_deck_v1` en cas
+  d'homonyme « Buffed ») et rattachement des effets à la carte canonique.
 - `src/effects.rs` — vocabulaire d'effets (`Req`/`Eff` + lot 2 : `Reduction`,
   `PlayTrigger`/`TrigCond`/`TrigGain`, `GlobalTrigger`, `Action`/`ActionCost`/
   `ActionEff`), table `LOT1` (63 + 47 = 110 cartes), constantes de paliers.
-- `src/state.rs` — état de jeu, constantes sourcées, pools milestones/awards,
+- `src/state.rs` — état de jeu (dont `PlayerState::card_resources`, `BTreeMap`),
+  constantes sourcées, pools milestones/awards,
   compteurs d'audit TR (`tr_increments`/`tr_decrements`), ordre du tour
   (`first_player`, `turn_order`, `players_in_turn_order`,
   `turn_order_switches`) et compteurs de conformité du lot 3.
@@ -449,9 +562,12 @@ Explicitement hors périmètre, structure prête :
 - `src/bin/simulate.rs` — CLI `--games N --seed S [--cards …]
   [--effects on|off] [--dump-turn-order] [--probe "<A>;<B>;…"]
   [--probe-action "<nom>"] [--probe-strict ["<A>;<B>;…"]] [--probe-mc <n>]
-  [--probe-filler <n>]`, une ligne JSON sur stdout (champs `blue_actions`,
-  `prereq_snapshot_blocks`, `draw_before_build`, `draw_after_build`,
-  `discard_payments`, `draws`, `turn_order_switches` en mode simulation).
+  [--probe-filler <n>] [--probe-choice "1,0,2"]
+  [--probe-target "<A>;<B>"]`, une ligne JSON sur stdout (champs
+  `blue_actions`, `prereq_snapshot_blocks`, `draw_before_build`,
+  `draw_after_build`, `discard_payments`, `draws`, `turn_order_switches`,
+  `res_added`, `res_removed`, `res_targets_missing`, `phase_upgrades_skipped`,
+  `vp_from_resources` en mode simulation).
 - `tests/engine_tests.rs` — 27 tests du squelette (mulligans, production,
   contrainte de phase, fin de partie, score, invariants, déterminisme…).
 - `tests/lot1_tests.rs` — 72 tests du lot 1.
@@ -459,6 +575,11 @@ Explicitement hors périmètre, structure prête :
   instantané, C2 pioche avant/après, C3 défausse-paiement, C4 ordre du tour,
   C5 égalité + conversion obligatoire) plus la sonde étendue. Chaque règle
   corrigée a au moins un test qui ÉCHOUE sur l'ancien comportement.
+- `tests/lot3_res_tests.rs` — 43 tests du chantier cartes-3 : un par carte du
+  lot (28, état de jeu comparé au texte imprimé via la sonde) + intégration
+  (tri et complétude de `resources`, cible imposée absente, absence de cible,
+  filtrage des branches, VP de ressources au score RÉEL, compteurs d'audit en
+  flux réel, `--effects off`, déterminisme, piège des classes « Buffed »).
 - `tests/lot2_tests.rs` — 53 tests du lot 2 : un par carte (47, sonde →
   état de jeu comparé au texte imprimé : réductions via `paid`, déclencheurs et
   actions via delta) + intégration (réduction dans l'affordabilité, compteur

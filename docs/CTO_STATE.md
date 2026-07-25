@@ -24,8 +24,10 @@ Dernière mise à jour : 2026-07-25
   prérequis de paramètres sur l'instantané de début de phase, pioche avant
   ou après en phase II, paiement d'une carte par défausse (3 MC/carte,
   surplus rendu), règles maison J1/J2 alterné et égalité sèche.
-  **185 tests verts** ; revalidé après promotion : 300/300 graine 2024,
-  0 violation, 66 générations, ~13 000 parties/s. [VÉRIFIÉ 24-07]
+  **Lot 3** : ressources posées sur les cartes (microbes / animaux / science),
+  28 cartes, VP dynamiques ANIMAL/MICROBE/SCIENCE réels, choix délégués à la
+  politique. **231 tests verts** ; revalidé après promotion : 300/300 graine
+  2024, 0 violation, ~11 750 parties/s. [VÉRIFIÉ 25-07]
 - **`data/cards.json`** : 388 cartes, pioche v1 = 264 (248 projets +
   16 corporations), **+ champs `vp` (74 cartes > 0) et `vp_dynamic` (22)**
   extraits du Java par script reproductible
@@ -151,8 +153,8 @@ Dernière mise à jour : 2026-07-25
 
 ## Travaux en cours
 
-- **`moteur-cartes-3` LANCÉ le 25-07** (contrat scellé, agent Opus 4.8 au
-  travail) : ressources posées sur les cartes. Périmètre arrêté à **28 cartes**
+- **`moteur-cartes-3` LIVRÉ, AUDITÉ OK ET PROMU le 25-07** (2 rounds) :
+  ressources posées sur les cartes. Périmètre arrêté à **28 cartes**
   après inventaire à la source — 14 conteneurs (Tardigrades, Birds, Fish,
   Livestock, Herbivores, Physics Complex, Ecological Zone, Anaerobic
   Microorganisms, Nitrite Reducting Bacteria, Fibrous Composite Material,
@@ -211,11 +213,57 @@ Dernière mise à jour : 2026-07-25
   d'actions de `TestPolicy` réservé au joueur 0 (la phase III alterne
   désormais). Relus par la main. [VÉRIFIÉ 24-07]
 
-- **Sous-agent EN COURS (25-07) : `moteur-cartes-3`** — ressources posées sur
-  les cartes (microbes / animaux / science), 28 cartes du deck v1, + VP
-  dynamiques ANIMAL/MICROBE/SCIENCE réels au score. Contrat scellé le 25-07,
-  4 checks visibles rouges + 4 hold-outs cachés, agent Opus 4.8 lancé.
+- Aucun sous-agent en cours. Prochain chantier proposé : **lot 4 —
+  productions et VP variables par tag** (~24 cartes : Cartel, Satellites,
+  Lightning Harvest, Worms, Microbiology Patents, Terraforming Ganymede…).
   [VÉRIFIÉ 25-07]
+
+## Acquis : workspace `moteur-cartes-3` (livré, audité OK et promu le 25-07)
+
+- **Audit 8/8 aux deux rounds** (4 checks visibles + 4 hold-outs cachés),
+  tampering néant. Promu dans `engine/` : **231 tests verts** (27+72+53+46+33),
+  300/300 parties graine 2024, 0 violation, ~11 750 parties/s. [VÉRIFIÉ 25-07]
+- **Livré** : mécanisme complet des ressources posées sur les cartes.
+  Vocabulaire déclaratif (`ResKind`, champ `holds`, `ResPut`/`ResEff`/
+  `ResStep`, `TrigGain::ResSelf`/`Choose`, `TrigCond::AnyOfTags`,
+  `GlobalTrigger::OnRaiseOxygen`/`OnBuildForest`, `Action::Res`,
+  `Reduction::PayResources`). Stockage `BTreeMap<u16,u32>` dans `PlayerState`
+  (aucune table de hachage dans `src/`). **Service unique**
+  `flow::add_resources`/`remove_resources` (seuls points d'écriture, avec
+  assertions défensives). Score dans `flow::card_points` (retourne
+  `(total, from_resources)`), chemin unique partagé par le score de partie et
+  la sonde. 28 cartes encodées, table à 138 entrées. [VÉRIFIÉ 25-07]
+- **Choix délégués à la politique** (décision d'architecture) : `choose_option`,
+  `choose_res_target`, `choose_res_source`, à implémentation par défaut.
+  Branches injouables filtrées AVANT le choix ; une seule branche jouable = pas
+  de choix demandé (déclaré, journal D3). [VÉRIFIÉ 25-07]
+- **MON CONTRAT ÉTAIT FAUX sur 3 cartes**, l'agent l'a signalé au round 1 et
+  j'ai tranché **au scan des cartes imprimées** : Symbiotic Fungus,
+  Extreme-Cold Fungus et Conserved Biome portent « Action: » → actions
+  RÉPÉTABLES, pas effets de pose. Corrigé au round 2 (+ Large Convoy
+  « ANOTHER » et non « ANY »). Tests des 3 cartes passant par le flux réel
+  (`build_card` + `play_round`), prouvant la répétabilité. [VÉRIFIÉ 25-07]
+- **Bogue préexistant attrapé par l'agent** : la sonde et les tests par nom
+  résolvaient le PREMIER homonyme de `cards.json`, souvent la version
+  rééquilibrée « Buffed » hors pioche. `CardsDb::resolve_card` (préfère la
+  carte `in_deck_v1` quand elle est unique) corrige 5 cartes du deck v1 :
+  Community Gardens 10→20, Drone Assisted Construction 7→15, Extreme-Cold
+  Fungus 6→10, Farming Co-ops 7→15, Wood Burning Stoves 9→13. **Les PARTIES
+  n'étaient pas faussées** (la pioche filtre sur `in_deck_v1`, `flow.rs:63`) :
+  le défaut était limité à la sonde et aux tests par nom — dont 2 tests du
+  lot 2. [VÉRIFIÉ 25-07 par comparaison des 264 cartes ancien/nouveau moteur]
+- **MON hold-out 02 avait une attente fausse** : j'attendais 3 plantes pour
+  Imported Hydrogen branche « plantes », sans compter le bonus de la tuile
+  Océan révélée (2 plantes) — déjà vrai dans l'ancien moteur. Corrigé.
+  [VÉRIFIÉ 25-07]
+- **Non géré et déclaré** : amélioration de carte Phase (Cryogenic Shipment,
+  Fibrous Composite Material), sautée et comptée par `phase_upgrades_skipped`,
+  **sans compensation** (vérifié par hold-out : tous les deltas à 0).
+  [VÉRIFIÉ 25-07]
+- Compteurs d'audit : `res_added`, `res_removed`, `res_targets_missing`,
+  `phase_upgrades_skipped`, `vp_from_resources` — tous nuls en `--effects off`.
+  Sonde : `resources[]`, `target_error`, `--probe-choice`, `--probe-target`,
+  sur `--probe` et `--probe-action`. [VÉRIFIÉ 25-07]
 
 ## Acquis : workspace `moteur-cartes-2` (livré et audité OK le 24-07)
 

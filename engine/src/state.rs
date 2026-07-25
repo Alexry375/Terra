@@ -11,6 +11,7 @@
 
 use crate::cards::{CardsDb, Color, TAG_COUNT};
 use rand::rngs::StdRng;
+use std::collections::BTreeMap;
 
 pub const NUM_PLAYERS: usize = 2;
 /// Niveau max de température (index 19 == +8 °C).
@@ -183,6 +184,19 @@ pub struct PlayerState {
     /// Compteur d'audit : TR dépensés (« Requires you to spend 1 TR »).
     /// Invariant : tr == 5 + tr_increments - tr_decrements.
     pub tr_decrements: u64,
+    /// (lot 3) Ressources posées sur les cartes EN JEU du joueur : identifiant
+    /// de carte (indice dans `CardsDb.projects`) → quantité.
+    ///
+    /// `BTreeMap` et non une table de hachage : l'ordre d'itération doit être
+    /// TOTALEMENT déterministe, puisque c'est lui qui ordonne la liste de
+    /// candidats présentée à la politique (donc les tirages du RNG de la
+    /// partie, donc la reproductibilité à graine fixe). Trié par identifiant de
+    /// carte, comme l'exige le contrat.
+    ///
+    /// Une carte n'y entre QUE si elle porte un type de ressource
+    /// (`CardEffects::holds`), à sa pose et à 0 (`Player.initResources` du
+    /// moteur Java) : une carte non porteuse n'est jamais un réceptacle.
+    pub card_resources: BTreeMap<u16, u32>,
 }
 
 impl PlayerState {
@@ -210,7 +224,15 @@ impl PlayerState {
             phase_upgrades: [None; 5],
             tr_increments: 0,
             tr_decrements: 0,
+            card_resources: BTreeMap::new(),
         }
+    }
+
+    /// (lot 3) Ressources posées sur une carte donnée (0 si la carte ne porte
+    /// rien ou n'est pas en jeu). Lecture seule : l'écriture passe
+    /// exclusivement par `flow::add_resources` / `flow::remove_resources`.
+    pub fn resources_on(&self, card_id: u16) -> u32 {
+        self.card_resources.get(&card_id).copied().unwrap_or(0)
     }
 
     /// Fait entrer une carte en jeu (tags + couleur) — effet unique : aucun (stub).
@@ -315,6 +337,22 @@ pub struct GameState {
     /// (C3) Compteur d'audit : nombre TOTAL de cartes défaussées pour payer des
     /// cartes Projet (3 MC / carte). Règle, donc actif aussi en `--effects off`.
     pub discard_payments: u64,
+    // --------------------------------------- lot 3 (ressources sur les cartes)
+    /// Ressources posées sur des cartes, comptées EN UNITÉS, incrémentées dans
+    /// le service unique `flow::add_resources`, au moment exact de l'ajout.
+    /// 0 en `--effects off`.
+    pub res_added: u64,
+    /// Idem pour les retraits (`flow::remove_resources`).
+    pub res_removed: u64,
+    /// Poses de ressources sautées faute de carte cible valide (l'effet est
+    /// perdu, sans compensation d'aucune sorte). Incrémenté dans
+    /// `flow::apply_res_*`, à l'endroit où la cible manque.
+    pub res_targets_missing: u64,
+    /// Améliorations de carte Phase demandées par une carte du lot et NON
+    /// gérées (mécanisme d'un lot ultérieur) — Cryogenic Shipment à la pose,
+    /// action de Fibrous Composite Material. Incrémenté au moment où l'effet
+    /// est atteint. Peut légitimement valoir 0 sur un échantillon de parties.
+    pub phase_upgrades_skipped: u64,
 }
 
 impl GameState {

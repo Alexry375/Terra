@@ -23,12 +23,19 @@ fn db() -> CardsDb {
     CardsDb::load("../data/cards.json").expect("cards.json doit se charger")
 }
 
+// (lot 3) Les deux accesseurs empruntent la résolution CANONIQUE du moteur
+// (`CardsDb::resolve_card`), la même que la sonde. La recherche par premier nom
+// identique ne convient plus : cards.json contient des homonymes « Buffed »
+// hors pioche v1, parfois AVANT la carte officielle et à un prix différent
+// (Drone Assisted Construction : 7 pour la Buffed, 15 pour la vraie). Les
+// assertions des tests sont inchangées ; c'est la carte visée qui est
+// désormais la bonne.
 fn price(db: &CardsDb, name: &str) -> i64 {
-    db.projects.iter().find(|c| c.name == name).expect(name).price
+    db.projects[card_id(db, name) as usize].price
 }
 
 fn card_id(db: &CardsDb, name: &str) -> u16 {
-    db.projects.iter().position(|c| c.name == name).expect(name) as u16
+    db.resolve_card(name).expect(name)
 }
 
 /// Prix payé pour `target` quand `reducer` est déjà en jeu (pose forcée séquence).
@@ -41,7 +48,7 @@ fn paid_target(db: &CardsDb, reducer: &str, target: &str) -> i64 {
 // Cibles hors-lot (stubs neutres) de tag connu, pour observer les réductions.
 const T_ANY: &str = "Bribed Comittee"; // red, prix 5 (EARTH, EVENT)
 const T_BUILDING: &str = "Microorganism Industry"; // blue, prix 5 (BUILDING)
-const T_SPACE: &str = "Drone Assisted Construction"; // blue, prix 7 (SPACE)
+const T_SPACE: &str = "Drone Assisted Construction"; // blue, prix 15 (SPACE)
 const T_EVENT: &str = "Lava Flows"; // red, prix 17 (EVENT)
 const T_ENERGY: &str = "Fusion Power"; // green, prix 7 (ENERGY)
 const T_EARTH: &str = "Advertising"; // green, prix 4 (EARTH)
@@ -510,8 +517,14 @@ fn blue_action_counter_increments_in_real_flow_and_applies_effect() {
 #[test]
 fn reduction_gates_affordability_in_real_flow() {
     // Une carte devient constructible UNIQUEMENT grâce à une réduction en jeu.
-    // Cible : Drone Assisted Construction (Space, prix 7). Réducteur : Asteroid
-    // Mining (Space −6 → prix 1). Avec 3 MC : inabordable sans, abordable avec.
+    // Cible : Drone Assisted Construction (Space, prix 15). Réducteur : Asteroid
+    // Mining (Space −6 → prix 9). Avec 9 MC : inabordable sans, abordable avec.
+    //
+    // (lot 3) Le montant de MC est passé de 3 à 9 : la sonde et les tests
+    // résolvent désormais la VRAIE Drone Assisted Construction (prix 15) et non
+    // son homonyme « Buffed » hors pioche v1 (prix 7), qui était celui atteint
+    // par la recherche du premier nom identique. L'assertion — « la carte n'est
+    // proposée QUE grâce à la réduction » — est inchangée.
     let db = db();
     let target = card_id(&db, T_SPACE);
     let reducer = card_id(&db, "Asteroid Mining");
@@ -523,7 +536,7 @@ fn reduction_gates_affordability_in_real_flow() {
         game.deck.extend(old);
         game.deck.retain(|&c| c != target && c != reducer);
         game.players[0].hand.push(target);
-        game.players[0].mc = 3;
+        game.players[0].mc = 9;
         if with_reducer {
             game.players[0].put_in_play(reducer, &db);
         }

@@ -261,3 +261,51 @@
   l'état actuel et verts sur l'état-cible ; le quatrième est vert dès
   maintenant — c'est son rôle. [VÉRIFIÉ 25-07]
 - Agent Opus 4.8 lancé sur le workspace. Audit à venir. [VÉRIFIÉ 25-07]
+
+## 2026-07-25 (suite) — Lot 3 livré en deux rounds, et une erreur de contrat tranchée par les scans
+
+- **Round 1 livré** : mécanisme complet des ressources sur cartes, 28 cartes,
+  230 tests verts. Audit : 7/8 au premier passage. Le contrôle caché en échec
+  était **le mien** : j'attendais 3 plantes pour la branche « plantes » d'Imported
+  Hydrogen, en oubliant que la tuile Océan révélée en rapporte 2 de plus — un
+  comportement déjà présent dans l'ancien moteur. Attente corrigée → 8/8.
+  [VÉRIFIÉ 25-07]
+- **L'agent a levé un doute que j'ai dû trancher moi-même.** Il signalait que
+  l'oracle Java fait de Symbiotic Fungus, Extreme-Cold Fungus et Conserved Biome
+  des **actions répétables**, là où mon contrat en faisait des effets de pose
+  jouant une seule fois — en relevant que Birds, que le contrat donnait bien en
+  action, a une signature Java identique. Il a suivi le contrat, comme demandé,
+  et déclaré le conflit.
+- **Chaîne de vérification par les scans mise en place** (nouvelle capacité) :
+  découpe des 7 planches 4096×4000 de `data/scans/base/` en 490 vignettes, puis
+  reconnaissance de texte (tesseract). Résultat sans ambiguïté : les trois cartes
+  portent « **Action:** ». **Mon contrat était faux, l'agent avait raison.**
+  Relevé au passage : Large Convoy dit « ANOTHER card » et non « ANY card »
+  comme le prétendait le Java. [VÉRIFIÉ 25-07]
+- **Round 2** : addendum écrit avec le texte des scans en source, 2 checks
+  visibles mis à jour (ils testaient l'ancien comportement), resceau
+  `aw seal --round 2`, agent repris avec son contexte. Livré : 4 entrées de
+  table modifiées, zéro ligne de logique nouvelle (le vocabulaire `Action::Res`
+  existait déjà). 231 tests verts. Audit **8/8**. [VÉRIFIÉ 25-07]
+- **Un bogue préexistant attrapé par l'agent, que MON audit du lot 2 avait
+  manqué.** `cards.json` contient des homonymes : la version rééquilibrée maison
+  « Buffed » d'une carte porte le même nom que l'officielle, et se trouve parfois
+  AVANT elle. La sonde et les tests cherchaient « la première carte de ce nom » →
+  ils mesuraient la mauvaise. Cinq cartes du deck étaient concernées (Community
+  Gardens 10 au lieu de 20, Drone Assisted Construction 7 au lieu de 15,
+  Extreme-Cold Fungus 6 au lieu de 10, Farming Co-ops 7 au lieu de 15, Wood
+  Burning Stoves 9 au lieu de 13). **Point rassurant vérifié par moi : les
+  parties n'étaient pas faussées** — la pioche filtre sur `in_deck_v1`
+  (`flow.rs:63`), donc elle a toujours distribué les vraies cartes. Le défaut
+  était limité à l'outil d'audit et à deux tests du lot 2. [VÉRIFIÉ 25-07]
+- **Contre-vérifications de la main avant promotion** : les 110 cartes des lots
+  1-2 resondées → 0 divergence avec l'ancien moteur ; les 264 cartes du deck v1
+  comparées → 5 différences, toutes des corrections du bogue ci-dessus ; graine
+  inédite 828282, 1000 parties, 0 violation ; lecture du chemin critique (service
+  unique avec assertions, `card_points` chemin unique, choix réellement demandés
+  à la politique et non câblés). Verdict : **ok**, promu.
+  231 tests verts, ~11 750 parties/s. [VÉRIFIÉ 25-07]
+- **Reste non géré et déclaré** : l'amélioration des cartes Phase (2 cartes du
+  lot la demandent), sautée sans compensation inventée et comptée par
+  `phase_upgrades_skipped`. **Prochain chantier proposé : lot 4 — productions et
+  points variables par tag**, ~24 cartes. [VÉRIFIÉ 25-07]

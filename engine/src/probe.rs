@@ -10,6 +10,13 @@
 //!   elle est payable ; le delta isole L'ACTION SEULE (état après pose → après
 //!   action, dépenses de l'action incluses).
 //!
+//! Chantier cartes-3 : les deux sondes rapportent en plus `resources` (les
+//! cartes porteuses du joueur, celles à 0 comprises, triées par nom) et
+//! `target_error` ; `ProbeScript` (`--probe-choice`, `--probe-target`) impose
+//! les réponses de la POLITIQUE — pas des valeurs au moteur — via `ProbePolicy`,
+//! qui délègue à `RandomPolicy` dès qu'une pile est épuisée. Sans script, le
+//! comportement est celui du lot précédent, à l'identique.
+//!
 //! État de départ (prompt §Sonde) : joueur 1 sans corporation, 100 MC,
 //! 20 chaleur, 20 plantes, productions 0, TR 5, paramètres globaux au départ,
 //! les cartes nommées seules en main (dans l'ordre) ; pioche = cartes v1
@@ -17,10 +24,10 @@
 
 use crate::cards::CardsDb;
 use crate::flow::{
-    apply_blue_action, build_card, build_card_with, card_discount, payable, requirements_met,
+    apply_blue_action, build_card_with, card_discount, card_points, payable, requirements_met,
     requirements_met_now,
 };
-use crate::policy::RandomPolicy;
+use crate::policy::{ActionOpt, ConstructionBonus, Policy, RandomPolicy};
 use crate::state::*;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
@@ -68,6 +75,23 @@ pub struct ProbeResult {
     /// dans l'ordre. Lu sur le retour de `flow::build_card_with` — jamais
     /// recalculé par la sonde.
     pub discarded: Vec<i64>,
+    /// (lot 3) Toutes les cartes PORTEUSES en jeu du joueur sondé après la
+    /// séquence, celles à 0 comprises, triées par nom de carte. Lues sur
+    /// `PlayerState::card_resources` — la sonde n'écrit jamais de ressource.
+    pub resources: Vec<ProbeRes>,
+    /// (lot 3) Première cible imposée par `--probe-target` qui ne figurait pas
+    /// parmi les candidats (ou nom de carte inconnu). `None` = aucune erreur.
+    /// Une cible imposée introuvable n'est JAMAIS remplacée en silence :
+    /// l'effet est sauté et l'erreur remonte ici.
+    pub target_error: Option<String>,
+}
+
+/// Une carte porteuse et son contenu (champ `resources` de la sonde).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProbeRes {
+    pub card: String,
+    pub kind: &'static str,
+    pub n: u32,
 }
 
 /// Options de la sonde (`--probe-mc`, `--probe-filler`, `--probe-strict`).
@@ -102,6 +126,186 @@ pub struct ProbeActionResult {
     pub action_applied: bool,
     /// Delta isolant l'action seule (post-pose → post-action).
     pub delta: ProbeDelta,
+    /// (lot 3) Cartes porteuses du joueur APRÈS pose + action (sans quoi les
+    /// actions à ressources ne seraient pas observables). Triées par nom.
+    pub resources: Vec<ProbeRes>,
+    /// (lot 3) Voir `ProbeResult::target_error`.
+    pub target_error: Option<String>,
+}
+
+// ============================================================ script de sonde
+//
+// `--probe-choice` et `--probe-target` imposent les réponses de la POLITIQUE,
+// pas des valeurs au moteur : la sonde emprunte donc exactement le même chemin
+// de décision que `simulate`. Sans script, `ProbePolicy` se comporte
+// strictement comme `RandomPolicy` — `--probe` sans option nouvelle est
+// inchangé.
+
+/// Réponses imposées à la politique pendant une sonde.
+#[derive(Debug, Clone, Default)]
+pub struct ProbeScript {
+    /// Pile de réponses à `Policy::choose_option`, consommée dans l'ordre.
+    pub choices: Vec<usize>,
+    /// Pile de noms de cartes imposés à `Policy::choose_res_target` PUIS
+    /// `Policy::choose_res_source`, consommée dans l'ordre d'appel.
+    pub targets: Vec<String>,
+}
+
+impl ProbeScript {
+    pub fn is_empty(&self) -> bool {
+        self.choices.is_empty() && self.targets.is_empty()
+    }
+}
+
+/// Politique de sonde : délègue tout à `RandomPolicy`, sauf les décisions
+/// scriptées tant que la pile correspondante n'est pas épuisée.
+struct ProbePolicy {
+    inner: RandomPolicy,
+    choices: Vec<usize>,
+    ci: usize,
+    /// Cibles imposées, résolues en identifiants de carte (`None` = nom inconnu
+    /// de la base) — la résolution est celle du moteur (`CardsDb::resolve_card`,
+    /// donc filtrée sur le deck v1, journal D1).
+    targets: Vec<(String, Option<u16>)>,
+    ti: usize,
+    error: Option<String>,
+}
+
+impl ProbePolicy {
+    fn new(db: &CardsDb, script: &ProbeScript) -> ProbePolicy {
+        ProbePolicy {
+            inner: RandomPolicy,
+            choices: script.choices.clone(),
+            ci: 0,
+            targets: script
+                .targets
+                .iter()
+                .map(|n| (n.clone(), db.resolve_card(n)))
+                .collect(),
+            ti: 0,
+            error: None,
+        }
+    }
+
+    fn fail(&mut self, msg: String) {
+        if self.error.is_none() {
+            self.error = Some(msg);
+        }
+    }
+
+    /// Traduit la prochaine cible imposée en indice dans `candidates`.
+    /// `None` = pile épuisée (comportement par défaut). `Some(candidates.len())`
+    /// = erreur : renoncement explicite, l'effet est sauté (journal D4).
+    fn scripted_target(&mut self, candidates: &[u16]) -> Option<usize> {
+        if self.ti >= self.targets.len() {
+            return None;
+        }
+        let (name, id) = self.targets[self.ti].clone();
+        self.ti += 1;
+        match id {
+            None => {
+                self.fail(format!("cible imposée inconnue de la base : « {name} »"));
+                Some(candidates.len())
+            }
+            Some(id) => match candidates.iter().position(|&c| c == id) {
+                Some(i) => Some(i),
+                None => {
+                    self.fail(format!(
+                        "cible imposée « {name} » absente des cartes pouvant recevoir la ressource"
+                    ));
+                    Some(candidates.len())
+                }
+            },
+        }
+    }
+}
+
+impl Policy for ProbePolicy {
+    fn corp_mulligan(&mut self, rng: &mut StdRng, p: usize, corps: &[u16]) -> bool {
+        self.inner.corp_mulligan(rng, p, corps)
+    }
+    fn project_mulligan(&mut self, rng: &mut StdRng, p: usize, hand: &[u16]) -> bool {
+        self.inner.project_mulligan(rng, p, hand)
+    }
+    fn pick_corporation(&mut self, rng: &mut StdRng, p: usize, corps: &[u16]) -> usize {
+        self.inner.pick_corporation(rng, p, corps)
+    }
+    fn pick_phase(&mut self, rng: &mut StdRng, p: usize, allowed: &[u8]) -> u8 {
+        self.inner.pick_phase(rng, p, allowed)
+    }
+    fn choose_build(&mut self, rng: &mut StdRng, p: usize, aff: &[usize]) -> Option<usize> {
+        self.inner.choose_build(rng, p, aff)
+    }
+    fn construction_bonus(&mut self, rng: &mut StdRng, p: usize) -> ConstructionBonus {
+        self.inner.construction_bonus(rng, p)
+    }
+    fn action_choice(&mut self, rng: &mut StdRng, p: usize, o: &[ActionOpt]) -> Option<usize> {
+        self.inner.action_choice(rng, p, o)
+    }
+    fn research_keep(
+        &mut self,
+        rng: &mut StdRng,
+        p: usize,
+        drawn: &[u16],
+        keep: usize,
+    ) -> Vec<usize> {
+        self.inner.research_keep(rng, p, drawn, keep)
+    }
+    fn discard_down(&mut self, rng: &mut StdRng, p: usize, hand: &[u16], n: usize) -> Vec<usize> {
+        self.inner.discard_down(rng, p, hand, n)
+    }
+
+    fn choose_option(&mut self, rng: &mut StdRng, p: usize, n: usize) -> usize {
+        if self.ci < self.choices.len() {
+            let c = self.choices[self.ci];
+            self.ci += 1;
+            c
+        } else {
+            self.inner.choose_option(rng, p, n)
+        }
+    }
+
+    fn choose_res_target(&mut self, rng: &mut StdRng, p: usize, cands: &[u16]) -> usize {
+        match self.scripted_target(cands) {
+            Some(i) => i,
+            None => self.inner.choose_res_target(rng, p, cands),
+        }
+    }
+
+    fn choose_res_source(&mut self, rng: &mut StdRng, p: usize, cands: &[u16]) -> usize {
+        match self.scripted_target(cands) {
+            Some(i) => i,
+            None => self.inner.choose_res_source(rng, p, cands),
+        }
+    }
+}
+
+/// Champ `resources` : toutes les cartes porteuses du joueur 0, triées par nom.
+fn probe_resources(game: &GameState, db: &CardsDb) -> Vec<ProbeRes> {
+    let mut out: Vec<ProbeRes> = game.players[0]
+        .card_resources
+        .iter()
+        .map(|(&c, &n)| ProbeRes {
+            card: db.projects[c as usize].name.clone(),
+            kind: db.projects[c as usize]
+                .holds()
+                .expect("carte sans type de ressource dans card_resources")
+                .name(),
+            n,
+        })
+        .collect();
+    out.sort_by(|a, b| a.card.cmp(&b.card));
+    out
+}
+
+/// Points de victoire venant des RESSOURCES posées, toutes cartes en jeu du
+/// joueur 0 — lus sur `flow::card_points`, jamais recalculés ici (NEVER 3).
+fn probe_resource_vp(game: &GameState, db: &CardsDb) -> i64 {
+    let pl = &game.players[0];
+    pl.played
+        .iter()
+        .map(|&c| card_points(db, pl, c).1)
+        .sum()
 }
 
 /// Construit l'état de départ fixe de la sonde, `ids` en main du joueur 0 dans
@@ -157,16 +361,20 @@ fn probe_state(db: &CardsDb, ids: &[u16], opts: ProbeOptions) -> GameState {
         draw_before_build: 0,
         draw_after_build: 0,
         discard_payments: 0,
+        res_added: 0,
+        res_removed: 0,
+        res_targets_missing: 0,
+        phase_upgrades_skipped: 0,
     };
     game.snapshot_planet();
     game
 }
 
+/// Résolution d'un nom de carte : chemin unique du moteur
+/// (`CardsDb::resolve_card`), qui écarte les variantes « Buffed » hors deck v1
+/// portant le même nom (journal D1).
 fn resolve(db: &CardsDb, name: &str) -> Option<u16> {
-    db.projects
-        .iter()
-        .position(|c| c.name == name)
-        .map(|i| i as u16)
+    db.resolve_card(name)
 }
 
 /// Capture des champs suivis pour le delta (ordre : mc, heat, plants, mc_prod,
@@ -218,12 +426,24 @@ pub fn run_probe_seq(db: &CardsDb, names: &[&str]) -> ProbeResult {
     run_probe_seq_opts(db, names, ProbeOptions::default())
 }
 
-/// Sonde séquence complète (lot 3). `opts` par défaut = lot 2 à l'identique.
+/// Sonde séquence complète (lot 3 conformité). `opts` par défaut = lot 2.
 ///
 /// La sonde ne réimplémente aucune règle : elle passe par `requirements_met`
 /// (prérequis, C1), `flow::payable` (affordabilité, C3) et
 /// `flow::build_card_with` (pose + paiement, C3) — le chemin de `simulate`.
 pub fn run_probe_seq_opts(db: &CardsDb, names: &[&str], opts: ProbeOptions) -> ProbeResult {
+    run_probe_seq_scripted(db, names, opts, &ProbeScript::default())
+}
+
+/// Sonde séquence scriptée (lot 3 ressources) : `script` impose les réponses de
+/// la politique (`--probe-choice`, `--probe-target`). Script vide = comportement
+/// strictement identique au lot 2.
+pub fn run_probe_seq_scripted(
+    db: &CardsDb,
+    names: &[&str],
+    opts: ProbeOptions,
+    script: &ProbeScript,
+) -> ProbeResult {
     let last = *names.last().unwrap_or(&"");
 
     let Some(last_id) = resolve(db, last) else {
@@ -239,6 +459,8 @@ pub fn run_probe_seq_opts(db: &CardsDb, names: &[&str], opts: ProbeOptions) -> P
             vp: 0,
             paid: Vec::new(),
             discarded: Vec::new(),
+            resources: Vec::new(),
+            target_error: None,
         };
     };
 
@@ -266,7 +488,7 @@ pub fn run_probe_seq_opts(db: &CardsDb, names: &[&str], opts: ProbeOptions) -> P
 
     // Pose de chaque carte dans l'ordre (toujours à l'indice 0 de la main : les
     // cartes de la séquence sont en tête, monnaie et pioches s'ajoutent en fin).
-    let mut pol = RandomPolicy;
+    let mut pol = ProbePolicy::new(db, script);
     let mut paid = Vec::with_capacity(n);
     let mut discarded = Vec::with_capacity(n);
     for (k, &id) in ids.iter().enumerate() {
@@ -305,15 +527,31 @@ pub fn run_probe_seq_opts(db: &CardsDb, names: &[&str], opts: ProbeOptions) -> P
         prereq_ok_now,
         played,
         delta: make_delta(&before, &after, hand_delta, total_paid),
-        vp: last_card.vp,
+        // VP fixes de la dernière carte (sens du lot 1) + points de victoire
+        // venant des RESSOURCES posées sur toutes les cartes en jeu — c'est ce
+        // que le lot 3 rend observable (journal D6). Les VP dynamiques non liés
+        // aux ressources (JUPITER, BLUE_CARD…) restent hors de ce champ.
+        vp: last_card.vp + probe_resource_vp(&game, db),
         paid,
         discarded,
+        resources: probe_resources(&game, db),
+        target_error: pol.error.clone(),
     }
 }
 
 /// Sonde action : pose la carte puis active son action une fois si payable ;
 /// le delta isole l'action (état après pose → après action).
 pub fn run_probe_action(db: &CardsDb, name: &str) -> ProbeActionResult {
+    run_probe_action_scripted(db, name, &ProbeScript::default())
+}
+
+/// Sonde action scriptée (lot 3) : le script s'applique à la POSE puis à
+/// l'ACTION, dans cet ordre. Script vide = comportement du lot 2.
+pub fn run_probe_action_scripted(
+    db: &CardsDb,
+    name: &str,
+    script: &ProbeScript,
+) -> ProbeActionResult {
     let Some(card_id) = resolve(db, name) else {
         return ProbeActionResult {
             card: name.to_string(),
@@ -322,6 +560,8 @@ pub fn run_probe_action(db: &CardsDb, name: &str) -> ProbeActionResult {
             has_action: false,
             action_applied: false,
             delta: ProbeDelta::default(),
+            resources: Vec::new(),
+            target_error: None,
         };
     };
 
@@ -330,15 +570,17 @@ pub fn run_probe_action(db: &CardsDb, name: &str) -> ProbeActionResult {
     let has_action = in_lot && card.effect.and_then(|e| e.action).is_some();
 
     let mut game = probe_state(db, &[card_id], ProbeOptions::default());
-    // Pose (état de référence du delta d'action).
-    build_card(&mut game, db, 0, 0, 0);
+    // Pose (état de référence du delta d'action) — même chemin que `simulate`,
+    // avec la politique de sonde (identique à RandomPolicy si le script est
+    // vide).
+    let mut pol = ProbePolicy::new(db, script);
+    build_card_with(&mut game, db, 0, 0, 0, &mut pol);
     let hand_after_pose = game.players[0].hand.len() as i64;
     let before = snap(&game);
 
     let action_applied = if has_action {
-        // Les actions variables tirent leur montant via RandomPolicy sur le RNG
+        // Les actions variables tirent leur montant via la politique sur le RNG
         // déterministe (graine 0) de l'état de sonde.
-        let mut pol = RandomPolicy;
         apply_blue_action(&mut game, db, 0, card_id, &mut pol)
     } else {
         false
@@ -353,5 +595,7 @@ pub fn run_probe_action(db: &CardsDb, name: &str) -> ProbeActionResult {
         has_action,
         action_applied,
         delta: make_delta(&before, &after, hand_delta, 0),
+        resources: probe_resources(&game, db),
+        target_error: pol.error.clone(),
     }
 }

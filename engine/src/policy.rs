@@ -108,6 +108,64 @@ pub trait Policy {
         (((missing + SELL_CARD_MC - 1) / SELL_CARD_MC) as usize).min(hand.len())
     }
 
+    // ------------------------------------- lot 3 : ressources sur les cartes
+    //
+    // Les trois décisions du lot 3. Méthodes par DÉFAUT : aucune politique
+    // existante n'est modifiée, et tout l'aléatoire passe par le RNG de la
+    // partie fourni en paramètre.
+    //
+    // CONVENTION COMMUNE (journal D4) : un indice `>= n` (resp.
+    // `>= candidates.len()`) vaut RENONCEMENT — l'effet concerné est sauté,
+    // sans repli sur un autre choix. Les politiques du moteur ne la produisent
+    // jamais ; seule la sonde s'en sert pour signaler une cible imposée absente
+    // des candidats (`target_error`) au lieu de retomber silencieusement sur
+    // une autre carte.
+
+    /// Choisit une branche parmi `n` alternatives (0..n). Les branches sont
+    /// numérotées dans l'ordre du TEXTE IMPRIMÉ, après filtrage de celles qui
+    /// ne sont pas jouables. Le moteur n'appelle cette méthode que si `n >= 2`
+    /// (à une seule branche jouable, il n'y a plus d'alternative — journal D3).
+    /// Défaut : tirage uniforme.
+    fn choose_option(&mut self, rng: &mut StdRng, _player: usize, n: usize) -> usize {
+        if n == 0 {
+            0
+        } else {
+            rng.gen_range(0..n)
+        }
+    }
+
+    /// Choisit la carte qui REÇOIT la ressource, parmi `candidates`
+    /// (identifiants de cartes en jeu, triés par identifiant). Appelée même
+    /// avec un seul candidat : c'est le moteur qui demande, jamais lui qui
+    /// décide. Défaut : tirage uniforme.
+    fn choose_res_target(
+        &mut self,
+        rng: &mut StdRng,
+        _player: usize,
+        candidates: &[u16],
+    ) -> usize {
+        if candidates.is_empty() {
+            0
+        } else {
+            rng.gen_range(0..candidates.len())
+        }
+    }
+
+    /// Choisit la carte sur laquelle RETIRER une ressource (Decomposing
+    /// Fungus). Mêmes conventions que `choose_res_target`.
+    fn choose_res_source(
+        &mut self,
+        rng: &mut StdRng,
+        _player: usize,
+        candidates: &[u16],
+    ) -> usize {
+        if candidates.is_empty() {
+            0
+        } else {
+            rng.gen_range(0..candidates.len())
+        }
+    }
+
     /// Recherche : garder `keep` cartes parmi `drawn` — renvoie les indices gardés.
     fn research_keep(&mut self, rng: &mut StdRng, player: usize, drawn: &[u16], keep: usize)
         -> Vec<usize>;

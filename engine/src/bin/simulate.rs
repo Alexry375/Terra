@@ -6,7 +6,10 @@
 
 use engine::cards::CardsDb;
 use engine::policy::RandomPolicy;
-use engine::probe::{run_probe_action, run_probe_seq_opts, ProbeDelta, ProbeOptions};
+use engine::probe::{
+    run_probe_action_scripted, run_probe_seq_scripted, ProbeDelta, ProbeOptions, ProbeRes,
+    ProbeScript,
+};
 use engine::sim::run_simulation;
 
 /// Sérialise un `ProbeDelta` en objet JSON (schéma commun aux deux sondes).
@@ -28,6 +31,15 @@ fn delta_json(d: &ProbeDelta) -> serde_json::Value {
     })
 }
 
+/// Sérialise le champ `resources` (trié par nom de carte par la sonde).
+fn resources_json(rs: &[ProbeRes]) -> serde_json::Value {
+    serde_json::Value::Array(
+        rs.iter()
+            .map(|r| serde_json::json!({ "card": r.card, "kind": r.kind, "n": r.n }))
+            .collect(),
+    )
+}
+
 fn die(msg: &str) -> ! {
     eprintln!("simulate: {msg}");
     std::process::exit(2);
@@ -41,6 +53,7 @@ fn main() {
     let mut probe: Option<String> = None;
     let mut probe_action: Option<String> = None;
     let mut probe_opts = ProbeOptions::default();
+    let mut probe_script = ProbeScript::default();
     let mut dump_turn_order = false;
 
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -102,6 +115,25 @@ fn main() {
                     .unwrap_or_else(|_| die("--probe-filler invalide"));
                 i += 2;
             }
+            // Sonde étendue (lot 3, ressources) : réponses imposées à la
+            // POLITIQUE — mêmes points de décision que `simulate`.
+            "--probe-choice" => {
+                probe_script.choices = value(i)
+                    .split(',')
+                    .map(|x| x.trim())
+                    .filter(|x| !x.is_empty())
+                    .map(|x| x.parse().unwrap_or_else(|_| die("--probe-choice invalide")))
+                    .collect();
+                i += 2;
+            }
+            "--probe-target" => {
+                probe_script.targets = value(i)
+                    .split(';')
+                    .map(|x| x.trim().to_string())
+                    .filter(|x| !x.is_empty())
+                    .collect();
+                i += 2;
+            }
             "--dump-turn-order" => {
                 dump_turn_order = true;
                 i += 1;
@@ -116,7 +148,7 @@ fn main() {
     if let Some(name) = probe {
         // Séquence : cartes séparées par « ; » (rétro-compatible : 1 carte).
         let names: Vec<&str> = name.split(';').map(|s| s.trim()).collect();
-        let r = run_probe_seq_opts(&db, &names, probe_opts);
+        let r = run_probe_seq_scripted(&db, &names, probe_opts, &probe_script);
         let line = serde_json::json!({
             "card": r.card,
             "found": r.found,
@@ -128,13 +160,15 @@ fn main() {
             "vp": r.vp,
             "paid": r.paid,
             "discarded": r.discarded,
+            "resources": resources_json(&r.resources),
+            "target_error": r.target_error,
         });
         println!("{line}");
         return;
     }
 
     if let Some(name) = probe_action {
-        let r = run_probe_action(&db, &name);
+        let r = run_probe_action_scripted(&db, &name, &probe_script);
         let line = serde_json::json!({
             "card": r.card,
             "found": r.found,
@@ -142,6 +176,8 @@ fn main() {
             "has_action": r.has_action,
             "action_applied": r.action_applied,
             "delta": delta_json(&r.delta),
+            "resources": resources_json(&r.resources),
+            "target_error": r.target_error,
         });
         println!("{line}");
         return;
@@ -181,6 +217,12 @@ fn main() {
         "discard_payments": s.discard_payments,
         "draws": s.draws,
         "turn_order_switches": s.turn_order_switches,
+        // (lot 3) ressources posées sur les cartes.
+        "res_added": s.res_added,
+        "res_removed": s.res_removed,
+        "res_targets_missing": s.res_targets_missing,
+        "phase_upgrades_skipped": s.phase_upgrades_skipped,
+        "vp_from_resources": s.vp_from_resources,
     });
     println!("{line}");
 }

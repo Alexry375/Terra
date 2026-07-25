@@ -29,6 +29,8 @@ pub const TEMP_Y_MIN: u8 = 11;
 pub const TEMP_W_MIN: u8 = 16;
 pub const OXY_R_MIN: u8 = 3;
 pub const OXY_Y_MIN: u8 = 7;
+/// Palier BLANC d'oxygène (Birds : « Requires white oxygen »).
+pub const OXY_W_MIN: u8 = 12;
 
 /// Prérequis d'une carte (vérifiés avant la pose ; les `Spend*` exigent la
 /// capacité de payer, la dépense elle-même est appliquée à la pose).
@@ -109,10 +111,21 @@ pub enum Reduction {
     /// Space −6 ; Energy Subsidies : Energy −4 ; Interplanetary Conference :
     /// Earth −3 et Jupiter −3, cumulables).
     Tag(Tag, i64),
+    /// (lot 3) Réduction CONDITIONNELLE et PAYANTE : retirer `count` ressources
+    /// de type `kind` de la carte qui porte cette réduction pour payer `amount`
+    /// MC de moins (Anaerobic Microorganisms : 2 microbes → −10 MC).
+    ///
+    /// Elle ne fait PAS partie de la somme fixe de `flow::card_discount` (elle
+    /// dépend des ressources posées et d'une décision du joueur) : elle est
+    /// servie par `flow::microbe_discount` et consommée par `flow::affordable`
+    /// (montant potentiel) puis `flow::build_card_with` (décision + retrait).
+    PayResources { kind: ResKind, count: u32, amount: i64 },
 }
 
 impl Reduction {
-    /// Réduction applicable à une carte de tags donnés.
+    /// Réduction FIXE applicable à une carte de tags donnés. Les réductions
+    /// conditionnelles (`PayResources`) valent 0 ici : elles ont leur propre
+    /// chemin, elles ne sont jamais accordées gratuitement.
     pub fn amount_for(self, tags: &[Tag]) -> i64 {
         match self {
             Reduction::AnyCard(n) => n,
@@ -123,8 +136,95 @@ impl Reduction {
                     0
                 }
             }
+            Reduction::PayResources { .. } => 0,
         }
     }
+}
+
+// ============================================ lot 3 : ressources sur les cartes
+//
+// Vocabulaire des jetons microbe / animal / science empilés sur une carte en
+// jeu. Il est DÉCLARATIF : `flow` interprète ces données, il n'existe aucune
+// exception par carte. Toute pose et tout retrait passent par le service unique
+// `flow::add_resources` / `flow::remove_resources`.
+
+/// Type de ressource qu'une carte peut porter (Java `CardCollectableResource`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ResKind {
+    Microbe,
+    Animal,
+    Science,
+}
+
+impl ResKind {
+    /// Nom utilisé par la sonde (`resources[].kind`).
+    pub fn name(self) -> &'static str {
+        match self {
+            ResKind::Microbe => "microbe",
+            ResKind::Animal => "animal",
+            ResKind::Science => "science",
+        }
+    }
+}
+
+/// Quelle carte reçoit la ressource.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ResTarget {
+    /// La carte qui porte l'effet elle-même (aucun choix à faire).
+    SelfCard,
+    /// « ANOTHER card » : une autre carte porteuse que celle qui porte l'effet.
+    Another,
+    /// « ANY card » : n'importe quelle carte porteuse, la carte qui porte
+    /// l'effet comprise (Large Convoy, CEO's Favorite Project — leur texte ne
+    /// dit PAS « ANOTHER »).
+    Any,
+}
+
+/// Combien de ressources sont posées.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ResAmount {
+    Fixed(u32),
+    /// Quantité dépendant du type porté par la CIBLE : `microbe` si la cible
+    /// porte des microbes, `other` sinon (Imported Hydrogen et Cryogenic
+    /// Shipment : « 3 microbes ou 2 animaux »).
+    ByKind { microbe: u32, other: u32 },
+}
+
+/// Pose de ressources sur une carte à choisir parmi les porteuses acceptées.
+#[derive(Debug, Clone, Copy)]
+pub struct ResPut {
+    pub target: ResTarget,
+    /// Types de carte porteuse acceptés comme cible.
+    pub kinds: &'static [ResKind],
+    pub amount: ResAmount,
+}
+
+/// Effet élémentaire du vocabulaire « ressources ».
+#[derive(Debug, Clone, Copy)]
+pub enum ResEff {
+    /// Gain classique du lot 1 (plantes, pioche, océan, TR…), pour exprimer
+    /// l'ORDRE DU TEXTE IMPRIMÉ à l'intérieur d'une branche.
+    Gain(Eff),
+    /// Pose de ressources.
+    Put(ResPut),
+    /// Retire n ressources de la carte qui porte l'effet.
+    RemoveSelf(u32),
+    /// Retire n ressources d'une carte AU CHOIX du joueur, parmi les porteuses
+    /// des types donnés (Decomposing Fungus : 1 animal OU 1 microbe).
+    RemoveAny(&'static [ResKind], u32),
+    /// « Améliore une carte Phase » : mécanisme d'un lot ultérieur. L'effet est
+    /// SAUTÉ et compté dans `phase_upgrades_skipped` — aucune compensation.
+    PhaseUpgrade,
+}
+
+/// Étape d'un effet à ressources : soit un effet direct, soit une alternative.
+#[derive(Debug, Clone, Copy)]
+pub enum ResStep {
+    Do(ResEff),
+    /// Alternative « … ou … ». Les branches sont numérotées **dans l'ordre du
+    /// texte imprimé** ; les branches impossibles sont filtrées AVANT de
+    /// présenter le choix à `Policy::choose_option`.
+    Choose(&'static [&'static [ResEff]]),
 }
 
 /// Condition d'un déclencheur de pose : quelles cartes jouées le déclenchent.
@@ -136,6 +236,10 @@ pub enum TrigCond {
     Tag(Tag),
     /// Carte portant au moins un des deux tags (Interplanetary : Earth ou Jupiter).
     EitherTag(Tag, Tag),
+    /// (lot 3) Carte portant au moins un tag de la liste (Ecological Zone :
+    /// Animal ou Plante ; Anaerobic/Decomposers/Viral Enhancers : Animal,
+    /// Microbe ou Plante).
+    AnyOfTags(&'static [Tag]),
 }
 
 impl TrigCond {
@@ -148,16 +252,27 @@ impl TrigCond {
             TrigCond::EitherTag(a, b) => {
                 tags.iter().filter(|&&x| x == a || x == b).count() as u32
             }
+            TrigCond::AnyOfTags(list) => {
+                tags.iter().filter(|x| list.contains(x)).count() as u32
+            }
         }
     }
 }
 
 /// Gain élémentaire d'un déclencheur.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy)]
 pub enum TrigGain {
     Heat(i64),
     Plants(i64),
     Draw(u8),
+    /// (lot 3) Ajoute n ressources sur la carte SOURCE du déclencheur
+    /// (Fish, Livestock, Small Animals, Herbivores, Physics Complex,
+    /// Ecological Zone, Anaerobic Microorganisms).
+    ResSelf(u32),
+    /// (lot 3) Alternative offerte au joueur (Viral Enhancers, Decomposers).
+    /// Appliquée UNE fois par déclenchement : elle n'est jamais multipliée par
+    /// le nombre de tags (les deux cartes concernées sont au forfait).
+    Choose(&'static [&'static [ResEff]]),
 }
 
 /// (B) Déclencheur de pose : « When you play … ». Évalué à la pose d'une carte,
@@ -182,6 +297,13 @@ pub struct PlayTrigger {
 pub enum GlobalTrigger {
     OnRaiseTemperature(&'static [TrigGain]),
     OnFlipOcean(&'static [TrigGain]),
+    /// (lot 3) « When you raise oxygen » (Herbivores). Se déclenche aussi sur
+    /// la hausse d'oxygène d'une construction de forêt, comme le Java
+    /// (`onOxygenChangedEffect`).
+    OnRaiseOxygen(&'static [TrigGain]),
+    /// (lot 3) « When you build a forest » (Small Animals, Java
+    /// `onForestBuiltEffect`).
+    OnBuildForest(&'static [TrigGain]),
 }
 
 /// Coût d'activation d'une action de carte bleue (payé une fois par activation).
@@ -221,6 +343,14 @@ pub enum Action {
     /// cartes bleues en jeu) MC → hausse de température 1 pas (base 10,
     /// threshold 5, reduction 5).
     RaiseTempBlueDiscount { base: i64, threshold: u32, reduction: i64 },
+    /// (lot 3) Action à ressources : une alternative dont les branches sont
+    /// numérotées dans l'ordre du texte imprimé (une seule branche = pas de
+    /// choix). Tardigrades, Birds, Nitrite Reducting Bacteria, Fibrous
+    /// Composite Material, Decomposing Fungus, GHG Production Bacteria,
+    /// Regolith Eaters, et — depuis l'ADDENDUM round 2, qui les a reclassées
+    /// d'après le scan des cartes imprimées — Symbiotic Fungus, Extreme-Cold
+    /// Fungus et Conserved Biome.
+    Res(&'static [&'static [ResEff]]),
 }
 
 /// Encodage complet d'une carte du lot.
@@ -236,6 +366,13 @@ pub struct CardEffects {
     pub global_triggers: &'static [GlobalTrigger],
     /// (C) action de carte bleue (lot 2).
     pub action: Option<Action>,
+    /// (lot 3) Type de ressource porté par la carte. Une carte porteuse est
+    /// INITIALISÉE À 0 à sa pose : elle devient cible valide même vide (règle
+    /// du jeu, oracle Java `Player.initResources`).
+    pub holds: Option<ResKind>,
+    /// (lot 3) Effets à ressources appliqués à la POSE, dans l'ordre du texte
+    /// imprimé (après `effects`, avant les déclencheurs de pose).
+    pub on_build: &'static [ResStep],
 }
 
 /// Cherche l'encodage d'une carte par nom exact. None = carte hors lot (stub).
@@ -249,9 +386,10 @@ macro_rules! card {
         ($name, CardEffects {
             reqs: &[$($r),*], effects: &[$($e),*],
             reductions: &[], play_triggers: &[], global_triggers: &[], action: None,
+            holds: None, on_build: &[],
         })
     };
-    // Forme lot 2 : tous les champs explicites.
+    // Forme lot 2 : réductions / déclencheurs / action.
     ($name:literal, reqs: [$($r:expr),*], effects: [$($e:expr),*],
      red: [$($rd:expr),*], ptrig: [$($pt:expr),*], gtrig: [$($gt:expr),*],
      action: $act:expr) => {
@@ -259,12 +397,52 @@ macro_rules! card {
             reqs: &[$($r),*], effects: &[$($e),*],
             reductions: &[$($rd),*], play_triggers: &[$($pt),*],
             global_triggers: &[$($gt),*], action: $act,
+            holds: None, on_build: &[],
+        })
+    };
+    // Forme lot 3 : tous les champs explicites (ressources posées comprises).
+    ($name:literal, reqs: [$($r:expr),*], effects: [$($e:expr),*],
+     red: [$($rd:expr),*], ptrig: [$($pt:expr),*], gtrig: [$($gt:expr),*],
+     action: $act:expr, holds: $h:expr, on_build: [$($ob:expr),*]) => {
+        ($name, CardEffects {
+            reqs: &[$($r),*], effects: &[$($e),*],
+            reductions: &[$($rd),*], play_triggers: &[$($pt),*],
+            global_triggers: &[$($gt),*], action: $act,
+            holds: $h, on_build: &[$($ob),*],
         })
     };
 }
 
 use Eff::*;
 use Req::*;
+
+// Raccourcis de lecture pour la table (lot 3) : types de porteuse acceptés
+// comme cible, et ensembles de tags des déclencheurs « Animal/Microbe/Plante ».
+const K_MICROBE: &[ResKind] = &[ResKind::Microbe];
+const K_ANIMAL: &[ResKind] = &[ResKind::Animal];
+const K_MICROBE_ANIMAL: &[ResKind] = &[ResKind::Microbe, ResKind::Animal];
+/// « a card that holds resources » : n'importe quel type porté.
+const K_ANY: &[ResKind] = &[ResKind::Microbe, ResKind::Animal, ResKind::Science];
+const T_ANIMAL_PLANT: &[Tag] = &[Tag::Animal, Tag::Plant];
+const T_ANIMAL_MICROBE_PLANT: &[Tag] = &[Tag::Animal, Tag::Microbe, Tag::Plant];
+
+/// Pose de `n` ressources sur la carte elle-même.
+const fn put_self(n: u32) -> ResEff {
+    ResEff::Put(ResPut {
+        target: ResTarget::SelfCard,
+        kinds: K_ANY,
+        amount: ResAmount::Fixed(n),
+    })
+}
+
+/// Pose de `n` ressources sur une AUTRE carte portant l'un de `kinds`.
+const fn put_another(kinds: &'static [ResKind], n: u32) -> ResEff {
+    ResEff::Put(ResPut {
+        target: ResTarget::Another,
+        kinds,
+        amount: ResAmount::Fixed(n),
+    })
+}
 
 /// Table des cartes aux effets COMPLETS et fidèles au texte imprimé : lot 1
 /// (63 cartes, chantier cartes-1) SUIVI du lot 2 (47 cartes, chantier
@@ -546,4 +724,243 @@ pub static LOT1: &[(&str, CardEffects)] = &[
     card!("Developed Infrastructure", reqs: [], effects: [],
           red: [], ptrig: [], gtrig: [],
           action: Some(Action::RaiseTempBlueDiscount { base: 10, threshold: 5, reduction: 5 })),
+
+    // ================================================= LOT 3 (chantier cartes-3)
+    // Ressources posées sur les cartes (microbe / animal / science) : 28 cartes.
+    // Correspondances carte → classe Java, encodage et conflits : outputs/lot3.md.
+    // Le texte imprimé (`description` de cards.json) fait foi ; les classes
+    // `Buffed…` sont des variantes maison, JAMAIS la source (voir journal D1).
+
+    // ---- A. Conteneurs : cartes qui PORTENT des ressources (14) -------------
+
+    // « Action: Add 1 microbe to this card. 1 VP per 3 microbes on this card. »
+    card!("Tardigrades", reqs: [], effects: [],
+          red: [], ptrig: [], gtrig: [],
+          action: Some(Action::Res(&[&[put_self(1)]])),
+          holds: Some(ResKind::Microbe), on_build: []),
+    // « Requires white oxygen. Add an animal to this card. 1 VP per animal. »
+    // (l'ajout est l'ACTION de la carte — Java `CardAction.ADD_ANIMAL` ;
+    // `buildProject` n'appelle que `initResources`, d'où 0 animal à la pose.)
+    card!("Birds", reqs: [OxyMin(OXY_W_MIN)], effects: [],
+          red: [], ptrig: [], gtrig: [],
+          action: Some(Action::Res(&[&[put_self(1)]])),
+          holds: Some(ResKind::Animal), on_build: []),
+    // « Add 3 microbes to this card. Action: Add 1 microbe to this card or
+    //   remove 3 microbes to flip an ocean tile. »
+    card!("Nitrite Reducting Bacteria", reqs: [], effects: [],
+          red: [], ptrig: [], gtrig: [],
+          action: Some(Action::Res(&[
+              &[put_self(1)],
+              &[ResEff::RemoveSelf(3), ResEff::Gain(Ocean(1))],
+          ])),
+          holds: Some(ResKind::Microbe), on_build: [ResStep::Do(put_self(3))]),
+    // « Add 3 science resources to this card. Action: Add 1 science to this card
+    //   or remove 3 science to upgrade a phase. » (amélioration non gérée : D8.)
+    card!("Fibrous Composite Material", reqs: [], effects: [],
+          red: [], ptrig: [], gtrig: [],
+          action: Some(Action::Res(&[
+              &[put_self(1)],
+              &[ResEff::RemoveSelf(3), ResEff::PhaseUpgrade],
+          ])),
+          holds: Some(ResKind::Science), on_build: [ResStep::Do(put_self(3))]),
+    // « Place 2 microbes on this card. Action: Remove 1 animal or 1 microbe from
+    //   one of your cards to gain 3 plants. »
+    card!("Decomposing Fungus", reqs: [], effects: [],
+          red: [], ptrig: [], gtrig: [],
+          action: Some(Action::Res(&[&[
+              ResEff::RemoveAny(K_MICROBE_ANIMAL, 1),
+              ResEff::Gain(Plants(3)),
+          ]])),
+          holds: Some(ResKind::Microbe), on_build: [ResStep::Do(put_self(2))]),
+    // « Requires red oxygen or higher. Action: Add 1 microbe to this card, or
+    //   remove 2 microbes to raise the temperature 1 step. »
+    card!("GHG Production Bacteria", reqs: [OxyMin(OXY_R_MIN)], effects: [],
+          red: [], ptrig: [], gtrig: [],
+          action: Some(Action::Res(&[
+              &[put_self(1)],
+              &[ResEff::RemoveSelf(2), ResEff::Gain(Temperature(1))],
+          ])),
+          holds: Some(ResKind::Microbe), on_build: []),
+    // « Requires red temperature or warmer. Action: Add 1 microbe to this card,
+    //   or remove 2 microbes from this card to raise oxygen 1 step. »
+    card!("Regolith Eaters", reqs: [TempMin(TEMP_R_MIN)], effects: [],
+          red: [], ptrig: [], gtrig: [],
+          action: Some(Action::Res(&[
+              &[put_self(1)],
+              &[ResEff::RemoveSelf(2), ResEff::Gain(Oxygen(1))],
+          ])),
+          holds: Some(ResKind::Microbe), on_build: []),
+    // « Requires red temperature or warmer. When you flip an ocean tile, add
+    //   1 animal to this card. 1 VP per animal on this card. »
+    card!("Fish", reqs: [TempMin(TEMP_R_MIN)], effects: [],
+          red: [], ptrig: [],
+          gtrig: [GlobalTrigger::OnFlipOcean(&[TrigGain::ResSelf(1)])],
+          action: None, holds: Some(ResKind::Animal), on_build: []),
+    // « Requires yellow oxygen or higher. When you raise the temperature, add
+    //   1 animal to this card. 1 VP per animal on this card. »
+    card!("Livestock", reqs: [OxyMin(OXY_Y_MIN)], effects: [],
+          red: [], ptrig: [],
+          gtrig: [GlobalTrigger::OnRaiseTemperature(&[TrigGain::ResSelf(1)])],
+          action: None, holds: Some(ResKind::Animal), on_build: []),
+    // « Requires red temperature or warmer. When you build a forest, add
+    //   1 animal to this card. 1 VP per 2 animals on this card. »
+    card!("Small Animals", reqs: [TempMin(TEMP_R_MIN)], effects: [],
+          red: [], ptrig: [],
+          gtrig: [GlobalTrigger::OnBuildForest(&[TrigGain::ResSelf(1)])],
+          action: None, holds: Some(ResKind::Animal), on_build: []),
+    // « Requires 5 oceans to be flipped. When you raise oxygen, flip an ocean
+    //   tile, or raise temperature, add 1 animal to this card. » (trois
+    //   déclencheurs distincts, Java onOxygen/onOcean/onTemperature.)
+    card!("Herbivores", reqs: [OceanMin(5)], effects: [],
+          red: [], ptrig: [],
+          gtrig: [GlobalTrigger::OnRaiseOxygen(&[TrigGain::ResSelf(1)]),
+                  GlobalTrigger::OnFlipOcean(&[TrigGain::ResSelf(1)]),
+                  GlobalTrigger::OnRaiseTemperature(&[TrigGain::ResSelf(1)])],
+          action: None, holds: Some(ResKind::Animal), on_build: []),
+    // « Requires 4 Science tags. When you raise the temperature, add 1 science
+    //   resource to this card. 1 VP per 2 science res on this card. »
+    card!("Physics Complex", reqs: [Tags(Tag::Science, 4)], effects: [],
+          red: [], ptrig: [],
+          gtrig: [GlobalTrigger::OnRaiseTemperature(&[TrigGain::ResSelf(1)])],
+          action: None, holds: Some(ResKind::Science), on_build: []),
+    // « When you play a Animal or Plant, including these, add an animal to this
+    //   card. » (Java `countCardTags` → +1 PAR tag concerné ; ses propres tags
+    //   PLANT+ANIMAL lui donnent donc 2 animaux à sa pose.)
+    card!("Ecological Zone", reqs: [], effects: [],
+          red: [],
+          ptrig: [PlayTrigger { cond: TrigCond::AnyOfTags(T_ANIMAL_PLANT),
+                    gains: &[TrigGain::ResSelf(1)], scale_by_matched_tags: true,
+                    include_self: true }],
+          gtrig: [], action: None,
+          holds: Some(ResKind::Animal), on_build: []),
+    // « When you play an Animal, Microbe, or Plant, including this, add a
+    //   microbe to this card. When you play a card, you may remove 2 microbes
+    //   from this card to pay 10 MC less for that card. » (réduction : D7.)
+    card!("Anaerobic Microorganisms", reqs: [], effects: [],
+          red: [Reduction::PayResources { kind: ResKind::Microbe, count: 2, amount: 10 }],
+          ptrig: [PlayTrigger { cond: TrigCond::AnyOfTags(T_ANIMAL_MICROBE_PLANT),
+                    gains: &[TrigGain::ResSelf(1)], scale_by_matched_tags: true,
+                    include_self: true }],
+          gtrig: [], action: None,
+          holds: Some(ResKind::Microbe), on_build: []),
+
+    // ---- B. Cartes qui posent des ressources ailleurs, sans en porter (14) --
+
+    // « Requires red temperature or warmer. ACTION: Add a microbe to ANOTHER*
+    //   card. » — ADDENDUM round 2 : le scan de la carte imprimée porte bien
+    //   « Action: », comme la classe Java (`SymbioticFungudActionProcessor`,
+    //   `isActiveCard() == true`, aucun `buildProject`). Effet de pose supprimé.
+    card!("Symbiotic Fungus", reqs: [TempMin(TEMP_R_MIN)], effects: [],
+          red: [], ptrig: [], gtrig: [],
+          action: Some(Action::Res(&[&[put_another(K_MICROBE, 1)]])),
+          holds: None, on_build: []),
+    // « Requires purple temperature. ACTION: Gain 1 plant OR add a microbe to
+    //   ANOTHER* card. » — ADDENDUM round 2 (scan) : action, pas pose. Branche 0
+    //   = plantes, branche 1 = microbe : ordre du texte imprimé.
+    card!("Extreme-Cold Fungus", reqs: [TempMax(TEMP_P_MAX)], effects: [],
+          red: [], ptrig: [], gtrig: [],
+          action: Some(Action::Res(&[
+              &[ResEff::Gain(Plants(1))],
+              &[put_another(K_MICROBE, 1)],
+          ])),
+          holds: None, on_build: []),
+    // « ACTION: Add a microbe to ANOTHER* card OR add an animal to ANOTHER*
+    //   card. 1 VP per 2 forests you have. » — ADDENDUM round 2 (scan) : action,
+    //   pas pose. Les VP viennent du vp_dynamic FOREST du JSON.
+    card!("Conserved Biome", reqs: [], effects: [],
+          red: [], ptrig: [], gtrig: [],
+          action: Some(Action::Res(&[
+              &[put_another(K_MICROBE, 1)],
+              &[put_another(K_ANIMAL, 1)],
+          ])),
+          holds: None, on_build: []),
+    // « When you play a Plant, Microbe, or Animal tags, including these, gain
+    //   1 plant or add 1 animal or microbe to ANOTHER* card. » (forfait 1 :
+    //   Java n'utilise PAS countCardTags pour la quantité, seulement pour
+    //   savoir si l'effet se déclenche.)
+    card!("Viral Enhancers", reqs: [], effects: [],
+          red: [],
+          ptrig: [PlayTrigger { cond: TrigCond::AnyOfTags(T_ANIMAL_MICROBE_PLANT),
+                    gains: &[TrigGain::Choose(&[
+                        &[ResEff::Gain(Plants(1))],
+                        &[put_another(K_MICROBE_ANIMAL, 1)],
+                    ])],
+                    scale_by_matched_tags: false, include_self: true }],
+          gtrig: [], action: None, holds: None, on_build: []),
+    // « Requires red oxygen or higher. When you play an Animal, Microbe, or
+    //   Plant, including this, add a microbe here or remove a microbe from here
+    //   to draw a card. » (1 VP fixe dans cards.json ; forfait 1.)
+    card!("Decomposers", reqs: [OxyMin(OXY_R_MIN)], effects: [],
+          red: [],
+          ptrig: [PlayTrigger { cond: TrigCond::AnyOfTags(T_ANIMAL_MICROBE_PLANT),
+                    gains: &[TrigGain::Choose(&[
+                        &[put_self(1)],
+                        &[ResEff::RemoveSelf(1), ResEff::Gain(Draw(1))],
+                    ])],
+                    scale_by_matched_tags: false, include_self: true }],
+          gtrig: [], action: None,
+          holds: Some(ResKind::Microbe), on_build: []),
+    // « Add 2 microbes to ANOTHER card. During the production phase, this
+    //   produces 1 plant and 3 heat. »
+    card!("Astrofarm", reqs: [], effects: [PlantProd(1), HeatProd(3)],
+          red: [], ptrig: [], gtrig: [], action: None, holds: None,
+          on_build: [ResStep::Do(put_another(K_MICROBE, 2))]),
+    // « Requires red temperature or warmer. Add 1 animal to ANOTHER card and
+    //   gain 3 plants. During the production phase, this produces 2 MC. »
+    card!("Eos Chasma National Park", reqs: [TempMin(TEMP_R_MIN)],
+          effects: [McProd(2)],
+          red: [], ptrig: [], gtrig: [], action: None, holds: None,
+          on_build: [ResStep::Do(put_another(K_ANIMAL, 1)),
+                     ResStep::Do(ResEff::Gain(Plants(3)))]),
+    // « Add 2 resources to a card that holds resources. » (pas « ANOTHER » :
+    //   cible = n'importe quelle porteuse ; la carte elle-même n'en porte pas.)
+    card!("CEO's Favorite Project", reqs: [], effects: [],
+          red: [], ptrig: [], gtrig: [], action: None, holds: None,
+          on_build: [ResStep::Do(ResEff::Put(ResPut {
+              target: ResTarget::Any, kinds: K_ANY, amount: ResAmount::Fixed(2) }))]),
+    // « Requires you to spend 3 heat. Gain 4 plants and add 2 animals or
+    //   microbes to ANOTHER card. »
+    card!("Local Heat Trapping", reqs: [SpendHeat(3)], effects: [],
+          red: [], ptrig: [], gtrig: [], action: None, holds: None,
+          on_build: [ResStep::Do(ResEff::Gain(Plants(4))),
+                     ResStep::Do(put_another(K_MICROBE_ANIMAL, 2))]),
+    // « Raise your TR 1 step. Gain 4 plants. Add 2 animals to ANOTHER card.
+    //   Add 3 microbes to ANOTHER card. » (deux cibles, dans l'ordre du texte.)
+    card!("Imported Nitrogen", reqs: [], effects: [Tr(1), Plants(4)],
+          red: [], ptrig: [], gtrig: [], action: None, holds: None,
+          on_build: [ResStep::Do(put_another(K_ANIMAL, 2)),
+                     ResStep::Do(put_another(K_MICROBE, 3))]),
+    // « Flip an ocean tile. Gain 3 plants, or add 3 microbes or 2 animals to
+    //   ANOTHER card. » (quantité selon le type porté par la cible.)
+    card!("Imported Hydrogen", reqs: [], effects: [Ocean(1)],
+          red: [], ptrig: [], gtrig: [], action: None, holds: None,
+          on_build: [ResStep::Choose(&[
+              &[ResEff::Gain(Plants(3))],
+              &[ResEff::Put(ResPut { target: ResTarget::Another,
+                    kinds: K_MICROBE_ANIMAL,
+                    amount: ResAmount::ByKind { microbe: 3, other: 2 } })],
+          ])]),
+    // « Flip an ocean tile. Draw two cards. Gain 5 plants or add 3 animals to
+    //   ANOTHER card. » — ADDENDUM round 2 : le scan dit « ANOTHER », le Java
+    //   disait « ANY ». Le texte imprimé gagne.
+    card!("Large Convoy", reqs: [], effects: [Ocean(1), Draw(2)],
+          red: [], ptrig: [], gtrig: [], action: None, holds: None,
+          on_build: [ResStep::Choose(&[
+              &[ResEff::Gain(Plants(5))],
+              &[put_another(K_ANIMAL, 3)],
+          ])]),
+    // « Upgrade a Phase card. Add 3 microbes or 2 animals to ANOTHER card. »
+    // (amélioration de phase non gérée : sautée et comptée, aucune
+    //  compensation — D8.)
+    card!("Cryogenic Shipment", reqs: [], effects: [],
+          red: [], ptrig: [], gtrig: [], action: None, holds: None,
+          on_build: [ResStep::Do(ResEff::PhaseUpgrade),
+                     ResStep::Do(ResEff::Put(ResPut { target: ResTarget::Another,
+                         kinds: K_MICROBE_ANIMAL,
+                         amount: ResAmount::ByKind { microbe: 3, other: 2 } }))]),
+    // « Requires an Animal, Microbe, and Plant tags. » (3 VP fixes dans
+    //  cards.json ; aucune ressource — carte de complément.)
+    card!("Advanced Ecosystems",
+          reqs: [Tags(Tag::Animal, 1), Tags(Tag::Microbe, 1), Tags(Tag::Plant, 1)],
+          effects: []),
 ];
