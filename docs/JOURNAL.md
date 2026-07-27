@@ -700,3 +700,72 @@ aurait buté sur mes erreurs, pas sur les siennes.**
 - *Microbiology Patents*, *Project Inspection*, *Oxidation Byproducts* : trois
   cartes de la pioche v1 qui n'existent sur aucune planche. Décision de
   conception toujours en attente.
+
+## 2026-07-27 (suite) — Les corporations appliquent leurs pouvoirs
+
+`moteur-corporations-1` livré, audité **ok**, promu. Détail complet dans
+`docs/CTO_STATE.md` §« LES CORPORATIONS SONT VIVANTES ». L'agent a calé une fois
+en cours de route (arrêt technique de l'outil, deuxième occurrence après le
+chantier de transcription) ; relancé depuis son §Reprise, il a repris sans perte.
+
+### Résultat
+
+**10 corporations `ENCODÉE`, 2 `PARTIELLE`** (titane et acier, cadrages que
+j'avais tranchés avant le lot). Mesuré par ma main après promotion : **317 tests
+verts**, 1 000 parties sans violation ni troncature, empreinte identique sur deux
+exécutions, débit inchangé (7 404 à 8 422 parties/s contre 7 400 à 8 900 avant).
+[VÉRIFIÉ 27-07]
+
+**Preuve d'exécution en partie réelle**, pas seulement en sonde : 4 compteurs
+neufs relevés sur 1 000 parties — chaleur d'*Helion* employée comme monnaie
+5 510 fois, remise de forêt d'*Ecoline* 883 fois, pas de terraformation acheté
+d'*Unmi* 797 fois, TR déclenché de *Saturn Systems* 242 fois. Et
+`research_extra_draws` passe de 1 293 à 4 266 (*Tharsis Republic* en phase V).
+[VÉRIFIÉ 27-07]
+
+### Trois choses que l'agent a mieux faites que ce que je demandais
+
+1. **Il a refusé ma solution pour la pioche.** Je proposais d'exclure les 4
+   corporations Découverte par leur nom. Son argument : un filtre négatif ne dit
+   pas quoi faire quand l'extension arrivera. Il a retourné le critère — une
+   table déclarée des 12 planches réelles, dont le chargement ne retient que ce
+   qui y figure. **Ajouter les 4 entrées les fera revenir par le même chemin.**
+2. **Il a commandé sa propre relecture adversariale** (exigée par la procédure
+   des workspaces pour les tâches longues) et en a **corrigé** les 4 trouvailles
+   au lieu de les déclarer. La plus importante : le « may » d'*Helion* était figé
+   en convention codée, donc jamais apprenable par une IA. C'était **exactement**
+   la réserve que j'avais notée au lancement, et il l'a levée avant moi.
+   `flow.rs:1139` offre désormais le choix par `Policy::choose_option`.
+3. **Un bug trouvé par exécution, pas par lecture** : avec *Helion*, la
+   conversion chaleur → argent pouvait consommer la chaleur qu'un prérequis
+   « Requires you to spend N heat » engageait à dépenser à la pose. Il l'a
+   découvert en lançant 50 parties, et corrigé aux deux endroits à la fois
+   (disponibilité et paiement) pour qu'ils ne puissent pas diverger.
+
+### Mes propres défauts, encore
+
+- **Mon contrat exigeait une preuve par sonde, mais la sonde que j'ai imposée
+  n'exécute ni la phase III ni la phase V.** La forêt d'*Ecoline* et le +1/+1 de
+  *Tharsis* ne pouvaient donc pas être prouvés comme je le demandais. L'agent a
+  fourni mieux (partie réelle scriptée + compteurs) et l'a déclaré au lieu de le
+  cacher. **L'interface était mal conçue, pas la livraison.**
+- **Mon contrôle caché n° 2 a échoué à tort** : il exigeait des sorties de sonde
+  analysables collées au rapport, or l'agent les a abrégées pour la lisibilité.
+  Vérifié à la main : les 12 corporations sondées existent et se rejouent.
+  Troisième journée de suite où un de mes contrôles est la partie faible.
+
+### Ce que j'ai vérifié de ma propre main
+
+Outre les mesures ci-dessus : le MC de départ est **assigné** (`flow.rs:204`),
+donc donné et non payé — le piège signalé le 26-07 n'existe pas. Cinq fonctions
+de test existantes modifiées, la limite contractuelle exacte, aucune supprimée.
+Et la réserve de l'agent sur *Inventrix* est exacte : sur les 155 entrées de la
+table, les 3 cartes citant à la fois température et oxygène (*Regolith Eaters*,
+*Small Animals*, *Herbivores*) ne le font que dans leurs **effets**, jamais dans
+leurs prérequis — l'écart est inobservable. [VÉRIFIÉ 27-07]
+
+### Prochaine étape
+
+**Découverte devient le chantier principal**, Alexis ayant confirmé qu'on joue
+avec. Il reste bloqué sur une seule chose : **les photos des cartes Phases
+améliorées**, absentes de toute source depuis le 25-07.
