@@ -152,7 +152,33 @@ fn cards_load_248_projects_and_16_corporations() {
     let db = db();
     assert_eq!(db.v1_project_count, 248, "236 base + Discovery in_deck_v1");
     assert_eq!(db.projects.len(), 331, "toutes cartes green/blue/red");
-    assert_eq!(db.corporations.len(), 16);
+    // (corpo-1) ASSERTION RENFORCÉE : la pioche de corporations ne contient plus
+    // les 16 entrées `in_deck_v1` de cards.json mais les 12 planches de la boîte
+    // de base. Les quatre intruses (toutes bâties sur l'amélioration de carte
+    // Phase, mécanisme absent du moteur) ne doivent y figurer sous aucune forme,
+    // et chacune des 12 attendues doit y être une et une seule fois.
+    assert_eq!(db.corporations.len(), 12);
+    let noms: Vec<&str> = db.corporations.iter().map(|c| c.name.as_str()).collect();
+    for intruse in ["Apollo Industries", "Exocorp", "Hyperion Systems", "Sultira"] {
+        assert!(!noms.contains(&intruse), "{intruse} n'est pas dans la boîte de base");
+    }
+    for attendue in [
+        "Credicor", "Ecoline", "Helion Corporation", "Interplanetary Cinematics",
+        "Inventrix", "Mining Guild", "Phobolog", "Saturn Systems",
+        "Teractor Corporation", "Tharsis Republic", "Thorgate Corporation", "Unmi",
+    ] {
+        assert_eq!(
+            noms.iter().filter(|n| **n == attendue).count(),
+            1,
+            "{attendue} doit figurer exactement une fois dans la pioche"
+        );
+    }
+    // Piège d'appariement : deux entrées « Teractor Corporation » dans
+    // cards.json (48 hors pioche, 51 dans la pioche) — c'est la seconde.
+    let teractor = db.corporations.iter().find(|c| c.name == "Teractor Corporation").unwrap();
+    assert_eq!(teractor.starting_mc, 51, "l'entrée in_deck_v1 est celle à 51 MC");
+    // Chaque corporation chargée porte un effet déclaré.
+    assert!(db.corporations.iter().all(|c| c.effect.is_some()));
     let v1 = |color| {
         db.projects
             .iter()
@@ -185,8 +211,10 @@ fn corp_mulligan_replaces_both_corporations() {
     // p1 n'a pas mulligané : sa corporation vient de sa paire initiale.
     let p1_initial = &pol.corp_mulligan_offers[1].1;
     assert!(p1_initial.contains(&game.players[1].corporation.unwrap()));
-    // Conservation : 2 choisies + écartées + paquet = 16.
-    assert_eq!(game.corp_deck.len() + game.corp_discard.len() + 2, 16);
+    // Conservation : 2 choisies + écartées + paquet = 12 (corpo-1 : la pioche
+    // est celle de la boîte de base, pas les 16 entrées in_deck_v1).
+    assert_eq!(game.corp_deck.len() + game.corp_discard.len() + 2, 12);
+    assert_eq!(game.corp_deck.len() + game.corp_discard.len() + 2, db.corporations.len());
 }
 
 #[test]
@@ -328,6 +356,36 @@ fn production_pays_mc_prod_plus_tr_plus_selector_bonus() {
     let db = db();
     let mut pol = TestPolicy::new();
     let mut game = setup_game(&db, 20, &mut pol);
+
+    // (corpo-1) ASSERTION RENFORCÉE. Trois effets de corporation peuvent brouiller
+    // ce test, qui porte sur la PRODUCTION. On ne les suppose plus absents : on
+    // les ASSERTE, et on neutralise ce qui doit l'être.
+    //
+    // 1. Inventrix pioche 3 cartes à la mise en place : les mains sont ramenées
+    //    aux 8 cartes de la donne, ce qui rétablit exactement le cas-limite
+    //    d'origine (main finale à 10, la limite, sans défausse de fin de ronde
+    //    et donc sans les 3 MC qu'elle rendrait).
+    // 2. Tharsis Republic change les piochées/gardées de la phase V.
+    // 3. Ecoline, Helion et Thorgate portent une production de DÉPART, qui
+    //    s'ajouterait aux pistes que ce test fixe lui-même.
+    game.players[0].hand.truncate(STARTING_HAND);
+    game.players[1].hand.truncate(STARTING_HAND);
+    for p in 0..2 {
+        assert_eq!(
+            engine::flow::research_extra(&db, &game.players[p]),
+            (0, 0),
+            "corporation du joueur {p} : aucun bonus de phase Recherche attendu ici"
+        );
+        assert_eq!(
+            (
+                game.players[p].mc_prod,
+                game.players[p].heat_prod,
+                game.players[p].plant_prod
+            ),
+            (0, 0, 0),
+            "corporation du joueur {p} : aucune production de départ attendue ici"
+        );
+    }
 
     // Productions artificielles (les stubs v1 n'en donnent pas) pour tester la
     // mécanique de la phase — structure réelle, valeurs contrôlées.

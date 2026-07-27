@@ -98,68 +98,99 @@ Homoglyphes : **18 entrées** de `cards.json` au total, 17 dans la pioche v1,
   variante Heat**, l'action imprimée est littéralement inexprimable.
   [VÉRIFIÉ 27-07]
 
-## EN COURS : `moteur-corporations-1` — scellé et lancé le 27-07
+## LES CORPORATIONS SONT VIVANTES (27-07) — `moteur-corporations-1`, audité OK et promu
 
-**Objet** : donner leurs effets aux **12 corporations de la boîte de base**.
-Aujourd'hui `Corporation` (`engine/src/cards.rs:143`) ne porte que `name`,
-`starting_mc`, `tags` — aucun champ d'effet, aucune table. [VÉRIFIÉ 27-07]
+**Les 12 corporations de la boîte de base appliquent leurs pouvoirs.** 10 verdicts
+`ENCODÉE`, 2 `PARTIELLE` (*Phobolog* et *Mining Guild* — titane et acier non
+modélisés, cadrage que j'avais tranché avant le lot).
+Rapport : `docs/cartes/corporations.md`. [VÉRIFIÉ 27-07]
 
-### Deux défauts trouvés au cadrage, inscrits dans le contrat
+### Mesuré par ma main après promotion
 
-- **Le moteur distribue 16 corporations, la boîte en contient 12.**
-  `engine/src/cards.rs:243` retient toutes les entrées `in_deck_v1: true` de
-  `cards.json`. Les quatre intruses — *Apollo Industries*, *Exocorp*,
-  *Hyperion Systems*, *Sultira* — sont absentes de `textes-cartes.json` sous
-  toute orthographe et portent **toutes les quatre** « Upgrade your phase N
-  card » : ce sont des corporations de l'extension **Découverte**. Leur pouvoir
-  principal repose sur un mécanisme que le moteur saute
-  (`phase_upgrades_skipped` = 642 sur 1 000 parties graine 2024).
-  **À écarter de la pioche de base ; à faire revenir quand Découverte sera
-  modélisée** (Alexis a confirmé le 27-07 qu'on jouera avec l'extension).
+- **317 tests verts** (283 + 34 neufs), 0 échec. 5 tests existants renforcés
+  — la limite contractuelle exacte —, **aucun supprimé** (221 → 255 fonctions).
+- 1 000 parties graine 2024 : `completed: 1000`, `invariant_violations: 0`,
+  `truncated: 0`, empreinte `21c7cdd6a342ca0c` **identique sur deux exécutions**.
+- Débit **7 404 à 8 422 parties/s** contre 7 400 à 8 900 avant le lot : aucune
+  régression de vitesse malgré tous les mécanismes ajoutés.
+- `--dump-corporations` rend **exactement les 12** corporations de la boîte ;
+  les 4 intruses Découverte sont absentes.
+- Le MC de départ est **assigné** (`engine/src/flow.rs:204`) : donné, jamais payé.
+  Le piège signalé le 26-07 n'existe pas. [VÉRIFIÉ 27-07]
+
+### Preuve d'exécution en PARTIE RÉELLE, pas seulement en sonde
+
+Quatre compteurs neufs, incrémentés à l'endroit exact du mécanisme et nuls en
+`--effects off`, relevés sur 1 000 parties :
+
+| Compteur | Valeur | Ce qu'il prouve |
+|---|---|---|
+| `corp_heat_as_mc` | 5 510 | la chaleur d'*Helion* sert de monnaie |
+| `corp_forest_rebates` | 883 | la forêt d'*Ecoline* coûte 1 plante de moins |
+| `corp_tr_boosts` | 797 | le pas de terraformation acheté d'*Unmi* |
+| `corp_trigger_tr` | 242 | le TR déclenché de *Saturn Systems* |
+
+`research_extra_draws` passe de 1 293 à **4 266** : le +1/+1 de *Tharsis Republic*
+s'applique bien en phase V. [VÉRIFIÉ 27-07]
+
+### Les deux défauts corrigés
+
+- **La pioche distribuait 16 corporations pour 12 dans la boîte.** Les intruses
+  — *Apollo Industries*, *Exocorp*, *Hyperion Systems*, *Sultira* — sont des
+  corporations de **Découverte** marquées `in_deck_v1: true` à tort, toutes
+  porteuses de « Upgrade your phase N card ». **L'agent a refusé le filtre par
+  noms que je proposais** et a posé le critère inverse : une table déclarée
+  `effects::CORPS` des 12 planches réelles, `CardsDb::load` ne retenant que ce
+  qui y figure, avec garde-fou « exactement une entrée v1 par nom » (piège des
+  deux « Teractor Corporation ») et « exactement 12 ». **Quand Découverte
+  s'ouvrira, il suffira d'ajouter les 4 entrées à cette table.** [VÉRIFIÉ 27-07]
+- **Les productions de départ ne s'appliquaient pas.** *Ecoline* (1 plante),
+  *Helion* (3 chaleur), *Thorgate* (1 chaleur) les reçoivent désormais sur les
+  pistes fixes que la phase IV consomme — donc à chaque phase, pas une fois.
   [VÉRIFIÉ 27-07]
-- **Les productions de départ ne sont pas appliquées.**
-  `engine/src/flow.rs:167-183` n'écrit que `mc` et les compteurs de badges ; les
-  pistes fixes `mc_prod` / `heat_prod` / `plant_prod` (`state.rs:157-160`,
-  consommées par `phase_production` `flow.rs:1529-1531`) restent à zéro.
-  *Ecoline* (1 plante), *Helion* (3 chaleur) et *Thorgate* (1 chaleur) démarrent
-  amputées. [VÉRIFIÉ 27-07]
 
-### Ce que le cadrage a établi de bon
+### Ma réserve principale, levée par l'agent lui-même
 
-Contrairement à ce que je disais le 27-07 au petit matin, **seule la structure
-`Corporation` manque** : le reste du moteur est prêt à les recevoir. Chaque règle
-a un point de calcul **unique**, et le contrat les nomme avec interdiction d'en
-créer un second :
+J'avais signalé au lancement que le « may » d'*Helion* (« tu **peux** utiliser la
+chaleur comme MC ») risquait d'être figé en convention codée — donc **jamais
+apprenable par l'IA**. C'était bien le cas dans sa première version.
 
-| Ce que change une corporation | Service unique à alimenter |
-|---|---|
-| Réduction de coût permanente | `flow::card_discount` (`flow.rs:206`) |
-| Production de phase IV | `flow::phase_production` (`flow.rs:1516`) / `derived_production` (`flow.rs:750`) |
-| Pioche / garde en phase V | `flow::research_draw_keep` (`flow.rs:816`) |
-| Coût en plantes d'une forêt | `flow::build_forest` (`flow.rs:1136`) |
-| Paiement d'une carte | `flow::build_card_with` (`flow.rs:853`) |
+**Sa relecture adversariale l'a trouvé et corrigé** : `engine/src/flow.rs:1139`
+offre désormais le choix par `Policy::choose_option`, à la pose d'une carte —
+seul site où le livret propose une alternative (payer en défaussant à 3 MC).
+Ailleurs, renoncer à la chaleur reviendrait à renoncer à l'action : ce n'est pas
+une branche jouable. [VÉRIFIÉ 27-07 par lecture du code]
 
-[VÉRIFIÉ 27-07 par lecture du code]
+**Bug trouvé par exécution et non par lecture** (journal D14) : avec *Helion*, la
+conversion pouvait consommer la chaleur qu'un prérequis « Requires you to spend N
+heat » engageait à dépenser à la pose, rendant la carte impayable.
+`flow::heat_reserved_by` met cette chaleur hors d'atteinte, **à l'affordabilité
+comme au paiement** — les deux ne peuvent donc pas diverger. [VÉRIFIÉ 27-07]
 
-### Limites tranchées d'avance (pour éviter la dérive du lot)
+### Réserves consignées (aucune bloquante)
 
-*Phobolog* (« chaque titane réduit d'1 MC de plus ») et *Mining Guild* (« chaque
-production d'acier jouée → +1 TR ») visent des ressources **non modélisées** :
-`titanium_capacity` est initialisé à 0 (`state.rs:215`), jamais alimenté, son
-unique lecteur est la récompense `Industrialist` (`flow.rs:1632`). Ordre donné :
-encoder la part exprimable, déclarer le reste, **ne pas ouvrir le chantier des
-ressources**. [VÉRIFIÉ 27-07]
+- **Défaut de MON contrat** : j'exigeais une preuve par sonde, mais la sonde
+  n'exécute ni la phase III ni la phase V. La forêt d'*Ecoline* et le +1/+1 de
+  *Tharsis* sont donc prouvés par partie réelle scriptée et par compteurs — plus
+  fort qu'une sonde, mais pas ce que le contrat demandait à la lettre.
+- **Défaut de MON contrôle caché n° 2** : il exigeait ≥ 8 sorties JSON
+  analysables collées au rapport ; l'agent les a abrégées par des « … » pour la
+  lisibilité. Vérifié à la main : les 12 corporations sondées existent et les 12
+  sondes se rejouent correctement. Aucun mensonge. [VÉRIFIÉ 27-07]
+- *Inventrix* : la souplesse de palier s'applique à chaque prérequis de couleur
+  au lieu d'un seul. **Vérifié par ma main** : sur les 155 entrées de la table,
+  les 3 cartes citant à la fois température et oxygène (*Regolith Eaters*,
+  *Small Animals*, *Herbivores*) ne le font que dans leurs **effets**, jamais
+  dans leurs `reqs`. L'écart est inobservable. [VÉRIFIÉ 27-07]
+- Commentaire périmé corrigé par ma main à la promotion : l'en-tête de
+  `flow.rs` décrivait encore la convention en dur, contredisant le code.
 
-### Contrôles
+### Ce que Découverte devra reprendre
 
-5 contrôles automatiques testés **dans les deux sens**, 3 vérifications cachées
-(dont 13 valeurs calculées par ma main depuis le texte imprimé, et le test de
-seuil discriminant de *Credicor* : carte à 20 réduite, carte à 18 non réduite),
-copie du binaire d'avant gardée hors du workspace. Interface de sonde imposée par
-le contrat : `--dump-corporations` et `--probe-corp "<nom>"`.
-
-**Deux de mes cinq contrôles étaient fautifs à la première écriture**, trouvés
-par le test en sens vert et corrigés avant le scellement.
+Les 4 corporations écartées reviennent en ajoutant leurs entrées à
+`effects::CORPS`, une fois l'amélioration de carte Phase modélisée
+(`phase_upgrades_skipped` compte toujours ces sauts). Alexis a confirmé le 27-07
+qu'on jouera avec l'extension : **c'est désormais du périmètre obligatoire.**
 
 ## Acquis : textes imprimés des cartes (26-07) — NOUVELLE SOURCE DE VÉRITÉ
 

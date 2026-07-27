@@ -7,7 +7,7 @@
 use engine::cards::CardsDb;
 use engine::policy::RandomPolicy;
 use engine::probe::{
-    run_probe_action_scripted, run_probe_seq_full, ProbeDelta, ProbeOptions, ProbeRes,
+    run_probe_action_corp, run_probe_seq_corp, ProbeCorp, ProbeDelta, ProbeOptions, ProbeRes,
     ProbeScript,
 };
 use engine::sim::run_simulation;
@@ -40,6 +40,23 @@ fn resources_json(rs: &[ProbeRes]) -> serde_json::Value {
     )
 }
 
+/// (corpo-1) Sérialise l'objet `corp` — émis UNIQUEMENT quand `--probe-corp`
+/// est donné, pour que les sondes existantes gardent exactement leur sortie
+/// d'aujourd'hui (journal D10).
+fn corp_json(c: &ProbeCorp) -> serde_json::Value {
+    serde_json::json!({
+        "name": c.name,
+        "found": c.found,
+        "encoded": c.encoded,
+        "starting_mc": c.starting_mc,
+        "start_prod": {
+            "mc": c.start_prod.0,
+            "heat": c.start_prod.1,
+            "plants": c.start_prod.2,
+        },
+    })
+}
+
 fn die(msg: &str) -> ! {
     eprintln!("simulate: {msg}");
     std::process::exit(2);
@@ -57,6 +74,9 @@ fn main() {
     // (lot 4) `--probe-produce` : exécuter la vraie phase IV après la séquence.
     let mut probe_produce = false;
     let mut dump_turn_order = false;
+    // (corpo-1) Corporation imposée à la sonde, et vidage de la pioche.
+    let mut probe_corp: Option<String> = None;
+    let mut dump_corporations = false;
 
     let args: Vec<String> = std::env::args().skip(1).collect();
     let mut i = 0;
@@ -141,6 +161,16 @@ fn main() {
                     .collect();
                 i += 2;
             }
+            // (corpo-1) Corporation imposée au joueur sondé, à la place du tirage.
+            "--probe-corp" => {
+                probe_corp = Some(value(i).to_string());
+                i += 2;
+            }
+            // (corpo-1) Une ligne JSON par corporation de la pioche d'une partie.
+            "--dump-corporations" => {
+                dump_corporations = true;
+                i += 1;
+            }
             "--dump-turn-order" => {
                 dump_turn_order = true;
                 i += 1;
@@ -152,11 +182,44 @@ fn main() {
     let mut db = CardsDb::load(&cards_path).unwrap_or_else(|e| die(&e));
     db.effects_on = effects_on;
 
-    if let Some(name) = probe {
+    // (corpo-1) La pioche de corporations RÉELLE d'une partie, dans l'ordre de
+    // chargement : `db.corporations` est exactement ce que `setup_game` distribue.
+    if dump_corporations {
+        for c in &db.corporations {
+            let line = serde_json::json!({
+                "name": c.name,
+                "starting_mc": c.starting_mc,
+                "tags": c.tags.iter().map(|t| t.as_str()).collect::<Vec<_>>(),
+                "encoded": c.effect.is_some(),
+            });
+            println!("{line}");
+        }
+        return;
+    }
+
+    // (corpo-1) `--probe-corp` employé SANS `--probe` : la sonde se déroule sur
+    // une séquence de cartes VIDE (mise en place de la corporation, puis
+    // `--probe-produce` s'il est demandé). On passe une tranche vide, jamais un
+    // nom vide : `--probe ""` doit continuer de rendre `found:false`.
+    let corp_only = probe.is_none() && probe_corp.is_some() && probe_action.is_none();
+
+    if probe.is_some() || corp_only {
         // Séquence : cartes séparées par « ; » (rétro-compatible : 1 carte).
-        let names: Vec<&str> = name.split(';').map(|s| s.trim()).collect();
-        let r = run_probe_seq_full(&db, &names, probe_opts, &probe_script, probe_produce);
-        let line = serde_json::json!({
+        let name = probe.unwrap_or_default();
+        let names: Vec<&str> = if corp_only {
+            Vec::new()
+        } else {
+            name.split(';').map(|s| s.trim()).collect()
+        };
+        let r = run_probe_seq_corp(
+            &db,
+            &names,
+            probe_opts,
+            &probe_script,
+            probe_produce,
+            probe_corp.as_deref(),
+        );
+        let mut line = serde_json::json!({
             "card": r.card,
             "found": r.found,
             "in_lot": r.in_lot,
@@ -178,13 +241,16 @@ fn main() {
             },
             "vp_total": r.vp_total,
         });
+        if let Some(c) = &r.corp {
+            line["corp"] = corp_json(c);
+        }
         println!("{line}");
         return;
     }
 
     if let Some(name) = probe_action {
-        let r = run_probe_action_scripted(&db, &name, &probe_script);
-        let line = serde_json::json!({
+        let r = run_probe_action_corp(&db, &name, &probe_script, probe_corp.as_deref());
+        let mut line = serde_json::json!({
             "card": r.card,
             "found": r.found,
             "in_lot": r.in_lot,
@@ -194,6 +260,9 @@ fn main() {
             "resources": resources_json(&r.resources),
             "target_error": r.target_error,
         });
+        if let Some(c) = &r.corp {
+            line["corp"] = corp_json(c);
+        }
         println!("{line}");
         return;
     }
@@ -244,6 +313,11 @@ fn main() {
         "derived_plants": s.derived_plants,
         "tr_from_tags": s.tr_from_tags,
         "research_extra_draws": s.research_extra_draws,
+        // (lot corporations) effets de corporation observés en partie réelle.
+        "corp_heat_as_mc": s.corp_heat_as_mc,
+        "corp_forest_rebates": s.corp_forest_rebates,
+        "corp_tr_boosts": s.corp_tr_boosts,
+        "corp_trigger_tr": s.corp_trigger_tr,
     });
     println!("{line}");
 }

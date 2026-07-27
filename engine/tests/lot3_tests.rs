@@ -14,8 +14,8 @@
 
 use engine::cards::CardsDb;
 use engine::flow::{
-    build_card, build_card_with, play_round, requirements_met, requirements_met_now, score,
-    setup_game,
+    build_card, build_card_with, card_discount, play_round, requirements_met,
+    requirements_met_now, score, setup_game,
 };
 use engine::policy::{ActionOpt, ConstructionBonus, Policy, RandomPolicy};
 use engine::probe::{run_probe_seq, run_probe_seq_opts, ProbeOptions};
@@ -333,7 +333,12 @@ fn c3_build_pays_with_cards_and_gives_the_surplus_back() {
     // (9 MC) → 1 MC rendu. Inversé : l'ancien `build_card` cassait sur son
     // assert « construction sans les MC requis ».
     let db = db();
-    let mut game = setup_game(&db, 7, &mut RandomPolicy);
+    // (corpo-1) Graine 7 → 11 : depuis que les corporations ont leurs effets, la
+    // corporation tirée peut RÉDUIRE le prix de la carte, et l'exemple du livret
+    // (8 MC → 3 cartes) ne s'appliquerait plus. Graine choisie pour que la
+    // corporation du joueur 0 n'accorde aucune réduction sur cette carte —
+    // hypothèse ASSERTÉE ci-dessous plutôt que supposée.
+    let mut game = setup_game(&db, 11, &mut RandomPolicy);
     let target = card_id(&db, "Geothermal Power"); // verte, 8 MC, sans prérequis
     let fillers: Vec<u16> = game
         .deck
@@ -346,6 +351,11 @@ fn c3_build_pays_with_cards_and_gives_the_surplus_back() {
     hand.extend_from_slice(&fillers);
     set_hand(&mut game, 0, &hand);
     game.players[0].mc = 0;
+    assert_eq!(
+        card_discount(&game, &db, 0, target),
+        0,
+        "aucune réduction en jeu : l'exemple du livret porte sur 8 MC pleins"
+    );
     let discard_before = game.discard.len();
 
     let discarded = build_card(&mut game, &db, 0, 0, 0);
@@ -485,13 +495,17 @@ fn c3_policy_hook_drives_the_number_of_discarded_cards() {
         }
     }
     let db = db();
-    let mut game = setup_game(&db, 10, &mut RandomPolicy);
+    // (corpo-1) Graine 10 → 12, même raison qu'en C3 ci-dessus : la corporation
+    // du joueur 0 ne doit accorder aucune réduction sur cette carte, sinon le
+    // « minimum + 1 » de la politique ne vaudrait plus 4 cartes. Assertée.
+    let mut game = setup_game(&db, 12, &mut RandomPolicy);
     let target = card_id(&db, "Geothermal Power");
     let fillers: Vec<u16> = game.deck.iter().copied().filter(|&c| c != target).take(4).collect();
     let mut hand = vec![target];
     hand.extend_from_slice(&fillers);
     set_hand(&mut game, 0, &hand);
     game.players[0].mc = 0;
+    assert_eq!(card_discount(&game, &db, 0, target), 0, "8 MC pleins");
 
     let mut pol = Generous(RandomPolicy);
     let discarded = build_card_with(&mut game, &db, 0, 0, 0, &mut pol);

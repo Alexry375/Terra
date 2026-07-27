@@ -9,8 +9,8 @@
 
 use crate::cards::{CardsDb, Color, Tag, VpKind};
 use crate::effects::{
-    Action, ActionCost, ActionEff, Eff, GlobalTrigger, ProdCount, ProdRes, Reduction, Req,
-    ResAmount, ResEff, ResKind, ResPut, ResStep, ResTarget, TrigGain,
+    self, Action, ActionCost, ActionEff, CorpEffects, Eff, GlobalTrigger, ProdCount, ProdRes,
+    Reduction, Req, ResAmount, ResEff, ResKind, ResPut, ResStep, ResTarget, TrigGain,
 };
 use crate::policy::{ActionOpt, ConstructionBonus, Policy};
 use crate::state::*;
@@ -109,6 +109,10 @@ pub fn setup_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameState
         derived_plants: 0,
         tr_from_tags: 0,
         research_extra_draws: 0,
+        corp_heat_as_mc: 0,
+        corp_forest_rebates: 0,
+        corp_tr_boosts: 0,
+        corp_trigger_tr: 0,
     };
 
     // Milestones/awards : 3 + 3 tirés des pools (Discovery p.2 « reveal three »).
@@ -172,17 +176,61 @@ pub fn setup_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameState
         for other in corps[p].drain(..) {
             game.corp_discard.push(other);
         }
-        let corp = &db.corporations[chosen as usize];
-        game.players[p].corporation = Some(chosen);
-        game.players[p].mc = corp.starting_mc; // stub D3 : MC de départ = price
-        for t in &corp.tags {
-            if let Some(i) = t.index() {
-                game.players[p].tag_counts[i] += 1;
-            }
-        }
+        install_corporation(&mut game, db, p, chosen);
     }
 
     game
+}
+
+/// (corpo-1) **Service UNIQUE de mise en place d'une corporation** : MC de
+/// départ, badges, production de départ, pioche de départ. Emprunté par
+/// `setup_game` ET par la sonde (`--probe-corp`) — il n'existe pas de second
+/// chemin d'installation.
+///
+/// Les productions de départ sont inscrites sur les pistes FIXES
+/// (`mc_prod`/`heat_prod`/`plant_prod`), que `phase_production` consomme à
+/// chaque génération : la production se répète, elle n'est pas un gain unique.
+///
+/// Comme tout effet de carte, les effets de corporation sont coupés par
+/// `--effects off` (journal D5) ; le MC de départ et les badges, eux, sont la
+/// planche elle-même et restent dans les deux modes (comportement historique).
+pub fn install_corporation(game: &mut GameState, db: &CardsDb, p: usize, corp_id: u16) {
+    let corp = &db.corporations[corp_id as usize];
+    let starting_mc = corp.starting_mc;
+    let tags = corp.tags.clone();
+    let spec = corp.effect;
+
+    game.players[p].corporation = Some(corp_id);
+    game.players[p].mc = starting_mc;
+    for t in &tags {
+        if let Some(i) = t.index() {
+            game.players[p].tag_counts[i] += 1;
+        }
+    }
+    if !db.effects_on {
+        return;
+    }
+    let Some(spec) = spec else { return };
+    game.players[p].mc_prod += spec.start_prod.mc;
+    game.players[p].heat_prod += spec.start_prod.heat;
+    game.players[p].plant_prod += spec.start_prod.plants;
+    for _ in 0..spec.start_draw {
+        if let Some(c) = draw_card(game) {
+            game.players[p].hand.push(c);
+        }
+    }
+}
+
+/// (corpo-1) Encodage de la corporation d'un joueur, ou `None` si les effets
+/// sont coupés / le joueur n'a pas de corporation. Point de lecture UNIQUE :
+/// tous les services de corporation passent par lui, aucun ne relit
+/// `PlayerState::corporation` directement.
+pub fn corp_effects<'a>(db: &'a CardsDb, pl: &PlayerState) -> Option<&'a CorpEffects> {
+    if !db.effects_on {
+        return None;
+    }
+    pl.corporation
+        .and_then(|c| db.corporations[c as usize].effect)
 }
 
 /// Phases autorisées cette ronde pour un joueur : 1-5 moins la phase de la
@@ -203,20 +251,180 @@ fn effective_cost(price: i64, discount: i64) -> i64 {
 /// Service UNIQUE consommé par `affordable` (affordabilité) ET `build_card`
 /// (paiement) — jamais deux logiques parallèles. Calculée avant la mise en jeu
 /// de la carte, donc une carte ne se réduit jamais elle-même. 0 si effets coupés.
+/// (corpo-1) La CORPORATION du joueur contribue à cette même somme : sa
+/// réduction n'a pas de second chemin de calcul. `Reduction::MinPrice`
+/// (Credicor) est jugée sur le prix IMPRIMÉ de la carte, jamais sur un coût
+/// déjà réduit.
 pub fn card_discount(game: &GameState, db: &CardsDb, p: usize, card_id: u16) -> i64 {
     if !db.effects_on {
         return 0;
     }
-    let tags = &db.projects[card_id as usize].tags;
+    let card = &db.projects[card_id as usize];
+    let (tags, price) = (&card.tags, card.price);
     let mut d = 0;
     for &owned in &game.players[p].played {
         if let Some(spec) = db.projects[owned as usize].effect {
             for r in spec.reductions {
-                d += r.amount_for(tags);
+                d += r.amount_for(tags, price);
             }
         }
     }
+    if let Some(spec) = corp_effects(db, &game.players[p]) {
+        for r in spec.reductions {
+            d += r.amount_for(tags, price);
+        }
+    }
     d
+}
+
+// =============================================================================
+// (corpo-1) La chaleur employée comme des MC — Helion Corporation, « You may use
+// heat as MC. You may not use MC as heat. »
+//
+// Deux fonctions, un seul mécanisme : `spendable_mc` répond « de quoi ce joueur
+// dispose-t-il pour payer ? » (affordabilité), `top_up_mc_with_heat` convertit
+// effectivement la chaleur en MC juste avant la dépense. TOUS les sites qui
+// dépensent des MC les empruntent — pose de carte, actions standard de la phase
+// III, actions de cartes bleues, pas de NT acheté par Unmi — il n'existe donc
+// pas de dépense de MC qui ignorerait Helion.
+//
+// Le « may » du texte imprimé est OFFERT AU JOUEUR par `Policy::choose_option`
+// à la pose d'une carte (voir `build_card_with`), seul site où le livret
+// propose une alternative — payer en défaussant des cartes à 3 MC. Partout
+// ailleurs (actions standard, actions de cartes bleues, pas de NT d'Unmi),
+// renoncer à la chaleur reviendrait à renoncer à l'action : la chaleur comble
+// alors ce qui manque sans question posée. Dans tous les cas elle ne sert que
+// de complément : jamais de chaleur brûlée quand les MC suffisent.
+//
+// (Le journal D6 décrivait une convention en dur ; D15 l'a remplacée par ce
+// choix après relecture adversariale. Ce commentaire suit le code, pas D6.)
+// =============================================================================
+
+/// La corporation du joueur autorise-t-elle à dépenser la chaleur comme des MC ?
+fn heat_as_mc(db: &CardsDb, pl: &PlayerState) -> bool {
+    corp_effects(db, pl).map_or(false, |s| s.heat_as_mc)
+}
+
+/// **Chaleur RÉSERVÉE** par une carte : celle que son prérequis « Requires you
+/// to spend N heat » l'engage à dépenser à la pose. Cette chaleur-là n'est pas
+/// de la monnaie : Helion ne peut pas la convertir en MC pour payer le prix de
+/// la carte, sinon la dépense de pose serait impayable. Lue sur la table
+/// d'effets, jamais recalculée ailleurs.
+pub fn heat_reserved_by(db: &CardsDb, card_id: u16) -> i64 {
+    if !db.effects_on {
+        return 0;
+    }
+    db.projects[card_id as usize].effect.map_or(0, |spec| {
+        spec.reqs
+            .iter()
+            .map(|r| match *r {
+                Req::SpendHeat(n) => n,
+                _ => 0,
+            })
+            .sum()
+    })
+}
+
+/// Ce qu'un joueur peut réellement engager en « MC » : ses MC, plus sa chaleur
+/// si sa corporation le permet. Prédicat d'affordabilité UNIQUE — consommé par
+/// `affordable`, `action_options`, `apply_blue_action` et la sonde.
+pub fn spendable_mc(db: &CardsDb, pl: &PlayerState) -> i64 {
+    spendable_mc_reserving(db, pl, 0)
+}
+
+/// Idem, `reserved` unités de chaleur mises de côté (voir `heat_reserved_by`).
+pub fn spendable_mc_reserving(db: &CardsDb, pl: &PlayerState, reserved: i64) -> i64 {
+    if heat_as_mc(db, pl) {
+        pl.mc + (pl.heat - reserved).max(0)
+    } else {
+        pl.mc
+    }
+}
+
+/// Convertit juste ce qu'il faut de chaleur en MC pour atteindre `cost`, si la
+/// corporation le permet. Renvoie la chaleur consommée (0 le plus souvent).
+/// Incrémente `corp_heat_as_mc` à l'endroit exact de la conversion.
+pub fn top_up_mc_with_heat(game: &mut GameState, db: &CardsDb, p: usize, cost: i64) -> i64 {
+    top_up_mc_with_heat_reserving(game, db, p, cost, 0)
+}
+
+/// Idem, `reserved` unités de chaleur intouchables (voir `heat_reserved_by`).
+pub fn top_up_mc_with_heat_reserving(
+    game: &mut GameState,
+    db: &CardsDb,
+    p: usize,
+    cost: i64,
+    reserved: i64,
+) -> i64 {
+    if !heat_as_mc(db, &game.players[p]) {
+        return 0;
+    }
+    let missing = cost - game.players[p].mc;
+    if missing <= 0 {
+        return 0;
+    }
+    let available = (game.players[p].heat - reserved).max(0);
+    let used = missing.min(available);
+    if used <= 0 {
+        return 0;
+    }
+    game.players[p].heat -= used;
+    game.players[p].mc += used;
+    game.corp_heat_as_mc += used as u64;
+    used
+}
+
+/// (corpo-1) Coût en PLANTES d'une forêt pour un joueur donné : coût du livret
+/// (8) moins la remise de sa corporation (Ecoline : « you spend one less
+/// plant »). Service UNIQUE — consommé par `action_options` (l'action est-elle
+/// offerte ?), `build_forest` (le paiement) et la conversion obligatoire de fin
+/// de phase III.
+///
+/// **Plancher à 1 plante, et non à 0** : la conversion obligatoire de fin de
+/// phase III est un `while plants >= forest_plant_cost(...)` dont l'autre
+/// condition (`snap_oxygen`) est figée pour toute la phase. Un coût nul y
+/// bouclerait indéfiniment. Aucune donnée actuelle n'en approche (remise
+/// maximale : 1) ; le plancher supprime la classe de bug, pas seulement le cas.
+pub fn forest_plant_cost(db: &CardsDb, pl: &PlayerState) -> i64 {
+    let rebate = corp_effects(db, pl).map_or(0, |s| s.forest_plant_rebate);
+    (FOREST_PLANT_COST - rebate).max(1)
+}
+
+/// (corpo-1) **Service UNIQUE de hausse de NT côté flux** : accorde le pas par
+/// `PlayerState::gain_tr` (qui tient la comptabilité de l'invariant TR), puis
+/// applique le `TrBoost` d'Unmi — « The first time your TR is raised each phase,
+/// you may pay 6 MC to raise your TR 1 step ».
+///
+/// Le drapeau `tr_raised_this_phase` est posé AVANT d'accorder le pas bonus, et
+/// le pas bonus passe par `PlayerState::gain_tr` et non par ce service : la
+/// récursion est donc impossible. Le « may » est un vrai choix du joueur, servi
+/// par `Policy::choose_option` (branche 0 = payer, l'option imprimée ; branche 1
+/// = renoncer), et il n'est proposé que si les 6 MC sont payables — chaleur
+/// comprise si la corporation le permettait (elle ne le permet pas ici, Unmi et
+/// Helion s'excluent, mais le chemin reste unique).
+pub fn gain_tr(game: &mut GameState, db: &CardsDb, p: usize, policy: &mut dyn Policy) {
+    game.players[p].gain_tr();
+    let first = !game.players[p].tr_raised_this_phase;
+    game.players[p].tr_raised_this_phase = true;
+    if !first {
+        return;
+    }
+    let Some(boost) = corp_effects(db, &game.players[p]).and_then(|s| s.tr_boost) else {
+        return;
+    };
+    if spendable_mc(db, &game.players[p]) < boost.cost_mc {
+        return;
+    }
+    // Deux branches jouables : payer (0, l'option imprimée) ou renoncer (1).
+    if policy.choose_option(&mut game.rng, p, 2) != 0 {
+        return;
+    }
+    top_up_mc_with_heat(game, db, p, boost.cost_mc);
+    game.players[p].mc -= boost.cost_mc;
+    for _ in 0..boost.steps {
+        game.players[p].gain_tr();
+    }
+    game.corp_tr_boosts += boost.steps as u64;
 }
 
 // =============================================================================
@@ -532,10 +740,25 @@ fn reqs_satisfied(
     };
     let (temperature, oxygen, oceans) = param;
     let pl = &game.players[p];
+    // (corpo-1) Inventrix : « When playing a card with requirements, you may
+    // consider the oxygen or temperature one color HIGHER OR LOWER. » Le
+    // prérequis porte sur un PALIER DE COULEUR (violet/rouge/jaune/blanc, bornes
+    // du module `effects`) : la souplesse est donc de ±1 palier, jamais de
+    // ±1 niveau. Elle ne touche ni les océans (le texte ne les nomme pas), ni
+    // les badges, ni les dépenses.
+    // La souplesse s'ajoute au test exact par un OU : sans corporation Inventrix
+    // le prédicat est bit à bit celui d'avant ce lot (non-régression).
+    let flex = corp_effects(db, pl).map_or(false, |s| s.req_color_flex);
+    let tc = effects::temp_color(temperature) as i16;
+    let oc = effects::oxy_color(oxygen) as i16;
     spec.reqs.iter().all(|req| match *req {
-        Req::TempMin(n) => temperature >= n,
-        Req::TempMax(n) => temperature <= n,
-        Req::OxyMin(n) => oxygen >= n,
+        Req::TempMin(n) => {
+            temperature >= n || (flex && tc + 1 >= effects::temp_color(n) as i16)
+        }
+        Req::TempMax(n) => {
+            temperature <= n || (flex && tc - 1 <= effects::temp_color(n) as i16)
+        }
+        Req::OxyMin(n) => oxygen >= n || (flex && oc + 1 >= effects::oxy_color(n) as i16),
         Req::OceanMin(n) => oceans >= n,
         Req::OceanMax(n) => oceans <= n,
         Req::Tags(tag, n) => {
@@ -602,7 +825,6 @@ fn affordable(
     discount: i64,
 ) -> Vec<usize> {
     let hand_len = game.players[p].hand.len();
-    let mc = game.players[p].mc;
     let mut out = Vec::new();
     let mut blocked = 0u64;
     // (lot 3) Réduction payable en microbes : elle compte dans l'affordabilité,
@@ -619,6 +841,10 @@ fn affordable(
             card.price,
             discount + card_discount(game, db, p, c) + payable_disc,
         );
+        // (corpo-1) Helion : la chaleur compte dans l'affordabilité, sinon une
+        // carte payable serait jugée hors budget — MOINS celle que la carte
+        // s'engage à dépenser à la pose. Sans Helion, vaut exactement `pl.mc`.
+        let mc = spendable_mc_reserving(db, &game.players[p], heat_reserved_by(db, c));
         if !payable(mc, hand_len, cost) {
             continue;
         }
@@ -706,12 +932,12 @@ fn apply_eff(game: &mut GameState, db: &CardsDb, p: usize, eff: Eff, policy: &mu
         }
         Eff::Tr(n) => {
             for _ in 0..n {
-                game.players[p].gain_tr();
+                gain_tr(game, db, p, policy);
             }
         }
         Eff::Infrastructure(n) => {
             for _ in 0..n {
-                raise_infrastructure(game, p);
+                raise_infrastructure(game, db, p, policy);
             }
         }
         Eff::PlantsIfTags(tag, min, gain) => {
@@ -730,7 +956,7 @@ fn apply_eff(game: &mut GameState, db: &CardsDb, p: usize, eff: Eff, policy: &mu
                 .index()
                 .map_or(0, |i| game.players[p].tag_counts[i]);
             for _ in 0..steps {
-                game.players[p].gain_tr();
+                gain_tr(game, db, p, policy);
             }
             game.tr_from_tags += steps as u64;
         }
@@ -795,6 +1021,13 @@ pub fn research_extra(db: &CardsDb, pl: &PlayerState) -> (usize, usize) {
                 keep += bonus.keep;
             }
         }
+    }
+    // (corpo-1) La corporation alimente le MÊME cumul (Tharsis Republic, texte
+    // identique à Interplanetary Relations) : un joueur qui a les deux gagne
+    // 2/2, comme deux cartes identiques.
+    if let Some(bonus) = corp_effects(db, pl).and_then(|s| s.research) {
+        draw += bonus.draw;
+        keep += bonus.keep;
     }
     (draw, keep)
 }
@@ -866,9 +1099,16 @@ pub fn build_card_with(
     // sans la réduction (règle générale de filtrage des branches — journal D7).
     let mut pay_with_resources: Option<(u16, u32)> = None;
     let mut total_discount = fixed_discount;
+    // (corpo-1) Chaleur que CETTE carte s'engage à dépenser : Helion ne peut pas
+    // la convertir en MC pour en payer le prix.
+    let reserved_heat = heat_reserved_by(db, card_id);
     if let Some((src, count, amount)) = microbe_discount(game, db, p) {
         let cost_without = effective_cost(price, fixed_discount);
-        let can_decline = payable(game.players[p].mc, hand_len_before, cost_without);
+        let can_decline = payable(
+            spendable_mc_reserving(db, &game.players[p], reserved_heat),
+            hand_len_before,
+            cost_without,
+        );
         // Branche 0 = utiliser la réduction (l'option imprimée) ; branche 1 = y
         // renoncer.
         let use_it = if can_decline {
@@ -884,6 +1124,32 @@ pub fn build_card_with(
 
     let cost = effective_cost(price, total_discount);
     assert!(cost >= 0, "prix payé négatif (réduction non plafonnée)");
+
+    // (corpo-1) Helion : « You MAY use heat as MC ». Ici — et ici seulement — le
+    // joueur a une vraie alternative, puisque le livret lui offre déjà de payer
+    // en défaussant des cartes à 3 MC. Le choix passe donc par le même chemin
+    // que tous les « ou » du moteur (`Policy::choose_option`, branche 0 =
+    // employer la chaleur, l'option imprimée ; branche 1 = y renoncer), et il
+    // n'est proposé QUE s'il en est un : si la carte n'est pas payable sans la
+    // chaleur, il n'y a pas d'alternative à présenter (convention du lot 3 —
+    // `choose_option` n'est appelée qu'à partir de 2 branches jouables).
+    //
+    // Partout ailleurs (actions standard, actions de cartes bleues, pas de NT
+    // d'Unmi), aucune défausse n'est offerte : renoncer à la chaleur y
+    // reviendrait à renoncer à l'action, ce n'est pas une branche jouable.
+    if heat_as_mc(db, &game.players[p]) && game.players[p].mc < cost {
+        // La carte à poser est déjà retirée de la main : la monnaie de défausse
+        // disponible est `hand.len()`, d'où le `+ 1` attendu par `payable`.
+        let can_decline = payable(game.players[p].mc, game.players[p].hand.len() + 1, cost);
+        let use_heat = if can_decline {
+            policy.choose_option(&mut game.rng, p, 2) == 0
+        } else {
+            true
+        };
+        if use_heat {
+            top_up_mc_with_heat_reserving(game, db, p, cost, reserved_heat);
+        }
+    }
 
     // (C3) Paiement : d'abord les MC, puis la défausse pour le reste. Le
     // nombre de cartes vient de la politique (défaut du trait = minimum).
@@ -942,6 +1208,30 @@ fn fire_play_triggers(
     policy: &mut dyn Policy,
 ) {
     let played_tags = db.projects[played_id as usize].tags.clone();
+
+    // (corpo-1) La CORPORATION est une source de déclencheurs comme les autres
+    // (Saturn Systems : « Each time you play a [jupiter] … gain 1 TR »). Elle
+    // n'est jamais « jouée » : « excluding this » n'exige donc aucun traitement,
+    // son propre badge ne déclenche rien. Elle ne porte pas de ressources, d'où
+    // `src = None` (voir `apply_trig_gain`).
+    if let Some(spec) = corp_effects(db, &game.players[p]) {
+        let triggers = spec.play_triggers;
+        for trig in triggers {
+            let matched = trig.cond.matched_tags(&played_tags);
+            if matched == 0 {
+                continue;
+            }
+            let mult = if trig.scale_by_matched_tags {
+                matched as i64
+            } else {
+                1
+            };
+            for g in trig.gains {
+                apply_trig_gain(game, db, p, None, *g, mult, policy);
+            }
+        }
+    }
+
     let sources = game.players[p].played.clone();
     for src in sources {
         let Some(spec) = db.projects[src as usize].effect else {
@@ -961,7 +1251,7 @@ fn fire_play_triggers(
                 1
             };
             for g in trig.gains {
-                apply_trig_gain(game, db, p, src, *g, mult, policy);
+                apply_trig_gain(game, db, p, Some(src), *g, mult, policy);
             }
         }
     }
@@ -971,11 +1261,14 @@ fn fire_play_triggers(
 /// pour les déclencheurs « par tag », 1 sinon). `src` = carte qui porte le
 /// déclencheur : c'est elle qui reçoit les ressources de `ResSelf` et qui sert
 /// de référence à « ANOTHER card » dans une alternative.
+/// `src = None` : le déclencheur vient de la CORPORATION, qui n'est pas une
+/// carte en jeu — les gains à ressources n'y ont pas de réceptacle et sont
+/// interdits d'encodage (assertion, pas un cas de jeu).
 fn apply_trig_gain(
     game: &mut GameState,
     db: &CardsDb,
     p: usize,
-    src: u16,
+    src: Option<u16>,
     g: TrigGain,
     mult: i64,
     policy: &mut dyn Policy,
@@ -983,6 +1276,17 @@ fn apply_trig_gain(
     match g {
         TrigGain::Heat(n) => game.players[p].heat += n * mult,
         TrigGain::Plants(n) => game.players[p].plants += n * mult,
+        // (corpo-1) Saturn Systems. Passe par le service unique de hausse de NT
+        // (comptabilité de l'invariant TR + `TrBoost` éventuel d'Unmi).
+        TrigGain::Tr(n) => {
+            let steps = n as i64 * mult.max(0);
+            for _ in 0..steps {
+                gain_tr(game, db, p, policy);
+            }
+            if src.is_none() {
+                game.corp_trigger_tr += steps as u64;
+            }
+        }
         TrigGain::Draw(n) => {
             for _ in 0..(n as i64 * mult) {
                 if let Some(c) = draw_card(game) {
@@ -993,6 +1297,7 @@ fn apply_trig_gain(
         // (lot 3) Ressources sur la carte qui porte le déclencheur (Ecological
         // Zone / Anaerobic : `mult` = nb de tags concernés, Java countCardTags).
         TrigGain::ResSelf(n) => {
+            let src = src.expect("ResSelf sans carte source (déclencheur de corporation)");
             add_resources(game, db, p, src, n * mult.max(0) as u32)
         }
         // (lot 3, CORRIGÉ par moteur-verite-1) Alternative : résolue `mult`
@@ -1004,6 +1309,7 @@ fn apply_trig_gain(
         // Chaque résolution rappelle la politique : le joueur peut choisir une
         // branche différente à chaque fois, ce que le texte imprimé autorise.
         TrigGain::Choose(branches) => {
+            let src = src.expect("Choose sans carte source (déclencheur de corporation)");
             for _ in 0..mult.max(0) {
                 apply_choice(game, db, p, src, branches, policy);
             }
@@ -1060,7 +1366,7 @@ fn fire_global_trigger(
         }
     }
     for (src, g) in pending {
-        apply_trig_gain(game, db, p, src, g, 1, policy);
+        apply_trig_gain(game, db, p, Some(src), g, 1, policy);
     }
 }
 
@@ -1073,7 +1379,7 @@ fn raise_oxygen(game: &mut GameState, db: &CardsDb, p: usize, policy: &mut dyn P
     if game.oxygen < OXYGEN_MAX {
         game.oxygen += 1;
     }
-    game.players[p].gain_tr();
+    gain_tr(game, db, p, policy);
     // (lot 3) « When you raise oxygen » du joueur agissant (Herbivores).
     fire_global_trigger(game, db, p, GlobalEvent::Oxygen, policy);
 }
@@ -1081,14 +1387,14 @@ fn raise_oxygen(game: &mut GameState, db: &CardsDb, p: usize, policy: &mut dyn P
 /// Hausse d'infrastructure (extension Grain Silos, journal B2) : par pas,
 /// +1 TR et pioche 1 carte (sémantique Java `increaseInfrastructure`),
 /// cap sur l'instantané de phase comme les autres paramètres.
-fn raise_infrastructure(game: &mut GameState, p: usize) {
+fn raise_infrastructure(game: &mut GameState, db: &CardsDb, p: usize, policy: &mut dyn Policy) {
     if game.snap_infrastructure >= INFRASTRUCTURE_MAX {
         return;
     }
     if game.infrastructure < INFRASTRUCTURE_MAX {
         game.infrastructure += 1;
     }
-    game.players[p].gain_tr();
+    gain_tr(game, db, p, policy);
     if let Some(c) = draw_card(game) {
         game.players[p].hand.push(c);
     }
@@ -1101,7 +1407,7 @@ fn raise_temperature(game: &mut GameState, db: &CardsDb, p: usize, policy: &mut 
     if game.temperature < TEMPERATURE_MAX {
         game.temperature += 1;
     }
-    game.players[p].gain_tr();
+    gain_tr(game, db, p, policy);
     // (B) déclencheurs « When you raise the temperature » du joueur agissant.
     fire_global_trigger(game, db, p, GlobalEvent::Temperature, policy);
 }
@@ -1126,7 +1432,7 @@ fn reveal_ocean(game: &mut GameState, db: &CardsDb, p: usize, policy: &mut dyn P
             game.players[p].hand.push(c);
         }
     }
-    game.players[p].gain_tr();
+    gain_tr(game, db, p, policy);
     // (B) déclencheurs « When you flip an ocean tile » du joueur agissant.
     fire_global_trigger(game, db, p, GlobalEvent::Ocean, policy);
 }
@@ -1141,9 +1447,17 @@ fn build_forest(
     policy: &mut dyn Policy,
 ) {
     if with_plants {
-        assert!(game.players[p].plants >= FOREST_PLANT_COST);
-        game.players[p].plants -= FOREST_PLANT_COST;
+        // (corpo-1) Coût en plantes servi par le service unique : Ecoline paie
+        // 7 plantes au lieu de 8 (« you spend one less plant »).
+        let cost = forest_plant_cost(db, &game.players[p]);
+        assert!(game.players[p].plants >= cost);
+        game.players[p].plants -= cost;
+        if cost < FOREST_PLANT_COST {
+            game.corp_forest_rebates += 1;
+        }
     } else {
+        // (corpo-1) Helion : 20 MC payables en chaleur.
+        top_up_mc_with_heat(game, db, p, FOREST_MC_COST);
         assert!(game.players[p].mc >= FOREST_MC_COST);
         game.players[p].mc -= FOREST_MC_COST;
     }
@@ -1162,28 +1476,31 @@ fn action_options(
 ) {
     out.clear();
     let pl = &game.players[p];
+    // (corpo-1) Les seuils passent par les services uniques : `spendable_mc`
+    // (Helion, chaleur = MC) et `forest_plant_cost` (Ecoline, 7 plantes). Sans
+    // corporation à effet, ils valent exactement `pl.mc` et `FOREST_PLANT_COST`.
+    let mc = spendable_mc(db, pl);
     for &c in remaining_blue {
         out.push(ActionOpt::BlueAction(c));
     }
-    if pl.plants >= FOREST_PLANT_COST {
+    if pl.plants >= forest_plant_cost(db, pl) {
         out.push(ActionOpt::ForestWithPlants);
     }
-    if pl.mc >= FOREST_MC_COST {
+    if mc >= FOREST_MC_COST {
         out.push(ActionOpt::ForestWithMc);
     }
     if pl.heat >= TEMPERATURE_HEAT_COST && game.snap_temperature < TEMPERATURE_MAX {
         out.push(ActionOpt::TemperatureWithHeat);
     }
-    if pl.mc >= TEMPERATURE_MC_COST && game.snap_temperature < TEMPERATURE_MAX {
+    if mc >= TEMPERATURE_MC_COST && game.snap_temperature < TEMPERATURE_MAX {
         out.push(ActionOpt::TemperatureWithMc);
     }
-    if pl.mc >= OCEAN_MC_COST && game.snap_oceans < NUM_OCEANS {
+    if mc >= OCEAN_MC_COST && game.snap_oceans < NUM_OCEANS {
         out.push(ActionOpt::OceanWithMc);
     }
     if !pl.hand.is_empty() {
         out.push(ActionOpt::SellCard);
     }
-    let _ = db;
 }
 
 /// (C) Applique l'action réelle d'une carte bleue en jeu (lot 2). Renvoie `true`
@@ -1207,7 +1524,9 @@ pub(crate) fn apply_blue_action(
             for c in cost {
                 let ok = match *c {
                     ActionCost::Heat(n) => game.players[p].heat >= n,
-                    ActionCost::Mc(n) => game.players[p].mc >= n,
+                    // (corpo-1) Helion : les MC d'une action bleue peuvent venir
+                    // de la chaleur, comme partout ailleurs.
+                    ActionCost::Mc(n) => spendable_mc(db, &game.players[p]) >= n,
                     ActionCost::Plants(n) => game.players[p].plants >= n,
                 };
                 if !ok {
@@ -1217,7 +1536,10 @@ pub(crate) fn apply_blue_action(
             for c in cost {
                 match *c {
                     ActionCost::Heat(n) => game.players[p].heat -= n,
-                    ActionCost::Mc(n) => game.players[p].mc -= n,
+                    ActionCost::Mc(n) => {
+                        top_up_mc_with_heat(game, db, p, n);
+                        game.players[p].mc -= n;
+                    }
                     ActionCost::Plants(n) => game.players[p].plants -= n,
                 }
             }
@@ -1234,7 +1556,7 @@ pub(crate) fn apply_blue_action(
                     ActionEff::Mc(n) => game.players[p].mc += n,
                     ActionEff::Tr(n) => {
                         for _ in 0..n {
-                            game.players[p].gain_tr();
+                            gain_tr(game, db, p, policy);
                         }
                     }
                     ActionEff::Oxygen(n) => {
@@ -1266,9 +1588,10 @@ pub(crate) fn apply_blue_action(
                 .index()
                 .map_or(0, |i| game.players[p].tag_counts[i] as i64);
             let cost = (base - n).max(0);
-            if game.players[p].mc < cost {
+            if spendable_mc(db, &game.players[p]) < cost {
                 return false;
             }
+            top_up_mc_with_heat(game, db, p, cost);
             game.players[p].mc -= cost;
             reveal_ocean(game, db, p, policy);
             true
@@ -1284,9 +1607,10 @@ pub(crate) fn apply_blue_action(
             }
             let blue = game.players[p].played_count(Color::Blue);
             let cost = base - if blue >= threshold { reduction } else { 0 };
-            if game.players[p].mc < cost {
+            if spendable_mc(db, &game.players[p]) < cost {
                 return false;
             }
+            top_up_mc_with_heat(game, db, p, cost);
             game.players[p].mc -= cost;
             raise_temperature(game, db, p, policy);
             true
@@ -1473,10 +1797,13 @@ fn phase_action(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
                     raise_temperature(game, db, p, policy);
                 }
                 ActionOpt::TemperatureWithMc => {
+                    // (corpo-1) Helion : chaleur convertie en MC si nécessaire.
+                    top_up_mc_with_heat(game, db, p, TEMPERATURE_MC_COST);
                     game.players[p].mc -= TEMPERATURE_MC_COST;
                     raise_temperature(game, db, p, policy);
                 }
                 ActionOpt::OceanWithMc => {
+                    top_up_mc_with_heat(game, db, p, OCEAN_MC_COST);
                     game.players[p].mc -= OCEAN_MC_COST;
                     reveal_ocean(game, db, p, policy);
                 }
@@ -1498,7 +1825,12 @@ fn phase_action(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
     // paramètre atteint pendant CETTE phase couperait l'obligation en cours de
     // route alors que la phase l'autorise encore. Reste après la boucle.
     for p in order {
-        while game.players[p].plants >= FOREST_PLANT_COST && game.snap_oxygen < OXYGEN_MAX {
+        // (corpo-1) Le seuil de conversion obligatoire est le coût RÉEL d'une
+        // forêt pour ce joueur (Ecoline : 7 plantes) — même service que l'action
+        // volontaire, sinon l'obligation et l'option divergeraient.
+        while game.players[p].plants >= forest_plant_cost(db, &game.players[p])
+            && game.snap_oxygen < OXYGEN_MAX
+        {
             build_forest(game, db, p, true, policy);
         }
         while game.players[p].heat >= TEMPERATURE_HEAT_COST
@@ -1770,6 +2102,12 @@ pub fn play_round(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
             continue;
         }
         game.snapshot_planet();
+        // (corpo-1) Début de phase : « The FIRST TIME your TR is raised EACH
+        // PHASE » (Unmi). Le drapeau se remet à zéro ici, à côté de l'instantané
+        // planétaire — c'est le seul marqueur de début de phase du moteur.
+        for pl in game.players.iter_mut() {
+            pl.tr_raised_this_phase = false;
+        }
         match phase {
             1 => phase_development(game, db, policy),
             2 => phase_construction(game, db, policy),

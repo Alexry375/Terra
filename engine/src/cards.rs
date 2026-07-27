@@ -48,6 +48,25 @@ impl Tag {
         }
     }
 
+    /// Nom du tag tel qu'il est écrit dans `cards.json` — l'inverse exact de
+    /// [`Tag::from_str`]. Employé par `--dump-corporations`, pour que les badges
+    /// rendus se comparent sans transformation au fichier source.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Tag::Building => "BUILDING",
+            Tag::Space => "SPACE",
+            Tag::Science => "SCIENCE",
+            Tag::Plant => "PLANT",
+            Tag::Microbe => "MICROBE",
+            Tag::Animal => "ANIMAL",
+            Tag::Earth => "EARTH",
+            Tag::Jupiter => "JUPITER",
+            Tag::Energy => "ENERGY",
+            Tag::Event => "EVENT",
+            Tag::Dynamic => "DYNAMIC",
+        }
+    }
+
     /// Index dans les compteurs de tags ; None pour Dynamic (stub).
     pub fn index(self) -> Option<usize> {
         match self {
@@ -140,12 +159,17 @@ impl ProjectCard {
     }
 }
 
-/// Corporation (stub neutre : tags + MC de départ = champ `price`, D3).
+/// Corporation de la boîte de base : tags + MC de départ (champ `price`) +
+/// effets déclaratifs (chantier corpo-1). `effect` n'est jamais `None` pour une
+/// corporation chargée : le chargement n'en retient QUE celles de la table
+/// `effects::CORPS` (voir [`CardsDb::load`]). Le champ reste une option pour
+/// que le code lecteur n'ait pas à supposer l'invariant.
 #[derive(Debug, Clone)]
 pub struct Corporation {
     pub name: String,
     pub starting_mc: i64,
     pub tags: Vec<Tag>,
+    pub effect: Option<&'static effects::CorpEffects>,
 }
 
 /// Base de cartes chargée une fois au démarrage.
@@ -240,11 +264,28 @@ impl CardsDb {
                         tags,
                     });
                 }
-                "corporation" if c.in_deck_v1 => corporations.push(Corporation {
-                    name: c.name,
-                    starting_mc: c.price.unwrap_or(0),
-                    tags,
-                }),
+                // (corpo-1) La pioche de corporations d'une partie = les 12
+                // planches de la BOÎTE DE BASE, déclarées par `effects::CORPS`.
+                // Double critère, tous deux nécessaires :
+                //  - `in_deck_v1` : écarte le jumeau hors-pioche « Teractor
+                //    Corporation » (48 MC) de l'entrée officielle (51 MC) —
+                //    deux entrées portent ce nom exact dans `cards.json` ;
+                //  - nom présent dans `CORPS` : écarte les quatre corporations
+                //    `in_deck_v1` qui ne sont sur aucune planche de la boîte
+                //    (Apollo Industries, Exocorp, Hyperion Systems, Sultira),
+                //    toutes bâties sur l'amélioration de carte Phase, mécanisme
+                //    que le moteur saute. Voir l'en-tête de `CORPS` pour leur
+                //    réintégration future.
+                "corporation" if c.in_deck_v1 => {
+                    if let Some(spec) = effects::corp_lookup(&c.name) {
+                        corporations.push(Corporation {
+                            name: c.name,
+                            starting_mc: c.price.unwrap_or(0),
+                            tags,
+                            effect: Some(spec),
+                        });
+                    }
+                }
                 // Hors périmètre v1 : corporations hors pioche,
                 // buffedCorporation, crysis.
                 _ => {}
@@ -257,6 +298,27 @@ impl CardsDb {
                 "base de cartes suspecte: {} projets v1, {} corporations",
                 v1_project_count,
                 corporations.len()
+            ));
+        }
+
+        // (corpo-1) Garde-fou de la pioche de corporations : la table `CORPS`
+        // décrit la boîte de base, donc CHAQUE entrée doit résoudre vers
+        // EXACTEMENT une corporation `in_deck_v1` du fichier. Le piège
+        // d'appariement (deux « Teractor Corporation ») serait sinon indécidable.
+        for (name, _) in effects::CORPS {
+            let n = corporations.iter().filter(|c| c.name == *name).count();
+            if n != 1 {
+                return Err(format!(
+                    "pioche de corporations: '{name}' résolue {n} fois dans {path} \
+                     (une et une seule entrée in_deck_v1 attendue)"
+                ));
+            }
+        }
+        if corporations.len() != effects::CORPS.len() {
+            return Err(format!(
+                "pioche de corporations: {} chargées pour {} déclarées dans la table",
+                corporations.len(),
+                effects::CORPS.len()
             ));
         }
 

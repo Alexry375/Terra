@@ -174,6 +174,11 @@ pub enum Reduction {
     /// Space −6 ; Energy Subsidies : Energy −4 ; Interplanetary Conference :
     /// Earth −3 et Jupiter −3, cumulables).
     Tag(Tag, i64),
+    /// (lot corporations) Cartes dont le **prix IMPRIMÉ** est >= `min`
+    /// (Credicor : « a card with a printed cost of 20 MC or more » → −4 MC).
+    /// Le seuil porte sur `ProjectCard::price`, jamais sur le coût déjà réduit :
+    /// sinon deux réductions se conditionneraient l'une l'autre selon leur ordre.
+    MinPrice { min: i64, amount: i64 },
     /// (lot 3) Réduction CONDITIONNELLE et PAYANTE : retirer `count` ressources
     /// de type `kind` de la carte qui porte cette réduction pour payer `amount`
     /// MC de moins (Anaerobic Microorganisms : 2 microbes → −10 MC).
@@ -186,15 +191,22 @@ pub enum Reduction {
 }
 
 impl Reduction {
-    /// Réduction FIXE applicable à une carte de tags donnés. Les réductions
-    /// conditionnelles (`PayResources`) valent 0 ici : elles ont leur propre
-    /// chemin, elles ne sont jamais accordées gratuitement.
-    pub fn amount_for(self, tags: &[Tag]) -> i64 {
+    /// Réduction FIXE applicable à une carte de tags et de PRIX IMPRIMÉ donnés.
+    /// Les réductions conditionnelles (`PayResources`) valent 0 ici : elles ont
+    /// leur propre chemin, elles ne sont jamais accordées gratuitement.
+    pub fn amount_for(self, tags: &[Tag], price: i64) -> i64 {
         match self {
             Reduction::AnyCard(n) => n,
             Reduction::Tag(t, n) => {
                 if tags.contains(&t) {
                     n
+                } else {
+                    0
+                }
+            }
+            Reduction::MinPrice { min, amount } => {
+                if price >= min {
+                    amount
                 } else {
                     0
                 }
@@ -328,6 +340,10 @@ pub enum TrigGain {
     Heat(i64),
     Plants(i64),
     Draw(u8),
+    /// (lot corporations) Hausse de NT (Saturn Systems : « Each time you play a
+    /// [jupiter], excluding this, gain 1 TR »). Passe par le chemin de hausse de
+    /// NT existant, donc comptabilisée pour l'invariant TR.
+    Tr(u8),
     /// (lot 3) Ajoute n ressources sur la carte SOURCE du déclencheur
     /// (Fish, Livestock, Small Animals, Herbivores, Physics Complex,
     /// Ecological Zone, Anaerobic Microorganisms).
@@ -1148,3 +1164,206 @@ pub static LOT1: &[(&str, CardEffects)] = &[
     card!("Interplanetary Relations", reqs: [], effects: [],
           research: ResearchBonus { draw: 1, keep: 1 }),
 ];
+
+// ======================================== LOT CORPORATIONS (chantier corpo-1)
+//
+// Les 12 planches de corporation de la BOÎTE DE BASE. Même discipline que la
+// table `LOT1` des cartes projets : des DONNÉES interprétées par `flow`, jamais
+// une exception codée par corporation. La source du texte est
+// `inputs/textes-cartes.json` (champ `text`, transcription des planches
+// imprimées) — surtout PAS le champ `description` de `cards.json`, qui est une
+// paraphrase infidèle sur quatre corporations (Interplanetary Cinematics,
+// Mining Guild, Phobolog, Saturn Systems : voir `outputs/corporations.md`).
+//
+// Cette table est aussi la DÉFINITION de la boîte de base : `CardsDb::load` ne
+// retient dans la pioche de corporations que les entrées `in_deck_v1` de
+// `cards.json` dont le nom y figure. Les quatre corporations « améliorez votre
+// carte Phase n » (Apollo Industries, Exocorp, Hyperion Systems, Sultira) n'ont
+// aucune planche imprimée dans la boîte de base et reposent toutes sur
+// l'amélioration de carte Phase, mécanisme que le moteur saute
+// (`phase_upgrades_skipped`) : elles n'ont donc pas leur place dans la pioche.
+// Quand le chantier des améliorations de phase existera, il suffira de leur
+// ajouter une entrée ICI : elles reviendront dans la pioche par le même chemin,
+// sans toucher au chargement.
+
+/// Production de départ FIXE d'une corporation, inscrite sur les pistes
+/// `mc_prod` / `heat_prod` / `plant_prod` du joueur à la mise en place — donc
+/// consommée par la phase IV à CHAQUE génération, jamais une seule fois.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct StartProd {
+    pub mc: i64,
+    pub heat: i64,
+    pub plants: i64,
+}
+
+/// (corpo) Unmi : « The first time your TR is raised each phase, you may pay
+/// 6 MC to raise your TR 1 step. »
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TrBoost {
+    pub cost_mc: i64,
+    pub steps: u8,
+}
+
+/// Encodage complet d'une corporation. Les quatre premiers champs réemploient
+/// le vocabulaire des cartes projets ; les quatre derniers sont NEUFS, parce
+/// qu'aucune carte projet n'exprimait ces mécanismes (journal D3).
+#[derive(Debug)]
+pub struct CorpEffects {
+    /// « You start with N heat/plant production ».
+    pub start_prod: StartProd,
+    /// « At the start of the game, draw N cards » (Inventrix).
+    pub start_draw: u8,
+    /// Réductions permanentes, servies par `flow::card_discount`.
+    pub reductions: &'static [Reduction],
+    /// « Each time you play a … » — servis par les déclencheurs de pose du lot 2.
+    pub play_triggers: &'static [PlayTrigger],
+    /// Bonus permanent de phase Recherche, servi par `flow::research_extra`.
+    pub research: Option<ResearchBonus>,
+    /// (NEUF) Ecoline : plantes en moins pour une forêt, servi par
+    /// `flow::forest_plant_cost`.
+    pub forest_plant_rebate: i64,
+    /// (NEUF) Helion : la chaleur est dépensable comme des MC
+    /// (`flow::spendable_mc` / `flow::top_up_mc_with_heat`).
+    pub heat_as_mc: bool,
+    /// (NEUF) Inventrix : un prérequis de température ou d'oxygène peut être
+    /// jugé un palier de couleur plus haut OU plus bas (`flow::reqs_satisfied`).
+    pub req_color_flex: bool,
+    /// (NEUF) Unmi : premier pas de NT de chaque phase, doublable contre 6 MC
+    /// (`flow::gain_tr`).
+    pub tr_boost: Option<TrBoost>,
+}
+
+/// Paliers de couleur (0 = violet, 1 = rouge, 2 = jaune, 3 = blanc) — bornes du
+/// module. Sert au seul `req_color_flex` d'Inventrix.
+pub fn temp_color(level: u8) -> u8 {
+    if level >= TEMP_W_MIN {
+        3
+    } else if level >= TEMP_Y_MIN {
+        2
+    } else if level >= TEMP_R_MIN {
+        1
+    } else {
+        0
+    }
+}
+
+/// Idem pour l'oxygène (P 0-2, R 3-6, Y 7-11, W 12-14).
+pub fn oxy_color(level: u8) -> u8 {
+    if level >= OXY_W_MIN {
+        3
+    } else if level >= OXY_Y_MIN {
+        2
+    } else if level >= OXY_R_MIN {
+        1
+    } else {
+        0
+    }
+}
+
+macro_rules! corp {
+    ($name:literal, prod: $sp:expr, draw: $dr:literal,
+     red: [$($rd:expr),*], ptrig: [$($pt:expr),*], research: $rs:expr,
+     forest: $fo:literal, heat_as_mc: $hm:literal, flex: $fx:literal,
+     tr_boost: $tb:expr) => {
+        ($name, CorpEffects {
+            start_prod: $sp, start_draw: $dr,
+            reductions: &[$($rd),*], play_triggers: &[$($pt),*],
+            research: $rs, forest_plant_rebate: $fo, heat_as_mc: $hm,
+            req_color_flex: $fx, tr_boost: $tb,
+        })
+    };
+}
+
+const NO_PROD: StartProd = StartProd { mc: 0, heat: 0, plants: 0 };
+
+/// Les 12 corporations de la boîte de base, dans l'ordre de leur NUMÉRO IMPRIMÉ
+/// (209 → 220) — cet ordre est celui de la lecture, il n'a aucun effet sur le
+/// moteur : la pioche suit l'ordre de chargement de `cards.json`, et c'est cet
+/// ordre-là que rend `--dump-corporations`.
+pub static CORPS: &[(&str, CorpEffects)] = &[
+    // 209 CrediCor — « You start with 48 MC. EFFECT: When you play a card with a
+    // printed cost of 20 MC or more, you pay 4 MC less for it. »
+    corp!("Credicor", prod: NO_PROD, draw: 0,
+          red: [Reduction::MinPrice { min: 20, amount: 4 }], ptrig: [],
+          research: None, forest: 0, heat_as_mc: false, flex: false, tr_boost: None),
+    // 210 Ecoline — « You start with 1 plant production and 27 MC. EFFECT: When
+    // you spend plants to gain a forest VP token and raise oxygen, you spend one
+    // less plant. »
+    corp!("Ecoline", prod: StartProd { mc: 0, heat: 0, plants: 1 }, draw: 0,
+          red: [], ptrig: [],
+          research: None, forest: 1, heat_as_mc: false, flex: false, tr_boost: None),
+    // 211 Helion — « You start with 3 heat production and 28 MC. EFFECT: You may
+    // use heat as MC. You may not use MC as heat. »
+    corp!("Helion Corporation", prod: StartProd { mc: 0, heat: 3, plants: 0 }, draw: 0,
+          red: [], ptrig: [],
+          research: None, forest: 0, heat_as_mc: true, flex: false, tr_boost: None),
+    // 212 Interplanetary Cinematics — « You start with 46 MC. When you play a
+    // [building], you pay 2 MC less for it. EFFECT: When you play an [event], you
+    // pay 2 MC less for it. » (cards.json dit « 1 steel production » + event seul :
+    // paraphrase fausse, le texte imprimé gagne.)
+    corp!("Interplanetary Cinematics", prod: NO_PROD, draw: 0,
+          red: [Reduction::Tag(Tag::Building, 2), Reduction::Tag(Tag::Event, 2)],
+          ptrig: [],
+          research: None, forest: 0, heat_as_mc: false, flex: false, tr_boost: None),
+    // 213 Inventrix — « At the start of the game, draw 3 cards. You start with
+    // 33 MC. EFFECT: When playing a card with requirements, you may consider the
+    // oxygen or temperature one color higher or lower. »
+    corp!("Inventrix", prod: NO_PROD, draw: 3,
+          red: [], ptrig: [],
+          research: None, forest: 0, heat_as_mc: false, flex: true, tr_boost: None),
+    // 214 Mining Guild — « You start with 27 MC. When you play a [building], you
+    // pay 2 MC less for it. EFFECT: Each time you play steel production,
+    // excluding this, gain 1 TR. » (l'acier n'existe pas dans le moteur : le
+    // déclencheur reste hors portée, cadrage imposé par le prompt.)
+    corp!("Mining Guild", prod: NO_PROD, draw: 0,
+          red: [Reduction::Tag(Tag::Building, 2)], ptrig: [],
+          research: None, forest: 0, heat_as_mc: false, flex: false, tr_boost: None),
+    // 215 PhoboLog — « You start with 20 MC. When you play a [space], you pay
+    // 3 MC less for it. EFFECT: Each titanium you have reduces the cost of
+    // [space] cards an additional 1 MC. » (le titane n'est pas modélisé : cadrage
+    // imposé par le prompt, seul le −3 est encodé.)
+    corp!("Phobolog", prod: NO_PROD, draw: 0,
+          red: [Reduction::Tag(Tag::Space, 3)], ptrig: [],
+          research: None, forest: 0, heat_as_mc: false, flex: false, tr_boost: None),
+    // 216 Saturn Systems — « You start with 24 MC. When you play a [space], you
+    // pay 3 MC less for it. EFFECT: Each time you play a [jupiter], excluding
+    // this, gain 1 TR. » « excluding this » = le badge [jupiter] de la planche
+    // elle-même ne rapporte rien : la corporation n'est jamais « jouée ».
+    // `scale_by_matched_tags: true` = livret p.9 l.106 (condition remplie
+    // plusieurs fois → effet résolu autant de fois).
+    corp!("Saturn Systems", prod: NO_PROD, draw: 0,
+          red: [Reduction::Tag(Tag::Space, 3)],
+          ptrig: [PlayTrigger { cond: TrigCond::Tag(Tag::Jupiter),
+                    gains: &[TrigGain::Tr(1)], scale_by_matched_tags: true,
+                    include_self: false }],
+          research: None, forest: 0, heat_as_mc: false, flex: false, tr_boost: None),
+    // 217 Teractor — « You start with 51 MC. EFFECT: When you play an [earth],
+    // you pay 3 MC less for it. »
+    corp!("Teractor Corporation", prod: NO_PROD, draw: 0,
+          red: [Reduction::Tag(Tag::Earth, 3)], ptrig: [],
+          research: None, forest: 0, heat_as_mc: false, flex: false, tr_boost: None),
+    // 218 Tharsis Republic — « You start with 40 MC. EFFECT: When you draw cards
+    // during the research phase, draw one additional card and keep one additional
+    // card. » (texte identique à Interplanetary Relations, lot 4.)
+    corp!("Tharsis Republic", prod: NO_PROD, draw: 0,
+          red: [], ptrig: [],
+          research: Some(ResearchBonus { draw: 1, keep: 1 }),
+          forest: 0, heat_as_mc: false, flex: false, tr_boost: None),
+    // 219 Thorgate — « You start with 1 heat production and 45 MC. EFFECT: When
+    // you play a [energy], you pay 3 MC less for it. »
+    corp!("Thorgate Corporation", prod: StartProd { mc: 0, heat: 1, plants: 0 }, draw: 0,
+          red: [Reduction::Tag(Tag::Energy, 3)], ptrig: [],
+          research: None, forest: 0, heat_as_mc: false, flex: false, tr_boost: None),
+    // 220 United Nations Mars Initiative — « You start with 35 MC. EFFECT: The
+    // first time your TR is raised each phase, you may pay 6 MC to raise your TR
+    // 1 step. »
+    corp!("Unmi", prod: NO_PROD, draw: 0,
+          red: [], ptrig: [],
+          research: None, forest: 0, heat_as_mc: false, flex: false,
+          tr_boost: Some(TrBoost { cost_mc: 6, steps: 1 })),
+];
+
+/// Cherche l'encodage d'une corporation par nom exact.
+pub fn corp_lookup(name: &str) -> Option<&'static CorpEffects> {
+    CORPS.iter().find(|(n, _)| *n == name).map(|(_, e)| e)
+}

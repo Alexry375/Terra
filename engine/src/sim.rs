@@ -224,6 +224,14 @@ pub struct GameOutcome {
     /// Cartes supplémentaires piochées en phase Recherche grâce au bonus
     /// permanent (`flow::phase_research`).
     pub research_extra_draws: u64,
+    /// (corpo-1) Chaleur convertie en MC par Helion.
+    pub corp_heat_as_mc: u64,
+    /// (corpo-1) Forêts payées à prix réduit par Ecoline.
+    pub corp_forest_rebates: u64,
+    /// (corpo-1) Pas de NT achetés 6 MC par Unmi.
+    pub corp_tr_boosts: u64,
+    /// (corpo-1) Pas de NT accordés par un déclencheur de corporation.
+    pub corp_trigger_tr: u64,
 }
 
 /// Joue une partie complète (politique fournie), invariants vérifiés à chaque
@@ -266,6 +274,10 @@ pub fn play_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameOutcom
         derived_plants: game.derived_plants,
         tr_from_tags: game.tr_from_tags,
         research_extra_draws: game.research_extra_draws,
+        corp_heat_as_mc: game.corp_heat_as_mc,
+        corp_forest_rebates: game.corp_forest_rebates,
+        corp_tr_boosts: game.corp_tr_boosts,
+        corp_trigger_tr: game.corp_trigger_tr,
     }
 }
 
@@ -315,6 +327,14 @@ pub struct SimSummary {
     /// Cartes supplémentaires piochées en phase Recherche grâce au bonus
     /// permanent (`flow::phase_research`).
     pub research_extra_draws: u64,
+    /// (corpo-1) Chaleur convertie en MC par Helion.
+    pub corp_heat_as_mc: u64,
+    /// (corpo-1) Forêts payées à prix réduit par Ecoline.
+    pub corp_forest_rebates: u64,
+    /// (corpo-1) Pas de NT achetés 6 MC par Unmi.
+    pub corp_tr_boosts: u64,
+    /// (corpo-1) Pas de NT accordés par un déclencheur de corporation.
+    pub corp_trigger_tr: u64,
 }
 
 /// Lance `games` parties aléatoires. Graine unique : un RNG maître seedé par
@@ -351,6 +371,10 @@ pub fn run_simulation(
     let mut derived_plants = 0u64;
     let mut tr_from_tags = 0u64;
     let mut research_extra_draws = 0u64;
+    let mut corp_heat_as_mc = 0u64;
+    let mut corp_forest_rebates = 0u64;
+    let mut corp_tr_boosts = 0u64;
+    let mut corp_trigger_tr = 0u64;
 
     let t0 = std::time::Instant::now();
     for _ in 0..games {
@@ -384,6 +408,10 @@ pub fn run_simulation(
         derived_plants += out.derived_plants;
         tr_from_tags += out.tr_from_tags;
         research_extra_draws += out.research_extra_draws;
+        corp_heat_as_mc += out.corp_heat_as_mc;
+        corp_forest_rebates += out.corp_forest_rebates;
+        corp_tr_boosts += out.corp_tr_boosts;
+        corp_trigger_tr += out.corp_trigger_tr;
         turn_orders.push(out.turn_order);
         agg.write_u64(out.state_hash);
     }
@@ -418,5 +446,9 @@ pub fn run_simulation(
         derived_plants,
         tr_from_tags,
         research_extra_draws,
+        corp_heat_as_mc,
+        corp_forest_rebates,
+        corp_tr_boosts,
+        corp_trigger_tr,
     }
 }

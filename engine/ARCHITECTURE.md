@@ -258,6 +258,87 @@ gagne toujours.
   seule l'entrée du deck v1 est canonique ; elle seule reçoit l'effet, le
   jumeau reste un stub. Chemin unique (table d'effets, sonde, tests).
 
+## Corporations (chantier corpo-1)
+
+Les **12 planches de corporation de la boîte de base** ont leurs effets. Source
+du texte : `inputs/textes-cartes.json` champ `text` — surtout PAS le champ
+`description` de `cards.json`, faux de bout en bout sur quatre d'entre elles
+(Interplanetary Cinematics, Mining Guild, Phobolog, Saturn Systems : la
+paraphrase supprime une réduction imprimée et invente une production d'acier ou
+de titane). Diagnostic complet, verdicts et preuves : `outputs/corporations.md`.
+
+- **Table déclarative `effects::CORPS`** (12 entrées `(nom, CorpEffects)`, macro
+  `corp!`), même discipline que `LOT1` : des données interprétées par `flow`,
+  zéro exception codée par corporation. `CorpEffects` réemploie le vocabulaire
+  des cartes (`Reduction`, `PlayTrigger`, `ResearchBonus`, productions fixes) et
+  l'étend de quatre champs que le texte imprimé exige : `forest_plant_rebate`
+  (Ecoline), `heat_as_mc` (Helion), `req_color_flex` (Inventrix), `tr_boost`
+  (Unmi). Deux ajouts au vocabulaire des cartes : `Reduction::MinPrice { min,
+  amount }` (Credicor, seuil sur le prix IMPRIMÉ) et `TrigGain::Tr(n)`
+  (Saturn Systems).
+- **La pioche de corporations, c'est cette table.** `CardsDb::load` ne retient
+  que les entrées `in_deck_v1` de `cards.json` dont le nom y figure : le double
+  critère écarte à la fois le jumeau hors-pioche « Teractor Corporation » (48 MC
+  contre 51) et les quatre corporations `in_deck_v1` sans planche imprimée
+  (Apollo Industries, Exocorp, Hyperion Systems, Sultira), toutes bâties sur
+  l'amélioration de carte Phase que le moteur saute. Garde-fous : chaque entrée
+  de `CORPS` doit résoudre vers exactement une corporation `in_deck_v1`, et le
+  compte final doit valoir `CORPS.len()`. *Branchement du chantier « améliorations
+  de phase »* : ajouter les quatre entrées à `CORPS` suffit à les remettre dans
+  la pioche. L'invariant de conservation (`sim.rs`) porte sur
+  `db.corporations.len()` : il vaut 12 sans modification.
+- **Mise en place** : service unique `flow::install_corporation` (MC de départ,
+  badges, production de départ sur les pistes FIXES `*_prod`, pioche de départ),
+  emprunté par `setup_game` ET par `--probe-corp`. Les productions de départ
+  d'Ecoline (1 plante), Helion (3 chaleur) et Thorgate (1 chaleur) sont donc
+  reprises par `phase_production` à CHAQUE génération, jamais une seule fois.
+- **Services alimentés, jamais dupliqués** : `card_discount` (réductions),
+  `research_extra` (Tharsis Republic, même cumul qu'Interplanetary Relations),
+  `fire_play_triggers` (la corporation est une source de déclencheurs, `src =
+  None` puisqu'elle ne porte pas de ressources), `phase_production`. Trois
+  services NEUFS, chacun unique : `forest_plant_cost` (offre de l'action,
+  paiement et conversion obligatoire lisent le même coût), `spendable_mc` /
+  `top_up_mc_with_heat` (Helion : la chaleur est du MC partout où des MC se
+  dépensent — pose, actions standard, actions bleues, bonus Unmi), et `gain_tr`,
+  enveloppe de `PlayerState::gain_tr` posée sur les 7 sites de hausse de NT, qui
+  porte le `TrBoost` d'Unmi.
+- **Chaleur réservée** (`heat_reserved_by`) : la chaleur qu'un prérequis
+  « Requires you to spend N heat » engage n'est pas convertible en MC par Helion,
+  à l'affordabilité comme au paiement — sans quoi la dépense de pose deviendrait
+  impayable.
+- **Choix du joueur** : le `TrBoost` d'Unmi passe par `Policy::choose_option`
+  (branche 0 = payer, l'option imprimée ; branche 1 = renoncer), offert seulement
+  si les 6 MC sont payables — même mécanique que la réduction payée en microbes
+  du lot 3, donc scriptable par `--probe-choice`. Le drapeau
+  `PlayerState::tr_raised_this_phase` (« the FIRST TIME each phase ») est remis à
+  zéro au début de chaque phase exécutée, à côté de `snapshot_planet`.
+- **`--effects off`** coupe TOUS les effets de corporation, productions de départ
+  comprises. Le MC de départ et les badges restent (c'est la planche), et la
+  composition de la pioche aussi (composer la boîte n'est pas un effet).
+- **Quatre compteurs d'audit** dans la ligne JSON, incrémentés au site du
+  mécanisme, nuls en `--effects off` : `corp_heat_as_mc`, `corp_forest_rebates`,
+  `corp_tr_boosts`, `corp_trigger_tr`.
+
+### Options de sonde du chantier corpo-1
+
+- **`--dump-corporations`** : une ligne JSON par corporation de la pioche, dans
+  l'ordre de chargement — `{"name","starting_mc","tags","encoded"}`. `encoded` =
+  la corporation porte un effet dans `CORPS`.
+- **`--probe-corp "<nom>"`** : impose la corporation au joueur sondé, à la place
+  du tirage, par `install_corporation`. S'ajoute à `--probe`, `--probe-produce`
+  et `--probe-action`. La sortie gagne un objet `corp`
+  (`{"name","found","encoded","starting_mc","start_prod"}`) — **émis uniquement
+  avec cette option**, pour que les sondes existantes gardent exactement leur
+  sortie d'avant. Nom inconnu → `found: false`, la sonde ne s'interrompt pas.
+  Employée sans `--probe` mais avec `--probe-produce`, elle met la corporation en
+  place et exécute une phase IV : `card` est vide, `played` faux, et `delta`
+  porte ce que la production a crédité.
+  Deux conventions : le MC du joueur sondé reste celui de `--probe-mc` (100 par
+  défaut), `corp.starting_mc` DÉCLARE la valeur imprimée sans l'appliquer ; la
+  corporation est installée avant l'évaluation des prérequis (sans quoi le palier
+  ±1 d'Inventrix serait invisible) et `delta.hand` est calculé sur la main
+  d'avant installation (pour que la pioche de départ d'Inventrix y apparaisse).
+
 ## Représentation de l'état
 
 Tout l'état d'une partie tient dans `GameState` (`src/state.rs`) :
@@ -466,9 +547,8 @@ Explicitement hors périmètre, structure prête :
   mêlant un mécanisme du lot 2 ET un de ceux-ci reste HORS lot 2 (fidélité
   totale ou rien) ; idem une carte dont le nom se dédouble avec une variante
   « Buffed » (Greenhouses, Community Gardens : ambiguës par nom, exclues).
-- **Corporations** : entrent en jeu avec leurs tags ; MC de départ = champ
-  `price` du JSON (vérifié contre le Java : Credicor 48). Productions de
-  départ et pouvoirs : stubbés.
+- **Corporations** : traité au chantier corpo-1, ce n'est PLUS un stub — voir
+  §Corporations (chantier corpo-1).
 - **Améliorations de phases (Discovery)** : `phase_upgrades` par joueur,
   toujours `None` ; les bonus de sélectionneur utilisent les valeurs de base.
   *Branchement* : `PhaseUpgrade::VariantA/B` par phase, consommé aux mêmes
@@ -580,6 +660,12 @@ Explicitement hors périmètre, structure prête :
   (tri et complétude de `resources`, cible imposée absente, absence de cible,
   filtrage des branches, VP de ressources au score RÉEL, compteurs d'audit en
   flux réel, `--effects off`, déterminisme, piège des classes « Buffed »).
+- `tests/lot_corp_tests.rs` — 34 tests du chantier corpo-1 : la pioche à 12
+  (dont le piège Teractor), les productions de départ et leur RÉPÉTITION à la
+  seconde phase IV, un test nommant chacune des 12 corporations, les services
+  uniques, `--effects off`, l'interface de sonde et le déterminisme. La
+  corporation d'un joueur n'y est jamais posée à la main : un utilitaire cherche
+  la première graine à laquelle le TIRAGE RÉEL la donne au joueur 0.
 - `tests/lot2_tests.rs` — 53 tests du lot 2 : un par carte (47, sonde →
   état de jeu comparé au texte imprimé : réductions via `paid`, déclencheurs et
   actions via delta) + intégration (réduction dans l'affordabilité, compteur

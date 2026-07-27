@@ -24,8 +24,9 @@
 
 use crate::cards::CardsDb;
 use crate::flow::{
-    apply_blue_action, build_card_with, card_discount, card_points, payable, phase_production,
-    requirements_met, requirements_met_now,
+    apply_blue_action, build_card_with, card_discount, card_points, install_corporation, payable,
+    heat_reserved_by, phase_production, requirements_met, requirements_met_now,
+    spendable_mc_reserving,
 };
 use crate::policy::{ActionOpt, ConstructionBonus, Policy, RandomPolicy};
 use crate::state::*;
@@ -98,6 +99,26 @@ pub struct ProbeResult {
     /// jouée, par ressource posée). Lu sur `card_points`, jamais recalculé.
     /// Le champ `vp`, lui, ne rapporte que la dernière carte : il ne change pas.
     pub vp_total: i64,
+    /// (corpo-1) Corporation imposée par `--probe-corp` ; `None` sans l'option
+    /// (la sortie de la sonde est alors celle des lots précédents, à l'identique).
+    pub corp: Option<ProbeCorp>,
+}
+
+/// (corpo-1) Corporation imposée à la sonde par `--probe-corp` : ce que le
+/// moteur a réellement mis en place. `found: false` = nom inconnu de la pioche
+/// chargée ; la sonde ne s'interrompt pas pour autant, elle rend `found: false`
+/// et se déroule sans corporation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProbeCorp {
+    pub name: String,
+    pub found: bool,
+    /// La corporation porte-t-elle un effet dans la table `effects::CORPS` ?
+    pub encoded: bool,
+    /// MC de départ imprimé (DÉCLARÉ ; l'état de la sonde garde ses `--probe-mc`
+    /// MC — voir journal D8).
+    pub starting_mc: i64,
+    /// Production de départ inscrite sur les pistes fixes du joueur sondé.
+    pub start_prod: (i64, i64, i64),
 }
 
 /// Une carte porteuse et son contenu (champ `resources` de la sonde).
@@ -145,6 +166,8 @@ pub struct ProbeActionResult {
     pub resources: Vec<ProbeRes>,
     /// (lot 3) Voir `ProbeResult::target_error`.
     pub target_error: Option<String>,
+    /// (corpo-1) Voir `ProbeResult::corp`.
+    pub corp: Option<ProbeCorp>,
 }
 
 // ============================================================ script de sonde
@@ -327,7 +350,63 @@ fn probe_resource_vp(game: &GameState, db: &CardsDb) -> i64 {
 /// `opts.mc` MC et `opts.filler` cartes de remplissage prises en tête de pioche
 /// (elles sont AJOUTÉES APRÈS les cartes de la séquence : celle-ci reste en
 /// tête de main, la pose se fait toujours à l'indice 0).
-fn probe_state(db: &CardsDb, ids: &[u16], opts: ProbeOptions) -> GameState {
+/// (corpo-1) Même état de départ, corporation imposée en plus. Renvoie l'état,
+/// le descriptif de la corporation (`None` si `--probe-corp` n'est pas donné) et
+/// la TAILLE DE MAIN D'AVANT l'installation — c'est elle qui sert de base au
+/// `delta.hand`, pour que la pioche de départ d'une corporation (Inventrix : 3
+/// cartes) apparaisse dans le delta sans changer la convention des lots
+/// précédents (journal D9).
+///
+/// La corporation est installée par le service unique `flow::install_corporation`
+/// (badges, production de départ, pioche de départ), PUIS le MC du joueur sondé
+/// est ramené à `opts.mc` : l'état de départ fixe de la sonde reste son contrat,
+/// et `corp.starting_mc` rapporte la valeur imprimée sans l'appliquer (D8).
+fn probe_state_corp(
+    db: &CardsDb,
+    ids: &[u16],
+    opts: ProbeOptions,
+    corp_name: Option<&str>,
+) -> (GameState, Option<ProbeCorp>, usize) {
+    let mut game = probe_state_base(db, ids, opts);
+    let hand_before = game.players[0].hand.len();
+    let Some(name) = corp_name else {
+        return (game, None, hand_before);
+    };
+    let Some(cid) = db.corporations.iter().position(|c| c.name == name) else {
+        return (
+            game,
+            Some(ProbeCorp {
+                name: name.to_string(),
+                found: false,
+                encoded: false,
+                starting_mc: 0,
+                start_prod: (0, 0, 0),
+            }),
+            hand_before,
+        );
+    };
+    install_corporation(&mut game, db, 0, cid as u16);
+    game.players[0].mc = opts.mc;
+    let corp = &db.corporations[cid];
+    let sp = corp
+        .effect
+        .filter(|_| db.effects_on)
+        .map(|s| s.start_prod)
+        .unwrap_or_default();
+    (
+        game,
+        Some(ProbeCorp {
+            name: corp.name.clone(),
+            found: true,
+            encoded: corp.effect.is_some(),
+            starting_mc: corp.starting_mc,
+            start_prod: (sp.mc, sp.heat, sp.plants),
+        }),
+        hand_before,
+    )
+}
+
+fn probe_state_base(db: &CardsDb, ids: &[u16], opts: ProbeOptions) -> GameState {
     let mut deck: Vec<u16> = (0..db.projects.len() as u16)
         .filter(|&c| !ids.contains(&c) && db.projects[c as usize].in_deck_v1)
         .collect();
@@ -384,6 +463,10 @@ fn probe_state(db: &CardsDb, ids: &[u16], opts: ProbeOptions) -> GameState {
         derived_plants: 0,
         tr_from_tags: 0,
         research_extra_draws: 0,
+        corp_heat_as_mc: 0,
+        corp_forest_rebates: 0,
+        corp_tr_boosts: 0,
+        corp_trigger_tr: 0,
     };
     game.snapshot_planet();
     game
@@ -466,6 +549,18 @@ pub fn run_probe_seq_scripted(
     run_probe_seq_full(db, names, opts, script, false)
 }
 
+/// Sonde séquence complète du lot 4 (sans corporation imposée). Façade
+/// conservée : `--probe-corp` absent = comportement des lots précédents.
+pub fn run_probe_seq_full(
+    db: &CardsDb,
+    names: &[&str],
+    opts: ProbeOptions,
+    script: &ProbeScript,
+    produce: bool,
+) -> ProbeResult {
+    run_probe_seq_corp(db, names, opts, script, produce, None)
+}
+
 /// Sonde séquence complète du lot 4 : `produce = true` (`--probe-produce`)
 /// exécute, APRÈS la séquence, la VRAIE phase IV du moteur
 /// (`flow::phase_production`) — ni copie ni calcul parallèle.
@@ -474,55 +569,87 @@ pub fn run_probe_seq_scripted(
 /// DÉPART de la sonde (MC, monnaie de défausse, mode strict), alors qu'il
 /// s'agit ici d'une action jouée après la pose. `produce = false` reproduit à
 /// l'identique le comportement des lots précédents.
-pub fn run_probe_seq_full(
+/// (corpo-1) `corp` = nom imposé par `--probe-corp`. La corporation est mise en
+/// place AVANT tout — donc avant l'évaluation des prérequis, sans quoi le palier
+/// de couleur ±1 d'Inventrix serait invisible (journal D9).
+///
+/// La séquence de cartes peut être VIDE (`--probe-corp` employé sans `--probe`,
+/// avec `--probe-produce`) : la sonde met alors la corporation en place, exécute
+/// la phase de production, et rend `card: ""`, `found: false`, `played: false`.
+pub fn run_probe_seq_corp(
     db: &CardsDb,
     names: &[&str],
     opts: ProbeOptions,
     script: &ProbeScript,
     produce: bool,
+    corp_name: Option<&str>,
 ) -> ProbeResult {
+    // `names` VIDE = `--probe-corp` employé sans `--probe`. C'est le seul cas
+    // nouveau : toute séquence non vide, y compris `["Grass", ""]` que produit
+    // `--probe "Grass;"`, suit exactement le chemin des lots précédents (nom
+    // final irrésolu → `found:false`, `paid:[]`). La CLI ne fabrique jamais de
+    // nom vide pour signaler l'absence de séquence : elle passe une tranche vide.
     let last = *names.last().unwrap_or(&"");
 
-    let Some(last_id) = resolve(db, last) else {
-        // Dernière carte introuvable : résultat « non trouvée » (comme lot 1).
-        return ProbeResult {
-            card: last.to_string(),
-            found: false,
-            in_lot: false,
-            prereq_ok: false,
-            prereq_ok_now: false,
-            played: false,
-            delta: ProbeDelta::default(),
-            vp: 0,
-            paid: Vec::new(),
-            discarded: Vec::new(),
-            resources: Vec::new(),
-            target_error: None,
-            produced: false,
-            derived_prod: (0, 0, 0),
-            vp_total: 0,
-        };
+    // Séquence vide (`--probe-corp` seul) : rien à résoudre, la sonde continue.
+    // Le test porte sur la TRANCHE, pas sur le nom : `--probe "Grass;"` a bien
+    // une séquence (dont le dernier nom est vide) et doit rendre `found:false`,
+    // `paid:[]`, comme aux lots précédents.
+    let last_id: Option<u16> = if names.is_empty() {
+        None
+    } else {
+        match resolve(db, last) {
+            Some(id) => Some(id),
+            None => {
+                // Dernière carte introuvable : résultat « non trouvée »
+                // (comportement du lot 1, inchangé).
+                let (_, corp, _) = probe_state_corp(db, &[], opts, corp_name);
+                return ProbeResult {
+                    card: last.to_string(),
+                    found: false,
+                    in_lot: false,
+                    prereq_ok: false,
+                    prereq_ok_now: false,
+                    played: false,
+                    delta: ProbeDelta::default(),
+                    vp: 0,
+                    paid: Vec::new(),
+                    discarded: Vec::new(),
+                    resources: Vec::new(),
+                    target_error: None,
+                    produced: false,
+                    derived_prod: (0, 0, 0),
+                    vp_total: 0,
+                    corp,
+                };
+            }
+        }
     };
 
     // Cartes résolues, dans l'ordre (les noms inconnus sont ignorés à la pose).
     let ids: Vec<u16> = names.iter().filter_map(|n| resolve(db, n)).collect();
 
-    let mut game = probe_state(db, &ids, opts);
-    // prérequis de la DERNIÈRE carte, dans l'état de départ (comme lot 1).
-    let prereq_ok = requirements_met(&game, db, 0, last_id);
+    let (mut game, corp, hand_before_corp) = probe_state_corp(db, &ids, opts, corp_name);
+    // prérequis de la DERNIÈRE carte, dans l'état de départ (comme lot 1) —
+    // corporation comprise, puisqu'elle est déjà en place.
+    let prereq_ok = last_id.map_or(false, |id| requirements_met(&game, db, 0, id));
     // Évalué juste avant la pose de la dernière carte ; valeur de départ si la
     // séquence s'arrête avant d'y arriver.
-    let mut prereq_ok_now = requirements_met_now(&game, db, 0, last_id);
+    let mut prereq_ok_now = last_id.map_or(false, |id| requirements_met_now(&game, db, 0, id));
 
     let n = ids.len();
     // Base du delta de main : sans monnaie de défausse, convention du lot 1/2
     // (« delta.hand exclut la carte jouée ») ; avec `--probe-filler`, la main
     // initiale COMPLÈTE, pour que le delta compte tout ce qui quitte la main
     // (cartes posées + cartes défaussées pour payer). Voir journal §Decision Log.
+    // (corpo-1) `hand_before_corp` = main d'AVANT la mise en place de la
+    // corporation : sans `--probe-corp` c'est exactement `hand.len()`, la
+    // convention des lots précédents est donc bit à bit conservée ; avec, la
+    // pioche de départ (Inventrix, 3 cartes) devient visible dans `delta.hand`.
     let hand0 = if opts.filler > 0 {
-        game.players[0].hand.len() as i64
+        hand_before_corp as i64
     } else {
-        (game.players[0].hand.len() - n) as i64
+        (hand_before_corp - n) as i64
     };
     let before = snap(&game);
 
@@ -546,7 +673,13 @@ pub fn run_probe_seq_full(
         // Payabilité : vérifiée dans les DEUX modes — le mode forcé ignore les
         // prérequis, pas le paiement (sans quoi `build_card_with` casserait sur
         // un état volontairement impayable via `--probe-mc`).
-        if !payable(game.players[0].mc, game.players[0].hand.len(), cost) {
+        // (corpo-1) Helion : la chaleur compte dans l'affordabilité, par le
+        // service unique du moteur.
+        if !payable(
+            spendable_mc_reserving(db, &game.players[0], heat_reserved_by(db, id)),
+            game.players[0].hand.len(),
+            cost,
+        ) {
             break;
         }
         paid.push(cost);
@@ -570,14 +703,14 @@ pub fn run_probe_seq_full(
 
     let after = snap(&game);
     let total_paid: i64 = paid.iter().sum();
-    let played = game.players[0].played.contains(&last_id);
-    let last_card = &db.projects[last_id as usize];
+    let played = last_id.map_or(false, |id| game.players[0].played.contains(&id));
+    let last_card = last_id.map(|id| &db.projects[id as usize]);
     let hand_delta = game.players[0].hand.len() as i64 - hand0;
 
     ProbeResult {
         card: last.to_string(),
-        found: true,
-        in_lot: db.effects_on && last_card.effect.is_some(),
+        found: last_id.is_some(),
+        in_lot: db.effects_on && last_card.map_or(false, |c| c.effect.is_some()),
         prereq_ok,
         prereq_ok_now,
         played,
@@ -586,7 +719,7 @@ pub fn run_probe_seq_full(
         // venant des RESSOURCES posées sur toutes les cartes en jeu — c'est ce
         // que le lot 3 rend observable (journal D6). Les VP dynamiques non liés
         // aux ressources (JUPITER, BLUE_CARD…) restent hors de ce champ.
-        vp: last_card.vp + probe_resource_vp(&game, db),
+        vp: last_card.map_or(0, |c| c.vp) + probe_resource_vp(&game, db),
         paid,
         discarded,
         resources: probe_resources(&game, db),
@@ -599,6 +732,7 @@ pub fn run_probe_seq_full(
             .iter()
             .map(|&c| card_points(db, &game.players[0], c).0)
             .sum(),
+        corp,
     }
 }
 
@@ -615,7 +749,18 @@ pub fn run_probe_action_scripted(
     name: &str,
     script: &ProbeScript,
 ) -> ProbeActionResult {
+    run_probe_action_corp(db, name, script, None)
+}
+
+/// (corpo-1) Sonde action avec corporation imposée (`--probe-corp`).
+pub fn run_probe_action_corp(
+    db: &CardsDb,
+    name: &str,
+    script: &ProbeScript,
+    corp_name: Option<&str>,
+) -> ProbeActionResult {
     let Some(card_id) = resolve(db, name) else {
+        let (_, corp, _) = probe_state_corp(db, &[], ProbeOptions::default(), corp_name);
         return ProbeActionResult {
             card: name.to_string(),
             found: false,
@@ -625,6 +770,7 @@ pub fn run_probe_action_scripted(
             delta: ProbeDelta::default(),
             resources: Vec::new(),
             target_error: None,
+            corp,
         };
     };
 
@@ -632,7 +778,8 @@ pub fn run_probe_action_scripted(
     let in_lot = db.effects_on && card.effect.is_some();
     let has_action = in_lot && card.effect.and_then(|e| e.action).is_some();
 
-    let mut game = probe_state(db, &[card_id], ProbeOptions::default());
+    let (mut game, corp, _) =
+        probe_state_corp(db, &[card_id], ProbeOptions::default(), corp_name);
     // Pose (état de référence du delta d'action) — même chemin que `simulate`,
     // avec la politique de sonde (identique à RandomPolicy si le script est
     // vide).
@@ -660,5 +807,6 @@ pub fn run_probe_action_scripted(
         delta: make_delta(&before, &after, hand_delta, 0),
         resources: probe_resources(&game, db),
         target_error: pol.error.clone(),
+        corp,
     }
 }

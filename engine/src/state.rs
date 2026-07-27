@@ -179,6 +179,11 @@ pub struct PlayerState {
     pub extra_blue_activations: u8,
     /// Améliorations de phase Discovery — structure stub, toujours None (D14).
     pub phase_upgrades: [Option<PhaseUpgrade>; 5],
+    /// (corpo-1) Le NT de ce joueur a-t-il déjà été haussé pendant la phase en
+    /// cours ? Remis à `false` au début de chaque phase réellement exécutée
+    /// (`flow::play_round`, à côté de `snapshot_planet`). Sert au seul
+    /// `TrBoost` d'Unmi (« The FIRST TIME your TR is raised EACH PHASE »).
+    pub tr_raised_this_phase: bool,
     /// Compteur d'audit : nombre d'incréments de TR accordés (invariant TR).
     pub tr_increments: u64,
     /// Compteur d'audit : TR dépensés (« Requires you to spend 1 TR »).
@@ -222,6 +227,7 @@ impl PlayerState {
             previous_phase: None,
             extra_blue_activations: 0,
             phase_upgrades: [None; 5],
+            tr_raised_this_phase: false,
             tr_increments: 0,
             tr_decrements: 0,
             card_resources: BTreeMap::new(),
@@ -370,6 +376,21 @@ pub struct GameState {
     /// grâce au bonus permanent (Interplanetary Relations). Incrémenté dans
     /// `flow::phase_research`, au site de pioche. 0 en `--effects off`.
     pub research_extra_draws: u64,
+    // -------------------------------------------------- lot corporations
+    // Quatre compteurs qui rendent les effets de corporation observables EN
+    // PARTIE RÉELLE (et pas seulement en sonde). Chacun est incrémenté à
+    // l'endroit exact du mécanisme, jamais dans une fonction de résumé. Tous
+    // nuls en `--effects off` (les effets de corporation y sont coupés).
+    /// Chaleur convertie en MC par Helion (`flow::top_up_mc_with_heat`).
+    pub corp_heat_as_mc: u64,
+    /// Forêts construites en plantes à prix réduit par Ecoline
+    /// (`flow::forest_plant_cost`, relevé dans `flow::build_forest`).
+    pub corp_forest_rebates: u64,
+    /// Pas de NT achetés 6 MC par Unmi (`flow::gain_tr`).
+    pub corp_tr_boosts: u64,
+    /// Pas de NT accordés par un déclencheur de pose de corporation
+    /// (Saturn Systems), comptés dans `flow::apply_trig_gain`.
+    pub corp_trigger_tr: u64,
 }
 
 impl GameState {
