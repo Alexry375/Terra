@@ -1,2 +1,17 @@
+# Fichiers volumineux ou reconstructibles : jamais versionnes.
+
+# Images sources (droits d'auteur + poids)
 data/scans/
 data/regles/photos-originales/
+
+# Artefacts de compilation Rust (reconstructibles par `cargo build`)
+engine/target/
+target/
+
+# Ateliers de travail des sous-agents (promus manuellement quand audites)
+workspaces/*/outputs/work/
+
+# Divers systeme
+*.pyc
+__pycache__/
+.DS_Store
