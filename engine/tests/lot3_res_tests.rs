@@ -374,16 +374,32 @@ fn conserved_biome_action_offers_microbe_then_animal() {
 }
 
 #[test]
-fn viral_enhancers_is_a_flat_one_not_multiplied_by_tags() {
+fn viral_enhancers_resolves_once_per_matching_tag() {
+    // ASSERTION RENFORCÉE par le chantier moteur-verite-1 (journal §D4).
+    //
+    // Ce test affirmait un gain FORFAITAIRE de 1, recopié du moteur Java. Le
+    // livret officiel dit l'inverse (p.9 l.106) : « Si la condition d'un effet
+    // est remplie plusieurs fois lorsqu'une carte est jouée, résolvez l'effet
+    // correspondant plusieurs fois. » Viral Enhancers porte [microbe] ET
+    // [plant] : sa propre pose remplit deux fois la condition « When you play a
+    // [animal], [microbe], or [plant], including these » → DEUX résolutions.
+    // Le test n'est pas supprimé, il est aligné sur le texte imprimé.
     let db = db();
-    // Ses propres tags MICROBE + PLANT déclenchent l'effet, mais le gain est
-    // FORFAITAIRE : 1 plante, pas 2.
-    let alone = seq(&db, &["Viral Enhancers"], &[0], &[]);
-    assert_eq!(alone.delta.plants, 1);
-    // Branche « poser sur une AUTRE carte » : 1 ressource, pas 2.
-    let put = seq(&db, &["Tardigrades", "Viral Enhancers"], &[1], &["Tardigrades"]);
-    assert_eq!(res(&put, "Tardigrades"), Some(1));
+    let alone = seq(&db, &["Viral Enhancers"], &[0, 0], &[]);
+    assert_eq!(alone.delta.plants, 2, "2 badges satisfaisants = 2 résolutions");
+    // Branche « poser sur une AUTRE carte », deux fois : 2 ressources.
+    let put = seq(
+        &db,
+        &["Tardigrades", "Viral Enhancers"],
+        &[1, 1],
+        &["Tardigrades", "Tardigrades"],
+    );
+    assert_eq!(res(&put, "Tardigrades"), Some(2));
     assert_eq!(put.delta.plants, 0);
+    // Une carte à UN seul badge satisfaisant ne donne bien qu'une résolution :
+    // la règle multiplie par la condition remplie, elle ne double pas tout.
+    let one = seq(&db, &["Viral Enhancers", "Algae"], &[0, 0, 0], &[]);
+    assert_eq!(one.delta.plants, 3, "2 (sa pose) + 1 (Algae, un seul badge [plant])");
 }
 
 #[test]

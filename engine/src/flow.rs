@@ -995,9 +995,19 @@ fn apply_trig_gain(
         TrigGain::ResSelf(n) => {
             add_resources(game, db, p, src, n * mult.max(0) as u32)
         }
-        // (lot 3) Alternative : appliquée UNE fois par déclenchement — les deux
-        // cartes concernées (Viral Enhancers, Decomposers) sont au forfait.
-        TrigGain::Choose(branches) => apply_choice(game, db, p, src, branches, policy),
+        // (lot 3, CORRIGÉ par moteur-verite-1) Alternative : résolue `mult`
+        // fois, comme tout autre gain. Le livret p.9 l.106 tranche : « Si la
+        // condition d'un effet est remplie plusieurs fois lorsqu'une carte est
+        // jouée, résolvez l'effet correspondant plusieurs fois. » Une carte à
+        // deux badges satisfaisants (Adapted Lichen = [microbe]+[plant])
+        // déclenche donc DEUX résolutions de Viral Enhancers / Decomposers.
+        // Chaque résolution rappelle la politique : le joueur peut choisir une
+        // branche différente à chaque fois, ce que le texte imprimé autorise.
+        TrigGain::Choose(branches) => {
+            for _ in 0..mult.max(0) {
+                apply_choice(game, db, p, src, branches, policy);
+            }
+        }
     }
 }
 

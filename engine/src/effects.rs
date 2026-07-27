@@ -333,8 +333,20 @@ pub enum TrigGain {
     /// Ecological Zone, Anaerobic Microorganisms).
     ResSelf(u32),
     /// (lot 3) Alternative offerte au joueur (Viral Enhancers, Decomposers).
-    /// Appliquée UNE fois par déclenchement : elle n'est jamais multipliée par
-    /// le nombre de tags (les deux cartes concernées sont au forfait).
+    ///
+    /// **CORRIGÉ par moteur-verite-1** — ce commentaire disait l'inverse :
+    /// « appliquée UNE fois par déclenchement, jamais multipliée par le nombre
+    /// de tags (les deux cartes concernées sont au forfait) ». C'était faux, et
+    /// recopié du moteur Java. Le livret officiel (p.9, l.106) tranche : « Si la
+    /// condition d'un effet est remplie plusieurs fois lorsqu'une carte est
+    /// jouée, résolvez l'effet correspondant plusieurs fois. »
+    ///
+    /// `Choose` obéit donc au même `mult` que tous les autres gains : elle est
+    /// résolue une fois par condition remplie, et **la politique est
+    /// reconsultée à chaque résolution** — le joueur peut prendre une branche
+    /// différente à chaque fois, ce que le texte imprimé autorise. Une carte à
+    /// deux badges satisfaisants déclenche deux résolutions.
+    /// Voir `flow::apply_trig_gain`.
     Choose(&'static [&'static [ResEff]]),
 }
 
@@ -972,7 +984,7 @@ pub static LOT1: &[(&str, CardEffects)] = &[
                         &[ResEff::Gain(Plants(1))],
                         &[put_another(K_MICROBE_ANIMAL, 1)],
                     ])],
-                    scale_by_matched_tags: false, include_self: true }],
+                    scale_by_matched_tags: true, include_self: true }],
           gtrig: [], action: None, holds: None, on_build: []),
     // « Requires red oxygen or higher. When you play an Animal, Microbe, or
     //   Plant, including this, add a microbe here or remove a microbe from here
@@ -984,7 +996,7 @@ pub static LOT1: &[(&str, CardEffects)] = &[
                         &[put_self(1)],
                         &[ResEff::RemoveSelf(1), ResEff::Gain(Draw(1))],
                     ])],
-                    scale_by_matched_tags: false, include_self: true }],
+                    scale_by_matched_tags: true, include_self: true }],
           gtrig: [], action: None,
           holds: Some(ResKind::Microbe), on_build: []),
     // « Add 2 microbes to ANOTHER card. During the production phase, this

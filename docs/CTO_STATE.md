@@ -20,6 +20,84 @@ Dernière mise à jour : 2026-07-26
   221 cartes transcrites de `textes-cartes` n'existent que sur le disque local
   tant qu'elles ne sont pas auditées et promues. [VÉRIFIÉ 26-07]
 
+## LE MOTEUR EST FIABLE (27-07) — `moteur-verite-1`, audité OK et promu
+
+**La question qui bloquait le projet est tranchée : le moteur n'a PAS hérité en
+masse des erreurs de la paraphrase.**
+
+- Périmètre : les **66 cartes** nommées en §G1/§G2 de `docs/cartes/divergences.md`.
+  Résultat : **35 encodées, dont 33 CONFORMES au texte imprimé et 2 fausses
+  (corrigées)** ; les 31 autres ne sont pas encodées du tout.
+  Rapport complet : `docs/cartes/moteur-vs-imprime.md`. [VÉRIFIÉ 27-07]
+- **Le régime `Action:` était déjà bon** — les 4 cartes concernées sont prouvées
+  **répétables par le flux réel** `play_round` (deux activations dans la même
+  partie), avec un test nommé chacune. C'était le risque n° 1 : il n'existe pas.
+  [VÉRIFIÉ 27-07]
+- **283 tests verts** (271 + 12), 1 000 parties graine 2024, 0 violation,
+  0 tronquée, déterministe, effets OFF neutre, **11 377 parties/s**.
+  Re-mesuré par la main après promotion : 283 tests, 1000/1000, 0 violation.
+  [VÉRIFIÉ 27-07]
+
+### Le défaut corrigé, et sa cause profonde
+
+*Viral Enhancers* et *Decomposers* résolvaient leur effet déclenché **une seule
+fois**, quelle que soit la carte jouée. Le livret dit l'inverse
+(`docs/regles/livret-base.md:106`) : « Si la condition d'un effet est remplie
+plusieurs fois lorsqu'une carte est jouée, résolvez l'effet correspondant
+plusieurs fois. » Le moteur appliquait ce principe partout **sauf** pour la
+variante « … ou … » (`TrigGain::Choose`), câblée à une résolution unique **en
+suivant le moteur Java, pas le carton** — l'inversion d'oracle exacte que ce
+chantier existe pour corriger.
+
+**Vérifié par ma main, test A/B contre le binaire d'avant** : sur
+`--probe "Decomposers;Adapted Lichen"` (badges microbe ET plante), avant = 0
+microbe sur Decomposers, après = 1 microbe. L'effet est désormais résolu deux
+fois. [VÉRIFIÉ 27-07]
+
+**Cause profonde à traiter** : cette clause du livret est **absente de
+`docs/regles/notes/regles-condensees.md`**. Tant qu'elle n'y est pas, l'erreur se
+reproduira. [VÉRIFIÉ 27-07]
+
+### Mes contre-vérifications indépendantes (sondes rejouées moi-même)
+
+- *Windmills*, motif « including this » : `--probe-produce` donne
+  `derived_prod.heat = 1` **avec la carte seule en jeu** — elle compte bien son
+  propre badge Énergie. [VÉRIFIÉ 27-07]
+- *Earth Catapult*, régime `Effect:` permanent : *Media Group* coûte **11** seule
+  et **9** jouée après — la réduction s'applique à une carte posée **ensuite**.
+  C'est la preuve de régime exigée par le contrat. [VÉRIFIÉ 27-07]
+
+### Trouvaille non demandée, réelle et grave
+
+**`Oxidation Byproducts` est irrécupérable en l'état.** Sa description dans
+`cards.json` est « During the production phase, this produces 2 **руфе**. » — le
+mot désignant la **ressource produite** est détruit par la corruption cyrillique.
+La carte est `in_deck_v1: true` et **absente de `textes-cartes.json`** (jamais
+imprimée sur les planches). Le moteur ne peut pas savoir ce qu'elle produit.
+Homoglyphes : **18 entrées** de `cards.json` au total, 17 dans la pioche v1,
+16 dans la pioche de base. [VÉRIFIÉ 27-07]
+
+### Réserves consignées (aucune bloquante)
+
+- **Défaut de l'outil d'audit, signalé et non corrigé** : `probe.rs` recalcule le
+  prix pour son compte, donc le champ `paid[]` de la sonde **ment** quand une
+  réduction payée en microbes s'applique. Le moteur lui-même est correct (prouvé
+  par `delta.mc`). **À traiter : cela affecte la fiabilité de mes propres
+  audits.** [DÉCLARÉ par l'agent, plausible]
+- *Interplanetary Conference* : verdict `CONFORME` **contingent** d'un arbitrage
+  d'ambiguïté déclaré dans `blocked.md` (lecture conservatrice, argumentée au
+  livret). [VÉRIFIÉ 27-07]
+- **Le lot suivant coûtera plus cher que prévu** : reclassement honnête après
+  relecture adversariale en **7 ABSENT / 24 HORS-PORTEE** (au lieu de 13/18),
+  l'agent ayant constaté que son propre rapport se contredisait — la structure
+  `Corporation` n'a **aucun champ d'effet**. Les 12 corporations ne sont pas
+  muettes par oubli : la table n'existe pas pour elles. [DÉCLARÉ, cohérent]
+- **Mon hold-out 01 était fautif** : témoin *Comet* choisi hors périmètre, et
+  attendu `ABSENT` pour *Hydro-Electric Energy* là où `HORS-PORTEE` est mieux
+  justifié — vérifié à la source, `ActionEff` (`effects.rs:394`) n'a **aucune
+  variante Heat**, l'action imprimée est littéralement inexprimable.
+  [VÉRIFIÉ 27-07]
+
 ## Acquis : textes imprimés des cartes (26-07) — NOUVELLE SOURCE DE VÉRITÉ
 
 - **`data/cartes-imprimees/textes-cartes.json`** : **242 cartes** transcrites
