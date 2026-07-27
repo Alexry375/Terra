@@ -20,6 +20,64 @@ Dernière mise à jour : 2026-07-26
   221 cartes transcrites de `textes-cartes` n'existent que sur le disque local
   tant qu'elles ne sont pas auditées et promues. [VÉRIFIÉ 26-07]
 
+## Acquis : textes imprimés des cartes (26-07) — NOUVELLE SOURCE DE VÉRITÉ
+
+- **`data/cartes-imprimees/textes-cartes.json`** : **242 cartes** transcrites
+  depuis les images des cartes imprimées, dont **220 de la pioche de base**
+  (+ 12 corporations, 5 cartes de phase, 5 corporations promo). Remplace le
+  champ `description` de `cards.json` comme référence de texte. [VÉRIFIÉ 26-07]
+- **`docs/cartes/divergences.md`** : 247 écarts entre le texte imprimé et
+  `cards.json`, classés par gravité (§G1 = 62 entrées nominatives qui changent
+  une règle, §G2 = 20, §G3 = 163) + **6 motifs systémiques (§A)**.
+  `docs/cartes/methode.md` : méthode et cartes non lues. [VÉRIFIÉ 26-07]
+
+### Ce que l'audit a établi de MA propre main
+
+- **La boîte contient 220 cartes, pas 222.** Les numéros imprimés couvrent
+  1 à 220 sans un seul trou, sans doublon. *Microbiology Patents* et *Project
+  Inspection* sont dans `cards.json` mais **sur aucune planche** — deux entrées
+  probablement de trop dans la pioche v1. **Décision de conception à prendre.**
+  Preuve que la numérotation n'est pas fabriquée : corrélation ordre-des-cellules
+  / numéro-imprimé = **+0,114** sur la planche P1 (quasi nulle). [VÉRIFIÉ 26-07]
+- **6 cartes contre-vérifiées par ma lecture des images** : *Advanced Ecosystems*
+  n°65 (11 champs sur 11), *Energy Subsidies* n°25, *Surface Mines* n°192,
+  *Biothermal Power* n°118, *Asteroid Mining* n°110 — exactes ;
+  *Ganymede Shipyard* n°138 — **défaut trouvé et corrigé** (voir ci-dessous).
+  [VÉRIFIÉ 26-07]
+- **`vp_printed` de Ganymede Shipyard corrigé de 2 à 0 par la main.** L'encart
+  gris à deux étoiles jaunes est un **savoir-faire de 2 titane**, pas des points
+  de victoire. Règle du corpus : 1 étoile grise → « pay 3 MC less for [space] » ;
+  2 étoiles → « pay 6 MC less » — soit 3 MC par titane, exactement le livret
+  p. 18. Sur *Asteroid Mining* les deux marquages **coexistent et sont
+  distincts** (encart gris + pastille brune ronde séparée). **Conséquence :
+  après correction, ZÉRO écart de points de victoire entre le texte imprimé et
+  `cards.json` sur 220 cartes — sur ce champ, la référence est fiable.**
+  [VÉRIFIÉ 26-07]
+- **Trouvaille confirmée exactement : 16 cartes de la pioche de base écrivent
+  « MC » avec les lettres CYRILLIQUES « МС » dans `cards.json`** (Energy
+  Subsidies, Power Grid, Trading Post, Tall Station…). Invisible à toute
+  recherche textuelle sur « MC ». [VÉRIFIÉ 26-07 par mesure indépendante]
+- **La correction de badge Espace/Énergie est réelle** : *Energy Subsidies*
+  porte bien le soleil doré (Espace) ; l'éclair magenta n'est que dans son
+  texte. 73 cartes revérifiées, 6 corrections au total. [VÉRIFIÉ 26-07]
+
+### Réserves consignées à l'audit
+
+- **Chiffre corrigé par la main** : §A annonçait « 47 cartes » où le mot-clé
+  `Action:`/`Effect:` est imprimé mais absent de la paraphrase ; ma mesure donne
+  **25** (mot-clé en début de texte) à **35** (sans ancrage). Le fond reste
+  massif : **64 cartes de la pioche portent le mot-clé imprimé contre 29 dans la
+  paraphrase**. Corrigé dans le document. [VÉRIFIÉ 26-07]
+- **Deux de mes propres contrôles cachés étaient fautifs** : le seuil « ≤5 noms
+  inconnus » (dépassé parce que j'ai moi-même élargi le périmètre en cours de
+  route aux cartes de phase et corporations promo) et le critère « densité des
+  numéros < 98 % » (mauvaise heuristique : la numérotation dense est
+  authentique). [VÉRIFIÉ 26-07]
+- Les `notes` de certaines cartes empilent **deux lectures non réconciliées**
+  et peuvent se contredire (ex. *Advanced Ecosystems*). Les CHAMPS sont bons ;
+  seules les notes sont à lire avec prudence. [VÉRIFIÉ 26-07]
+- Verdict `aw report` : **partial**, promu après mes deux corrections.
+
 ## Ce qui marche
 
 - **`engine/` : moteur Rust 2 joueurs, effets lots 1+2** — état, phases I-V,
