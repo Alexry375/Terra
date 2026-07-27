@@ -8,10 +8,14 @@ data/regles/photos-originales/
 engine/target/
 target/
 
-# Ateliers de travail des sous-agents (promus manuellement quand audites)
-workspaces/*/outputs/work/
+# Traces de session de l'outil de navigation
+.playwright-mcp/
 
 # Divers systeme
 *.pyc
 __pycache__/
 .DS_Store
+
+# Note : le dossier workspaces/ (ateliers des sous-agents) est exclu par
+# .git/info/exclude, pose par l'outil `aw`. Les livrables y sont promus
+# manuellement dans engine/ ou data/ apres audit.

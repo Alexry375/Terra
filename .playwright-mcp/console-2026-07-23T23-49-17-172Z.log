@@ -1,7 +1,0 @@
-[     932ms] [WARNING] [GPT] PubAdsService.enableSingleRequest is deprecated, use googletag.setConfig({singleRequest: ...}) instead.
-https://goo.gle/gpt-message#170 @ https://securepubads.g.doubleclick.net/pagead/managed/js/gpt/m202607210101/pubads_impl.js?cb=31099865:18
-[    1663ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://boardgamegeek.com/api/accounts/current:0
-[    1684ms] [WARNING] [GPT] GPT must be loaded from the limited ads URL to configure limited ads functionality via the PrivacySettings API.
-https://goo.gle/gpt-message#147 @ https://securepubads.g.doubleclick.net/pagead/managed/js/gpt/m202607210101/pubads_impl.js?cb=31099865:18
-[    3694ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://api.geekdo.com/api/userblock:0
-[    3782ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://api.geekdo.com/api/file/downloadurls?ids=325033:0
