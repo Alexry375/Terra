@@ -602,3 +602,101 @@ Contrat intact, 3/4 contrôles visibles, 2/3 hold-outs.
 - Les `notes` de certaines cartes empilent deux lectures non réconciliées et
   peuvent se contredire (ex. *Advanced Ecosystems*) : les champs sont bons, les
   notes sont à lire avec prudence.
+
+## 2026-07-27 — Le moteur est déclaré fiable, et le chantier des corporations est lancé
+
+Deux temps. La nuit : la livraison de `moteur-verite-1`, auditée et promue —
+c'est elle qui répond à la question qui bloquait tout depuis le 26-07. Le matin :
+le cadrage du lot suivant, qui a fait tomber une erreur que personne ne
+cherchait.
+
+### `moteur-verite-1` — livré, audité OK, promu
+
+Détail complet dans `docs/CTO_STATE.md` §« LE MOTEUR EST FIABLE (27-07) ».
+En résumé : sur les 66 cartes dont le texte était trahi par `cards.json`,
+**35 étaient encodées et 33 d'entre elles sont conformes au carton imprimé**.
+Le régime `Action:` — le risque numéro un — **était déjà bon**, prouvé répétable
+par le flux réel `play_round`. [VÉRIFIÉ 27-07]
+
+Un seul défaut réel, sur *Viral Enhancers* et *Decomposers* : la variante
+« … ou … » d'un effet déclenché n'était résolue **qu'une fois**, en suivant le
+moteur Java plutôt que le livret. Corrigé, vérifié par ma main en comparant
+l'ancien et le nouveau binaire côte à côte. **Cause profonde restée ouverte** :
+la clause du livret p.9 (« condition remplie plusieurs fois → effet résolu
+plusieurs fois ») est absente de `docs/regles/notes/regles-condensees.md`.
+[VÉRIFIÉ 27-07]
+
+**Mon contrôle caché était fautif, pas l'agent** : témoin choisi hors périmètre,
+et verdict attendu trop grossier sur *Hydro-Electric Energy*. Vérification faite
+à la source : l'agent avait mieux raisonné que moi. Deuxième journée de suite où
+mes propres contrôles sont la partie faible de l'audit. [VÉRIFIÉ 27-07]
+
+### Cadrage de `moteur-corporations-1` — et une erreur trouvée en chemin
+
+Le lot suivant devait être « donner leurs effets aux 12 corporations ». En
+mesurant l'état de départ, **le moteur en distribue 16**. [VÉRIFIÉ 27-07,
+`engine/src/cards.rs:243` + comptage sur `data/cards.json`]
+
+Les quatre intruses — *Apollo Industries*, *Exocorp*, *Hyperion Systems*,
+*Sultira* — n'existent dans `textes-cartes.json` sous aucune orthographe, et
+**toutes les quatre portent « Upgrade your phase N card »** : ce sont des
+corporations de l'extension **Découverte**, marquées `in_deck_v1: true` à tort.
+Leur pouvoir principal repose sur un mécanisme que le moteur saute
+(`phase_upgrades_skipped` = 642 déclenchements sur 1 000 parties graine 2024).
+Conséquence en partie : un joueur sur deux se voyait proposer une corporation
+absente de la boîte, dont le pouvoir ne s'appliquait pas. [VÉRIFIÉ 27-07]
+
+**Second défaut confirmé** : `engine/src/flow.rs:167-183` ne pose qu'`mc` et les
+compteurs de badges. Les pistes de production fixes restent à zéro — *Ecoline*
+(1 plante), *Helion* (3 chaleur) et *Thorgate* (1 chaleur) démarrent amputées de
+leur production imprimée. [VÉRIFIÉ 27-07]
+
+### Ce que le cadrage a établi de bon
+
+**Le moteur est mieux bâti que je ne le disais hier.** J'avais annoncé que le lot
+coûterait cher parce que « la structure n'existe pas ». C'est vrai pour la
+structure `Corporation` (aucun champ d'effet, `cards.rs:143`), et **faux pour
+tout le reste** : chaque règle a un point de calcul unique et documenté —
+`card_discount` (`flow.rs:206`), `derived_production` (`flow.rs:750`),
+`research_draw_keep` (`flow.rs:816`), `build_forest` (`flow.rs:1136`),
+`build_card_with` (`flow.rs:853`). Les corporations n'ont qu'à y verser leur
+contribution. Ces six points d'entrée sont inscrits nommément dans le contrat,
+avec interdiction de recalculer quoi que ce soit ailleurs. [VÉRIFIÉ 27-07]
+
+**Deux limites tranchées d'avance pour éviter la dérive** : *Phobolog* et
+*Mining Guild* parlent de titane et d'acier, ressources non modélisées
+(`titanium_capacity` initialisé à 0 en `state.rs:215`, jamais alimenté, unique
+lecteur `flow.rs:1632`). Ordre donné : encoder ce qui est possible, déclarer le
+reste, ne pas ouvrir le chantier des ressources. [VÉRIFIÉ 27-07]
+
+### Contrat scellé
+
+5 contrôles automatiques, **tous testés dans les deux sens** (ils refusent le
+travail bâclé ET acceptent le travail correct), 3 vérifications cachées, dont
+13 valeurs que j'ai calculées à la main depuis le texte imprimé. Copie du binaire
+d'avant le lot gardée hors du workspace pour comparer.
+
+**Deux de mes cinq contrôles étaient fautifs à la première écriture**, trouvés
+par le test en sens vert : dans l'un, un bloc de texte écrasait l'entrée du
+programme de lecture, qui ne voyait donc jamais la sortie à vérifier ; dans un
+autre, une correction de ma part transformait la valeur `0` en `faux` (piège
+classique du langage Python, où zéro et faux se confondent). Corrigés et
+revalidés. **Le test en sens vert est ce qui les a trouvés — sans lui, l'agent
+aurait buté sur mes erreurs, pas sur les siennes.**
+
+### Décision d'Alexis
+
+- **On jouera avec l'extension Découverte.** Les quatre corporations écartées par
+  ce lot devront donc revenir, une fois le mécanisme des améliorations de phase
+  modélisé. Les photos des cartes Phases améliorées sont annoncées pour
+  aujourd'hui. [VÉRIFIÉ 27-07]
+
+### Restes
+
+- **Cause profonde non traitée** : compléter `docs/regles/notes/regles-condensees.md`
+  avec la clause du livret p.9.
+- **`probe.rs` ment sur `paid[]`** quand une réduction se paie en microbes —
+  affecte la fiabilité de mes propres audits.
+- *Microbiology Patents*, *Project Inspection*, *Oxidation Byproducts* : trois
+  cartes de la pioche v1 qui n'existent sur aucune planche. Décision de
+  conception toujours en attente.
