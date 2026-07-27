@@ -3,7 +3,22 @@
 > Source de vérité du projet. Ancrée au code (`fichier:ligne`) dès qu'il y aura du
 > code. [VÉRIFIÉ JJ-MM] = relu à la source ce jour-là. [DÉCLARÉ] = non re-vérifié.
 
-Dernière mise à jour : 2026-07-25
+Dernière mise à jour : 2026-07-26
+
+## Infrastructure du dépôt
+
+- **Dépôt distant créé le 26-07 : `github.com/Alexry375/Terra`, PRIVÉ.**
+  Branche `main` poussée. [VÉRIFIÉ 26-07 par `gh api repos/Alexry375/Terra`]
+- Avant mise en ligne : `engine/target/` (307 fichiers, 94 Mo d'artefacts de
+  compilation) était versionné par erreur depuis le début. Retiré du suivi ET
+  purgé de tout l'historique (`git filter-repo`) : le dépôt passe de 71 Mo à
+  19,4 Mo, dont ~20 Mo de photos du livret conservées volontairement.
+  Sauvegarde de l'ancien `.git` dans le dossier temporaire de la session.
+  Traces `.playwright-mcp/` retirées aussi. [VÉRIFIÉ 26-07]
+- **`workspaces/` n'est PAS sauvegardé en ligne** : il est exclu par
+  `.git/info/exclude:8`, posé par l'outil `aw`. Conséquence à connaître : les
+  221 cartes transcrites de `textes-cartes` n'existent que sur le disque local
+  tant qu'elles ne sont pas auditées et promues. [VÉRIFIÉ 26-07]
 
 ## Ce qui marche
 
