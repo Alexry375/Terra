@@ -98,6 +98,69 @@ Homoglyphes : **18 entrées** de `cards.json` au total, 17 dans la pioche v1,
   variante Heat**, l'action imprimée est littéralement inexprimable.
   [VÉRIFIÉ 27-07]
 
+## EN COURS : `moteur-corporations-1` — scellé et lancé le 27-07
+
+**Objet** : donner leurs effets aux **12 corporations de la boîte de base**.
+Aujourd'hui `Corporation` (`engine/src/cards.rs:143`) ne porte que `name`,
+`starting_mc`, `tags` — aucun champ d'effet, aucune table. [VÉRIFIÉ 27-07]
+
+### Deux défauts trouvés au cadrage, inscrits dans le contrat
+
+- **Le moteur distribue 16 corporations, la boîte en contient 12.**
+  `engine/src/cards.rs:243` retient toutes les entrées `in_deck_v1: true` de
+  `cards.json`. Les quatre intruses — *Apollo Industries*, *Exocorp*,
+  *Hyperion Systems*, *Sultira* — sont absentes de `textes-cartes.json` sous
+  toute orthographe et portent **toutes les quatre** « Upgrade your phase N
+  card » : ce sont des corporations de l'extension **Découverte**. Leur pouvoir
+  principal repose sur un mécanisme que le moteur saute
+  (`phase_upgrades_skipped` = 642 sur 1 000 parties graine 2024).
+  **À écarter de la pioche de base ; à faire revenir quand Découverte sera
+  modélisée** (Alexis a confirmé le 27-07 qu'on jouera avec l'extension).
+  [VÉRIFIÉ 27-07]
+- **Les productions de départ ne sont pas appliquées.**
+  `engine/src/flow.rs:167-183` n'écrit que `mc` et les compteurs de badges ; les
+  pistes fixes `mc_prod` / `heat_prod` / `plant_prod` (`state.rs:157-160`,
+  consommées par `phase_production` `flow.rs:1529-1531`) restent à zéro.
+  *Ecoline* (1 plante), *Helion* (3 chaleur) et *Thorgate* (1 chaleur) démarrent
+  amputées. [VÉRIFIÉ 27-07]
+
+### Ce que le cadrage a établi de bon
+
+Contrairement à ce que je disais le 27-07 au petit matin, **seule la structure
+`Corporation` manque** : le reste du moteur est prêt à les recevoir. Chaque règle
+a un point de calcul **unique**, et le contrat les nomme avec interdiction d'en
+créer un second :
+
+| Ce que change une corporation | Service unique à alimenter |
+|---|---|
+| Réduction de coût permanente | `flow::card_discount` (`flow.rs:206`) |
+| Production de phase IV | `flow::phase_production` (`flow.rs:1516`) / `derived_production` (`flow.rs:750`) |
+| Pioche / garde en phase V | `flow::research_draw_keep` (`flow.rs:816`) |
+| Coût en plantes d'une forêt | `flow::build_forest` (`flow.rs:1136`) |
+| Paiement d'une carte | `flow::build_card_with` (`flow.rs:853`) |
+
+[VÉRIFIÉ 27-07 par lecture du code]
+
+### Limites tranchées d'avance (pour éviter la dérive du lot)
+
+*Phobolog* (« chaque titane réduit d'1 MC de plus ») et *Mining Guild* (« chaque
+production d'acier jouée → +1 TR ») visent des ressources **non modélisées** :
+`titanium_capacity` est initialisé à 0 (`state.rs:215`), jamais alimenté, son
+unique lecteur est la récompense `Industrialist` (`flow.rs:1632`). Ordre donné :
+encoder la part exprimable, déclarer le reste, **ne pas ouvrir le chantier des
+ressources**. [VÉRIFIÉ 27-07]
+
+### Contrôles
+
+5 contrôles automatiques testés **dans les deux sens**, 3 vérifications cachées
+(dont 13 valeurs calculées par ma main depuis le texte imprimé, et le test de
+seuil discriminant de *Credicor* : carte à 20 réduite, carte à 18 non réduite),
+copie du binaire d'avant gardée hors du workspace. Interface de sonde imposée par
+le contrat : `--dump-corporations` et `--probe-corp "<nom>"`.
+
+**Deux de mes cinq contrôles étaient fautifs à la première écriture**, trouvés
+par le test en sens vert et corrigés avant le scellement.
+
 ## Acquis : textes imprimés des cartes (26-07) — NOUVELLE SOURCE DE VÉRITÉ
 
 - **`data/cartes-imprimees/textes-cartes.json`** : **242 cartes** transcrites
