@@ -463,3 +463,142 @@
   aucun symbole prévu pour les prérequis d'oxygène et de température ;
   corporations annoncées en paysage alors qu'elles sont en portrait.
 
+
+## 2026-07-26 — La transcription est finie, et elle condamne notre fichier de référence
+
+Journée courte en actions, lourde en conséquences. Deux dépôts créés, la
+transcription des cartes achevée et auditée, et la découverte que le fichier de
+données sur lequel quatre lots du moteur ont été construits est gravement
+infidèle au carton imprimé.
+
+### Mise en ligne du projet
+
+- **Il n'existait aucun dépôt distant.** Tout le projet ne vivait que sur le
+  disque d'Alexis depuis le 23-07. Corrigé : **`github.com/Alexry375/Terra`**,
+  privé. [VÉRIFIÉ 26-07]
+- **Défaut ancien découvert à cette occasion** : `engine/target/` — 307 fichiers,
+  94 Mo d'artefacts de compilation entièrement reconstructibles — était versionné
+  depuis le premier commit. Retiré du suivi ET purgé de tout l'historique
+  (`git filter-repo`). Le dépôt passe de **71 Mo à 19,4 Mo**, dont ~20 Mo de
+  photos du livret conservées volontairement. Sans cette purge, chaque envoi
+  aurait coûté 6 minutes à 200 Ko/s. Sauvegarde de l'ancien `.git` faite avant
+  l'opération. [VÉRIFIÉ 26-07]
+- **Second dépôt, décidé par Alexis** : `github.com/Alexry375/Terra-ateliers`,
+  privé — 1 504 fichiers, 12 Mo. Il sauvegarde les 9 contrats scellés, les
+  journaux de décisions des sous-agents et **les 65 fichiers de lots de
+  transcription**, que `.git/info/exclude` (posé par l'outil `aw`) empêchait
+  d'atteindre le dépôt principal. Motif : ce travail n'existait nulle part
+  ailleurs que sur le disque local. [VÉRIFIÉ 26-07]
+
+### Décisions d'Alexis
+
+- **Ne PAS ouvrir les deux chantiers (interface, IA) en parallèle pour
+  l'instant** — « ça va tout compliquer ». Ma recommandation était : oui pour
+  l'interface et pour l'IA-qui-calcule, non pour l'IA-qui-apprend tant que le
+  simulateur n'est pas fiable. Alexis va plus loin et repousse les deux.
+  [VÉRIFIÉ 26-07]
+- **Visuels des cartes : pas de collage du texte français sur le scan.** Retenu :
+  vraie carte scannée + texte français dans un panneau à côté. [VÉRIFIÉ 26-07]
+
+### Transcription : mon inventaire de reprise valait mieux que mon estimation
+
+J'annonçais « une quinzaine de cartes restantes ». Mesure réelle : **9**.
+Sur les 25 cartes que le comptage automatique déclarait absentes, **16 étaient
+déjà lues** — c'est `cards.json` qui écrit leur nom de travers (*Toll Station*
+lu « Tall Station », *Nitrophilic Moss* lu « Nitropholic », *United Nations Mars
+Initiative* réduit à « Unmi »…). Leçon : un écart de nom n'est pas une carte
+manquante, et mon estimation à la louche valait moins qu'une mesure de deux
+minutes. [VÉRIFIÉ 26-07]
+
+Réglages appliqués depuis le diagnostic du 25-07 : vignettes recompressées à
+**85 Ko** (660 px, qualité 78), 3 lecteurs simultanés maximum, 3 images chacun.
+Lisibilité vérifiée par la main avant lancement sur *Biothermal Power*.
+**Aucun agent n'a calé.** Le diagnostic de débit était le bon.
+
+### Trouvaille de méthode de l'agent
+
+Pour le recontrôle des badges, il a monté **6 bandes gauches de cartes par
+image** (33 Ko par carte au lieu de 85). Effet de bord décisif qu'il a lui-même
+identifié : **les relecteurs ne voyaient plus le titre**, donc ne pouvaient plus
+se laisser guider par lui — ce qui était exactement la cause de l'erreur
+*Energy Subsidies*. 73 cartes revérifiées, 6 corrections. [DÉCLARÉ par l'agent,
+résultat vérifié sur 2 cartes par la main]
+
+### Audit : 6 cartes relues par ma main, 1 défaut trouvé
+
+Verdict `aw report` : **partial**, promu après deux corrections de ma main.
+Contrat intact, 3/4 contrôles visibles, 2/3 hold-outs.
+
+- **DÉFAUT RÉEL — `Ganymede Shipyard` (n° 138) livrée avec `vp_printed: 2`.**
+  Faux : l'encart gris à deux étoiles jaunes est un **savoir-faire de 2 titane**,
+  pas des points de victoire. Preuve arithmétique sur tout le corpus : 1 étoile
+  → « pay 3 MC less for [space] » (*Titanium Mine*, *Space Station*, *Vesta
+  Shipyard*, *Asteroid Mining Consortium*) ; 2 étoiles → « pay 6 MC less »
+  (*Asteroid Mining*, *Ganymede Shipyard*, *Io Mining Industries*) — soit 3 MC
+  par titane, exactement le livret p. 18. Preuve visuelle : sur *Asteroid Mining*
+  (n° 110) les deux marquages **coexistent et sont distincts** (encart gris à
+  2 étoiles + pastille brune ronde « 2 » séparée) ; *Ganymede Shipyard* n'a
+  aucune pastille brune. Corrigé à 0. **Conséquence : après correction, ZÉRO
+  écart de points de victoire sur les 220 cartes — sur ce champ, `cards.json`
+  est fiable.** [VÉRIFIÉ 26-07 par lecture de deux images]
+- **Chiffre corrigé** : §A annonçait « 47 cartes » sans le mot-clé
+  `Action:`/`Effect:` ; ma mesure donne 25 à 35 selon l'ancrage. Le fond reste
+  massif : **64 cartes portent le mot-clé imprimé contre 29 dans la paraphrase**.
+  [VÉRIFIÉ 26-07]
+- Les 5 autres cartes relues (*Advanced Ecosystems* 11 champs sur 11,
+  *Energy Subsidies*, *Surface Mines*, *Biothermal Power*, *Asteroid Mining*)
+  sont exactes sur tous leurs champs. [VÉRIFIÉ 26-07]
+
+### Ce que la transcription établit, et qui change le projet
+
+- **`cards.json` perd le régime des cartes.** 64 cartes de la pioche portent
+  « Action: » ou « Effect: » imprimé, 29 seulement dans la paraphrase. Une carte
+  privée de ce mot devient un gain unique à la pose au lieu d'une capacité
+  permanente ou répétable. C'est le motif n° 1 de `divergences.md`, et
+  l'essentiel des 62 écarts de règle. [VÉRIFIÉ 26-07]
+- **Quatre corporations sur douze sont fausses de bout en bout** : la paraphrase
+  leur invente des revenus (« 1 Steel income ») non imprimés et omet des
+  réductions imprimées. [DÉCLARÉ par l'agent, cohérent avec les scans lus]
+- **Piège de modélisation signalé** : le nombre en haut d'une corporation est son
+  **MC de départ**, pas un coût. `cards.json` le range dans `price`. Un moteur
+  qui traiterait ce champ uniformément ferait *payer* 48 MC pour jouer CrediCor
+  au lieu de lui en *donner* 48. [VÉRIFIÉ 26-07 par lecture des cartes]
+- **16 cartes de la pioche écrivent « MC » en lettres CYRILLIQUES dans
+  `cards.json`.** Identique à l'œil, différent pour une machine : toute recherche
+  textuelle sur « MC » les rate en silence. [VÉRIFIÉ 26-07 par mesure
+  indépendante — compte exact confirmé]
+- **La boîte contient 220 cartes, pas 222.** Numéros imprimés 1 à 220, aucun
+  trou, aucun doublon. *Microbiology Patents* et *Project Inspection* ne sont sur
+  aucune planche : deux entrées probablement de trop dans la pioche v1 —
+  **décision de conception à prendre**. Preuve que la numérotation n'est pas
+  fabriquée : corrélation ordre-des-cellules / numéro-imprimé = **+0,114** sur
+  P1. [VÉRIFIÉ 26-07]
+
+### Mes propres erreurs de la journée
+
+- **Deux de mes contrôles cachés étaient fautifs.** Le seuil « ≤ 5 noms inconnus
+  du projet » a rejeté la livraison parce que **j'avais moi-même élargi le
+  périmètre en cours de route** en demandant les cartes de phase et les
+  corporations promo — un contrat scellé ne se complète pas par messages sans
+  que ses contrôles suivent. Le critère « densité des numéros < 98 % »
+  supposait qu'une numérotation sans trou trahit une fabrication : mauvaise
+  heuristique, la vraie boîte numérote sans trou.
+- **Mon hypothèse « Artificial Lake = Artificial Jungle mal orthographié » était
+  fausse** : ce sont deux cartes distinctes. L'agent l'a vérifiée et corrigée —
+  je lui avais explicitement demandé de ne pas me croire sur parole, ce qui a
+  servi.
+- **Estimation à la louche** (« une quinzaine de cartes ») là où une mesure de
+  deux minutes donnait 9. Même défaut que le compte en dérive du 25-07.
+
+### Restes et prochaine étape
+
+- **Question posée à Alexis, en attente** : croiser les 62 écarts de règle avec
+  ce que le moteur fait réellement, pour sortir la liste des cartes qu'il simule
+  mal aujourd'hui. Les 4 lots du moteur ont encodé les cartes à la main depuis
+  plusieurs sources — une partie de ces écarts est peut-être déjà rattrapée. Tant
+  que ce croisement n'est pas fait, **on ne sait pas si le moteur est fiable**.
+- Les **cartes Phase améliorées** restent absentes de toute source : seules les
+  photos d'Alexis peuvent les fournir. Toujours bloquantes.
+- Les `notes` de certaines cartes empilent deux lectures non réconciliées et
+  peuvent se contredire (ex. *Advanced Ecosystems*) : les champs sont bons, les
+  notes sont à lire avec prudence.
