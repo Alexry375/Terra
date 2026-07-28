@@ -38,6 +38,20 @@ prérequis (2), divers (4). Liste nominative :
 **Ne JAMAIS citer le « 7 » de `docs/cartes/moteur-vs-imprime.md` comme une
 couverture de la boîte de base** : ce rapport n'échantillonne que 66 cartes.
 
+## DÉCISIONS D'ALEXIS DU 28-07
+
+- **Les règles maison ne sont PAS traitées pour le moment.** Aucun chantier ne
+  s'ouvre dessus ; ne pas relancer Alexis sur le sujet. À noter : deux règles
+  maison sont **déjà** dans le moteur depuis `moteur-conformite-1` (24-07) —
+  alternance J1/J2 action par action en phase III, et égalité sèche. Cette
+  décision ne les défait pas, elle interdit d'en ajouter d'autres pour l'instant.
+  [VÉRIFIÉ — son message du 28-07]
+- **Point de règle « phase Action : toutes les cartes ou seulement les bleues ? »
+  clos comme SANS OBJET**, par mesure et non par arbitrage : sur les 242 entrées
+  de `textes-cartes.json`, les **38** cartes portant « Action: » sont **toutes
+  bleues**. Les deux lectures du livret donnent le même jeu. Détail :
+  `docs/regles/notes/cas-tranches.md`. [VÉRIFIÉ 28-07]
+
 ## ÉTAT D'AVANCEMENT MESURÉ (28-07 soir) — réponse à « on en est où ? »
 
 Mesuré par `--dump-deck` et lecture du code, pas de mémoire. [VÉRIFIÉ 28-07]

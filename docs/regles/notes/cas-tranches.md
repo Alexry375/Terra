@@ -43,12 +43,25 @@ la façon dont ils ont été tranchés. Un cas = une entrée. Statuts : **TRANCH
   titane »). Conséquence : toute carte douteuse s'arbitre sur le scan de la
   carte physique (`data/scans/`), pas sur la description.
 
-## Phase Actions : toutes les cartes ou seulement les bleues ? — EN ATTENTE
+## Phase Actions : toutes les cartes ou seulement les bleues ? — SANS OBJET (28-07)
 
 - Contradiction interne du livret : p. 14 (règle détaillée) dit « chacune de ses
   cartes en jeu » ; p. 20 (aperçu) dit « chacune de ses cartes **bleues** en
-  jeu ». Seules les bleues portent des « Action : », donc sans effet pratique
-  aujourd'hui — à trancher si une carte non bleue à action apparaissait.
+  jeu ».
+- **Mesuré le 28-07 sur les 242 entrées de `textes-cartes.json`** (base +
+  Découverte + corporations + cartes de phase) : **38 cartes portent
+  « Action: », et les 38 sont BLEUES.** Aucune carte verte, rouge ou
+  corporation n'en porte. La seule autre occurrence est la carte de phase
+  « Action » elle-même, qui n'est pas une carte projet.
+- **Les deux lectures donnent donc rigoureusement le même jeu.** La contradiction
+  est réelle dans le texte, sans objet dans la pratique. Ne consommer aucun temps
+  d'Alexis dessus.
+- Le moteur applique la lecture restrictive : `flow::phase_action` (`flow.rs:2282`)
+  filtre sur `color == Color::Blue`. [VÉRIFIÉ 28-07]
+- **Amélioration à faire un jour, pas urgente** : filtrer sur « la carte a une
+  action » plutôt que sur sa couleur ferait coïncider les deux lectures
+  automatiquement et supprimerait le piège si une carte non bleue à action
+  apparaissait un jour.
 
 ## Tuiles Objectifs et Récompenses : listes incomplètes dans le livret — EN ATTENTE
 
