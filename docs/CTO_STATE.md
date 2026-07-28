@@ -37,6 +37,37 @@ nominative : `workspaces/moteur-cartes-6/inputs/checks/02-les-18-restantes.sh`.
 **Ne JAMAIS citer le « 7 » de `docs/cartes/moteur-vs-imprime.md` comme une
 couverture de la boîte de base** : ce rapport n'échantillonne que 66 cartes.
 
+## EN COURS (28-07) — `moteur-acier-titane`, contrat scellé et lancé
+
+Encode les **4 cartes muettes qui parlent d'acier ou de titane** (*Advanced
+Alloys*, *Aquifer Pumping*, *Solarpunk*, *Water Import from Europa*) plus
+l'effet manquant de la corporation *PhoboLog*. Après lui : **14** muettes.
+
+**La trouvaille qui débloque le chantier** : aucune de nos sources de données ne
+dit combien d'aciers ou de titanes une carte donne — mais le compte est
+**dérivable** de ce que le moteur encode déjà. Chaque acier vaut 2 MC de
+réduction sur les cartes bâtiment, chaque titane 3 MC sur les cartes espace, et
+les 21 réductions `Reduction::Tag(Building|Space, n)` du moteur sont **toutes**
+des multiples exacts de 2 et de 3. [VÉRIFIÉ 28-07 par ma main]
+
+Trois vérifications indépendantes, faites AVANT le scellement :
+1. **À l'image** (`data/scans/base/img_917b063334cb.png`, planche CORP) : le
+   savoir-faire se reconnaît à un encart **gris hachuré** (icône acier = outils
+   bruns ; titane = étoile jaune). *Mining Guild* et *Interplanetary Cinematics*
+   portent 1 acier ; *PhoboLog* et *Saturn Systems* 1 titane. *CrediCor* et
+   *ThorGate* n'en ont pas : leurs réductions vivent dans l'encart **rose**.
+2. **Transcription Découverte** : D25 « Savoir-faire acier ×2 » (réduction 4),
+   D31 « Savoir-faire titane ×2 » (réduction 6), D34 « ×1 » (réduction 3).
+3. **Contre-épreuve** sur les 27 réductions encodées : les 21 qui portent sur
+   bâtiment ou espace sont toutes vertes ou corporations à encart gris ; les 6
+   autres (n'importe quelle carte, événement, énergie, Terre, Jupiter, prix
+   minimum, microbes) n'en sont pas.
+
+`engine/src/state.rs:162-163` : `steel_capacity` / `titanium_capacity` existaient
+en **stub figé à 0** depuis leur création, lus uniquement par la récompense
+*Industrialist* (`flow.rs:2283`) — qui comptait donc toujours zéro pour tout le
+monde. [VÉRIFIÉ 28-07]
+
 ## 11 CARTES DE PLUS (28-07) — `moteur-cartes-6`, audité OK et promu
 
 - Actions bleues et manipulation de la main : bonus « si vous avez choisi la
@@ -137,11 +168,17 @@ la sonde (main vide, température violette, effet à la pose ou en action).
   `--boites promo` existe et est testé, mais ne correspond à aucune partie
   réelle. [VÉRIFIÉ 27-07]
 - Sources physiques transcrites et promues dans `data/cartes-imprimees/` :
-  `corporations-discovery/` (4), `projets-decouverte/` (38 entrées, `D37`
-  manquante au scan), `objectifs-recompenses/` (11 objectifs, 7 récompenses),
-  `phases-ameliorees/`. [VÉRIFIÉ 27-07]
-- **`D37` = `Perfluorocarbon Production` par élimination, PAS par lecture.**
-  Photo attendue d'Alexis pour confirmer. [DÉCLARÉ]
+  `corporations-discovery/` (4), `projets-decouverte/` (38 entrées, **toutes
+  lues à l'image**), `objectifs-recompenses/` (11 objectifs, 7 récompenses),
+  `phases-ameliorees/`. [VÉRIFIÉ 28-07]
+- **`D37` = « Production de Perfluorocarbone » — VÉRIFIÉE À L'IMAGE.** Elle
+  manquait au scan du 27-07 et n'était déduite que par élimination ; Alexis a
+  fourni son scan le 28-07 (`data/cartes-imprimees/projets-decouverte/
+  scan-D37-28-07.pdf`). Coût 10, verte, badge bâtiment unique, « Améliorez votre
+  carte Phase I. », production 1 chaleur, encart IV, marqueur U. La déduction
+  était juste. Une seule correction : `effect_phases` portait `I` (la phase
+  **améliorée**) alors que ce champ désigne le chiffre de l'encart, donc `IV`
+  comme toutes les cartes de production. [VÉRIFIÉ 28-07]
 - **Écart carton / `cards.json`** : le carton de *Sultira* dit « y compris
   celui-ci » (2 chaleurs dès la mise en place), `cards.json` omet la clause. Le
   carton fait foi. [VÉRIFIÉ 27-07]
