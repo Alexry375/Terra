@@ -37,6 +37,39 @@ nominative : `workspaces/moteur-cartes-6/inputs/checks/02-les-18-restantes.sh`.
 **Ne JAMAIS citer le « 7 » de `docs/cartes/moteur-vs-imprime.md` comme une
 couverture de la boîte de base** : ce rapport n'échantillonne que 66 cartes.
 
+## ÉTAT D'AVANCEMENT MESURÉ (28-07 soir) — réponse à « on en est où ? »
+
+Mesuré par `--dump-deck` et lecture du code, pas de mémoire. [VÉRIFIÉ 28-07]
+
+| Brique | État |
+|---|---|
+| Déroulement d'une partie (phases I-V, production, score, fin) | fait |
+| Projets boîte de base | **190 / 208** encodés |
+| Corporations boîte de base | 12 / 12 |
+| Projets en configuration cible `base,decouverte` | **195 / 246** (51 muettes) |
+| Corporations Découverte | 0 / 4 (écartées, table `effects::CORPS`) |
+| Objectifs (tuiles) | 11 / 11 encodés — **1 seuil faux** |
+| Récompenses (tuiles) | **4 / 7** fonctionnelles |
+| Cartes Phase améliorées | **transcrites (10), jamais appliquées** — `state.rs:181` `phase_upgrades` n'est lu nulle part dans `flow.rs` |
+| Badges jokers de Découverte | non implantés |
+| Interface de jeu | rien |
+| IA | rien |
+
+### Deux défauts trouvés en faisant ce décompte [VÉRIFIÉ 28-07]
+
+- **Objectif BARON SPATIAL : seuil faux.** La tuile imprimée dit **6 badges
+  espace** (`data/cartes-imprimees/objectifs-recompenses/objectifs-recompenses.json`,
+  lue à la photo le 27-07) ; `flow.rs:2254` exige **7**. Les dix autres seuils
+  concordent exactement avec les tuiles.
+- **Récompense VISIONNAIRE absente du moteur** (« le plus de cartes Phase
+  améliorées ») : `AwardKind` (`state.rs:116`) n'a que **6 variantes** pour
+  **7 tuiles imprimées**. C'est le conflit « 7 awards Discovery vs 6 dans le
+  Java » noté au squelette le 24-07, tranché ici : **le carton dit 7**. La
+  septième dépend de l'amélioration de phase, donc du même chantier.
+- Rappel : `AwardKind::Collector => 0` (`flow.rs:2281`) est encore un stub
+  **alors que les ressources posées sur les cartes existent depuis
+  `moteur-cartes-3`**. Deuxième récompense morte, réparable en une ligne.
+
 ## EN COURS (28-07) — `moteur-acier-titane`, contrat scellé et lancé
 
 Encode les **4 cartes muettes qui parlent d'acier ou de titane** (*Advanced
