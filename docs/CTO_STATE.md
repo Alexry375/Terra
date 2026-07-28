@@ -3,7 +3,7 @@
 > Source de vérité du projet. Ancrée au code (`fichier:ligne`) dès qu'il y aura du
 > code. [VÉRIFIÉ JJ-MM] = relu à la source ce jour-là. [DÉCLARÉ] = non re-vérifié.
 
-Dernière mise à jour : 2026-07-26
+Dernière mise à jour : 2026-07-27
 
 ## Infrastructure du dépôt
 
@@ -19,6 +19,72 @@ Dernière mise à jour : 2026-07-26
   `.git/info/exclude:8`, posé par l'outil `aw`. Conséquence à connaître : les
   221 cartes transcrites de `textes-cartes` n'existent que sur le disque local
   tant qu'elles ne sont pas auditées et promues. [VÉRIFIÉ 26-07]
+
+## ⚠️ LE CHIFFRE QUI COMPTE (27-07) — 146 cartes sur 208 sont encodées
+
+**62 des 208 cartes projets de la boîte de base n'ont AUCUN encodage dans le
+moteur.** Elles se paient, comptent leurs badges et leurs PV, et n'appliquent
+rien d'autre : ni prérequis, ni production, ni action, ni déclencheur.
+[VÉRIFIÉ 27-07 par ma main : 146 des 208 noms de `textes-cartes.json` planches
+P1-P4 figurent dans `engine/src/`, mesure indépendante de celle de l'agent ;
+preuve par sonde côté agent sur *Power Plant*, delta nul]
+
+**Ne JAMAIS citer le « 7 » de `docs/cartes/moteur-vs-imprime.md` comme une
+couverture de la boîte de base** : ce rapport n'échantillonne que 66 cartes, et
+son sous-total `ABSENT: 7` ne vaut que sur cet échantillon. Un avertissement de
+périmètre a été ajouté en tête du fichier le 27-07. C'est cette phrase manquante
+qui a fait sceller à mon contrat `moteur-boites-1` une exigence impossible.
+
+Conséquence de direction : **finir la boîte de base avant d'implanter les effets
+de Découverte.** Une IA entraînée sur une pioche dont 30 % des cartes sont
+inertes apprendra à les éviter dans la vraie partie.
+
+## LA PIOCHE EST ASSAINIE (27-07) — `moteur-boites-1`, audité OK et promu
+
+- **Point unique de composition : `engine/src/boites.rs`.** L'appartenance de
+  boîte vient des planches physiques (`engine/data/textes-cartes.json`, copie
+  verbatim des transcriptions), critère POSITIF : une carte entre parce qu'une
+  planche la nomme. Le drapeau `in_deck_v1` de `cards.json` ne décide plus rien.
+  [VÉRIFIÉ 27-07]
+- Option `--boites base|promo|decouverte` (défaut : `base`), recensement
+  `--dump-deck` (une ligne JSON par carte : `name`, `kind`, `boite`, `planche`,
+  `effets_geres`), compteur de fin de simulation `cards_effects_unhandled`.
+- **Composition mesurée après promotion** : `base` 208/12 · `base,promo` 219/12 ·
+  `base,decouverte` **246/16** · tout 257/16. **336 tests verts.**
+  [VÉRIFIÉ 27-07 par ma main]
+- Les 2 cartes qui n'existent sur aucune planche (*Microbiology Patents*,
+  *Project Inspection*) ne sont plus distribuées. `phase_upgrades_skipped` tombe
+  à 0 en boîte de base (il valait 599 sur 1000 parties avant). [VÉRIFIÉ 27-07]
+- Réserves consignées par l'agent, non traitées : `--effects off` ne change ni
+  `effets_geres` ni `cards_effects_unhandled` (ils décrivent la table, pas le
+  réglage) ; les combinaisons sans `base` sont acceptées sans être testées ;
+  *Microbiology Patents* reste encodée dans `LOT1` sans être distribuée ; le
+  garde-fou de doublons ne regarde qu'à l'intérieur d'une même boîte.
+  [DÉCLARÉ par l'agent — `workspaces/moteur-boites-1/outputs/boites.md` §5]
+
+## EXTENSION DÉCOUVERTE — transcrite, décidée, pas encore implantée
+
+- **Décision d'Alexis (27-07) : Découverte se joue EN ENTIER**, les quatre
+  modules (Objectifs, Récompenses, cartes Phase améliorées, badges jokers).
+  **Configuration cible de l'entraînement : `--boites base,decouverte`.**
+  [VÉRIFIÉ — son message du jour]
+- **Cartes promotionnelles : NON possédées.** Les planches `PROMO`/`PROMOCORP`
+  viennent de l'adaptation Tabletop Simulator, pas de la boîte d'Alexis, et
+  forment le pack Kickstarter 2021 dont l'absence est tranchée depuis le 24-07.
+  `--boites promo` existe et est testé, mais ne correspond à aucune partie
+  réelle. [VÉRIFIÉ 27-07]
+- Sources physiques transcrites et promues dans `data/cartes-imprimees/` :
+  `corporations-discovery/` (4), `projets-decouverte/` (38 entrées, `D37`
+  manquante au scan), `objectifs-recompenses/` (11 objectifs, 7 récompenses),
+  `phases-ameliorees/`. [VÉRIFIÉ 27-07]
+- **`D37` = `Perfluorocarbon Production` par élimination, PAS par lecture.**
+  Photo attendue d'Alexis pour confirmer. [DÉCLARÉ]
+- **Écart carton / `cards.json`** : le carton de *Sultira* dit « y compris
+  celui-ci » (2 chaleurs dès la mise en place), `cards.json` omet la clause. Le
+  carton fait foi. [VÉRIFIÉ 27-07]
+- **Aucun effet de Découverte n'est implanté.** Les 4 corporations et les
+  38 projets entrent en jeu en stub et sont comptés dans
+  `cards_effects_unhandled`. [VÉRIFIÉ 27-07]
 
 ## LE MOTEUR EST FIABLE (27-07) — `moteur-verite-1`, audité OK et promu
 
