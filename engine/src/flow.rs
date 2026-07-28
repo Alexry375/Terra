@@ -775,6 +775,12 @@ fn reqs_satisfied(
         Req::SpendHeat(n) => pl.heat >= n,
         Req::SpendPlants(n) => pl.plants >= n,
         Req::SpendTr(n) => pl.tr >= n,
+        // (lot 5) Seuil de NT SANS dépense (« Requires you to have N or more
+        // TR »). Le NT est une ressource de joueur : il se juge à
+        // l'état COURANT, comme `Tags` et `Spend*`, jamais sur l'instantané de
+        // début de phase — celui-ci ne porte que sur les océans, l'oxygène et la
+        // température (livret p.13 l.352). `param` n'entre donc pas ici.
+        Req::TrMin(n) => pl.tr >= n,
     })
 }
 
@@ -967,6 +973,17 @@ fn apply_eff(game: &mut GameState, db: &CardsDb, p: usize, eff: Eff, policy: &mu
                 gain_tr(game, db, p, policy);
             }
             game.tr_from_tags += steps as u64;
+        }
+        // (lot 5) Gain de forêt SANS paiement (groupe C). Chaque pas emprunte
+        // `gain_forest`, exactement le chemin de l'action standard payée : un
+        // seul chemin, donc un seul comptage de PV, une seule hausse d'oxygène
+        // par forêt (R1) et le déclencheur « when you gain a forest VP » levé
+        // une fois par forêt (R2). Aucun nom de carte n'intervient : la quantité
+        // vient de la table d'effets.
+        Eff::Forest(n) => {
+            for _ in 0..n {
+                gain_forest(game, db, p, policy);
+            }
         }
     }
 }
@@ -1454,8 +1471,34 @@ fn reveal_ocean(game: &mut GameState, db: &CardsDb, p: usize, policy: &mut dyn P
     fire_global_trigger(game, db, p, GlobalEvent::Ocean, policy);
 }
 
-/// Forêt : 8 plantes ou 20 MC → +1 forêt (VP), oxygène +1 si l'instantané le
-/// permet (livret p.14 ; Java `buildForest`).
+/// **(lot 5) Gain d'UN jeton PV Forêt — le seul chemin du moteur.**
+///
+/// Ce que « gagner un PV Forêt » produit, une fois et une seule (livret p. 14,
+/// l. 379 ; l. 391 pour l'oxygène déjà au max) :
+///
+/// 1. `+1` sur `PlayerState::forests` (1 PV au décompte final) ;
+/// 2. **un** pas d'oxygène, via `raise_oxygen` — donc `+1 NT` et le déclencheur
+///    « when you raise oxygen » (*Herbivores*), le tout plafonné sur
+///    l'instantané de début de phase ;
+/// 3. l'événement « **when you gain a forest VP** » (*Small Animals*).
+///
+/// **Le paiement n'est PAS ici.** L'action standard le fait avant d'appeler
+/// cette fonction (`build_forest`), les cartes du groupe C ne paient rien
+/// (`Eff::Forest`). C'est délibéré : la remise d'Ecoline porte sur « lorsque
+/// vous **dépensez des plantes** pour gagner un jeton PV Forêt » — une forêt
+/// offerte par une carte n'a aucune plante à remiser.
+///
+/// Tout gain de forêt du moteur passe par ici : il n'existe aucune autre
+/// écriture de `players[p].forests` (garde-fou I2 du lot 5, journal D4).
+fn gain_forest(game: &mut GameState, db: &CardsDb, p: usize, policy: &mut dyn Policy) {
+    game.players[p].forests += 1;
+    raise_oxygen(game, db, p, policy);
+    // « When you gain a forest VP » du joueur agissant (Small Animals).
+    fire_global_trigger(game, db, p, GlobalEvent::Forest, policy);
+}
+
+/// Action standard « forêt » : 8 plantes ou 20 MC, **puis** un gain de forêt par
+/// le chemin unique [`gain_forest`] (livret p.14 ; Java `buildForest`).
 fn build_forest(
     game: &mut GameState,
     db: &CardsDb,
@@ -1478,10 +1521,7 @@ fn build_forest(
         assert!(game.players[p].mc >= FOREST_MC_COST);
         game.players[p].mc -= FOREST_MC_COST;
     }
-    game.players[p].forests += 1;
-    raise_oxygen(game, db, p, policy);
-    // (lot 3) « When you build a forest » du joueur agissant (Small Animals).
-    fire_global_trigger(game, db, p, GlobalEvent::Forest, policy);
+    gain_forest(game, db, p, policy);
 }
 
 fn action_options(

@@ -258,6 +258,52 @@ gagne toujours.
   seule l'entrée du deck v1 est canonique ; elle seule reçoit l'effet, le
   jumeau reste un stub. Chemin unique (table d'effets, sonde, tests).
 
+## Lot 5 — les 33 muettes de la boîte de base (chantier cartes-5)
+
+33 cartes projets de la boîte de base qui n'avaient **aucun** encodage (62 avant
+le lot, **29** après) rejoignent la table `LOT1` : 20 productions pures,
+9 effets immédiats éventuellement suivis d'une production, 4 gains de forêt.
+Source du texte : `inputs/textes-cartes.json` champ `text` (transcription des
+cartons), jamais le champ `description` de `cards.json`. Correspondances carte
+par carte, texte imprimé cité et traces de sonde : `outputs/cartes5.md`.
+
+Deux briques de vocabulaire seulement, et **aucune** ligne de logique par carte :
+
+- **`Eff::Forest(n)`** — gain de n jetons PV Forêt **sans paiement**. Appliqué
+  par `flow::gain_forest`, qui est désormais **l'unique** écriture de
+  `PlayerState::forests` du moteur : `forests += 1`, un pas d'oxygène par
+  `raise_oxygen` (donc +1 NT, cap sur l'instantané de phase, déclencheur « when
+  you raise oxygen »), puis l'événement `GlobalEvent::Forest`. L'action standard
+  payée (`flow::build_forest`) paie d'abord, puis appelle la même fonction — le
+  **paiement reste dehors**, parce que la remise d'Ecoline porte sur « lorsque
+  vous DÉPENSEZ DES PLANTES pour gagner un jeton PV Forêt ».
+  - **R1** : « Gain a forest VP **and** raise oxygen 1 step » n'est pas
+    l'addition de deux effets, c'est la description d'un gain de forêt — même
+    formule que l'action standard du livret (p. 14, l. 379), pour UN pas
+    d'oxygène. *Plantation* = `Forest(2)` : 2 forêts, 2 pas d'oxygène, jamais 4.
+  - **R2** : `GlobalTrigger::OnBuildForest` porte en réalité « **when you gain a
+    forest VP** » (texte imprimé de *Small Animals*) ; sa doc, qui disait
+    « build », est corrigée. L'événement se lève **une fois par forêt gagnée**
+    (livret l. 106), quelle qu'en soit l'origine : *Plantation* pose 2 animaux.
+- **`Req::TrMin(n)`** — « Requires you to have N or more TR » (*Energy
+  Storage*). Le NT est une ressource de JOUEUR : le seuil est évalué à l'état
+  COURANT dans `flow::reqs_satisfied`, avec `Tags` et `Spend*`, jamais sur
+  l'instantané de début de phase. `TrMin` **teste** le NT ; `SpendTr` le dépense.
+
+Ni `src/probe.rs`, ni `src/bin/simulate.rs`, ni le recensement n'ont été
+touchés : `--probe` exposait déjà `delta.forests` / `delta.oxygen` /
+`delta.*_prod` / `resources`, et `effets_geres` est **dérivé** de l'encodage par
+`cards::encodage_integral`.
+
+`tests/lot5_tests.rs` — 60 tests : un par carte du lot (33, état de jeu comparé
+au texte imprimé via la sonde), R1 (dont le témoin de l'action standard payée en
+partie réelle), R2 (dont un témoin négatif), le contrôle STRUCTUREL du chemin
+unique (`forests += 1` n'apparaît qu'une fois dans `flow.rs`, et dans
+`gain_forest`), le seuil de NT en mode strict, l'encaissement par la VRAIE phase
+IV à chaque génération, `--effects off`, le recensement des 29 restantes, le
+coût imprimé des 33, l'absence de tout nom de carte dans `src/*.rs` hors table
+d'effets, et le déterminisme.
+
 ## Corporations (chantier corpo-1)
 
 Les **12 planches de corporation de la boîte de base** ont leurs effets. Source

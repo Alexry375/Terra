@@ -673,8 +673,10 @@ fn the_seventeen_cards_are_encoded_and_resolve_to_the_v1_deck() {
         assert!(card.in_deck_v1, "{name} doit venir du deck v1");
         assert!(card.effect.is_some(), "{name} doit être encodée");
     }
-    // 110 (lots 1-2) + 28 (ressources) + 17 = 155 entrées.
-    assert_eq!(engine::effects::LOT1.len(), 155);
+    // 110 (lots 1-2) + 28 (ressources) + 17 (lot 4) + 33 (lot 5) = 188 entrées.
+    // ATTENTE MISE À JOUR par le lot 5 (155 → 188) : taille EXACTE toujours
+    // épinglée, aucun test supprimé ni assoupli.
+    assert_eq!(engine::effects::LOT1.len(), 188);
 }
 
 #[test]

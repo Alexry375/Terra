@@ -54,6 +54,18 @@ pub enum Req {
     SpendPlants(i64),
     /// Dépense à la pose : n TR.
     SpendTr(i64),
+    /// (lot 5) NT courant du joueur >= n, **sans le dépenser** (Energy Storage :
+    /// « Requires you to have 7 or more TR »).
+    ///
+    /// Le NT est une ressource de JOUEUR, pas un paramètre global : ce prérequis
+    /// est donc évalué à l'ÉTAT COURANT, comme `Tags` et `Spend*`, et non sur
+    /// l'instantané de début de phase (livret p.13 l.352, qui ne parle que des
+    /// océans, de l'oxygène et de la température).
+    ///
+    /// **Divergence déclarée** (journal D1) : le contrat du lot 5 affirmait que
+    /// le vocabulaire existant suffisait aux groupes A et B. Il manquait cette
+    /// variante — `SpendTr` dépense le NT, elle ne teste pas un seuil.
+    TrMin(i64),
 }
 
 /// Effets appliqués à la pose. Les hausses de paramètres réutilisent les
@@ -99,6 +111,23 @@ pub enum Eff {
     /// traitement particulier. Chaque pas emprunte le chemin de hausse de NT
     /// existant (`PlayerState::gain_tr`, comptabilisé pour l'invariant TR).
     TrPerTag(Tag),
+    /// (lot 5) **Gain de n jetons PV Forêt, sans rien payer.**
+    ///
+    /// Unique brique neuve du lot 5. Le texte imprimé des quatre cartes du
+    /// groupe C dit « **Gain a forest VP** and raise oxygen 1 step » —
+    /// mot pour mot la formule de l'action standard du livret (p. 14, l. 379 :
+    /// « Dépenser 8 plantes pour gagner un PV Forêt et augmenter l'oxygène d'un
+    /// niveau »). Ce n'est donc PAS « une forêt PLUS un pas d'oxygène » : c'est
+    /// la description de ce qu'un gain de forêt produit. *Plantation* (« Gain 2
+    /// forest VPs and raise oxygen 2 steps ») vaut `Forest(2)` — 2 forêts,
+    /// 2 pas d'oxygène, jamais 4 (règle R1 du contrat, journal D2).
+    ///
+    /// Chaque pas emprunte `flow::gain_forest`, **le seul** chemin de gain de
+    /// forêt du moteur, celui-là même qu'emprunte l'action standard payée : le
+    /// compteur `PlayerState::forests`, la hausse d'oxygène (donc le NT) et le
+    /// déclencheur « when you gain a forest VP » (*Small Animals*) sont ainsi
+    /// servis une fois et une seule, sans second chemin parallèle (journal D4).
+    Forest(u8),
 }
 
 // ================================================== lot 4 : production dérivée
@@ -392,8 +421,21 @@ pub enum GlobalTrigger {
     /// la hausse d'oxygène d'une construction de forêt, comme le Java
     /// (`onOxygenChangedEffect`).
     OnRaiseOxygen(&'static [TrigGain]),
-    /// (lot 3) « When you build a forest » (Small Animals, Java
-    /// `onForestBuiltEffect`).
+    /// (lot 3) « **When you gain a forest VP** » (Small Animals).
+    ///
+    /// **Doc corrigée par le lot 5 (journal D3)** — elle disait « when you
+    /// *build* a forest », traduction reprise du Java (`onForestBuiltEffect`).
+    /// Le texte imprimé de *Small Animals* dit exactement : « Effect: When you
+    /// **gain a forest VP**, add 1 animal to this card. » La condition porte
+    /// donc sur le GAIN du jeton, quelle qu'en soit l'origine — l'action
+    /// standard payée (8 plantes / 20 MC) comme l'effet d'une carte du groupe C
+    /// (`Eff::Forest`). Les deux passent par `flow::gain_forest`, qui lève
+    /// l'événement une fois par forêt gagnée : *Plantation* (2 forêts) pose
+    /// 2 animaux (livret l. 106 : condition remplie plusieurs fois → effet
+    /// résolu plusieurs fois).
+    ///
+    /// Le NOM de la variante est conservé : le renommer toucherait le lot 3
+    /// sans rien prouver de plus.
     OnBuildForest(&'static [TrigGain]),
 }
 
@@ -1163,6 +1205,120 @@ pub static LOT1: &[(&str, CardEffects)] = &[
     // Les PV sont déjà calculés par `card_points` (vp_dynamic ANY_CARD 1/4).
     card!("Interplanetary Relations", reqs: [], effects: [],
           research: ResearchBonus { draw: 1, keep: 1 }),
+
+    // ================================================= LOT 5 (chantier cartes-5)
+    // 33 cartes MUETTES de la boîte de base rendues vivantes. Source du texte :
+    // `inputs/textes-cartes.json` champ `text` — la transcription des cartons —
+    // JAMAIS le champ `description` de `cards.json`. Correspondances carte par
+    // carte, texte imprimé cité et traces de sonde : `outputs/cartes5.md`.
+    //
+    // Aucune de ces cartes n'a demandé de mécanisme neuf hors deux briques :
+    // `Eff::Forest(n)` (groupe C) et `Req::TrMin(n)` (Energy Storage — divergence
+    // vs contrat, journal D1).
+
+    // ---- Groupe A : production seule (20) -----------------------------------
+    // Toutes disent « During the production phase, this produces … » : ce sont
+    // des hausses de PISTE (`*Prod`), consommées à CHAQUE phase IV, jamais des
+    // gains immédiats. « you draw a card » à l'intérieur de cette phrase est une
+    // production de CARTES (`CardProd`), pas un `Draw` à la pose (journal D6).
+
+    // « Requires a [jupiter]. During the production phase, this produces 1 plant
+    //   and 3 heat. »
+    card!("Beam from a Thorium Asteroid", reqs: [Tags(Tag::Jupiter, 1)],
+          effects: [PlantProd(1), HeatProd(3)]),
+    // « During the production phase, draw a card. »
+    card!("Callisto Penal Mines", reqs: [], effects: [CardProd(1)]),
+    // « Requires you to have 7 or more TR. During the production phase, draw two
+    //   cards. » — seule carte du lot à porter un seuil de NT (`Req::TrMin`).
+    card!("Energy Storage", reqs: [TrMin(7)], effects: [CardProd(2)]),
+    // « During the production phase, this produces 3 heat. »
+    card!("Giant Space Mirror", reqs: [], effects: [HeatProd(3)]),
+    // « During the production phase, this produces 2 heat. »
+    card!("Import of Advanced GHG", reqs: [], effects: [HeatProd(2)]),
+    // « Requires red oxygen or higher. …produces 1 MC and 2 heat. »
+    card!("Low-Atmo Shields", reqs: [OxyMin(OXY_R_MIN)],
+          effects: [McProd(1), HeatProd(2)]),
+    // « Requires red oxygen or higher. …produces 2 plants and 2 heat. »
+    card!("Methane from Titan", reqs: [OxyMin(OXY_R_MIN)],
+          effects: [PlantProd(2), HeatProd(2)]),
+    // « Requires red oxygen or higher. …produces 2 MC. »
+    card!("Natural Preserve", reqs: [OxyMin(OXY_R_MIN)], effects: [McProd(2)]),
+    // « …produces 1 MC, 1 plant, and 1 heat. »
+    card!("New Portfolios", reqs: [],
+          effects: [McProd(1), PlantProd(1), HeatProd(1)]),
+    // « …produces 2 plants. »
+    card!("Nitropholic Moss", reqs: [], effects: [PlantProd(2)]),
+    // « …produces 1 MC and 3 heat. » (PV imprimé −1 : donnée de cards.json,
+    //   déjà comptée au score, rien à encoder ici.)
+    card!("Nuclear Plants", reqs: [], effects: [McProd(1), HeatProd(3)]),
+    // « …produces 1 heat. »
+    card!("Power Plant", reqs: [], effects: [HeatProd(1)]),
+    // « …produces 2 MC and 1 heat. »
+    card!("Power Supply Consortium", reqs: [], effects: [McProd(2), HeatProd(1)]),
+    // « Requires 3 [science]. …produces 3 heat. » (la bande de phase imprimée dit
+    //   « I-II », champ que le moteur ne lit nulle part — journal D5.)
+    card!("Quantum Extractor", reqs: [Tags(Tag::Science, 3)], effects: [HeatProd(3)]),
+    // « Requires 2 ocean tiles to be flipped. …produces 2 MC. »
+    card!("Rad Suits", reqs: [OceanMin(2)], effects: [McProd(2)]),
+    // « …produces 2 plants. » (PV imprimé −1, donnée de cards.json.)
+    card!("Slash and Burn Agriculture", reqs: [], effects: [PlantProd(2)]),
+    // « …produces 1 heat. »
+    card!("Solar Power", reqs: [], effects: [HeatProd(1)]),
+    // « …produces 5 heat. »
+    card!("Soletta", reqs: [], effects: [HeatProd(5)]),
+    // « …produces 3 heat. »
+    card!("Tectonic Stress Power", reqs: [], effects: [HeatProd(3)]),
+    // « During the production phase, you draw a card and this produces 4 heat. »
+    //   La pioche est DANS la phase de production → `CardProd(1)` (journal D6).
+    card!("Undersea Vents", reqs: [], effects: [CardProd(1), HeatProd(4)]),
+
+    // ---- Groupe B : effet immédiat, éventuellement suivi d'une production (9) -
+    // « [effect] … » = gain à la POSE. Quand la carte porte AUSSI « During the
+    // production phase … », les deux coexistent : l'ordre de la table suit
+    // l'ordre du texte imprimé.
+
+    // « [effect] Draw a card. »
+    card!("Lagrange Observatory", reqs: [], effects: [Draw(1)]),
+    // « Requires white temperature. [effect] Flip an ocean tile. »
+    card!("Ice Cap Melting", reqs: [TempMin(TEMP_W_MIN)], effects: [Ocean(1)]),
+    // « Requires yellow temperature or warmer. [effect] Flip an ocean tile. »
+    card!("Permafrost Extraction", reqs: [TempMin(TEMP_Y_MIN)], effects: [Ocean(1)]),
+    // « Requires yellow temperature or warmer. [effect] Flip 2 ocean tiles. »
+    card!("Lake Mariners", reqs: [TempMin(TEMP_Y_MIN)], effects: [Ocean(2)]),
+    // « [effect] Flip an ocean tile. [effect] Draw two cards. »
+    card!("Technology Demonstration", reqs: [], effects: [Ocean(1), Draw(2)]),
+    // « Requires red temperature or warmer. [effect] Flip an ocean tile. During
+    //   the production phase, this produces 2 heat. »
+    card!("Trapped Heat", reqs: [TempMin(TEMP_R_MIN)], effects: [Ocean(1), HeatProd(2)]),
+    // « [effect] Raise the temperature 1 step. [effect] Flip an ocean tile.
+    //   [effect] Draw two cards. » (trois lignes d'effet, dans cet ordre.)
+    card!("Phobos Falls", reqs: [], effects: [Temperature(1), Ocean(1), Draw(2)]),
+    // « [effect] Gain 3 plants. During the production phase, this produces 2 MC. »
+    card!("Trading Post", reqs: [], effects: [Plants(3), McProd(2)]),
+    // « Requires red temperature or warmer. [effect] Gain 2 plants. During the
+    //   production phase, this produces 1 plant. »
+    card!("Noctis Farming", reqs: [TempMin(TEMP_R_MIN)],
+          effects: [Plants(2), PlantProd(1)]),
+
+    // ---- Groupe C : gain de forêt (4) ---------------------------------------
+    // « Gain a forest VP and raise oxygen 1 step » n'est PAS deux effets : c'est
+    // la description d'un gain de forêt, mot pour mot la formule de l'action
+    // standard du livret (p. 14, l. 379). Un seul `Eff::Forest(n)` — le rapport
+    // forêts/oxygène est de 1 pour 1 sur les quatre cartes (R1, journal D2), et
+    // le gain lève « when you gain a forest VP » n fois (R2, journal D3).
+
+    // « Requires white temperature. [effect] Gain a forest VP and raise oxygen
+    //   1 step. »
+    card!("Mangrove", reqs: [TempMin(TEMP_W_MIN)], effects: [Forest(1)]),
+    // « Requires 4 [science]. [effect] Gain 2 forest VPs and raise oxygen
+    //   2 steps. » → 2 forêts, 2 pas d'oxygène. JAMAIS 4.
+    card!("Plantation", reqs: [Tags(Tag::Science, 4)], effects: [Forest(2)]),
+    // « [effect] Gain a forest VP and raise oxygen 1 step. During the production
+    //   phase, this produces 2 MC. »
+    card!("Protected Valley", reqs: [], effects: [Forest(1), McProd(2)]),
+    // « [effect] Gain a forest VP and raise oxygen 1 step. During the production
+    //   phase, this produces 1 heat. »
+    card!("Biothermal Power", reqs: [], effects: [Forest(1), HeatProd(1)]),
 ];
 
 // ======================================== LOT CORPORATIONS (chantier corpo-1)

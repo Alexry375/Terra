@@ -3,7 +3,7 @@
 > Source de vérité du projet. Ancrée au code (`fichier:ligne`) dès qu'il y aura du
 > code. [VÉRIFIÉ JJ-MM] = relu à la source ce jour-là. [DÉCLARÉ] = non re-vérifié.
 
-Dernière mise à jour : 2026-07-27
+Dernière mise à jour : 2026-07-28
 
 ## Infrastructure du dépôt
 
@@ -20,24 +20,53 @@ Dernière mise à jour : 2026-07-27
   221 cartes transcrites de `textes-cartes` n'existent que sur le disque local
   tant qu'elles ne sont pas auditées et promues. [VÉRIFIÉ 26-07]
 
-## ⚠️ LE CHIFFRE QUI COMPTE (27-07) — 146 cartes sur 208 sont encodées
+## ⚠️ LE CHIFFRE QUI COMPTE (28-07) — 179 cartes sur 208 sont encodées
 
-**62 des 208 cartes projets de la boîte de base n'ont AUCUN encodage dans le
-moteur.** Elles se paient, comptent leurs badges et leurs PV, et n'appliquent
-rien d'autre : ni prérequis, ni production, ni action, ni déclencheur.
-[VÉRIFIÉ 27-07 par ma main : 146 des 208 noms de `textes-cartes.json` planches
-P1-P4 figurent dans `engine/src/`, mesure indépendante de celle de l'agent ;
-preuve par sonde côté agent sur *Power Plant*, delta nul]
+**29 des 208 cartes projets de la boîte de base n'ont aucun encodage** (62 avant
+le lot `moteur-cartes-5`). Elles se paient, comptent leurs badges et leurs points
+de victoire, et n'appliquent rien d'autre.
+[VÉRIFIÉ 28-07 par ma main après promotion : `--boites base --dump-deck` compte
+29 `effets_geres: false` sur 220 entrées]
+
+Les 29 restantes réclament des mécanismes que le moteur ne possède pas : acier
+et titane comme monnaies, actions standard, cartes supplémentaires jouées, phase
+de recherche modifiée, dessus de pioche révélé, défausse immédiate après pioche.
+Liste nominative : `workspaces/moteur-cartes-5/inputs/checks/02-les-29-restantes.sh`.
 
 **Ne JAMAIS citer le « 7 » de `docs/cartes/moteur-vs-imprime.md` comme une
-couverture de la boîte de base** : ce rapport n'échantillonne que 66 cartes, et
-son sous-total `ABSENT: 7` ne vaut que sur cet échantillon. Un avertissement de
-périmètre a été ajouté en tête du fichier le 27-07. C'est cette phrase manquante
-qui a fait sceller à mon contrat `moteur-boites-1` une exigence impossible.
+couverture de la boîte de base** : ce rapport n'échantillonne que 66 cartes. Un
+avertissement de périmètre a été ajouté en tête du fichier le 27-07.
 
-Conséquence de direction : **finir la boîte de base avant d'implanter les effets
-de Découverte.** Une IA entraînée sur une pioche dont 30 % des cartes sont
-inertes apprendra à les éviter dans la vraie partie.
+Conséquence de direction inchangée : **finir la boîte de base avant d'implanter
+les effets de Découverte.**
+
+## 33 CARTES RENDUES VIVANTES (28-07) — `moteur-cartes-5`, audité OK et promu
+
+- **20 productions, 9 effets immédiats, 4 gains de forêt** encodés depuis le
+  texte imprimé. `effects::LOT1` passe de 155 à 188 entrées. **396 tests verts**,
+  0 violation d'invariant, 0 partie tronquée sur 1000 parties graine 2024.
+  [VÉRIFIÉ 28-07 par ma main]
+- `cards_effects_unhandled` en boîte de base : **14 037 → 6 706** sur 1000
+  parties (−52 %). [VÉRIFIÉ 28-07]
+- **Deux règles de forêt tranchées avant le seal, confirmées par le livret** :
+  (R1) « gagnez 1 PV forêt **et** +1 oxygène » décrit ce que fait la forêt, il ne
+  s'y ajoute pas — *Plantation* donne 2 forêts et 2 pas d'oxygène, jamais 4 ; le
+  livret p.14 l.379 emploie la formule exacte pour l'action standard, à un seul
+  pas. (R2) le gain de forêt **déclenche** *Small Animals*, qui imprime « When
+  you **gain a forest VP** » — `cards.json` écrit « **Build** a forest », et
+  c'est le verbe qui décide. [VÉRIFIÉ 28-07]
+- **Chemin unique** : `flow::gain_forest` est la seule écriture de
+  `PlayerState::forests` du moteur ; l'action standard payante paie puis appelle
+  la même fonction. [VÉRIFIÉ 28-07, hold-out 02]
+- **Divergence déclarée par l'agent et vérifiée** : mon contrat affirmait que le
+  vocabulaire des prérequis suffisait. Faux — *Energy Storage* porte « Requires
+  you to have 7 or more TR » dans le champ **`requirement`**, que je n'avais pas
+  lu (je n'avais lu que `text`). `Req::TrMin` ajouté. **Leçon : une carte a
+  plusieurs champs de texte, les lire tous.** [VÉRIFIÉ 28-07]
+- Réserve consignée : *Quantum Extractor* porte `phase: "I-II"` dans la
+  transcription alors que son `text` décrit une production. Le moteur ne lit
+  nulle part ce champ ; l'encodage suit le texte. Risque résiduel dans la
+  donnée, pas dans le code. [DÉCLARÉ par l'agent]
 
 ## LA PIOCHE EST ASSAINIE (27-07) — `moteur-boites-1`, audité OK et promu
 
