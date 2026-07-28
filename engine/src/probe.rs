@@ -408,7 +408,7 @@ fn probe_state_corp(
 
 fn probe_state_base(db: &CardsDb, ids: &[u16], opts: ProbeOptions) -> GameState {
     let mut deck: Vec<u16> = (0..db.projects.len() as u16)
-        .filter(|&c| !ids.contains(&c) && db.projects[c as usize].in_deck_v1)
+        .filter(|&c| !ids.contains(&c) && db.projects[c as usize].in_deck)
         .collect();
     let mut players = [PlayerState::new(), PlayerState::new()];
     players[0].mc = opts.mc;
@@ -458,6 +458,7 @@ fn probe_state_base(db: &CardsDb, ids: &[u16], opts: ProbeOptions) -> GameState 
         res_removed: 0,
         res_targets_missing: 0,
         phase_upgrades_skipped: 0,
+        cards_effects_unhandled: 0,
         derived_mc: 0,
         derived_heat: 0,
         derived_plants: 0,

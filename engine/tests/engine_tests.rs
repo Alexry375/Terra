@@ -4,7 +4,8 @@
 
 use engine::cards::{CardsDb, Color};
 use engine::flow::{
-    allowed_phases, assign_milestones, award_points, play_round, score, setup_game,
+    allowed_phases, assign_milestones, award_points, install_corporation, play_round, score,
+    setup_game,
 };
 use engine::policy::{ActionOpt, ConstructionBonus, Policy, RandomPolicy};
 use engine::sim::{check_invariants, run_simulation, InvariantTracker, MAX_GENERATIONS};
@@ -145,12 +146,24 @@ impl Policy for TestPolicy {
 // ---------------------------------------------------------------- chargement
 
 #[test]
-fn cards_load_248_projects_and_16_corporations() {
+fn cards_load_208_projects_and_12_corporations() {
     // Depuis le chantier cartes-1, la base charge TOUTES les cartes projets
     // (green/blue/red = 331, pour que la sonde trouve aussi les cartes hors
-    // pioche — journal B2) mais la pioche v1 reste 248 cartes.
+    // pioche — journal B2).
+    //
+    // (boites-1) ATTENTE MISE À JOUR : la pioche n'est plus les 248 cartes
+    // `in_deck_v1` du portage Java mais les 208 projets des planches physiques
+    // P1..P4 de la boîte de base — le défaut du moteur (I3). Les 40 cartes
+    // perdues sont les 38 de Découverte (jamais imprimées dans la boîte de
+    // base) et les 2 inventions du portage (`Microbiology Patents`,
+    // `Project Inspection`), qui ne figurent sur aucune planche.
     let db = db();
-    assert_eq!(db.v1_project_count, 248, "236 base + Discovery in_deck_v1");
+    assert_eq!(db.deck_project_count, 208, "les 4 planches de 52 cartes");
+    for fantome in ["Microbiology Patents", "Project Inspection"] {
+        let c = db.projects.iter().find(|c| c.name == fantome).unwrap();
+        assert!(!c.in_deck, "{fantome} n'existe sur aucune planche physique");
+        assert!(c.in_deck_v1, "…et pourtant le portage Java la distribuait");
+    }
     assert_eq!(db.projects.len(), 331, "toutes cartes green/blue/red");
     // (corpo-1) ASSERTION RENFORCÉE : la pioche de corporations ne contient plus
     // les 16 entrées `in_deck_v1` de cards.json mais les 12 planches de la boîte
@@ -176,18 +189,19 @@ fn cards_load_248_projects_and_16_corporations() {
     // Piège d'appariement : deux entrées « Teractor Corporation » dans
     // cards.json (48 hors pioche, 51 dans la pioche) — c'est la seconde.
     let teractor = db.corporations.iter().find(|c| c.name == "Teractor Corporation").unwrap();
-    assert_eq!(teractor.starting_mc, 51, "l'entrée in_deck_v1 est celle à 51 MC");
+    assert_eq!(teractor.starting_mc, 51, "l'entrée nommée par la planche CORP est celle à 51 MC");
     // Chaque corporation chargée porte un effet déclaré.
     assert!(db.corporations.iter().all(|c| c.effect.is_some()));
-    let v1 = |color| {
+    // (boites-1) Répartition par couleur de la pioche RÉELLE (planches P1..P4).
+    let en_pioche = |color| {
         db.projects
             .iter()
-            .filter(|c| c.in_deck_v1 && c.color == color)
+            .filter(|c| c.in_deck && c.color == color)
             .count()
     };
     assert_eq!(
-        (v1(Color::Green), v1(Color::Blue), v1(Color::Red)),
-        (136, 72, 40)
+        (en_pioche(Color::Green), en_pioche(Color::Blue), en_pioche(Color::Red)),
+        (106, 64, 38)
     );
 }
 
@@ -489,6 +503,32 @@ fn forced_conversions_at_end_of_action_phase() {
     let db = db();
     let mut pol = TestPolicy::new();
     let mut game = setup_game(&db, 24, &mut pol);
+    // (boites-1) La pioche ayant changé (208 cartes au lieu de 248), le tirage
+    // de la graine 24 donne désormais Ecoline au joueur 0 — dont la remise
+    // « une plante de moins » (7 au lieu de 8) est une AUTRE règle, déjà
+    // couverte par les tests du lot corporations. Ce test-ci porte sur la
+    // conversion FORCÉE du livret p.14 : on l'isole en donnant au joueur une
+    // corporation sans remise de forêt, plutôt que de dépendre du hasard du
+    // mélange.
+    // Critère POSITIF, sans citer de nom : une corporation sans remise de
+    // forêt, et différente de celle de p1 — deux joueurs ne peuvent pas avoir
+    // la même corporation dans une vraie partie.
+    let corp_de_p1 = game.players[1].corporation;
+    let sans_remise = db
+        .corporations
+        .iter()
+        .position(|c| {
+            c.effect.map_or(false, |e| e.forest_plant_rebate == 0)
+                && Some(db.corporations.iter().position(|x| x.name == c.name).unwrap() as u16)
+                    != corp_de_p1
+        })
+        .expect("une corporation de base sans remise de forêt") as u16;
+    // Remise en place par le SERVICE RÉEL, sur un joueur neuf : c'est
+    // exactement ce que fait `setup_game`, donc l'état obtenu est un état que
+    // la partie produit d'elle-même (aucune production de départ d'Ecoline ne
+    // traîne sur les pistes).
+    game.players[0] = PlayerState::new();
+    install_corporation(&mut game, &db, 0, sans_remise);
     game.players[0].plants = 9;
     game.players[0].heat = 17;
     game.players[0].mc = 0;
@@ -771,7 +811,12 @@ fn card_conservation_checked_by_invariants() {
     let total = game.deck.len()
         + game.discard.len()
         + game.players.iter().map(|p| p.hand.len() + p.played.len()).sum::<usize>();
-    assert_eq!(total, 248);
+    // (boites-1) ATTENTE MISE À JOUR : la pioche est passée des 248 cartes
+    // `in_deck_v1` du portage Java aux 208 projets des planches P1..P4. La
+    // conservation, elle, est inchangée — c'est la même somme, sur le nouveau
+    // total.
+    assert_eq!(total, 208);
+    assert_eq!(total, db.deck_project_count);
 
     // Une carte qui disparaît doit être détectée.
     game.players[0].hand.pop();

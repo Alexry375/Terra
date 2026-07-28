@@ -16,8 +16,8 @@
 use engine::cards::{CardsDb, Tag};
 use engine::effects::{ProdCount, ProdRes};
 use engine::flow::{
-    derived_production, play_round, research_base, research_draw_keep, research_extra,
-    setup_game,
+    derived_production, install_corporation, play_round, research_base, research_draw_keep,
+    research_extra, setup_game,
 };
 use engine::policy::{ActionOpt, ConstructionBonus, Policy, RandomPolicy};
 use engine::probe::{run_probe_seq_full, ProbeOptions, ProbeResult, ProbeScript};
@@ -413,6 +413,28 @@ fn the_research_bonus_reaches_the_real_phase_five() {
     // sélectionneurs : base 5/2). Le joueur 0 a Interplanetary Relations en jeu.
     let mut pol = PhaseForcer::new(&[5]);
     let mut game = setup_game(&db, 4242, &mut pol);
+    // (boites-1) ATTENTE PRÉSERVÉE, TIRAGE NEUTRALISÉ. Le test mesure le bonus
+    // de recherche d'UNE CARTE ; avec la pioche réelle (208 cartes au lieu de
+    // 248) la graine 4242 donne à p0 une corporation qui porte elle aussi un
+    // bonus de recherche, et les deux s'additionnaient (7/4 au lieu de 6/3).
+    // On installe donc aux deux joueurs, par le service réel, une corporation
+    // sans bonus de recherche : la carte redevient la seule variable.
+    // Deux corporations DIFFÉRENTES (une partie n'en distribue jamais deux
+    // fois la même) et toutes deux sans bonus de recherche — critère positif,
+    // lu dans l'encodage, aucun nom cité.
+    let neutres: Vec<u16> = db
+        .corporations
+        .iter()
+        .enumerate()
+        .filter(|(_, c)| c.effect.map_or(false, |e| e.research.is_none()))
+        .map(|(i, _)| i as u16)
+        .collect();
+    assert!(neutres.len() >= 2, "il faut deux corporations sans bonus de recherche");
+    for p in 0..2 {
+        game.players[p] = PlayerState::new();
+        install_corporation(&mut game, &db, p, neutres[p]);
+    }
+    assert_ne!(neutres[0], neutres[1]);
     let id = db.resolve_card("Interplanetary Relations").expect("carte résolue");
     game.players[0].put_in_play(id, &db);
     play_round(&mut game, &db, &mut pol);

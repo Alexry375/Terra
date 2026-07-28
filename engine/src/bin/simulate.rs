@@ -3,7 +3,13 @@
 //!
 //! Usage : simulate --games N --seed S [--cards chemin/cards.json]
 //!                  [--effects on|off] [--probe "<nom exact de carte>"]
+//!                  [--boites base[,promo][,decouverte]] [--dump-deck]
+//!
+//! (boites-1) `--boites` choisit les boîtes physiques dont les cartes composent
+//! les pioches ; son défaut est `base` (I3). `--dump-deck` recense la pioche
+//! ainsi composée, un objet JSON par ligne et par carte retenue.
 
+use engine::boites::BoiteSet;
 use engine::cards::CardsDb;
 use engine::policy::RandomPolicy;
 use engine::probe::{
@@ -77,6 +83,9 @@ fn main() {
     // (corpo-1) Corporation imposée à la sonde, et vidage de la pioche.
     let mut probe_corp: Option<String> = None;
     let mut dump_corporations = false;
+    // (boites-1) Boîtes actives et recensement de la pioche composée.
+    let mut boites = BoiteSet::default();
+    let mut dump_deck = false;
 
     let args: Vec<String> = std::env::args().skip(1).collect();
     let mut i = 0;
@@ -171,6 +180,14 @@ fn main() {
                 dump_corporations = true;
                 i += 1;
             }
+            "--boites" => {
+                boites = BoiteSet::parse(value(i)).unwrap_or_else(|e| die(&e));
+                i += 2;
+            }
+            "--dump-deck" => {
+                dump_deck = true;
+                i += 1;
+            }
             "--dump-turn-order" => {
                 dump_turn_order = true;
                 i += 1;
@@ -179,8 +196,31 @@ fn main() {
         }
     }
 
-    let mut db = CardsDb::load(&cards_path).unwrap_or_else(|e| die(&e));
+    let mut db = CardsDb::load_boites(&cards_path, boites).unwrap_or_else(|e| die(&e));
     db.effects_on = effects_on;
+
+    // (boites-1) Ce que la composition a eu à signaler sans le corriger — sur
+    // stderr, pour que stdout reste strictement déterministe.
+    for a in &db.avertissements {
+        eprintln!("boites: {a}");
+    }
+
+    // (boites-1) Recensement de la pioche RÉELLE de la configuration courante :
+    // `db.recensement()` lit les mêmes champs que `setup_game` distribue, il
+    // n'y a pas de seconde composition. Un objet JSON par ligne.
+    if dump_deck {
+        for c in db.recensement() {
+            let line = serde_json::json!({
+                "name": c.name,
+                "kind": c.kind.as_str(),
+                "boite": c.boite.as_str(),
+                "planche": c.planche,
+                "effets_geres": c.effets_geres,
+            });
+            println!("{line}");
+        }
+        return;
+    }
 
     // (corpo-1) La pioche de corporations RÉELLE d'une partie, dans l'ordre de
     // chargement : `db.corporations` est exactement ce que `setup_game` distribue.
@@ -306,6 +346,8 @@ fn main() {
         "res_removed": s.res_removed,
         "res_targets_missing": s.res_targets_missing,
         "phase_upgrades_skipped": s.phase_upgrades_skipped,
+        // (boites-1) I4 : cartes à effet non géré réellement JOUÉES.
+        "cards_effects_unhandled": s.cards_effects_unhandled,
         "vp_from_resources": s.vp_from_resources,
         // (lot 4) productions dérivées, NT par badge, bonus de recherche.
         "derived_mc": s.derived_mc,

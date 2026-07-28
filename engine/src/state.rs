@@ -359,6 +359,16 @@ pub struct GameState {
     /// action de Fibrous Composite Material. Incrémenté au moment où l'effet
     /// est atteint. Peut légitimement valoir 0 sur un échantillon de parties.
     pub phase_upgrades_skipped: u64,
+    /// (boites-1) Nombre de fois qu'une carte SANS ENCODAGE est entrée en jeu
+    /// au cours de la partie : projet construit dont `effect` est `None`, ou
+    /// corporation installée dont `effect` est `None`. Incrémenté à l'endroit
+    /// exact de la mise en jeu (`flow::build_card_with`,
+    /// `flow::install_corporation`), jamais recalculé après coup.
+    ///
+    /// C'est la contrepartie jouée du champ `effets_geres` de `--dump-deck` :
+    /// aucun pouvoir imprimé n'est sauté en silence, chaque saut est compté.
+    /// Il vaut donc 0 seulement si toutes les cartes jouées sont encodées.
+    pub cards_effects_unhandled: u64,
     // ------------------------------------------- lot 4 (productions dérivées)
     /// (lot 4) MC crédités par la PRODUCTION DÉRIVÉE, tous joueurs, cumulés sur
     /// la partie. Incrémenté dans `flow::phase_production`, à l'endroit exact du

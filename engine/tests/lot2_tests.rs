@@ -415,11 +415,22 @@ fn redrafted_contracts_action_discards_and_draws_equal() {
     game.players[0].mc = 0;
     // Main de p0 : 8 cartes de départ (garanti ≥ 2).
     let hand_before = game.players[0].hand.len();
-    let discard_before = game.discard.len();
+    let cartes_de_p0: Vec<u16> = game.players[0].hand.clone();
     play_round(&mut game, &db, &mut pol);
-    // Défausse 2, pioche 2 : main inchangée, +2 à la défausse, action comptée.
+    // Défausse 2, pioche 2 : main inchangée, action comptée.
     assert_eq!(game.players[0].hand.len(), hand_before, "défausse 2 / pioche 2");
-    assert_eq!(game.discard.len(), discard_before + 2);
+    // (boites-1) ATTENTE MISE À JOUR — la comparaison portait sur la TAILLE de
+    // la défausse commune (`discard_before + 2`), qui mélange les défausses des
+    // deux joueurs. Avec la pioche réelle (208 cartes au lieu de 248), la
+    // graine 5 donne à p1 une autre corporation et p1 défausse une carte de
+    // plus dans le même tour : le total passe à 3 sans que l'action testée ait
+    // changé. On compte donc désormais les cartes DE P0 arrivées à la défausse
+    // — attribution exacte, insensible à ce que fait l'autre joueur.
+    let de_p0_defaussees = cartes_de_p0
+        .iter()
+        .filter(|c| game.discard.contains(c))
+        .count();
+    assert_eq!(de_p0_defaussees, 2, "les 2 cartes défaussées sont celles de p0");
     assert_eq!(game.blue_actions, 1);
 }
 

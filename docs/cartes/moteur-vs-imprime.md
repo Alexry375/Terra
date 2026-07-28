@@ -4,6 +4,16 @@ Diagnostic carte par carte des **66 cartes distinctes** nommées en `inputs/dive
 §G1 (51) et §G2 (20), 5 étant communes aux deux sections. Le texte de référence est
 `inputs/textes-cartes.json` (champ `text`), jamais la paraphrase de `cards.json`.
 
+> **⚠️ AVERTISSEMENT DE PÉRIMÈTRE (ajouté par le CTO le 27-07).** Tous les
+> totaux de ce document portent sur ces **66 cartes échantillonnées**, jamais
+> sur la boîte entière. En particulier, « ABSENT : 7 » ne signifie PAS que sept
+> cartes de la boîte de base sont muettes : la mesure exhaustive du 27-07
+> (chantier `moteur-boites-1`) en compte **62 sur 208**, et les 24 HORS-PORTEE
+> ci-dessous sont tout aussi muettes. Cet avertissement existe parce que le
+> contrat de `moteur-boites-1` a repris le « 7 » comme une couverture globale ;
+> l'agent l'a mesuré, contredit et prouvé par sonde. Ne pas citer un total de ce
+> fichier sans rappeler qu'il porte sur 66 cartes.
+
 ## Verdict global
 
 **Le moteur n'a PAS hérité en masse des erreurs de la paraphrase.** Sur les 35 cartes du

@@ -8,6 +8,7 @@
 //! les effets du lot 1 sont résolus par nom dans la table statique
 //! `effects::LOT1`.
 
+use crate::boites::{self, Appartenance, Boite, BoiteSet, Kind, Ligne};
 use crate::effects::{self, CardEffects};
 use serde::Deserialize;
 
@@ -140,9 +141,22 @@ pub struct ProjectCard {
     pub color: Color,
     pub price: i64,
     pub tags: Vec<Tag>,
-    /// Dans la pioche v1 ? (les cartes hors pioche ne sont accessibles que
-    /// par la sonde et les tests.)
+    /// Drapeau brut `in_deck_v1` de `cards.json`. **Ne compose plus la
+    /// pioche** depuis le chantier moteur-boites-1 : il vient d'un portage Java
+    /// non officiel. Conservé parce qu'il reste la clef de désambiguïsation
+    /// historique entre une carte et sa variante « Buffed » de même nom
+    /// (`resolve_by_name`), un problème d'IDENTITÉ et non d'appartenance.
     pub in_deck_v1: bool,
+    /// (boites-1) Boîte physique d'appartenance, `None` si la carte n'existe
+    /// sur aucune planche connue (`Microbiology Patents`, variantes « Buffed »,
+    /// cartes `fan`/`crysis`…).
+    pub boite: Option<Boite>,
+    /// (boites-1) Planche physique (`P1`..`P4`), `None` pour Découverte et pour
+    /// les cartes sans boîte.
+    pub planche: Option<&'static str>,
+    /// (boites-1) Retenue dans la pioche de LA configuration `--boites`
+    /// courante. C'est le seul critère de distribution.
+    pub in_deck: bool,
     /// VP fixes imprimés (extraction Mission A, 0 par défaut).
     pub vp: i64,
     pub vp_dynamic: Option<VpDynamic>,
@@ -150,7 +164,46 @@ pub struct ProjectCard {
     pub effect: Option<&'static CardEffects>,
 }
 
+/// (boites-1) L'encodage d'une carte applique-t-il TOUT son texte imprimé, ou
+/// contient-il un effet que le moteur saute explicitement ?
+///
+/// `ResEff::PhaseUpgrade` est le seul cas aujourd'hui : `flow::apply_res_eff`
+/// ne l'applique pas et l'incrémente dans `phase_upgrades_skipped`. Une carte
+/// qui en porte un est encodée MAIS pas entièrement gérée — `effets_geres`
+/// doit dire `false`, sinon le recensement affirmerait qu'un pouvoir est
+/// appliqué alors que le moteur reconnaît lui-même le sauter (I4).
+///
+/// Le prédicat est POSITIF au niveau des données : il lit l'encodage, il ne
+/// cite aucun nom de carte.
+pub fn encodage_integral(e: &CardEffects) -> bool {
+    fn saute(effs: &[effects::ResEff]) -> bool {
+        effs.iter().any(|r| matches!(r, effects::ResEff::PhaseUpgrade))
+    }
+    fn saute_step(steps: &[effects::ResStep]) -> bool {
+        steps.iter().any(|s| match s {
+            effects::ResStep::Do(r) => saute(std::slice::from_ref(r)),
+            effects::ResStep::Choose(branches) => branches.iter().any(|b| saute(b)),
+        })
+    }
+    if saute_step(e.on_build) {
+        return false;
+    }
+    if let Some(effects::Action::Res(branches)) = e.action {
+        if branches.iter().any(|b| saute(b)) {
+            return false;
+        }
+    }
+    true
+}
+
 impl ProjectCard {
+    /// (boites-1) Le moteur applique-t-il l'intégralité du texte imprimé ?
+    /// Faux si la carte n'a aucun encodage, faux aussi si son encodage porte un
+    /// effet que le moteur saute (voir [`encodage_integral`]).
+    pub fn effets_geres(&self) -> bool {
+        self.effect.map_or(false, encodage_integral)
+    }
+
     /// (lot 3) Type de ressource que la carte PORTE, s'il y en a un. Une carte
     /// sans encodage (stub) ou qui n'en porte pas renvoie `None` : elle n'est
     /// jamais réceptacle.
@@ -159,26 +212,68 @@ impl ProjectCard {
     }
 }
 
-/// Corporation de la boîte de base : tags + MC de départ (champ `price`) +
-/// effets déclaratifs (chantier corpo-1). `effect` n'est jamais `None` pour une
-/// corporation chargée : le chargement n'en retient QUE celles de la table
-/// `effects::CORPS` (voir [`CardsDb::load`]). Le champ reste une option pour
-/// que le code lecteur n'ait pas à supposer l'invariant.
+/// Corporation retenue par la configuration `--boites` : tags + MC de départ
+/// (champ `price`) + effets déclaratifs (chantier corpo-1).
+///
+/// `effect` est `Some` pour les 12 corporations de la boîte de base — la table
+/// `effects::CORPS` les couvre toutes, et le chargement le vérifie. Il est
+/// `None` pour les corporations de Découverte (chantier boites-1) : leurs
+/// pouvoirs reposent sur l'amélioration des cartes Phase, mécanisme que le
+/// moteur ne modélise pas. Elles sont alors comptées dans
+/// `cards_effects_unhandled` à chaque partie où elles sont jouées, jamais
+/// appliquées en silence.
 #[derive(Debug, Clone)]
 pub struct Corporation {
     pub name: String,
     pub starting_mc: i64,
     pub tags: Vec<Tag>,
     pub effect: Option<&'static effects::CorpEffects>,
+    /// (boites-1) Boîte physique dont vient la corporation.
+    pub boite: Boite,
+    /// (boites-1) Planche physique (`CORP`), `None` pour Découverte.
+    pub planche: Option<&'static str>,
+}
+
+/// (boites-1) Une carte retenue par la configuration `--boites` courante, telle
+/// que `--dump-deck` la recense.
+#[derive(Debug, Clone, Copy)]
+pub struct CarteRetenue<'a> {
+    /// Nom anglais de `cards.json` — la clef de jointure de tout le moteur
+    /// (I2 bis), y compris pour les cartes de Découverte.
+    pub name: &'a str,
+    pub kind: Kind,
+    pub boite: Boite,
+    pub planche: Option<&'static str>,
+    /// Le moteur applique-t-il l'effet imprimé de cette carte ?
+    ///
+    /// `true` signifie exactement : **un encodage existe** pour cette carte
+    /// (`effects::LOT1` pour un projet, `effects::CORPS` pour une corporation)
+    /// **et cet encodage ne contient aucun effet que le moteur saute** (voir
+    /// [`encodage_integral`]).
+    /// `false` couvre deux cas : la carte entre en jeu en stub neutre — payée,
+    /// badges et PV comptés, **rien d'autre appliqué** (ni prérequis, ni
+    /// production, ni action, ni déclencheur) ; ou elle est encodée mais l'un
+    /// de ses effets est une amélioration de carte Phase, que le moteur saute
+    /// et compte dans `phase_upgrades_skipped`.
+    ///
+    /// Ce que `true` n'atteste PAS : que l'encodage soit complet et fidèle au
+    /// texte imprimé. Cette fidélité-là n'a été auditée que sur les 66 cartes
+    /// de `docs/cartes/moteur-vs-imprime.md`.
+    pub effets_geres: bool,
 }
 
 /// Base de cartes chargée une fois au démarrage.
 pub struct CardsDb {
     pub projects: Vec<ProjectCard>,
     pub corporations: Vec<Corporation>,
-    /// Nombre de cartes projets `in_deck_v1` (taille de la pioche complète —
-    /// invariant de conservation).
-    pub v1_project_count: usize,
+    /// Nombre de cartes projets retenues par la configuration `--boites`
+    /// (taille de la pioche complète — invariant de conservation).
+    pub deck_project_count: usize,
+    /// (boites-1) Boîtes actives de cette base de cartes.
+    pub boites: BoiteSet,
+    /// (boites-1) Ce que la composition a eu à signaler sans le corriger
+    /// (cartes physiques absentes de `cards.json`). Remonté sur stderr.
+    pub avertissements: Vec<String>,
     /// Interrupteur `--effects on|off` : `false` = squelette intégral
     /// (stubs neutres, ni prérequis ni VP de cartes au score).
     pub effects_on: bool,
@@ -199,6 +294,11 @@ struct RawCard {
     tags: Vec<String>,
     price: Option<i64>,
     in_deck_v1: bool,
+    /// (boites-1) Champ `box` brut. Ne décide de l'appartenance que pour
+    /// Découverte ; ailleurs il ne sert qu'à désambiguïser les homonymes
+    /// (voir `boites`).
+    #[serde(rename = "box", default)]
+    boite_src: String,
     /// Champs Mission A (absents de l'ancien cards.json : défauts neutres).
     #[serde(default)]
     vp: i64,
@@ -223,18 +323,47 @@ fn vp_kind(s: &str) -> VpKind {
 
 impl CardsDb {
     /// Charge `cards_v2.json` (ou l'ancien `cards.json`, champs VP absents →
-    /// défauts neutres). Projets : toutes les cartes green/blue/red ;
-    /// corporations : les `in_deck_v1`. Effets par défaut : ACTIVÉS.
+    /// défauts neutres) pour la **boîte de base seule** (I3 : le défaut du
+    /// moteur). Effets par défaut : ACTIVÉS.
     pub fn load(path: &str) -> Result<CardsDb, String> {
+        CardsDb::load_boites(path, BoiteSet::default())
+    }
+
+    /// (boites-1) Charge la base de cartes pour une configuration de boîtes
+    /// donnée. Projets : toutes les cartes green/blue/red sont chargées (la
+    /// sonde et les tests doivent pouvoir atteindre une carte hors pioche),
+    /// mais seules celles des boîtes demandées portent `in_deck`.
+    /// Corporations : uniquement celles des boîtes demandées — ce sont
+    /// exactement les cartes que `setup_game` distribue.
+    pub fn load_boites(path: &str, boites: BoiteSet) -> Result<CardsDb, String> {
         let data = std::fs::read_to_string(path)
             .map_err(|e| format!("lecture {path}: {e}"))?;
         let raw: Vec<RawCard> =
             serde_json::from_str(&data).map_err(|e| format!("parse {path}: {e}"))?;
 
+        // Point de composition UNIQUE : `boites::composer` décide, pour chaque
+        // ligne du fichier, de quelle boîte physique elle vient — ou d'aucune.
+        let lignes: Vec<Ligne> = raw
+            .iter()
+            .map(|c| Ligne {
+                name: &c.name,
+                boite_src: &c.boite_src,
+                kind: match c.category.as_str() {
+                    "corporation" | "buffedCorporation" => Kind::Corporation,
+                    _ => Kind::Project,
+                },
+            })
+            .collect();
+        let compo = boites::composer(&lignes, boites)?;
+        let appartenances = compo.appartenances;
+
         let mut projects = Vec::new();
         let mut corporations = Vec::new();
 
-        for c in raw.into_iter() {
+        for (i, c) in raw.into_iter().enumerate() {
+            let app: Option<Appartenance> = appartenances[i];
+            // Retenue dans la pioche ssi sa boîte physique est demandée.
+            let retenue = app.map_or(false, |a| boites.contains(a.boite));
             let tags: Vec<Tag> = c
                 .tags
                 .iter()
@@ -252,6 +381,9 @@ impl CardsDb {
                         // (piège des variantes « Buffed », journal D1).
                         effect: None,
                         in_deck_v1: c.in_deck_v1,
+                        boite: app.map(|a| a.boite),
+                        planche: app.and_then(|a| a.planche),
+                        in_deck: retenue,
                         vp: c.vp,
                         vp_dynamic: c.vp_dynamic.as_ref().map(|d| VpDynamic {
                             kind: vp_kind(&d.kind),
@@ -264,62 +396,77 @@ impl CardsDb {
                         tags,
                     });
                 }
-                // (corpo-1) La pioche de corporations d'une partie = les 12
-                // planches de la BOÎTE DE BASE, déclarées par `effects::CORPS`.
-                // Double critère, tous deux nécessaires :
-                //  - `in_deck_v1` : écarte le jumeau hors-pioche « Teractor
-                //    Corporation » (48 MC) de l'entrée officielle (51 MC) —
-                //    deux entrées portent ce nom exact dans `cards.json` ;
-                //  - nom présent dans `CORPS` : écarte les quatre corporations
-                //    `in_deck_v1` qui ne sont sur aucune planche de la boîte
-                //    (Apollo Industries, Exocorp, Hyperion Systems, Sultira),
-                //    toutes bâties sur l'amélioration de carte Phase, mécanisme
-                //    que le moteur saute. Voir l'en-tête de `CORPS` pour leur
-                //    réintégration future.
-                "corporation" if c.in_deck_v1 => {
-                    if let Some(spec) = effects::corp_lookup(&c.name) {
-                        corporations.push(Corporation {
-                            name: c.name,
-                            starting_mc: c.price.unwrap_or(0),
-                            tags,
-                            effect: Some(spec),
-                        });
-                    }
+                // (boites-1) La pioche de corporations = celles que les boîtes
+                // demandées contiennent PHYSIQUEMENT. `in_deck_v1` n'entre plus
+                // dans le critère. La planche CORP nomme « Teractor
+                // Corporation », et `cards.json` en porte deux lignes : c'est
+                // la box déclarée par la famille (`base`) qui retient celle à
+                // 51 MC plutôt que le jumeau à 48 MC rangé en `promo2021` —
+                // choix d'IDENTITÉ que la planche seule ne pouvait pas faire.
+                //
+                // Les 4 corporations de Découverte (Apollo Industries, Exocorp,
+                // Hyperion Systems, Sultira) entrent ici sans encodage : leurs
+                // pouvoirs reposent sur l'amélioration des cartes Phase, que le
+                // moteur ne modélise pas. Elles sont comptées dans
+                // `cards_effects_unhandled`, pas jouées en silence.
+                "corporation" if retenue => {
+                    let app = app.expect("corporation retenue sans appartenance");
+                    let effect = effects::corp_lookup(&c.name);
+                    corporations.push(Corporation {
+                        name: c.name,
+                        starting_mc: c.price.unwrap_or(0),
+                        tags,
+                        effect,
+                        boite: app.boite,
+                        planche: app.planche,
+                    });
                 }
-                // Hors périmètre v1 : corporations hors pioche,
+                // Hors des boîtes demandées : corporations d'une autre boîte,
                 // buffedCorporation, crysis.
                 _ => {}
             }
         }
 
-        let v1_project_count = projects.iter().filter(|c| c.in_deck_v1).count();
-        if v1_project_count == 0 || corporations.len() < 4 {
+        let deck_project_count = projects.iter().filter(|c| c.in_deck).count();
+        if deck_project_count == 0 || corporations.len() < 4 {
             return Err(format!(
-                "base de cartes suspecte: {} projets v1, {} corporations",
-                v1_project_count,
+                "base de cartes suspecte: {} projets en pioche, {} corporations",
+                deck_project_count,
                 corporations.len()
             ));
         }
 
-        // (corpo-1) Garde-fou de la pioche de corporations : la table `CORPS`
-        // décrit la boîte de base, donc CHAQUE entrée doit résoudre vers
-        // EXACTEMENT une corporation `in_deck_v1` du fichier. Le piège
-        // d'appariement (deux « Teractor Corporation ») serait sinon indécidable.
-        for (name, _) in effects::CORPS {
-            let n = corporations.iter().filter(|c| c.name == *name).count();
-            if n != 1 {
+        // (corpo-1, conservé) Garde-fou de la pioche de corporations de la
+        // BOÎTE DE BASE : la table `CORPS` la décrit entièrement, donc chaque
+        // entrée doit résoudre vers EXACTEMENT une corporation chargée, et les
+        // 12 planches CORP doivent toutes être encodées. Le piège
+        // d'appariement (deux « Teractor Corporation ») serait sinon
+        // indécidable. La table de boîtes et `CORPS` se contrôlent ainsi
+        // mutuellement : un désaccord fait échouer le chargement.
+        if boites.contains(Boite::Base) {
+            for (name, _) in effects::CORPS {
+                let n = corporations
+                    .iter()
+                    .filter(|c| c.name == *name && c.boite == Boite::Base)
+                    .count();
+                if n != 1 {
+                    return Err(format!(
+                        "pioche de corporations: '{name}' résolue {n} fois dans {path} \
+                         (une et une seule planche CORP attendue)"
+                    ));
+                }
+            }
+            let base_corps = corporations
+                .iter()
+                .filter(|c| c.boite == Boite::Base)
+                .count();
+            if base_corps != effects::CORPS.len() {
                 return Err(format!(
-                    "pioche de corporations: '{name}' résolue {n} fois dans {path} \
-                     (une et une seule entrée in_deck_v1 attendue)"
+                    "pioche de corporations: {base_corps} planches CORP chargées pour {} \
+                     déclarées dans la table d'effets",
+                    effects::CORPS.len()
                 ));
             }
-        }
-        if corporations.len() != effects::CORPS.len() {
-            return Err(format!(
-                "pioche de corporations: {} chargées pour {} déclarées dans la table",
-                corporations.len(),
-                effects::CORPS.len()
-            ));
         }
 
         // Garde-fou : chaque entrée de la table d'effets doit résoudre vers
@@ -347,9 +494,38 @@ impl CardsDb {
         Ok(CardsDb {
             projects,
             corporations,
-            v1_project_count,
+            deck_project_count,
+            boites,
+            avertissements: compo.avertissements,
             effects_on: true,
         })
+    }
+
+    /// (boites-1) Les cartes réellement retenues par la configuration courante,
+    /// projets puis corporations, dans l'ordre du fichier — c'est ce que
+    /// `--dump-deck` recense et ce que `setup_game` distribue. Le nom exposé est
+    /// TOUJOURS celui de `cards.json` (I2 bis), jamais une traduction.
+    pub fn recensement(&self) -> Vec<CarteRetenue<'_>> {
+        let mut v: Vec<CarteRetenue<'_>> = Vec::new();
+        for c in self.projects.iter().filter(|c| c.in_deck) {
+            v.push(CarteRetenue {
+                name: &c.name,
+                kind: Kind::Project,
+                boite: c.boite.expect("carte en pioche sans boîte"),
+                planche: c.planche,
+                effets_geres: c.effets_geres(),
+            });
+        }
+        for c in &self.corporations {
+            v.push(CarteRetenue {
+                name: &c.name,
+                kind: Kind::Corporation,
+                boite: c.boite,
+                planche: c.planche,
+                effets_geres: c.effect.is_some(),
+            });
+        }
+        v
     }
 
     /// Résolution CANONIQUE d'une carte projet par son nom exact — chemin

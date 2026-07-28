@@ -150,10 +150,10 @@ pub fn check_invariants(
     let total = game.deck.len()
         + game.discard.len()
         + game.players.iter().map(|p| p.hand.len() + p.played.len()).sum::<usize>();
-    if total != db.v1_project_count {
+    if total != db.deck_project_count {
         return Err(format!(
             "conservation des cartes violée: {} != {}",
-            total, db.v1_project_count
+            total, db.deck_project_count
         ));
     }
     let corps = game.corp_deck.len()
@@ -212,6 +212,8 @@ pub struct GameOutcome {
     pub res_targets_missing: u64,
     /// Améliorations de carte Phase demandées et non gérées.
     pub phase_upgrades_skipped: u64,
+    /// (boites-1) Cartes sans encodage entrées en jeu.
+    pub cards_effects_unhandled: u64,
     /// Points de victoire venant des ressources posées, les deux joueurs.
     pub vp_from_resources: i64,
     // ------------------------------------------- lot 4 (productions dérivées)
@@ -268,6 +270,7 @@ pub fn play_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameOutcom
         res_removed: game.res_removed,
         res_targets_missing: game.res_targets_missing,
         phase_upgrades_skipped: game.phase_upgrades_skipped,
+        cards_effects_unhandled: game.cards_effects_unhandled,
         vp_from_resources,
         derived_mc: game.derived_mc,
         derived_heat: game.derived_heat,
@@ -316,6 +319,8 @@ pub struct SimSummary {
     pub res_removed: u64,
     pub res_targets_missing: u64,
     pub phase_upgrades_skipped: u64,
+    /// (boites-1) Cartes sans encodage entrées en jeu, toutes parties cumulées.
+    pub cards_effects_unhandled: u64,
     pub vp_from_resources: i64,
     // ------------------------------------------- lot 4 (productions dérivées)
     /// Ressources créditées par la PRODUCTION DÉRIVÉE (`flow::phase_production`).
@@ -365,6 +370,7 @@ pub fn run_simulation(
     let mut res_removed = 0u64;
     let mut res_targets_missing = 0u64;
     let mut phase_upgrades_skipped = 0u64;
+    let mut cards_effects_unhandled = 0u64;
     let mut vp_from_resources = 0i64;
     let mut derived_mc = 0u64;
     let mut derived_heat = 0u64;
@@ -402,6 +408,7 @@ pub fn run_simulation(
         res_removed += out.res_removed;
         res_targets_missing += out.res_targets_missing;
         phase_upgrades_skipped += out.phase_upgrades_skipped;
+        cards_effects_unhandled += out.cards_effects_unhandled;
         vp_from_resources += out.vp_from_resources;
         derived_mc += out.derived_mc;
         derived_heat += out.derived_heat;
@@ -440,6 +447,7 @@ pub fn run_simulation(
         res_removed,
         res_targets_missing,
         phase_upgrades_skipped,
+        cards_effects_unhandled,
         vp_from_resources,
         derived_mc,
         derived_heat,

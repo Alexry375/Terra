@@ -57,10 +57,12 @@ fn draw_n(game: &mut GameState, n: usize, out: &mut Vec<u16>) {
 pub fn setup_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameState {
     let mut rng = StdRng::seed_from_u64(seed);
 
-    // Pioche v1 uniquement : les cartes hors pioche (in_deck_v1 == false)
-    // restent accessibles à la sonde/aux tests mais jamais distribuées.
+    // (boites-1) La pioche = les cartes des boîtes demandées par `--boites`,
+    // marquées `in_deck` par le point de composition unique (`boites::composer`).
+    // Les autres cartes du fichier restent accessibles à la sonde et aux tests,
+    // mais ne sont jamais distribuées.
     let mut deck: Vec<u16> = (0..db.projects.len() as u16)
-        .filter(|&c| db.projects[c as usize].in_deck_v1)
+        .filter(|&c| db.projects[c as usize].in_deck)
         .collect();
     shuffle(&mut deck, &mut rng);
     let mut corp_deck: Vec<u16> = (0..db.corporations.len() as u16).collect();
@@ -104,6 +106,7 @@ pub fn setup_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameState
         res_removed: 0,
         res_targets_missing: 0,
         phase_upgrades_skipped: 0,
+        cards_effects_unhandled: 0,
         derived_mc: 0,
         derived_heat: 0,
         derived_plants: 0,
@@ -202,6 +205,11 @@ pub fn install_corporation(game: &mut GameState, db: &CardsDb, p: usize, corp_id
 
     game.players[p].corporation = Some(corp_id);
     game.players[p].mc = starting_mc;
+    // (boites-1) I4 — corporation sans encodage (les 4 de Découverte) : son
+    // pouvoir imprimé ne sera jamais appliqué de la partie, on le compte.
+    if spec.is_none() {
+        game.cards_effects_unhandled += 1;
+    }
     for t in &tags {
         if let Some(i) = t.index() {
             game.players[p].tag_counts[i] += 1;
@@ -1183,6 +1191,15 @@ pub fn build_card_with(
         remove_resources(game, db, p, src, count);
     }
     game.players[p].put_in_play(card_id, db);
+    // (boites-1) I4 — aucun pouvoir sauté en silence. Une carte dont le texte
+    // imprimé n'est pas intégralement appliqué vient d'entrer en jeu : soit
+    // elle n'a aucun encodage, soit son encodage porte un effet que le moteur
+    // saute (amélioration de phase). Compté ici, à l'endroit de la pose. Le
+    // compteur ne dépend pas de `--effects` : c'est une propriété de la carte
+    // posée, pas du réglage.
+    if !db.projects[card_id as usize].effets_geres() {
+        game.cards_effects_unhandled += 1;
+    }
     if db.effects_on {
         // (lot 3) Une carte porteuse entre en jeu avec 0 ressource : elle est
         // déjà une cible valide pour son propre effet de pose et pour ses

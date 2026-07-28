@@ -5,6 +5,7 @@
 //! déclarative du lot 1 (`effects`) et la sonde d'audit (`probe`). Les cartes
 //! hors lot restent des stubs neutres (voir ARCHITECTURE.md).
 
+pub mod boites;
 pub mod cards;
 pub mod effects;
 pub mod flow;
