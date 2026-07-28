@@ -13,7 +13,7 @@ use engine::boites::BoiteSet;
 use engine::cards::CardsDb;
 use engine::policy::RandomPolicy;
 use engine::probe::{
-    run_probe_action_corp, run_probe_seq_corp, ProbeCorp, ProbeDelta, ProbeOptions, ProbeRes,
+    run_probe_action_opts, run_probe_seq_corp, ProbeCorp, ProbeDelta, ProbeOptions, ProbeRes,
     ProbeScript,
 };
 use engine::sim::run_simulation;
@@ -143,6 +143,20 @@ fn main() {
             }
             "--probe-mc" => {
                 probe_opts.mc = value(i).parse().unwrap_or_else(|_| die("--probe-mc invalide"));
+                i += 2;
+            }
+            // (lot 6) Phase choisie par le joueur sondé, fixée AVANT la pose et
+            // avant l'action : c'est le seul moyen de prouver un bonus « si vous
+            // avez choisi la phase Action ce tour ». Sans l'option, le
+            // comportement est celui des lots précédents (aucune phase choisie).
+            "--probe-phase" => {
+                let n: u8 = value(i)
+                    .parse()
+                    .unwrap_or_else(|_| die("--probe-phase invalide (1..5)"));
+                if !(1..=5).contains(&n) {
+                    die("--probe-phase hors bornes (1..5)");
+                }
+                probe_opts.phase = n;
                 i += 2;
             }
             "--probe-filler" => {
@@ -289,7 +303,13 @@ fn main() {
     }
 
     if let Some(name) = probe_action {
-        let r = run_probe_action_corp(&db, &name, &probe_script, probe_corp.as_deref());
+        let r = run_probe_action_opts(
+            &db,
+            &name,
+            &probe_script,
+            probe_corp.as_deref(),
+            probe_opts,
+        );
         let mut line = serde_json::json!({
             "card": r.card,
             "found": r.found,
@@ -360,6 +380,11 @@ fn main() {
         "corp_forest_rebates": s.corp_forest_rebates,
         "corp_tr_boosts": s.corp_tr_boosts,
         "corp_trigger_tr": s.corp_trigger_tr,
+        // (lot 6) mécanismes du lot 6 observés en partie réelle.
+        "action_phase_bonuses": s.action_phase_bonuses,
+        "action_discard_costs": s.action_discard_costs,
+        "draw_discard_discards": s.draw_discard_discards,
+        "cards_revealed": s.cards_revealed,
     });
     println!("{line}");
 }

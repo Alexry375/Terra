@@ -234,6 +234,10 @@ pub struct GameOutcome {
     pub corp_tr_boosts: u64,
     /// (corpo-1) Pas de NT accordés par un déclencheur de corporation.
     pub corp_trigger_tr: u64,
+    pub action_phase_bonuses: u64,
+    pub action_discard_costs: u64,
+    pub draw_discard_discards: u64,
+    pub cards_revealed: u64,
 }
 
 /// Joue une partie complète (politique fournie), invariants vérifiés à chaque
@@ -281,6 +285,10 @@ pub fn play_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameOutcom
         corp_forest_rebates: game.corp_forest_rebates,
         corp_tr_boosts: game.corp_tr_boosts,
         corp_trigger_tr: game.corp_trigger_tr,
+        action_phase_bonuses: game.action_phase_bonuses,
+        action_discard_costs: game.action_discard_costs,
+        draw_discard_discards: game.draw_discard_discards,
+        cards_revealed: game.cards_revealed,
     }
 }
 
@@ -340,6 +348,10 @@ pub struct SimSummary {
     pub corp_tr_boosts: u64,
     /// (corpo-1) Pas de NT accordés par un déclencheur de corporation.
     pub corp_trigger_tr: u64,
+    pub action_phase_bonuses: u64,
+    pub action_discard_costs: u64,
+    pub draw_discard_discards: u64,
+    pub cards_revealed: u64,
 }
 
 /// Lance `games` parties aléatoires. Graine unique : un RNG maître seedé par
@@ -381,6 +393,10 @@ pub fn run_simulation(
     let mut corp_forest_rebates = 0u64;
     let mut corp_tr_boosts = 0u64;
     let mut corp_trigger_tr = 0u64;
+    let mut action_phase_bonuses = 0u64;
+    let mut action_discard_costs = 0u64;
+    let mut draw_discard_discards = 0u64;
+    let mut cards_revealed = 0u64;
 
     let t0 = std::time::Instant::now();
     for _ in 0..games {
@@ -419,6 +435,10 @@ pub fn run_simulation(
         corp_forest_rebates += out.corp_forest_rebates;
         corp_tr_boosts += out.corp_tr_boosts;
         corp_trigger_tr += out.corp_trigger_tr;
+        action_phase_bonuses += out.action_phase_bonuses;
+        action_discard_costs += out.action_discard_costs;
+        draw_discard_discards += out.draw_discard_discards;
+        cards_revealed += out.cards_revealed;
         turn_orders.push(out.turn_order);
         agg.write_u64(out.state_hash);
     }
@@ -458,5 +478,9 @@ pub fn run_simulation(
         corp_forest_rebates,
         corp_tr_boosts,
         corp_trigger_tr,
+        action_phase_bonuses,
+        action_discard_costs,
+        draw_discard_discards,
+        cards_revealed,
     }
 }

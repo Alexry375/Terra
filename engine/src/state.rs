@@ -401,6 +401,24 @@ pub struct GameState {
     /// Pas de NT accordés par un déclencheur de pose de corporation
     /// (Saturn Systems), comptés dans `flow::apply_trig_gain`.
     pub corp_trigger_tr: u64,
+    // ------------------------------------------------------------- lot 6
+    // Quatre compteurs qui rendent les mécanismes du lot 6 observables EN
+    // PARTIE RÉELLE, et pas seulement sous la sonde. Chacun est incrémenté à
+    // l'endroit EXACT du mécanisme (jamais dans une fonction de résumé, jamais
+    // depuis la sonde), et tous sont nuls en `--effects off` — les effets de
+    // carte y sont coupés.
+    /// Bonus d'action accordés parce que le joueur avait choisi la phase
+    /// imprimée sur la carte — `flow::apply_blue_action`.
+    pub action_phase_bonuses: u64,
+    /// Cartes défaussées comme COÛT d'une action —
+    /// `flow::apply_blue_action`.
+    pub action_discard_costs: u64,
+    /// Cartes défaussées par un effet « piochez n puis défaussez d »
+    /// (groupe C) — `flow::apply_eff`.
+    pub draw_discard_discards: u64,
+    /// Cartes RÉELLEMENT révélées du dessus de la pioche —
+    /// `flow::reveal_top`.
+    pub cards_revealed: u64,
 }
 
 impl GameState {

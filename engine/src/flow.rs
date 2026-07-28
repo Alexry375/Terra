@@ -9,8 +9,9 @@
 
 use crate::cards::{CardsDb, Color, Tag, VpKind};
 use crate::effects::{
-    self, Action, ActionCost, ActionEff, CorpEffects, Eff, GlobalTrigger, ProdCount, ProdRes,
-    Reduction, Req, ResAmount, ResEff, ResKind, ResPut, ResStep, ResTarget, TrigGain,
+    self, Action, ActionCost, ActionEff, ActionRes, CorpEffects, Eff, GlobalTrigger, PhaseBonus,
+    ProdCount, ProdRes, Reduction, Req, ResAmount, ResEff, ResKind, ResPut, ResStep, ResTarget,
+    Reveal, RevealFilter, TrigGain,
 };
 use crate::policy::{ActionOpt, ConstructionBonus, Policy};
 use crate::state::*;
@@ -116,6 +117,10 @@ pub fn setup_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameState
         corp_forest_rebates: 0,
         corp_tr_boosts: 0,
         corp_trigger_tr: 0,
+        action_phase_bonuses: 0,
+        action_discard_costs: 0,
+        draw_discard_discards: 0,
+        cards_revealed: 0,
     };
 
     // Milestones/awards : 3 + 3 tirés des pools (Discovery p.2 « reveal three »).
@@ -767,6 +772,9 @@ fn reqs_satisfied(
             temperature <= n || (flex && tc - 1 <= effects::temp_color(n) as i16)
         }
         Req::OxyMin(n) => oxygen >= n || (flex && oc + 1 >= effects::oxy_color(n) as i16),
+        // (lot 6) « Requires red oxygen or lower » — symétrique exact de
+        // `TempMax` : palier de couleur, souplesse Inventrix de ±1 palier.
+        Req::OxyMax(n) => oxygen <= n || (flex && oc - 1 <= effects::oxy_color(n) as i16),
         Req::OceanMin(n) => oceans >= n,
         Req::OceanMax(n) => oceans <= n,
         Req::Tags(tag, n) => {
@@ -985,6 +993,77 @@ fn apply_eff(game: &mut GameState, db: &CardsDb, p: usize, eff: Eff, policy: &mu
                 gain_forest(game, db, p, policy);
             }
         }
+        // (lot 6) « Piochez n cartes, puis défaussez-en d » — brique UNIQUE des
+        // trois cartes du groupe C (I3). Les cartes piochées entrent d'abord en
+        // main (elles sont donc défaussables), puis la défausse est choisie par
+        // `Policy::discard_down`, le point de décision existant : aucune source
+        // de hasard nouvelle (I6).
+        Eff::DrawDiscard {
+            draw,
+            discard,
+            from_drawn,
+        } => {
+            let mut drawn: Vec<u16> = Vec::with_capacity(draw as usize);
+            for _ in 0..draw {
+                if let Some(c) = draw_card(game) {
+                    game.players[p].hand.push(c);
+                    drawn.push(c);
+                }
+            }
+            // « Keep one of THEM » restreint la défausse aux cartes piochées ;
+            // « Then, discard N cards » porte sur la main entière.
+            let cands: Vec<u16> = if from_drawn {
+                drawn
+            } else {
+                game.players[p].hand.clone()
+            };
+            // Combien défausser ? Les deux formulations imprimées ne comptent
+            // PAS la même chose, et elles ne coïncident que si la pioche a
+            // réellement rendu les `draw` cartes attendues :
+            // - « **Keep one of them** and discard the other two » compte les
+            //   cartes GARDÉES : si la pioche épuisée n'en a rendu que deux, le
+            //   joueur en garde toujours UNE et n'en défausse qu'une ;
+            // - « Then, discard N cards » compte les cartes DÉFAUSSÉES, sans
+            //   restriction : on en défausse N, bornées par la main.
+            let n = if from_drawn {
+                let keep = draw.saturating_sub(discard) as usize;
+                cands.len().saturating_sub(keep)
+            } else {
+                (discard as usize).min(cands.len())
+            };
+            if n == 0 {
+                return;
+            }
+            let idx = policy.discard_down(&mut game.rng, p, &cands, n);
+            for &i in idx.iter().take(n) {
+                if i >= cands.len() {
+                    continue; // renoncement explicite (convention du lot 3)
+                }
+                if discard_from_hand(game, p, cands[i]) {
+                    game.draw_discard_discards += 1;
+                }
+            }
+        }
+    }
+}
+
+/// (lot 6) Défausse UNE carte nommée de la main du joueur vers la défausse
+/// commune. Point d'écriture unique des deux mécanismes de défausse du lot 6
+/// (`Eff::DrawDiscard` et `ActionCost::DiscardCard`) : la carte quitte la main
+/// et rejoint `game.discard`, jamais autre chose — la conservation des cartes
+/// (invariant 4) est ainsi vraie par construction.
+/// Renvoie `true` si la carte était bien en main (un identifiant de carte est
+/// unique dans la base : la recherche par valeur ne peut pas se tromper de
+/// carte, et aucun indice de main ne peut être invalidé par un retrait
+/// précédent).
+fn discard_from_hand(game: &mut GameState, p: usize, card: u16) -> bool {
+    match game.players[p].hand.iter().position(|&x| x == card) {
+        Some(pos) => {
+            game.players[p].hand.remove(pos);
+            game.discard.push(card);
+            true
+        }
+        None => false,
     }
 }
 
@@ -1560,6 +1639,133 @@ fn action_options(
     }
 }
 
+/// (lot 6) Lecture d'une ressource de joueur désignée par `ActionRes`.
+fn action_res_get(pl: &PlayerState, res: ActionRes) -> i64 {
+    match res {
+        ActionRes::Heat => pl.heat,
+        ActionRes::Mc => pl.mc,
+        ActionRes::Plants => pl.plants,
+    }
+}
+
+/// (lot 6) Écriture correspondante (`n` peut être négatif : c'est la dépense).
+fn action_res_add(pl: &mut PlayerState, res: ActionRes, n: i64) {
+    match res {
+        ActionRes::Heat => pl.heat += n,
+        ActionRes::Mc => pl.mc += n,
+        ActionRes::Plants => pl.plants += n,
+    }
+}
+
+/// (C) Applique UN effet d'action de carte bleue. Extrait de `apply_blue_action`
+/// au lot 6 pour que les effets de l'action et ceux ajoutés par le bonus de
+/// phase empruntent exactement le même code — un seul chemin par effet.
+fn apply_action_eff(
+    game: &mut GameState,
+    db: &CardsDb,
+    p: usize,
+    e: ActionEff,
+    policy: &mut dyn Policy,
+) {
+    match e {
+        ActionEff::Draw(n) => {
+            for _ in 0..n {
+                if let Some(c) = draw_card(game) {
+                    game.players[p].hand.push(c);
+                }
+            }
+        }
+        ActionEff::Plants(n) => game.players[p].plants += n,
+        ActionEff::Mc(n) => game.players[p].mc += n,
+        // (lot 6) Ajout déclaré, non mécanique (journal D3).
+        ActionEff::Heat(n) => game.players[p].heat += n,
+        ActionEff::Tr(n) => {
+            for _ in 0..n {
+                gain_tr(game, db, p, policy);
+            }
+        }
+        ActionEff::Oxygen(n) => {
+            for _ in 0..n {
+                raise_oxygen(game, db, p, policy);
+            }
+        }
+        // (lot 6) Ajout déclaré, non mécanique : elle emprunte le chemin de
+        // hausse de température existant (TR, cap sur l'instantané de phase,
+        // déclencheurs « when you raise the temperature »).
+        ActionEff::Temperature(n) => {
+            for _ in 0..n {
+                raise_temperature(game, db, p, policy);
+            }
+        }
+        ActionEff::Reveal(r) => reveal_top(game, db, p, r, policy),
+    }
+}
+
+/// (lot 6, brique 6) **Révélation du dessus de la pioche.**
+///
+/// Les `n` cartes sont RÉELLEMENT retirées du dessus de la pioche par
+/// `flow::draw_card` — le chemin de pioche du moteur, remélange de la défausse
+/// compris : il n'y a pas de « coup d'œil » parallèle, ni de carte fixe regardée
+/// à la place du vrai dessus. Parmi les révélées, celles qui satisfont le filtre
+/// imprimé sont les seules candidates à entrer en main ; `Policy::research_keep`
+/// (« garder k parmi n », la question exacte de la phase V) tranche, et toutes
+/// les autres rejoignent la défausse en rapportant `mc_per_discarded` MC.
+fn reveal_top(
+    game: &mut GameState,
+    db: &CardsDb,
+    p: usize,
+    r: Reveal,
+    policy: &mut dyn Policy,
+) {
+    let mut revealed: Vec<u16> = Vec::with_capacity(r.n as usize);
+    for _ in 0..r.n {
+        match draw_card(game) {
+            Some(c) => revealed.push(c),
+            // Pioche ET défausse vides : il n'y a plus rien à révéler.
+            None => break,
+        }
+    }
+    if revealed.is_empty() {
+        return;
+    }
+    game.cards_revealed += revealed.len() as u64;
+    let cands: Vec<u16> = revealed
+        .iter()
+        .copied()
+        .filter(|&c| reveal_matches(&db.projects[c as usize], r.keep))
+        .collect();
+    let take = (r.take as usize).min(cands.len());
+    let mut kept: Vec<u16> = Vec::with_capacity(take);
+    // La politique est consultée même à un seul candidat : c'est le moteur qui
+    // demande, jamais lui qui décide (convention du lot 3 pour les CIBLES,
+    // `choose_res_target`). La règle « on ne demande rien à une seule option »
+    // ne vaut que pour les ALTERNATIVES du texte imprimé (`choose_option`).
+    if take > 0 {
+        let idx = policy.research_keep(&mut game.rng, p, &cands, take);
+        for &i in idx.iter().take(take) {
+            if i < cands.len() {
+                kept.push(cands[i]);
+            }
+        }
+    }
+    for c in revealed {
+        if kept.contains(&c) {
+            game.players[p].hand.push(c);
+        } else {
+            game.discard.push(c);
+            game.players[p].mc += r.mc_per_discarded;
+        }
+    }
+}
+
+/// (lot 6) Une carte révélée satisfait-elle le filtre imprimé ?
+fn reveal_matches(card: &crate::cards::ProjectCard, f: RevealFilter) -> bool {
+    match f {
+        RevealFilter::AnyOfTags(tags) => card.tags.iter().any(|t| tags.contains(t)),
+        RevealFilter::ColorIsNot(c) => card.color != c,
+    }
+}
+
 /// (C) Applique l'action réelle d'une carte bleue en jeu (lot 2). Renvoie `true`
 /// si un effet a réellement été appliqué (coût payé / effet produit) — seul cas
 /// où le compteur `blue_actions` est incrémenté. Renvoie `false` si la carte n'a
@@ -1572,11 +1778,24 @@ pub(crate) fn apply_blue_action(
     card_id: u16,
     policy: &mut dyn Policy,
 ) -> bool {
-    let Some(action) = db.projects[card_id as usize].effect.and_then(|e| e.action) else {
+    let Some(spec) = db.projects[card_id as usize].effect else {
         return false;
     };
+    let Some(action) = spec.action else {
+        return false;
+    };
+    // (lot 6, brique 2) Bonus « *If YOU chose the action phase this round … » :
+    // il ne dépend que de la phase choisie par le joueur QUI ACTIVE l'action
+    // (NEVER 8), lue à l'instant de l'activation sur l'état réel du joueur —
+    // celui-là même que la phase de planification a écrit.
+    let bonus: Option<PhaseBonus> = spec
+        .phase_bonus
+        .filter(|b| game.players[p].chosen_phase == b.phase);
     match action {
         Action::Fixed { cost, effect } => {
+            // Le bonus peut REMPLACER le coût imprimé (« spend 3 plants
+            // instead ») ; sinon le coût est celui de l'action.
+            let cost: &[ActionCost] = bonus.and_then(|b| b.cost).unwrap_or(cost);
             // Payabilité (Java : *ActionValidator).
             for c in cost {
                 let ok = match *c {
@@ -1585,6 +1804,8 @@ pub(crate) fn apply_blue_action(
                     // de la chaleur, comme partout ailleurs.
                     ActionCost::Mc(n) => spendable_mc(db, &game.players[p]) >= n,
                     ActionCost::Plants(n) => game.players[p].plants >= n,
+                    // (lot 6) Le coût se paie en CARTES : il faut les avoir.
+                    ActionCost::DiscardCard(n) => game.players[p].hand.len() >= n as usize,
                 };
                 if !ok {
                     return false;
@@ -1598,34 +1819,75 @@ pub(crate) fn apply_blue_action(
                         game.players[p].mc -= n;
                     }
                     ActionCost::Plants(n) => game.players[p].plants -= n,
+                    // (lot 6, brique 3) Défausse-coût : QUELLES cartes est une
+                    // décision du joueur, prise par la politique existante.
+                    ActionCost::DiscardCard(n) => {
+                        let hand = game.players[p].hand.clone();
+                        let idx = policy.discard_down(&mut game.rng, p, &hand, n as usize);
+                        let mut paid = 0u8;
+                        for &i in idx.iter().take(n as usize) {
+                            if i < hand.len() && discard_from_hand(game, p, hand[i]) {
+                                paid += 1;
+                                game.action_discard_costs += 1;
+                            }
+                        }
+                        // Un coût à moitié prélevé pendant qu'on applique quand
+                        // même l'effet serait le pire des bugs. La payabilité a
+                        // été vérifiée juste avant : si la politique ne rend pas
+                        // `n` indices valides et distincts, c'est un manquement
+                        // à son contrat, pas un cas de jeu (même discipline que
+                        // `add_resources`).
+                        assert_eq!(
+                            paid, n,
+                            "coût en cartes partiellement payé : la politique doit rendre \
+                             {n} indices de main valides et distincts"
+                        );
+                    }
                 }
             }
             for e in effect {
-                match *e {
-                    ActionEff::Draw(n) => {
-                        for _ in 0..n {
-                            if let Some(c) = draw_card(game) {
-                                game.players[p].hand.push(c);
-                            }
-                        }
-                    }
-                    ActionEff::Plants(n) => game.players[p].plants += n,
-                    ActionEff::Mc(n) => game.players[p].mc += n,
-                    ActionEff::Tr(n) => {
-                        for _ in 0..n {
-                            gain_tr(game, db, p, policy);
-                        }
-                    }
-                    ActionEff::Oxygen(n) => {
-                        for _ in 0..n {
-                            raise_oxygen(game, db, p, policy);
-                        }
-                    }
+                apply_action_eff(game, db, p, *e, policy);
+            }
+            // (lot 6) Effets AJOUTÉS par le bonus de phase, après ceux de
+            // l'action — ordre du texte imprimé (« … also gain 1 plant »).
+            if let Some(b) = bonus {
+                for e in b.extra {
+                    apply_action_eff(game, db, p, *e, policy);
                 }
+                // Compteur d'audit, au site EXACT du mécanisme.
+                game.action_phase_bonuses += 1;
             }
             true
         }
-        // « Spend any amount of heat to gain that amount of MC. »
+        // (lot 6, brique 4) « Spend up to N <res> to gain that amount of
+        // <res> ». Le plafond imprimé rend les montants
+        // ÉNUMÉRABLES : ce sont des branches (1, 2, … N), dans l'ordre du texte,
+        // filtrées par ce que le joueur possède — exactement la convention du
+        // lot 3 pour les alternatives. `choose_option` n'est consultée qu'à
+        // partir de deux branches jouables ; à une seule, il n'y a plus de
+        // choix ; à zéro, l'action ne s'applique pas.
+        Action::SpendUpTo { spend, gain, cap } => {
+            let have = action_res_get(&game.players[p], spend);
+            let branches = have.min(cap);
+            if branches <= 0 {
+                return false;
+            }
+            let k = if branches == 1 {
+                0
+            } else {
+                let c = policy.choose_option(&mut game.rng, p, branches as usize);
+                if c >= branches as usize {
+                    return false; // renoncement explicite (convention lot 3)
+                }
+                c
+            };
+            let amt = k as i64 + 1;
+            action_res_add(&mut game.players[p], spend, -amt);
+            action_res_add(&mut game.players[p], gain, amt);
+            true
+        }
+        // « Spend any amount of heat to gain that amount of MC. » (lot 2,
+        // inchangé — carte hors périmètre, I4.)
         Action::HeatToMc => {
             let max = game.players[p].heat;
             let amt = policy.action_amount(&mut game.rng, p, max).clamp(0, max);

@@ -144,11 +144,21 @@ pub struct ProbeOptions {
     /// si elle est payable (MC + défausse). Premier refus = arrêt de la
     /// séquence, `played` faux.
     pub strict: bool,
+    /// (lot 6) **Phase choisie par le joueur sondé** (`--probe-phase <1..5>`),
+    /// écrite dans l'état de départ AVANT la pose et avant l'action. `0` =
+    /// aucune phase choisie, c'est-à-dire l'état des lots précédents à
+    /// l'identique (`PlayerState::new` initialise déjà `chosen_phase` à 0).
+    ///
+    /// Elle n'écrit rien d'autre : tout ce qui en découle est ce que le moteur
+    /// tire lui-même d'une phase choisie, par le même code qu'en partie réelle
+    /// (bonus d'action du lot 6, et — avec `--probe-produce` — le bonus du
+    /// sélectionneur de la phase IV).
+    pub phase: u8,
 }
 
 impl Default for ProbeOptions {
     fn default() -> ProbeOptions {
-        ProbeOptions { mc: 100, filler: 0, strict: false }
+        ProbeOptions { mc: 100, filler: 0, strict: false, phase: 0 }
     }
 }
 
@@ -412,6 +422,10 @@ fn probe_state_base(db: &CardsDb, ids: &[u16], opts: ProbeOptions) -> GameState 
         .collect();
     let mut players = [PlayerState::new(), PlayerState::new()];
     players[0].mc = opts.mc;
+    // (lot 6) `--probe-phase` : la phase choisie par le JOUEUR SONDÉ, écrite
+    // là où la planification l'écrit en partie réelle. Le joueur 1 n'en reçoit
+    // aucune (0) — le bonus ne doit jamais dépendre de la phase de l'adversaire.
+    players[0].chosen_phase = opts.phase;
     players[0].heat = 20;
     players[0].plants = 20;
     players[0].hand.extend_from_slice(ids);
@@ -468,6 +482,10 @@ fn probe_state_base(db: &CardsDb, ids: &[u16], opts: ProbeOptions) -> GameState 
         corp_forest_rebates: 0,
         corp_tr_boosts: 0,
         corp_trigger_tr: 0,
+        action_phase_bonuses: 0,
+        action_discard_costs: 0,
+        draw_discard_discards: 0,
+        cards_revealed: 0,
     };
     game.snapshot_planet();
     game
@@ -753,15 +771,31 @@ pub fn run_probe_action_scripted(
     run_probe_action_corp(db, name, script, None)
 }
 
-/// (corpo-1) Sonde action avec corporation imposée (`--probe-corp`).
+/// (corpo-1) Sonde action avec corporation imposée (`--probe-corp`), options par
+/// défaut. Façade conservée : comportement des lots précédents à l'identique.
 pub fn run_probe_action_corp(
     db: &CardsDb,
     name: &str,
     script: &ProbeScript,
     corp_name: Option<&str>,
 ) -> ProbeActionResult {
+    run_probe_action_opts(db, name, script, corp_name, ProbeOptions::default())
+}
+
+/// (lot 6) Sonde action complète : `opts` décrit l'ÉTAT DE DÉPART du joueur
+/// sondé — dont `phase` (`--probe-phase`), la phase qu'il a choisie ce tour, et
+/// `filler`, la monnaie de main sans laquelle une action qui se paie en cartes
+/// ne serait pas observable. `ProbeOptions::default()` =
+/// comportement des lots précédents, bit à bit.
+pub fn run_probe_action_opts(
+    db: &CardsDb,
+    name: &str,
+    script: &ProbeScript,
+    corp_name: Option<&str>,
+    opts: ProbeOptions,
+) -> ProbeActionResult {
     let Some(card_id) = resolve(db, name) else {
-        let (_, corp, _) = probe_state_corp(db, &[], ProbeOptions::default(), corp_name);
+        let (_, corp, _) = probe_state_corp(db, &[], opts, corp_name);
         return ProbeActionResult {
             card: name.to_string(),
             found: false,
@@ -779,8 +813,7 @@ pub fn run_probe_action_corp(
     let in_lot = db.effects_on && card.effect.is_some();
     let has_action = in_lot && card.effect.and_then(|e| e.action).is_some();
 
-    let (mut game, corp, _) =
-        probe_state_corp(db, &[card_id], ProbeOptions::default(), corp_name);
+    let (mut game, corp, _) = probe_state_corp(db, &[card_id], opts, corp_name);
     // Pose (état de référence du delta d'action) — même chemin que `simulate`,
     // avec la politique de sonde (identique à RandomPolicy si le script est
     // vide).

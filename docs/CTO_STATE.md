@@ -3,7 +3,7 @@
 > Source de vérité du projet. Ancrée au code (`fichier:ligne`) dès qu'il y aura du
 > code. [VÉRIFIÉ JJ-MM] = relu à la source ce jour-là. [DÉCLARÉ] = non re-vérifié.
 
-Dernière mise à jour : 2026-07-28
+Dernière mise à jour : 2026-07-28 (soir)
 
 ## Infrastructure du dépôt
 
@@ -20,25 +20,59 @@ Dernière mise à jour : 2026-07-28
   221 cartes transcrites de `textes-cartes` n'existent que sur le disque local
   tant qu'elles ne sont pas auditées et promues. [VÉRIFIÉ 26-07]
 
-## ⚠️ LE CHIFFRE QUI COMPTE (28-07) — 179 cartes sur 208 sont encodées
+## ⚠️ LE CHIFFRE QUI COMPTE (28-07 soir) — 190 cartes sur 208 sont encodées
 
-**29 des 208 cartes projets de la boîte de base n'ont aucun encodage** (62 avant
-le lot `moteur-cartes-5`). Elles se paient, comptent leurs badges et leurs points
-de victoire, et n'appliquent rien d'autre.
-[VÉRIFIÉ 28-07 par ma main après promotion : `--boites base --dump-deck` compte
-29 `effets_geres: false` sur 220 entrées]
+**18 des 208 cartes projets de la boîte de base n'ont aucun encodage** (62 le
+27-07, 29 après `moteur-cartes-5`, 18 après `moteur-cartes-6`).
+[VÉRIFIÉ 28-07 par ma main après promotion]
 
-Les 29 restantes réclament des mécanismes que le moteur ne possède pas : acier
-et titane comme monnaies, actions standard, cartes supplémentaires jouées, phase
-de recherche modifiée, dessus de pioche révélé, défausse immédiate après pioche.
-Liste nominative : `workspaces/moteur-cartes-5/inputs/checks/02-les-29-restantes.sh`.
+**Et plus aucun prérequis imprimé ne manque** dans la boîte de base : le compte
+est passé de 2 à **0**. [VÉRIFIÉ 28-07 par ma main]
+
+Les 18 restantes réclament des mécanismes absents : acier et titane comme
+monnaies (4), cartes supplémentaires jouées et réductions (5), phase de
+recherche modifiée (3), assouplissement de prérequis (2), divers (4). Liste
+nominative : `workspaces/moteur-cartes-6/inputs/checks/02-les-18-restantes.sh`.
 
 **Ne JAMAIS citer le « 7 » de `docs/cartes/moteur-vs-imprime.md` comme une
-couverture de la boîte de base** : ce rapport n'échantillonne que 66 cartes. Un
-avertissement de périmètre a été ajouté en tête du fichier le 27-07.
+couverture de la boîte de base** : ce rapport n'échantillonne que 66 cartes.
 
-Conséquence de direction inchangée : **finir la boîte de base avant d'implanter
-les effets de Découverte.**
+## 11 CARTES DE PLUS (28-07) — `moteur-cartes-6`, audité OK et promu
+
+- Actions bleues et manipulation de la main : bonus « si vous avez choisi la
+  phase Action », coûts payés en défaussant, « dépensez jusqu'à n », piocher
+  puis défausser, révéler le dessus de la pioche, prérequis d'oxygène maximum.
+  `effects::LOT1` : 188 → 199 entrées. **453 tests verts**, 0 violation,
+  0 partie tronquée. [VÉRIFIÉ 28-07 par ma main]
+- `cards_effects_unhandled` en boîte de base : **6 706 → 4 084** sur 1000
+  parties. [VÉRIFIÉ 28-07]
+- Nouvelle option de sonde imposée au contrat : **`--probe-phase <1..5>`**, qui
+  fixe la phase choisie par le joueur sondé. Sans elle, un bonus conditionnel à
+  la phase n'était pas prouvable de l'extérieur. [VÉRIFIÉ 28-07]
+- **L'agent a trouvé seul une infidélité au texte imprimé** : *Invention Contest*
+  dit « Keep **one of them** » — le texte compte les cartes GARDÉES, pas les
+  défaussées. Pioche épuisée, le premier encodage n'aurait rien laissé au joueur.
+  Corrigé, avec un test qui échoue sur l'ancien code. [DÉCLARÉ par l'agent,
+  code relu par ma main : `flow.rs`, branche `Eff::DrawDiscard`]
+- **Non-régression prouvée par oracle disjoint** : les 262 cartes hors périmètre
+  sondées sur les deux binaires, **0 différence**. [DÉCLARÉ par l'agent]
+- Deux arbitrages assumés : `ActionEff::Heat`/`Temperature` jugés mécaniques et
+  non « septième brique » ; `Action::SpendUpTo` n'offre pas le montant 0, ce qui
+  est sans conséquence de jeu puisque ne pas activer l'action est déjà possible.
+  [VÉRIFIÉ 28-07 par lecture du code]
+
+## ⚠️ LEÇON CTO RÉPÉTÉE TROIS FOIS (25 au 28-07)
+
+**Mes témoins cachés se sont trompés à chaque lot, et l'agent avait raison à
+chaque fois** : témoin de planche faux (`moteur-verite-1`), bonus de tuile océan
+ignoré (`moteur-cartes-5`), main vide de la sonde et cartes sans effet à la pose
+(`moteur-cartes-6`). Cause commune : **j'écris les valeurs attendues sans
+exécuter le chemin réel sur une carte déjà gérée.**
+
+Règle à appliquer désormais : **tout témoin caché doit être calibré en
+l'exécutant sur une carte du même genre déjà encodée, AVANT le scellement.**
+Ce que j'ai fait pour la sémantique des deltas, jamais pour l'état de départ de
+la sonde (main vide, température violette, effet à la pose ou en action).
 
 ## 33 CARTES RENDUES VIVANTES (28-07) — `moteur-cartes-5`, audité OK et promu
 

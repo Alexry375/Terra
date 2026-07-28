@@ -730,8 +730,9 @@ fn the_thirty_three_cards_resolve_to_the_base_box_deck() {
         assert!(card.effect.is_some(), "{name} doit être encodée");
         assert!(card.effets_geres(), "{name} doit être déclarée gérée");
     }
-    // 110 (lots 1-2) + 28 (ressources) + 17 (lot 4) + 33 (lot 5) = 188.
-    assert_eq!(engine::effects::LOT1.len(), 188);
+    // 110 (lots 1-2) + 28 (ressources) + 17 (lot 4) + 33 (lot 5) + 11 (lot 6)
+    // = 199. ATTENTE MISE À JOUR par le lot 6 : taille EXACTE toujours épinglée.
+    assert_eq!(engine::effects::LOT1.len(), 199);
 }
 
 #[test]
@@ -780,9 +781,13 @@ fn effects_off_leaves_the_thirty_three_completely_inert() {
 }
 
 #[test]
-fn exactly_twenty_nine_base_cards_remain_unhandled_and_they_are_the_right_ones() {
+fn exactly_eighteen_base_cards_remain_unhandled_and_they_are_the_right_ones() {
     // D2 vu du moteur : le champ `effets_geres` est DÉRIVÉ de l'encodage. Les
-    // 29 restantes sont celles qui réclament des mécanismes absents.
+    // restantes sont celles qui réclament des mécanismes absents.
+    //
+    // ATTENTE MISE À JOUR par le lot 6 (29 → 18) : les 11 cartes du lot 6 ont
+    // été encodées, elles ne sont donc plus muettes. Le test n'est ni supprimé
+    // ni assoupli — il continue d'épingler le nombre EXACT et la liste EXACTE.
     let db = CardsDb::load_boites(CARDS, BoiteSet::parse("base").unwrap()).expect("base");
     let muettes: std::collections::BTreeSet<&str> = db
         .recensement()
@@ -791,20 +796,18 @@ fn exactly_twenty_nine_base_cards_remain_unhandled_and_they_are_the_right_ones()
         .map(|c| c.name)
         .collect();
     let attendues: std::collections::BTreeSet<&str> = [
-        "Adaptation Technology", "Advanced Alloys", "Advanced Screening Tech",
+        "Adaptation Technology", "Advanced Alloys",
         "Aquifer Pumping", "Assembly Lines", "Asset Liquidation",
-        "Automated Factories", "Brainstorming Session", "Business Contracts",
-        "Colonizer Training Camp", "Community Gardens", "Composting Factory",
-        "Extended Resources", "Farming Co-ops", "Greenhouses",
-        "Hydro-Electric Energy", "Interns", "Invention Contest",
-        "Mars University", "Microprocessors", "Restructured Resources",
+        "Automated Factories", "Composting Factory",
+        "Extended Resources", "Interns",
+        "Mars University", "Restructured Resources",
         "Solarpunk", "Special Design", "Standard Technology", "Tall Station",
         "United Planetary Alliance", "Water Import from Europa",
-        "Wood Burning Stoves", "Work Crews",
+        "Work Crews",
     ]
     .into_iter()
     .collect();
-    assert_eq!(muettes.len(), 29, "cartes muettes restantes");
+    assert_eq!(muettes.len(), 18, "cartes muettes restantes");
     assert_eq!(muettes, attendues, "ce sont exactement les cartes hors périmètre");
     // Et aucune des 33 n'y figure.
     for name in LOT5 {
@@ -888,12 +891,14 @@ fn the_lot_did_not_touch_the_boxes_composition() {
 }
 
 #[test]
-fn base_plus_discovery_leaves_sixty_six_unhandled() {
-    // 29 (base) + 37 (Découverte, inchangé par ce lot) = 66.
+fn base_plus_discovery_leaves_fifty_five_unhandled() {
+    // 18 (base) + 37 (Découverte, inchangé par ce lot) = 55.
+    // ATTENTE MISE À JOUR par le lot 6 (66 → 55) : les 11 cartes encodées sont
+    // toutes de la boîte de base, Découverte n'a pas bougé.
     let db = CardsDb::load_boites(CARDS, BoiteSet::parse("base,decouverte").unwrap())
         .expect("base,decouverte");
     let n = db.recensement().into_iter().filter(|c| !c.effets_geres).count();
-    assert_eq!(n, 66, "muettes en base + Découverte");
+    assert_eq!(n, 55, "muettes en base + Découverte");
 }
 
 #[test]

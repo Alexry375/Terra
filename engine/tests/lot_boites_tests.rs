@@ -257,13 +257,17 @@ fn les_cartes_declarees_non_gerees_le_sont_reellement() {
     //
     // 27-07 : 62 muettes en boîte de base (mesure d'origine de ce test).
     // 28-07, lot 5 (`moteur-cartes-5`) : 33 d'entre elles sont encodées, il en
-    // reste **29** — les cartes hors périmètre, qui réclament des mécanismes
+    // reste **29**.
+    // 28-07, lot 6 (`moteur-cartes-6`) : 11 de plus sont encodées (bonus de
+    // phase Action, coûts d'action particuliers, « piochez puis défaussez »,
+    // dessus de pioche révélé, prérequis d'oxygène maximum), il en reste
+    // **18** — les cartes hors périmètre, qui réclament des mécanismes toujours
     // absents du moteur (acier/titane comme monnaies, actions standard, cartes
-    // supplémentaires jouées, phase de recherche modifiée, dessus de pioche
-    // révélé, défausse immédiate après pioche). Le canari est déplacé, pas
-    // désactivé : la boucle ci-dessus vérifie toujours, carte par carte et par
-    // la sonde, que chaque muette déclarée ne change RIEN à l'état.
-    assert_eq!(n, 29, "cartes muettes de la boîte de base");
+    // supplémentaires jouées, phase de recherche modifiée, assouplissements de
+    // prérequis). Le canari est déplacé, pas désactivé : la boucle ci-dessus
+    // vérifie toujours, carte par carte et par la sonde, que chaque muette
+    // déclarée ne change RIEN à l'état.
+    assert_eq!(n, 18, "cartes muettes de la boîte de base");
     // Les quatre cartes du groupe C du lot 5 (Biothermal Power, Mangrove,
     // Plantation, Protected Valley) ont quitté cette liste : elles sont
     // désormais encodées, et `lot5_tests.rs` les confronte à leur texte imprimé.

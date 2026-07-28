@@ -777,12 +777,14 @@ fn every_lot3_card_is_encoded_and_resolves_to_the_v1_deck() {
     }
     // 110 cartes des lots 1-2 + 28 (lot ressources) + 17 (lot 4 : productions
     // dérivées, NT par badge, bonus de recherche) + 33 (lot 5 : les muettes de
-    // la boîte de base) = 188 entrées.
+    // la boîte de base) + 11 (lot 6 : actions bleues et manipulation de la
+    // main) = 199 entrées.
     //
-    // ATTENTE MISE À JOUR par le lot 5 (155 → 188) : le test n'est ni supprimé
-    // ni assoupli, il continue d'épingler la taille EXACTE de la table. Les
-    // 28 cartes du lot 3 vérifiées juste au-dessus le sont à l'identique.
-    assert_eq!(engine::effects::LOT1.len(), 188);
+    // ATTENTE MISE À JOUR par le lot 5 (155 → 188) puis par le lot 6
+    // (188 → 199) : le test n'est ni supprimé ni assoupli, il continue
+    // d'épingler la taille EXACTE de la table. Les 28 cartes du lot 3 vérifiées
+    // juste au-dessus le sont à l'identique.
+    assert_eq!(engine::effects::LOT1.len(), 199);
 }
 
 #[test]

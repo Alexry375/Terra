@@ -19,7 +19,7 @@
 //! Le texte imprimé (champ `description` de cards.json) fait foi ; conflits
 //! avec le code Java au journal + lot1.md (B4 : Nitrogen-Rich Asteroid).
 
-use crate::cards::Tag;
+use crate::cards::{Color, Tag};
 
 // Bornes de paliers (niveaux) — voir doc du module.
 pub const TEMP_P_MAX: u8 = 5;
@@ -28,6 +28,9 @@ pub const TEMP_R_MAX: u8 = 10;
 pub const TEMP_Y_MIN: u8 = 11;
 pub const TEMP_W_MIN: u8 = 16;
 pub const OXY_R_MIN: u8 = 3;
+/// Borne HAUTE du palier ROUGE d'oxygène (P 0-2, R 3-6) — « Requires red oxygen
+/// **or lower** » (Colonizer Training Camp, lot 6) : oxygène ≤ 6.
+pub const OXY_R_MAX: u8 = 6;
 pub const OXY_Y_MIN: u8 = 7;
 /// Palier BLANC d'oxygène (Birds : « Requires white oxygen »).
 pub const OXY_W_MIN: u8 = 12;
@@ -42,6 +45,16 @@ pub enum Req {
     TempMax(u8),
     /// Niveau d'oxygène courant >= n.
     OxyMin(u8),
+    /// (lot 6) Niveau d'oxygène courant <= n — « Requires red oxygen or lower »
+    /// (*Colonizer Training Camp*, seule carte de la boîte de base à le porter).
+    ///
+    /// **Brique 1 du lot 6.** `Req` avait `TempMax` et `OceanMax` mais pas cette
+    /// variante : la carte était donc jouable à n'importe quel niveau
+    /// d'oxygène, ce qui est faux. Comme les autres prérequis de PARAMÈTRE, il
+    /// est jugé sur l'instantané de début de phase par `requirements_met`
+    /// (livret p.13 l.352) — c'est `reqs_satisfied` qui porte la règle, cette
+    /// variante n'en invente aucune.
+    OxyMax(u8),
     /// Océans révélés >= n.
     OceanMin(u8),
     /// Océans révélés <= n (Dusty Quarry : « 3 or fewer ocean tiles »).
@@ -128,6 +141,36 @@ pub enum Eff {
     /// déclencheur « when you gain a forest VP » (*Small Animals*) sont ainsi
     /// servis une fois et une seule, sans second chemin parallèle (journal D4).
     Forest(u8),
+    /// (lot 6) **Piochez `draw` cartes, puis défaussez-en `discard`.**
+    ///
+    /// **Brique 5 du lot 6**, et la SEULE brique des trois cartes du groupe C
+    /// (I3) : *Business Contracts* (4/2), *Invention Contest* (3/2),
+    /// *Microprocessors* (2/1). Les trois partagent ce chemin unique
+    /// (`flow::apply_eff`), elles ne diffèrent que par leurs données.
+    ///
+    /// `from_drawn` porte la seule vraie différence de TEXTE IMPRIMÉ entre
+    /// elles : *Invention Contest* dit « Keep one of **them** and discard the
+    /// other two » — la défausse est restreinte aux cartes piochées ; les deux
+    /// autres disent « Then, discard N cards », sans restriction, donc la
+    /// défausse porte sur la main entière (la carte jouée en est déjà sortie,
+    /// `build_card_with` la retire avant d'appliquer les effets).
+    ///
+    /// Le drapeau change AUSSI ce que le texte compte, ce qui ne se voit que
+    /// pioche épuisée : « **keep one** of them » compte les cartes GARDÉES
+    /// (deux cartes rendues au lieu de trois ⇒ on en garde toujours une, on n'en
+    /// défausse qu'une), « discard N cards » compte les cartes DÉFAUSSÉES. Voir
+    /// `flow::apply_eff`.
+    ///
+    /// Le CHOIX des cartes défaussées passe par `Policy::discard_down` — le
+    /// point de décision que le moteur emploie déjà pour la limite de main :
+    /// aucune source de hasard nouvelle (I6).
+    DrawDiscard {
+        draw: u8,
+        discard: u8,
+        /// true = la défausse est restreinte aux cartes qui viennent d'être
+        /// piochées (*Invention Contest*).
+        from_drawn: bool,
+    },
 }
 
 // ================================================== lot 4 : production dérivée
@@ -445,6 +488,15 @@ pub enum ActionCost {
     Heat(i64),
     Mc(i64),
     Plants(i64),
+    /// (lot 6) **Défausser `n` cartes de sa main comme COÛT de l'action**
+    /// (*Farming Co-ops* : « Action: Discard a card in hand to gain 3 plants »).
+    ///
+    /// **Brique 3 du lot 6.** Les coûts existants se paient en ressources ;
+    /// celui-ci se paie en cartes, et il n'est payable que si la main en porte
+    /// assez. Les cartes défaussées sont choisies par `Policy::discard_down`
+    /// (point de décision existant) et rejoignent la défausse commune : la
+    /// conservation des cartes reste vraie (I6, invariant 4).
+    DiscardCard(u8),
 }
 
 /// Effet d'une action de carte bleue.
@@ -455,6 +507,90 @@ pub enum ActionEff {
     Mc(i64),
     Tr(u8),
     Oxygen(u8),
+    /// (lot 6) Gain immédiat de chaleur (*Hydro-Electric Energy*).
+    ///
+    /// **Ajout DÉCLARÉ, non mécanique** (journal D3) : ce n'est pas une brique,
+    /// c'est une valeur de plus dans une énumération existante, qui écrit sur la
+    /// réserve de chaleur du joueur comme `Eff::Heat` le fait déjà à la pose.
+    Heat(i64),
+    /// (lot 6) Hausse de température de n pas (*Wood Burning Stoves*).
+    ///
+    /// **Ajout DÉCLARÉ, non mécanique** (journal D3) : elle emprunte
+    /// `flow::raise_temperature`, exactement comme `ActionEff::Oxygen` emprunte
+    /// `raise_oxygen` depuis le lot 2 (TR, caps sur l'instantané de phase,
+    /// déclencheurs « when you raise the temperature »).
+    Temperature(u8),
+    /// (lot 6) **Révélation du dessus de la pioche** (*Advanced Screening
+    /// Tech*, *Brainstorming Session*) — voir [`Reveal`].
+    ///
+    /// **Brique 6 du lot 6.**
+    Reveal(Reveal),
+}
+
+/// (lot 6) Ressource d'un coût ou d'un gain VARIABLE (brique 4).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ActionRes {
+    Heat,
+    Mc,
+    Plants,
+}
+
+/// (lot 6) **Révélation du dessus de la pioche** (brique 6).
+///
+/// `n` cartes sont réellement retirées du dessus de la pioche par
+/// `flow::draw_card` — le chemin de pioche du moteur, remélange de la défausse
+/// compris. Celles qui satisfont `keep` sont les seules à pouvoir entrer en
+/// main ; `take` en borne le nombre, et le CHOIX passe par
+/// `Policy::research_keep` (« garder k parmi n », la question exacte que la
+/// phase V pose déjà). Toutes les autres rejoignent la défausse, chacune
+/// rapportant `mc_per_discarded` MC.
+///
+/// - *Advanced Screening Tech* : « Reveal the top three cards. Place a card with
+///   a [science] or [plant] revealed this way into your hand. Discard the
+///   rest. » → `n: 3, keep: AnyOfTags([Science, Plant]), take: 1,
+///   mc_per_discarded: 0`.
+/// - *Brainstorming Session* : « Reveal the top card. If it is green, discard it
+///   and gain 1 MC. Otherwise, draw it. » → `n: 1, keep: ColorIsNot(Green),
+///   take: 1, mc_per_discarded: 1` — une carte non verte est gardée, une carte
+///   verte est défaussée et rapporte 1 MC.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Reveal {
+    pub n: u8,
+    pub keep: RevealFilter,
+    pub take: u8,
+    pub mc_per_discarded: i64,
+}
+
+/// (lot 6) Ce qui rend une carte révélée éligible à entrer en main.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RevealFilter {
+    /// Carte portant au moins un des badges donnés.
+    AnyOfTags(&'static [Tag]),
+    /// Carte dont la COULEUR n'est pas celle donnée.
+    ColorIsNot(Color),
+}
+
+/// (lot 6) **Bonus d'action conditionné à la phase choisie** (brique 2).
+///
+/// Texte imprimé : « *If you chose the action phase this round, … ». Le bonus
+/// est jugé sur `PlayerState::chosen_phase` du joueur QUI ACTIVE l'action —
+/// jamais sur celle de l'adversaire (NEVER 8) — au moment de l'activation.
+///
+/// Deux formes, toutes deux imprimées sur des cartes de la boîte de base :
+/// - **effets en plus** (`extra`) : *Community Gardens* « also gain 1 plant »,
+///   *Hydro-Electric Energy* « gain 1 additional heat » ;
+/// - **coût de remplacement** (`cost`) : *Wood Burning Stoves* « spend 3 plants
+///   instead » — le coût imprimé de 4 plantes devient 3.
+#[derive(Debug, Clone, Copy)]
+pub struct PhaseBonus {
+    /// Phase que le joueur doit avoir choisie ce tour (3 = phase Action pour les
+    /// trois cartes concernées ; la valeur reste une donnée de la table).
+    pub phase: u8,
+    /// Coût qui REMPLACE celui de l'action quand la condition est remplie.
+    /// `None` = coût inchangé.
+    pub cost: Option<&'static [ActionCost]>,
+    /// Effets appliqués EN PLUS de ceux de l'action.
+    pub extra: &'static [ActionEff],
 }
 
 /// (C) Action d'une carte bleue, activable une fois par phase III.
@@ -466,7 +602,36 @@ pub enum Action {
         effect: &'static [ActionEff],
     },
     /// Power Infrastructure : dépenser X chaleur (0..=chaleur) → X MC.
+    ///
+    /// **Inchangée au lot 6.** « Spend ANY amount » n'a pas de plafond imprimé :
+    /// le montant ne peut pas s'énumérer, il est tiré par
+    /// `Policy::action_amount`. Un tirage nul y vaut renoncement
+    /// (`action_applied: false`) — comportement du lot 2, conservé bit à bit,
+    /// parce que *Power Infrastructure* est hors du périmètre du lot 6 (I4).
     HeatToMc,
+    /// (lot 6, brique 4) **Coût VARIABLE « jusqu'à n »** : dépenser X unités de
+    /// `spend` pour gagner autant d'unités de `gain` (*Greenhouses* : « Spend up
+    /// to 4 heat to gain that amount of plants »).
+    ///
+    /// Le plafond IMPRIMÉ change la nature de la décision : les montants
+    /// possibles s'énumèrent (1, 2, 3, 4), c'est donc une ALTERNATIVE, et le
+    /// moteur a déjà un point de décision pour cela — `Policy::choose_option`,
+    /// avec sa convention du lot 3 : les branches injouables sont filtrées
+    /// AVANT le choix, et à une seule branche jouable on ne demande rien.
+    /// Un montant nul n'est pas une branche du texte imprimé : « spend up to 4
+    /// heat **to gain that amount of plants** » décrit un échange, et « ne rien
+    /// faire » s'exprime dans le moteur en ne choisissant pas l'action, pas en
+    /// la choisissant pour 0. Une carte sans la moindre unité à dépenser n'a
+    /// donc aucune branche jouable : l'action ne s'applique pas.
+    ///
+    /// Conséquence utile pour l'audit : le montant est scriptable par
+    /// `--probe-choice` (branche 0 = 1 unité, branche k = k+1 unités).
+    SpendUpTo {
+        spend: ActionRes,
+        gain: ActionRes,
+        /// Plafond imprimé (« up to N »), toujours ≥ 1.
+        cap: i64,
+    },
     /// Redrafted Contracts : défausser jusqu'à n cartes → piocher autant.
     DiscardDraw(i64),
     /// Volcanic Pools : payer max(0, base − nb de tags `per_tag` en jeu) MC →
@@ -499,6 +664,11 @@ pub struct CardEffects {
     pub global_triggers: &'static [GlobalTrigger],
     /// (C) action de carte bleue (lot 2).
     pub action: Option<Action>,
+    /// (lot 6) Bonus de l'action conditionné à la phase choisie par CE joueur
+    /// (brique 2). N'a de sens qu'avec `action: Some(Action::Fixed { .. })` —
+    /// un test structurel (`lot6_tests`) vérifie qu'aucune entrée de la table ne
+    /// le déclare ailleurs, faute de quoi il serait silencieusement inerte.
+    pub phase_bonus: Option<PhaseBonus>,
     /// (lot 3) Type de ressource porté par la carte. Une carte porteuse est
     /// INITIALISÉE À 0 à sa pose : elle devient cible valide même vide (règle
     /// du jeu, oracle Java `Player.initResources`).
@@ -528,6 +698,7 @@ macro_rules! card {
             reqs: &[$($r),*], effects: &[$($e),*],
             reductions: &[], play_triggers: &[], global_triggers: &[], action: None,
             holds: None, on_build: &[], prod: None, research: None,
+            phase_bonus: None,
         })
     };
     // Forme lot 4a : production DÉRIVÉE (recalculée à chaque phase IV).
@@ -536,6 +707,7 @@ macro_rules! card {
             reqs: &[$($r),*], effects: &[$($e),*],
             reductions: &[], play_triggers: &[], global_triggers: &[], action: None,
             holds: None, on_build: &[], prod: Some($pd), research: None,
+            phase_bonus: None,
         })
     };
     // Forme lot 4b : bonus permanent de phase Recherche.
@@ -544,6 +716,7 @@ macro_rules! card {
             reqs: &[$($r),*], effects: &[$($e),*],
             reductions: &[], play_triggers: &[], global_triggers: &[], action: None,
             holds: None, on_build: &[], prod: None, research: Some($rb),
+            phase_bonus: None,
         })
     };
     // Forme lot 2 : réductions / déclencheurs / action.
@@ -555,6 +728,18 @@ macro_rules! card {
             reductions: &[$($rd),*], play_triggers: &[$($pt),*],
             global_triggers: &[$($gt),*], action: $act,
             holds: None, on_build: &[], prod: None, research: None,
+            phase_bonus: None,
+        })
+    };
+    // Forme lot 6 : action + bonus conditionné à la phase choisie (brique 2).
+    ($name:literal, reqs: [$($r:expr),*], effects: [$($e:expr),*],
+     action: $act:expr, phase: $pb:expr) => {
+        ($name, CardEffects {
+            reqs: &[$($r),*], effects: &[$($e),*],
+            reductions: &[], play_triggers: &[], global_triggers: &[],
+            action: $act,
+            holds: None, on_build: &[], prod: None, research: None,
+            phase_bonus: $pb,
         })
     };
     // Forme lot 3 : tous les champs explicites (ressources posées comprises).
@@ -566,6 +751,7 @@ macro_rules! card {
             reductions: &[$($rd),*], play_triggers: &[$($pt),*],
             global_triggers: &[$($gt),*], action: $act,
             holds: $h, on_build: &[$($ob),*], prod: None, research: None,
+            phase_bonus: None,
         })
     };
 }
@@ -582,6 +768,8 @@ const K_MICROBE_ANIMAL: &[ResKind] = &[ResKind::Microbe, ResKind::Animal];
 const K_ANY: &[ResKind] = &[ResKind::Microbe, ResKind::Animal, ResKind::Science];
 const T_ANIMAL_PLANT: &[Tag] = &[Tag::Animal, Tag::Plant];
 const T_ANIMAL_MICROBE_PLANT: &[Tag] = &[Tag::Animal, Tag::Microbe, Tag::Plant];
+/// (lot 6) « a card with a [science] or [plant] » (Advanced Screening Tech).
+const T_SCIENCE_PLANT: &[Tag] = &[Tag::Science, Tag::Plant];
 
 /// Pose de `n` ressources sur la carte elle-même.
 const fn put_self(n: u32) -> ResEff {
@@ -1319,6 +1507,102 @@ pub static LOT1: &[(&str, CardEffects)] = &[
     // « [effect] Gain a forest VP and raise oxygen 1 step. During the production
     //   phase, this produces 1 heat. »
     card!("Biothermal Power", reqs: [], effects: [Forest(1), HeatProd(1)]),
+
+    // ================================================= LOT 6 (chantier cartes-6)
+    // Les 11 cartes muettes qui tournent autour de « ce que le joueur active
+    // pendant son tour » et de « ce qu'il fait de sa main ». Source du texte :
+    // `inputs/textes-cartes.json`, champs `text`, `requirement`, `production` et
+    // `vp_printed` — JAMAIS le champ `description` de `cards.json`. Texte cité
+    // carte par carte et traces de sonde : `outputs/cartes6.md`.
+    //
+    // Six briques ajoutées au vocabulaire, aucune ligne de logique par carte :
+    // `Req::OxyMax`, `CardEffects::phase_bonus`, `ActionCost::DiscardCard`,
+    // `Action::SpendUpTo`, `Eff::DrawDiscard`, `ActionEff::Reveal`.
+
+    // ---- Groupe A : bonus si vous avez choisi la phase Action (2) ------------
+    // « Action: Gain 2 MC. *If you chose the action phase this round, also gain
+    //   1 plant. » — le bonus AJOUTE un effet, le coût (nul) ne change pas.
+    card!("Community Gardens", reqs: [], effects: [],
+          action: Some(Action::Fixed { cost: &[], effect: &[ActionEff::Mc(2)] }),
+          phase: Some(PhaseBonus { phase: 3, cost: None,
+                    extra: &[ActionEff::Plants(1)] })),
+    // « Action: Spend 1 MC to gain 2 heat. *If you chose the action phase this
+    //   round, gain 1 additional heat. » — « additional » : 2 + 1 = 3 chaleurs,
+    //   le MC dépensé reste 1.
+    card!("Hydro-Electric Energy", reqs: [], effects: [],
+          action: Some(Action::Fixed { cost: &[ActionCost::Mc(1)],
+                    effect: &[ActionEff::Heat(2)] }),
+          phase: Some(PhaseBonus { phase: 3, cost: None,
+                    extra: &[ActionEff::Heat(1)] })),
+
+    // ---- Groupe B : actions à coût particulier (3) --------------------------
+    // « [effect] Gain 3 plants. Action: Discard a card in hand to gain
+    //   3 plants. » — le gain de pose et le gain d'action sont distincts.
+    card!("Farming Co-ops", reqs: [], effects: [Plants(3)],
+          red: [], ptrig: [], gtrig: [],
+          action: Some(Action::Fixed { cost: &[ActionCost::DiscardCard(1)],
+                    effect: &[ActionEff::Plants(3)] })),
+    // « [effect] Gain 4 plants. Action: Spend 4 plants to raise the temperature
+    //   1 step. *If you chose the action phase this round, spend 3 plants
+    //   instead. » — le bonus REMPLACE le coût (4 → 3), il n'ajoute rien.
+    card!("Wood Burning Stoves", reqs: [], effects: [Plants(4)],
+          action: Some(Action::Fixed { cost: &[ActionCost::Plants(4)],
+                    effect: &[ActionEff::Temperature(1)] }),
+          phase: Some(PhaseBonus { phase: 3,
+                    cost: Some(&[ActionCost::Plants(3)]), extra: &[] })),
+    // « Requires yellow temperature or warmer. Action: Spend up to 4 heat to
+    //   gain that amount of plants. » — prérequis imprimé jusqu'ici NON appliqué
+    //   (l'un des deux trous de la boîte de base, fermé par ce lot).
+    card!("Greenhouses", reqs: [TempMin(TEMP_Y_MIN)], effects: [],
+          red: [], ptrig: [], gtrig: [],
+          action: Some(Action::SpendUpTo { spend: ActionRes::Heat,
+                    gain: ActionRes::Plants, cap: 4 })),
+
+    // ---- Groupe C : piocher puis défausser (3) ------------------------------
+    // UNE seule brique pour les trois (I3) : `Eff::DrawDiscard`.
+    // « [effect] Draw four cards. Then, discard two cards. » (net +2)
+    card!("Business Contracts", reqs: [],
+          effects: [DrawDiscard { draw: 4, discard: 2, from_drawn: false }]),
+    // « [effect] Draw three cards. Keep one of them and discard the other
+    //   two. » (net +1) — « of them » restreint la défausse aux cartes piochées.
+    card!("Invention Contest", reqs: [],
+          effects: [DrawDiscard { draw: 3, discard: 2, from_drawn: true }]),
+    // « [effect] Draw two cards. Then, discard a card. During the production
+    //   phase, this produces 3 heat. » (net +1, puis production FIXE de 3
+    //   chaleurs — champ `production: "3 heat"` du texte imprimé.)
+    card!("Microprocessors", reqs: [],
+          effects: [DrawDiscard { draw: 2, discard: 1, from_drawn: false },
+                    HeatProd(3)]),
+
+    // ---- Groupe D : révéler le dessus de la pioche (2) ----------------------
+    // « Action: Reveal the top three cards of the deck. Place a card with a
+    //   [science] or [plant] revealed this way into your hand. Discard the
+    //   rest. »
+    card!("Advanced Screening Tech", reqs: [], effects: [],
+          red: [], ptrig: [], gtrig: [],
+          action: Some(Action::Fixed { cost: &[],
+                    effect: &[ActionEff::Reveal(Reveal {
+                        n: 3,
+                        keep: RevealFilter::AnyOfTags(T_SCIENCE_PLANT),
+                        take: 1,
+                        mc_per_discarded: 0 })] })),
+    // « Action: Reveal the top card of the deck. If it is green, discard it and
+    //   gain 1 MC. Otherwise, draw it. »
+    card!("Brainstorming Session", reqs: [], effects: [],
+          red: [], ptrig: [], gtrig: [],
+          action: Some(Action::Fixed { cost: &[],
+                    effect: &[ActionEff::Reveal(Reveal {
+                        n: 1,
+                        keep: RevealFilter::ColorIsNot(Color::Green),
+                        take: 1,
+                        mc_per_discarded: 1 })] })),
+
+    // ---- Groupe E : prérequis seul (1) --------------------------------------
+    // « Requires red oxygen or lower. » AUCUN texte d'effet ; 2 PV imprimés
+    // (donnée `vp` de cards.json, déjà comptée au score). Son encodage est donc
+    // exactement sa condition d'entrée — et c'est le second trou de prérequis
+    // de la boîte de base, fermé ici.
+    card!("Colonizer Training Camp", reqs: [OxyMax(OXY_R_MAX)], effects: []),
 ];
 
 // ======================================== LOT CORPORATIONS (chantier corpo-1)

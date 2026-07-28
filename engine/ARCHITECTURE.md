@@ -304,6 +304,81 @@ IV à chaque génération, `--effects off`, le recensement des 29 restantes, le
 coût imprimé des 33, l'absence de tout nom de carte dans `src/*.rs` hors table
 d'effets, et le déterminisme.
 
+## Lot 6 — actions bleues et manipulation de la main (chantier cartes-6)
+
+11 cartes projets de la boîte de base rejoignent la table `LOT1` (29 muettes
+avant le lot, **18** après ; 66 → **55** en `base,decouverte`). Source du texte :
+`inputs/textes-cartes.json`, champs `text`, `requirement`, `production` et
+`vp_printed` — jamais `description` de `cards.json`. Correspondances carte par
+carte, traces de sonde et divergences : `outputs/cartes6.md`.
+
+**Six briques de vocabulaire**, aucune ligne de logique par carte :
+
+- **`Req::OxyMax(n)`** — « Requires red oxygen or lower » (*Colonizer Training
+  Camp*). Prérequis de PARAMÈTRE : jugé sur l'instantané de début de phase comme
+  les autres, souplesse Inventrix de ±1 palier comme `TempMax`. Constante
+  `OXY_R_MAX = 6`.
+- **`CardEffects::phase_bonus: Option<PhaseBonus>`** — « *If **you** chose the
+  action phase this round … ». `PhaseBonus { phase, cost, extra }` : `extra` =
+  effets ajoutés (*Community Gardens*, *Hydro-Electric Energy*), `cost` = coût de
+  REMPLACEMENT (*Wood Burning Stoves*, « spend 3 plants instead »). Lu sur
+  `PlayerState::chosen_phase` du joueur QUI ACTIVE, au moment de l'activation —
+  jamais celle de l'adversaire. N'a de sens que sur `Action::Fixed` ; un test
+  structurel le garantit.
+- **`ActionCost::DiscardCard(n)`** — coût d'action payé en CARTES (*Farming
+  Co-ops*). Payable ssi la main en porte assez ; les cartes sont choisies par
+  `Policy::discard_down` et rejoignent la défausse commune.
+- **`Action::SpendUpTo { spend, gain, cap }`** — « Spend up to N <res> to gain
+  that amount of <res> » (*Greenhouses*). Le plafond IMPRIMÉ rend les montants
+  énumérables : ce sont des branches (1..N), filtrées par ce que le joueur
+  possède, tranchées par `Policy::choose_option` (convention du lot 3). Un
+  montant nul n'est pas une branche du texte imprimé. `Action::HeatToMc` (« spend
+  ANY amount », *Power Infrastructure*) reste inchangée : sans plafond, le
+  montant ne s'énumère pas.
+- **`Eff::DrawDiscard { draw, discard, from_drawn }`** — « piochez n puis
+  défaussez d », brique UNIQUE des trois cartes du groupe C (*Business
+  Contracts* 4/2, *Invention Contest* 3/2, *Microprocessors* 2/1).
+  `from_drawn` porte la seule différence de texte : « Keep one **of them** »
+  restreint la défausse aux cartes piochées, « Then, discard N cards » porte sur
+  la main entière. Le choix passe par `Policy::discard_down`.
+- **`ActionEff::Reveal(Reveal { n, keep, take, mc_per_discarded })`** —
+  révélation du dessus de la pioche (*Advanced Screening Tech* :
+  `AnyOfTags([Science, Plant])`, take 1 ; *Brainstorming Session* :
+  `ColorIsNot(Green)`, take 1, 1 MC par révélée non gardée). Les cartes sortent
+  réellement de la pioche par `flow::draw_card` (remélange compris) et les non
+  gardées rejoignent la défausse : la conservation des cartes reste vraie. Le
+  choix de la gardée passe par `Policy::research_keep`.
+
+Deux ajouts **déclarés, non mécaniques** : `ActionEff::Heat(n)` et
+`ActionEff::Temperature(n)`, valeurs de plus dans l'énumération d'effets
+d'action, qui empruntent les services existants (réserve de chaleur,
+`raise_temperature`).
+
+`flow::apply_action_eff` est extrait de `apply_blue_action` pour que les effets
+de l'action et ceux ajoutés par le bonus de phase empruntent un chemin unique ;
+`flow::discard_from_hand` est l'unique point d'écriture des deux défausses
+neuves.
+
+### Sonde et compteurs du lot 6
+
+- **`--probe-phase <1..5>`** : fixe la phase choisie par le joueur sondé dans
+  l'état de départ, avant la pose et avant l'action, et n'écrit rien d'autre.
+  Sans l'option, la sortie est celle des lots précédents à l'identique
+  (`ProbeOptions::phase = 0`). `--probe-filler` et `--probe-choice` s'appliquent
+  désormais aussi à `--probe-action` (`probe::run_probe_action_opts`), sans quoi
+  un coût payé en cartes et un montant « jusqu'à n » ne seraient pas observables.
+- Quatre compteurs d'audit dans la ligne JSON de `simulate`, incrémentés au site
+  exact du mécanisme, tous nuls en `--effects off` : `action_phase_bonuses`,
+  `action_discard_costs`, `draw_discard_discards`, `cards_revealed`.
+
+`tests/lot6_tests.rs` — 57 tests : un ou plusieurs par carte du lot, le bonus de
+phase des deux côtés (et le témoin « c'est l'adversaire qui a choisi »), la
+révélation en flux réel sur un dessus de pioche composé, la différence
+`from_drawn` entre les trois cartes du groupe C, la conservation des cartes, les
+quatre compteurs en partie réelle et à zéro effets coupés, le recensement (18 et
+55), le déterminisme, l'inertie de *Power Infrastructure* et l'absence de tout
+nom de carte du lot dans `src/`.
+
 ## Corporations (chantier corpo-1)
 
 Les **12 planches de corporation de la boîte de base** ont leurs effets. Source
