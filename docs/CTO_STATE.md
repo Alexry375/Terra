@@ -38,6 +38,64 @@ prérequis (2), divers (4). Liste nominative :
 **Ne JAMAIS citer le « 7 » de `docs/cartes/moteur-vs-imprime.md` comme une
 couverture de la boîte de base** : ce rapport n'échantillonne que 66 cartes.
 
+## EN COURS (28-07 soir) — `moteur-cartes-7`, contrat scellé et lancé
+
+**Découpage décidé par moi** : les 14 muettes ne font pas un lot, elles font
+deux. Ce lot en prend **9**, celles qui modifient un chemin déjà existant
+(« modificateurs permanents ») ; les **5** autres partagent le seul mécanisme
+vraiment neuf — « jouer une carte de plus dans cette phase » — et feront le lot
+suivant. Cible : 14 → **5** muettes en base, 47 → 38 en `base,decouverte`.
+
+Les neuf : *Interns*, *Extended Resources*, *United Planetary Alliance*
+(recherche) · *Composting Factory*, *Standard Technology*,
+*Restructured Resources* (prix) · *Adaptation Technology*, *Assembly Lines*,
+*Mars University* (déclencheurs).
+
+**Le lot est plus abordable qu'il n'y paraît** : 5 des 9 réutilisent un
+mécanisme déjà écrit. `ResearchBonus` existe (lot 4, *Interplanetary
+Relations*) ; l'assouplissement de prérequis existe (`req_color_flex`
+d'*Inventrix*) ; la réduction payée en ressource existe (`PayResources`,
+*Anaerobic Microorganisms*). [VÉRIFIÉ 28-07]
+
+### Cinq erreurs de mon contrat, trouvées AVANT scellement
+
+C'est le point important de ce cadrage. En calibrant, j'ai corrigé :
+
+1. **`research_extra_draws` valait 3 888, pas 4 266.** Le chiffre de la carte
+   d'état datait du 27-07 et était devenu faux. J'allais le sceller.
+2. **`--effects off` rend `prereq_ok = true` PARTOUT** (la couche d'effets étant
+   coupée, les prérequis ne s'appliquent plus). Ma ligne de contrôle exigeait
+   `false` : elle aurait échoué quoi que fasse l'agent. Remplacée par deux
+   témoins réellement discriminants (*Great Dam* pour les océans, *Fusion Power*
+   pour les badges — la souplesse ne doit toucher ni l'un ni l'autre).
+3. **Le surplus rendu d'un paiement par défausse se REPORTE sur le paiement
+   suivant.** Mon arithmétique donnait −16, la mesure donne **−15**.
+4. **`delta.mc` de `--probe` ne contient PAS le prix de la carte** (le prix vit
+   dans `paid[]`). Mon témoin d'*Assembly Lines* attendait −24 ; la bonne valeur
+   est **−11** contre −12 aujourd'hui.
+5. **Mon hold-out comptait « illisible » comme un succès** : quand l'option de
+   sonde n'existe pas, la sortie est vide et ma condition passait au vert. Garde
+   ajoutée : seul un entier non nul compte.
+
+### Deux choses ajoutées parce que la preuve était impossible sans elles
+
+- **`--probe-plants <n>`** imposée à l'interface : sans plante, *Restructured
+  Resources* est improuvable de l'extérieur. Leçon du lot précédent, où j'avais
+  failli sceller une preuve impossible.
+- **Une question ASK sur le périmètre de « discard for MC »** : la constante
+  `SELL_CARD_MC` est lue à **quatre** endroits de `flow.rs` (affordabilité,
+  paiement à la pose, vente de carte, défausse de fin de tour) et le texte
+  imprimé ne dit pas lesquels il vise. L'agent doit trancher en le déclarant,
+  pas en silence. [VÉRIFIÉ 28-07]
+
+**Bidirectionnalité prouvée** : 7 contrôles rouges pour la bonne raison (vérifié
+sortie par sortie), le 8e vert dès aujourd'hui car c'est un garde-fou de
+non-régression (237 cartes hors périmètre enregistrées dans
+`inputs/sondes-reference.json`). Les deux contrôles les plus risqués (03
+recherche, 05 compteurs) ont été passés au vert contre un **faux moteur**
+simulant l'état-cible. Trois hold-outs cachés rouges, dont les parties
+garde-fou (40 témoins inchangés, déterminisme) sont vertes dès aujourd'hui.
+
 ## DÉCISIONS D'ALEXIS DU 28-07
 
 - **Les règles maison ne sont PAS traitées pour le moment.** Aucun chantier ne
