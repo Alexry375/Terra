@@ -477,10 +477,20 @@ fn mining_guild_reduit_les_building_de_2() {
 fn phobolog_reduit_les_space_de_3() {
     let db = db();
     let r = probe(&db, "Phobolog", &["Ice Asteroid"]); // 21, SPACE
-    assert_eq!(r.paid, vec![18]);
-    // Le titane n'existe pas dans le moteur : aucune réduction supplémentaire.
+    // ATTENTE MISE À JOUR par le lot acier-titane (18 → 17), et c'est la
+    // correction d'un manque, pas une régression : la planche porte DEUX
+    // lignes. Le −3 MC sur les cartes espace EST son savoir-faire (encart gris,
+    // un titane), et son EFFET imprimé — « Each titanium you have reduces the
+    // cost of [space] cards an additional 1 MC » — s'applique à ce titane-là.
+    // 21 − 3 − 1 = 17. L'ancienne attente valait pour un moteur où le titane
+    // n'existait pas ; il existe.
+    assert_eq!(r.paid, vec![17]);
     let corp = corp_lookup("Phobolog").unwrap();
-    assert_eq!(corp.reductions.len(), 1, "la seule réduction encodée est le −3 Space");
+    assert_eq!(
+        corp.reductions.len(),
+        2,
+        "les deux lignes de la planche : le −3 Space, et l'effet par titane"
+    );
 }
 
 #[test]

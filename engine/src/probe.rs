@@ -25,7 +25,7 @@
 use crate::cards::CardsDb;
 use crate::flow::{
     apply_blue_action, build_card_with, card_discount, card_points, install_corporation, payable,
-    heat_reserved_by, phase_production, requirements_met, requirements_met_now,
+    heat_reserved_by, phase_production, player_capacities, requirements_met, requirements_met_now,
     spendable_mc_reserving,
 };
 use crate::policy::{ActionOpt, ConstructionBonus, Policy, RandomPolicy};
@@ -102,6 +102,12 @@ pub struct ProbeResult {
     /// (corpo-1) Corporation imposée par `--probe-corp` ; `None` sans l'option
     /// (la sortie de la sonde est alors celle des lots précédents, à l'identique).
     pub corp: Option<ProbeCorp>,
+    /// (lot acier-titane) Aciers du joueur sondé après la séquence. Lu sur
+    /// `PlayerState::steel_capacity`, l'état que la partie réelle emploie pour
+    /// calculer ses prix — la sonde ne recalcule rien (clause anti-shortcut 2).
+    pub steel: i64,
+    /// (lot acier-titane) Idem pour les titanes.
+    pub titanium: i64,
 }
 
 /// (corpo-1) Corporation imposée à la sonde par `--probe-corp` : ce que le
@@ -622,7 +628,8 @@ pub fn run_probe_seq_corp(
             None => {
                 // Dernière carte introuvable : résultat « non trouvée »
                 // (comportement du lot 1, inchangé).
-                let (_, corp, _) = probe_state_corp(db, &[], opts, corp_name);
+                let (g, corp, _) = probe_state_corp(db, &[], opts, corp_name);
+                let caps = player_capacities(&g.players[0]);
                 return ProbeResult {
                     card: last.to_string(),
                     found: false,
@@ -640,6 +647,10 @@ pub fn run_probe_seq_corp(
                     derived_prod: (0, 0, 0),
                     vp_total: 0,
                     corp,
+                    // La corporation est en place même quand la carte est
+                    // introuvable : son savoir-faire compte déjà.
+                    steel: caps.steel,
+                    titanium: caps.titanium,
                 };
             }
         }
@@ -752,6 +763,10 @@ pub fn run_probe_seq_corp(
             .map(|&c| card_points(db, &game.players[0], c).0)
             .sum(),
         corp,
+        // (lot acier-titane) Le compte tel que l'état du joueur le porte —
+        // celui-là même que `flow::card_discount` lit pour fixer les prix.
+        steel: player_capacities(&game.players[0]).steel,
+        titanium: player_capacities(&game.players[0]).titanium,
     }
 }
 
@@ -794,6 +809,35 @@ pub fn run_probe_action_opts(
     corp_name: Option<&str>,
     opts: ProbeOptions,
 ) -> ProbeActionResult {
+    run_probe_action_seq(db, &[name], script, corp_name, opts)
+}
+
+/// **(lot acier-titane) Sonde action sur une SÉQUENCE** — `--probe-action
+/// "Carte A;Carte B"`.
+///
+/// Sans elle, rien ne peut prouver « 2 MC par acier » au-delà d'un seul acier :
+/// l'action mesurée ne pouvait jamais avoir plus d'un savoir-faire devant elle.
+///
+/// Elle pose TOUTES les cartes de la séquence, dans l'ordre, exactement comme
+/// `--probe` (même chemin `flow::build_card_with`, toujours à l'indice 0 de la
+/// main), prend l'instantané de référence APRÈS la dernière pose, puis applique
+/// l'action de la DERNIÈRE carte, et d'elle seule.
+///
+/// **Un seul nom = comportement strictement inchangé** : la boucle ne fait alors
+/// qu'un tour, sur la même carte, avec le même état de départ et le même
+/// instantané qu'avant ce lot.
+pub fn run_probe_action_seq(
+    db: &CardsDb,
+    names: &[&str],
+    script: &ProbeScript,
+    corp_name: Option<&str>,
+    opts: ProbeOptions,
+) -> ProbeActionResult {
+    let name = *names.last().unwrap_or(&"");
+    // Toutes les cartes de la séquence, dans l'ordre. Les noms inconnus sont
+    // ignorés à la pose, comme dans `run_probe_seq_corp` ; seule la DERNIÈRE
+    // décide de `found` — c'est elle que l'on mesure.
+    let ids: Vec<u16> = names.iter().filter_map(|n| resolve(db, n)).collect();
     let Some(card_id) = resolve(db, name) else {
         let (_, corp, _) = probe_state_corp(db, &[], opts, corp_name);
         return ProbeActionResult {
@@ -813,16 +857,38 @@ pub fn run_probe_action_opts(
     let in_lot = db.effects_on && card.effect.is_some();
     let has_action = in_lot && card.effect.and_then(|e| e.action).is_some();
 
-    let (mut game, corp, _) = probe_state_corp(db, &[card_id], opts, corp_name);
+    let (mut game, corp, _) = probe_state_corp(db, &ids, opts, corp_name);
     // Pose (état de référence du delta d'action) — même chemin que `simulate`,
     // avec la politique de sonde (identique à RandomPolicy si le script est
-    // vide).
+    // vide). Les cartes de la séquence sont en tête de main, dans l'ordre : la
+    // pose se fait toujours à l'indice 0, comme pour `--probe`.
     let mut pol = ProbePolicy::new(db, script);
-    build_card_with(&mut game, db, 0, 0, 0, &mut pol);
+    for &id in &ids {
+        // Payabilité, comme dans `run_probe_seq_corp` : la pose est forcée
+        // quant aux PRÉREQUIS, jamais quant au PAIEMENT. Sans ce test,
+        // `build_card_with` casse sur un état volontairement impayable
+        // (`--probe-mc` bas) au lieu de rendre un résultat lisible. Une
+        // séquence interrompue laisse la dernière carte hors jeu : son action
+        // n'est alors pas appliquée (voir plus bas).
+        let cost = (db.projects[id as usize].price - card_discount(&game, db, 0, id)).max(0);
+        if !payable(
+            spendable_mc_reserving(db, &game.players[0], heat_reserved_by(db, id)),
+            game.players[0].hand.len(),
+            cost,
+        ) {
+            break;
+        }
+        build_card_with(&mut game, db, 0, 0, 0, &mut pol);
+    }
+    // L'instantané de référence est pris APRÈS la dernière pose : le delta
+    // n'isole que l'action de la dernière carte.
     let hand_after_pose = game.players[0].hand.len() as i64;
     let before = snap(&game);
 
-    let action_applied = if has_action {
+    // L'action ne s'applique qu'à une carte réellement EN JEU : on n'active
+    // jamais l'action d'une carte que la séquence n'a pas pu poser.
+    let en_jeu = game.players[0].played.contains(&card_id);
+    let action_applied = if has_action && en_jeu {
         // Les actions variables tirent leur montant via la politique sur le RNG
         // déterministe (graine 0) de l'état de sonde.
         apply_blue_action(&mut game, db, 0, card_id, &mut pol)

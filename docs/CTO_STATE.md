@@ -20,19 +20,20 @@ Dernière mise à jour : 2026-07-28 (soir)
   221 cartes transcrites de `textes-cartes` n'existent que sur le disque local
   tant qu'elles ne sont pas auditées et promues. [VÉRIFIÉ 26-07]
 
-## ⚠️ LE CHIFFRE QUI COMPTE (28-07 soir) — 190 cartes sur 208 sont encodées
+## ⚠️ LE CHIFFRE QUI COMPTE (28-07 soir) — 194 cartes sur 208 sont encodées
 
-**18 des 208 cartes projets de la boîte de base n'ont aucun encodage** (62 le
-27-07, 29 après `moteur-cartes-5`, 18 après `moteur-cartes-6`).
-[VÉRIFIÉ 28-07 par ma main après promotion]
+**14 des 208 cartes projets de la boîte de base n'ont aucun encodage** (62 le
+27-07, 29 après `moteur-cartes-5`, 18 après `moteur-cartes-6`, 14 après
+`moteur-acier-titane`). En configuration cible `base,decouverte` : **199 / 246**,
+donc **47 muettes**. [VÉRIFIÉ 28-07 par ma main après promotion]
 
 **Et plus aucun prérequis imprimé ne manque** dans la boîte de base : le compte
 est passé de 2 à **0**. [VÉRIFIÉ 28-07 par ma main]
 
-Les 18 restantes réclament des mécanismes absents : acier et titane comme
-monnaies (4), cartes supplémentaires jouées et réductions (5), phase de
-recherche modifiée (3), assouplissement de prérequis (2), divers (4). Liste
-nominative : `workspaces/moteur-cartes-6/inputs/checks/02-les-18-restantes.sh`.
+Les 14 restantes réclament des mécanismes absents : cartes supplémentaires
+jouées et réductions (5), phase de recherche modifiée (3), assouplissement de
+prérequis (2), divers (4). Liste nominative :
+`workspaces/moteur-acier-titane/inputs/checks/02-les-14-restantes.sh`.
 
 **Ne JAMAIS citer le « 7 » de `docs/cartes/moteur-vs-imprime.md` comme une
 couverture de la boîte de base** : ce rapport n'échantillonne que 66 cartes.
@@ -44,12 +45,12 @@ Mesuré par `--dump-deck` et lecture du code, pas de mémoire. [VÉRIFIÉ 28-07]
 | Brique | État |
 |---|---|
 | Déroulement d'une partie (phases I-V, production, score, fin) | fait |
-| Projets boîte de base | **190 / 208** encodés |
+| Projets boîte de base | **194 / 208** encodés |
 | Corporations boîte de base | 12 / 12 |
-| Projets en configuration cible `base,decouverte` | **195 / 246** (51 muettes) |
+| Projets en configuration cible `base,decouverte` | **199 / 246** (47 muettes) |
 | Corporations Découverte | 0 / 4 (écartées, table `effects::CORPS`) |
 | Objectifs (tuiles) | 11 / 11 encodés — **1 seuil faux** |
-| Récompenses (tuiles) | **4 / 7** fonctionnelles |
+| Récompenses (tuiles) | **5 / 7** fonctionnelles (*Industrialist* ressuscitée le 28-07) |
 | Cartes Phase améliorées | **transcrites (10), jamais appliquées** — `state.rs:181` `phase_upgrades` n'est lu nulle part dans `flow.rs` |
 | Badges jokers de Découverte | non implantés |
 | Interface de jeu | rien |
@@ -70,7 +71,68 @@ Mesuré par `--dump-deck` et lecture du code, pas de mémoire. [VÉRIFIÉ 28-07]
   **alors que les ressources posées sur les cartes existent depuis
   `moteur-cartes-3`**. Deuxième récompense morte, réparable en une ligne.
 
-## EN COURS (28-07) — `moteur-acier-titane`, contrat scellé et lancé
+## L'ACIER ET LE TITANE EXISTENT (28-07) — `moteur-acier-titane`, audité OK et promu
+
+**Mesuré par ma main après promotion** : **509 tests verts**, 1 000 parties graine
+2024 en `base,decouverte` → `completed: 1000`, `invariant_violations: 0`,
+`truncated: 0`, empreinte `162e50432a84a517`. Graine inédite 616161 sur
+800 parties : 800/800, 0 violation. **Muettes 18 → 14** (base) et **51 → 47**
+(`base,decouverte`), exactement la cible du contrat. `cards_effects_unhandled`
+en base : 4 084 → **3 154** (−22 %). [VÉRIFIÉ 28-07]
+
+- **Le compte est DÉRIVÉ, jamais ressaisi.** `flow::capacities` lit les
+  `Reduction::Tag(Building|Space, n)` déjà encodées sur les cartes **vertes** en
+  jeu et sur la corporation, et divise par le taux du livret porté en un seul
+  endroit (`effects::Capacity`, `capacity_units`). `steel_capacity` /
+  `titanium_capacity` deviennent vrais mais comme **cache** : seule écriture
+  `flow::refresh_capacities`, et `sim::check_invariants` recompare le cache à la
+  dérivation **à chaque manche de chaque partie** — 2 000 parties à 0 violation
+  prouvent qu'ils ne divergent pas. [VÉRIFIÉ 28-07 par lecture du code]
+- Garde I3 réelle : `capacity_units` **panique** si un montant n'est pas un
+  multiple exact du taux, plutôt que d'arrondir en silence ; le garde-fou de
+  `CardsDb::load` rend le cas impossible en amont. [VÉRIFIÉ 28-07]
+- Briques neuves : `Reduction::PerCapacity` (résolue **au paiement**, rien de figé
+  à la pose) et `ActionCost::McPerCapacity` ; `ActionEff::Ocean`/`Forest`
+  empruntent les chemins uniques `reveal_ocean` / `gain_forest`.
+- **La récompense *Industrialist* n'est plus morte** : elle compte désormais une
+  grandeur réellement disputée. L'agent ne l'a pas retouchée (ASK 6), il l'a
+  déclarée. Conforme au carton.
+
+### Les TROIS contradictions de l'agent, toutes exactes [VÉRIFIÉ 28-07 par ma main]
+
+1. **Mon census « 27 réductions / 21 / 6 » était mal libellé.** Mesure réelle :
+   **27** entrées `Reduction::Tag(Building|Space, …)`, dont **23 portées par des
+   cartes projet et 4 par des corporations**. Ma phrase « les 21 sont toutes
+   vertes ou corporations à encart gris » mélangeait deux populations. La
+   conclusion tient, le décompte non.
+2. **Mon check `03-le-compte.sh` testait une corporation jamais installée** : il
+   écrivait `--probe-corp CrediCor` alors que le nom canonique est `Credicor`.
+   Vérifié : `corp.found = false`, la sonde se déroulait **sans corporation**. Le
+   contrôle passait pour une mauvaise raison. L'agent l'a remplacé dans sa
+   couverture par un test installant réellement les 8 corporations sans
+   savoir-faire.
+3. **Deux `notes` de `textes-cartes.json` contredisaient leur `text`** :
+   *Aquifer Pumping* (« -2 / [building] ») et *Solarpunk* (« -2 / [event] » — un
+   badge que la carte ne porte même pas, ses badges sont space et plant). Le
+   moteur a suivi `text`, comme ordonné. **Les deux notes sont corrigées à la
+   source le 28-07**, dans `data/cartes-imprimees/` ET dans la copie
+   `engine/data/`, avec mention explicite de la correction.
+
+### Mon hold-out 02 : deux FAUX POSITIFS, vérifiés à la source
+
+Il criait « 5 endroits divisent par 2 ou 3 » — les cinq sont des lignes de
+**commentaire** — et « la couleur n'apparaît pas près du calcul », alors que
+`flow::capacities` contient littéralement `if card.color != Color::Green
+{ continue; }`. Détecteur trop grossier, fenêtre de recherche trop étroite.
+
+**LE COMPTE À TENIR : mes contrôles cachés se sont trompés aux QUATRE derniers
+lots, et l'agent avait raison à chaque fois. S'y ajoute désormais un contrôle
+VISIBLE faux (le `CrediCor` ci-dessus) — un contrôle vert qui ne testait rien.**
+Conséquence à appliquer : **tout contrôle qui installe une corporation ou nomme
+une carte doit d'abord prouver que la sonde l'a TROUVÉE** (`corp.found` /
+`found`), avant de juger la moindre valeur.
+
+## ~~EN COURS (28-07)~~ — `moteur-acier-titane`, contrat scellé et lancé
 
 Encode les **4 cartes muettes qui parlent d'acier ou de titane** (*Advanced
 Alloys*, *Aquifer Pumping*, *Solarpunk*, *Water Import from Europa*) plus

@@ -885,7 +885,9 @@ fn exactly_eighteen_base_cards_remain_unhandled() {
         .filter(|c| !c.effets_geres)
         .map(|c| c.name)
         .collect();
-    assert_eq!(muettes.len(), 18, "{muettes:?}");
+    // ATTENTE MISE À JOUR par le lot acier-titane (18 → 14) : les quatre cartes
+    // à compte d'aciers/titanes sont encodées.
+    assert_eq!(muettes.len(), 14, "{muettes:?}");
     for name in LOT6 {
         assert!(!muettes.contains(&name), "{name} ne doit plus être muette");
     }
@@ -896,7 +898,9 @@ fn base_plus_discovery_leaves_fifty_five_unhandled() {
     let db = CardsDb::load_boites(CARDS, BoiteSet::parse("base,decouverte").unwrap())
         .expect("base,decouverte");
     let n = db.recensement().into_iter().filter(|c| !c.effets_geres).count();
-    assert_eq!(n, 55);
+    // ATTENTE MISE À JOUR par le lot acier-titane (55 → 51) : 14 muettes en
+    // base + 37 de Découverte (33 projets + 4 corporations sans encodage).
+    assert_eq!(n, 51);
 }
 
 #[test]
@@ -1109,7 +1113,8 @@ fn the_table_has_one_entry_per_card_of_this_lot() {
         let n = LOT1.iter().filter(|(x, _)| *x == name).count();
         assert_eq!(n, 1, "{name} : une entrée et une seule");
     }
-    assert_eq!(LOT1.len(), 199, "188 avant le lot + 11");
+    // ATTENTE MISE À JOUR par le lot acier-titane (199 → 203).
+    assert_eq!(LOT1.len(), 203, "188 + 11 (lot 6) + 4 (lot acier-titane)");
 }
 
 #[test]

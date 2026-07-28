@@ -9,9 +9,9 @@
 
 use crate::cards::{CardsDb, Color, Tag, VpKind};
 use crate::effects::{
-    self, Action, ActionCost, ActionEff, ActionRes, CorpEffects, Eff, GlobalTrigger, PhaseBonus,
-    ProdCount, ProdRes, Reduction, Req, ResAmount, ResEff, ResKind, ResPut, ResStep, ResTarget,
-    Reveal, RevealFilter, TrigGain,
+    self, Action, ActionCost, ActionEff, ActionRes, Capacity, CorpEffects, Eff, GlobalTrigger,
+    PhaseBonus, ProdCount, ProdRes, Reduction, Req, ResAmount, ResEff, ResKind, ResPut, ResStep,
+    ResTarget, Reveal, RevealFilter, TrigGain,
 };
 use crate::policy::{ActionOpt, ConstructionBonus, Policy};
 use crate::state::*;
@@ -220,6 +220,12 @@ pub fn install_corporation(game: &mut GameState, db: &CardsDb, p: usize, corp_id
             game.players[p].tag_counts[i] += 1;
         }
     }
+    // (lot acier-titane) La planche peut porter un savoir-faire (encart gris :
+    // Mining Guild et Interplanetary Cinematics, un acier ; PhoboLog et Saturn
+    // Systems, un titane). Le compte est rafraîchi ici, à l'endroit exact de la
+    // mise en place — avant le `return` d'`--effects off`, où la dérivation rend
+    // (0, 0) d'elle-même : les deux modes passent par le même appel.
+    refresh_capacities(game, db, p);
     if !db.effects_on {
         return;
     }
@@ -259,6 +265,125 @@ fn effective_cost(price: i64, discount: i64) -> i64 {
     (price - discount).max(0)
 }
 
+// =============================================================================
+// (lot acier-titane) LE COMPTE D'ACIERS ET DE TITANES
+//
+// Aucune de nos sources ne dit « cette carte donne 2 aciers ». Elle n'en a pas
+// besoin : le moteur encode déjà l'EFFET NET de chaque savoir-faire sous forme
+// de `Reduction::Tag(Building|Space, n)`, et le livret fixe le taux (2 MC par
+// acier, 3 MC par titane). Le compte se DÉRIVE donc de ce qui est déjà là,
+// plutôt que d'être ressaisi dans une seconde table qui se désynchroniserait au
+// premier savoir-faire ajouté (I2).
+//
+// Critère complet, et il tient en deux lignes :
+//   Reduction::Tag(Building, n) portée par une carte VERTE ou une corporation
+//                                                              → n / 2 aciers
+//   Reduction::Tag(Space, n)    idem                           → n / 3 titanes
+//
+// La COULEUR fait partie du critère (I4). Une réduction bâtiment ou espace
+// portée par une carte BLEUE n'est pas un savoir-faire : la carte du lot qui
+// amplifie les savoir-faire des autres est bleue, et n'en est pas un. Aujourd'hui
+// aucune carte bleue ne porte de `Reduction::Tag(Building|Space, …)` — la garde
+// est là pour Découverte et pour la suite.
+//
+// La CORPORATION compte, sans condition de couleur : une planche n'a pas de
+// couleur de carte projet, et quatre d'entre elles portent un savoir-faire dans
+// leur encart gris (Mining Guild et Interplanetary Cinematics : un acier ;
+// PhoboLog et Saturn Systems : un titane). Vérifié à l'image le 28-07, et
+// recoupé par la transcription : *Ganymede Shipyard* note « l'encart gris à deux
+// étoiles jaunes est un savoir-faire de 2 TITANE (2 × 3 MC = les 6 MC de
+// réduction [space] du texte) ».
+// =============================================================================
+
+/// (lot acier-titane) Le compte d'aciers et de titanes d'un joueur.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Capacities {
+    pub steel: i64,
+    pub titanium: i64,
+}
+
+impl Capacities {
+    /// Unités du savoir-faire demandé.
+    pub fn get(self, cap: Capacity) -> i64 {
+        match cap {
+            Capacity::Steel => self.steel,
+            Capacity::Titanium => self.titanium,
+        }
+    }
+
+    fn add(&mut self, cap: Capacity, n: i64) {
+        match cap {
+            Capacity::Steel => self.steel += n,
+            Capacity::Titanium => self.titanium += n,
+        }
+    }
+}
+
+/// **(lot acier-titane) Point de calcul UNIQUE du compte d'aciers et de titanes**
+/// (I1). Aucun autre endroit du moteur ne recalcule ce nombre : les champs
+/// `PlayerState::steel_capacity` / `titanium_capacity` sont écrits par
+/// `refresh_capacities`, qui appelle cette fonction et rien d'autre.
+///
+/// Dérivé, jamais ressaisi (I2) : lit les réductions déjà encodées des cartes
+/// VERTES en jeu du joueur (I4) et de sa corporation, et les divise par le taux
+/// du livret porté par `Capacity`.
+///
+/// Ne dépend QUE de l'état du joueur `pl` — jamais de son adversaire (NEVER 9) :
+/// la signature ne reçoit même pas l'autre joueur.
+///
+/// `--effects off` : (0, 0), comme toute la couche d'effets. Les réductions n'y
+/// sont pas appliquées, les savoir-faire qui les portent n'existent pas non plus.
+pub fn capacities(db: &CardsDb, pl: &PlayerState) -> Capacities {
+    let mut out = Capacities::default();
+    if !db.effects_on {
+        return out;
+    }
+    for &owned in &pl.played {
+        let card = &db.projects[owned as usize];
+        // I4 — la couleur fait partie du critère du savoir-faire.
+        if card.color != Color::Green {
+            continue;
+        }
+        let Some(spec) = card.effect else { continue };
+        for r in spec.reductions {
+            if let Some((cap, n)) = r.capacity_units() {
+                out.add(cap, n);
+            }
+        }
+    }
+    if let Some(spec) = corp_effects(db, pl) {
+        for r in spec.reductions {
+            if let Some((cap, n)) = r.capacity_units() {
+                out.add(cap, n);
+            }
+        }
+    }
+    out
+}
+
+/// (lot acier-titane) Recopie le compte dérivé dans l'état du joueur. **Seule
+/// écriture** de `steel_capacity` / `titanium_capacity` du moteur : appelée à
+/// chaque mise en jeu (pose d'une carte, installation d'une corporation), les
+/// deux seuls événements qui peuvent changer le compte.
+///
+/// Les deux champs sont donc un CACHE, pas une seconde vérité — et pour qu'ils
+/// ne puissent pas diverger en silence, `sim::check_invariants` les recompare à
+/// `capacities` à chaque manche de chaque partie.
+pub fn refresh_capacities(game: &mut GameState, db: &CardsDb, p: usize) {
+    let c = capacities(db, &game.players[p]);
+    game.players[p].steel_capacity = c.steel;
+    game.players[p].titanium_capacity = c.titanium;
+}
+
+/// (lot acier-titane) Le compte tel qu'il est écrit dans l'état du joueur.
+/// Lecture unique des deux champs par le reste du moteur.
+pub fn player_capacities(pl: &PlayerState) -> Capacities {
+    Capacities {
+        steel: pl.steel_capacity,
+        titanium: pl.titanium_capacity,
+    }
+}
+
 /// (A) Réduction de coût applicable à une carte donnée pour un joueur donné :
 /// somme des réductions de TOUTES ses cartes persistantes déjà en jeu (lot 2).
 /// Service UNIQUE consommé par `affordable` (affordabilité) ET `build_card`
@@ -274,20 +399,37 @@ pub fn card_discount(game: &GameState, db: &CardsDb, p: usize, card_id: u16) -> 
     }
     let card = &db.projects[card_id as usize];
     let (tags, price) = (&card.tags, card.price);
+    // (lot acier-titane) Le compte du joueur À CET INSTANT : `Reduction::
+    // PerCapacity` en dépend, et rien n'est figé à
+    // la pose (I7). Lu sur l'état du joueur, jamais recalculé ici.
+    let caps = player_capacities(&game.players[p]);
     let mut d = 0;
     for &owned in &game.players[p].played {
         if let Some(spec) = db.projects[owned as usize].effect {
             for r in spec.reductions {
-                d += r.amount_for(tags, price);
+                d += r.amount_for(tags, price) + per_capacity_amount(*r, tags, caps);
             }
         }
     }
     if let Some(spec) = corp_effects(db, &game.players[p]) {
         for r in spec.reductions {
-            d += r.amount_for(tags, price);
+            d += r.amount_for(tags, price) + per_capacity_amount(*r, tags, caps);
         }
     }
     d
+}
+
+/// (lot acier-titane) Montant d'une `Reduction::PerCapacity` pour une carte de
+/// tags donnés et un compte de savoir-faire donné. 0 pour toute autre réduction.
+///
+/// Séparé de `Reduction::amount_for` parce que celle-ci ne connaît que la CARTE
+/// VISÉE, quand ce montant-ci dépend de l'ÉTAT DU JOUEUR — même partage que
+/// `Reduction::PayResources`, servie par `microbe_discount`.
+fn per_capacity_amount(r: Reduction, tags: &[Tag], caps: Capacities) -> i64 {
+    match r {
+        Reduction::PerCapacity { tag, cap, per } if tags.contains(&tag) => per * caps.get(cap),
+        _ => 0,
+    }
 }
 
 // =============================================================================
@@ -1287,6 +1429,13 @@ pub fn build_card_with(
         remove_resources(game, db, p, src, count);
     }
     game.players[p].put_in_play(card_id, db);
+    // (lot acier-titane) La carte vient d'entrer en jeu : si elle porte un
+    // savoir-faire, le compte change MAINTENANT. Rafraîchi ici, juste après
+    // `put_in_play` et AVANT tout effet — une carte qui gagnerait un acier et
+    // jouerait dans la foulée doit voir le compte à jour. Le prix de CETTE
+    // carte, lui, a été calculé plus haut, avant la mise en jeu : elle ne se
+    // réduit jamais elle-même, comme toutes les réductions du moteur.
+    refresh_capacities(game, db, p);
     // (boites-1) I4 — aucun pouvoir sauté en silence. Une carte dont le texte
     // imprimé n'est pas intégralement appliqué vient d'entrer en jeu : soit
     // elle n'a aucun encodage, soit son encodage porte un effet que le moteur
@@ -1698,7 +1847,54 @@ fn apply_action_eff(
             }
         }
         ActionEff::Reveal(r) => reveal_top(game, db, p, r, policy),
+        // (lot acier-titane) Chemin océan unique du moteur : bonus de tuile,
+        // +1 NT, déclencheurs « when you flip an ocean tile ».
+        ActionEff::Ocean(n) => {
+            for _ in 0..n {
+                reveal_ocean(game, db, p, policy);
+            }
+        }
+        // (lot acier-titane) Chemin de forêt unique du moteur (lot 5) : le
+        // jeton, UN pas d'oxygène, l'événement « when you gain a forest VP ».
+        ActionEff::Forest(n) => {
+            for _ in 0..n {
+                gain_forest(game, db, p, policy);
+            }
+        }
     }
+}
+
+/// (lot acier-titane) Coût en MC d'un `ActionCost`, quand il s'en paie en MC.
+/// Un seul cas dépend de l'état du joueur : `McPerCapacity`, dont le montant est
+/// lu au moment de l'ACTIVATION sur le compte de savoir-faire courant (I7).
+/// Jamais négatif : « reduce this by … » ne rapporte pas de MC.
+fn action_mc_cost(pl: &PlayerState, c: ActionCost) -> i64 {
+    match c {
+        ActionCost::Mc(n) => n,
+        ActionCost::McPerCapacity { base, cap, per } => {
+            (base - per * player_capacities(pl).get(cap)).max(0)
+        }
+        _ => 0,
+    }
+}
+
+/// (lot acier-titane) Les effets d'une action peuvent-ils encore produire
+/// quelque chose ? Aujourd'hui une seule condition : retourner une tuile océan
+/// quand il n'en reste plus n'est pas une action, c'est un paiement à vide.
+/// C'est déjà la règle de `Action::FlipOceanTagDiscount` (Volcanic Pools, lot 2) ;
+/// elle est ici exprimée sur l'EFFET, jamais sur un nom de carte (I6).
+/// Le seuil est celui du moteur : l'INSTANTANÉ de début de phase, comme partout.
+///
+/// Elle porte sur les effets IMPRIMÉS de l'action, pas sur ceux qu'un bonus de
+/// phase ajoute (`PhaseBonus::extra`) : un bonus est un supplément, son
+/// impossibilité ne doit pas annuler l'action entière. Un `ActionEff::Ocean`
+/// ajouté par un bonus alors qu'il ne reste plus d'océan ne produit simplement
+/// rien (`reveal_ocean` sort tout de suite). Aucune carte ne combine
+/// aujourd'hui les deux ; la distinction est écrite pour Découverte.
+fn action_effs_possible(game: &GameState, effect: &[ActionEff]) -> bool {
+    !effect
+        .iter()
+        .any(|e| matches!(e, ActionEff::Ocean(_)) && game.snap_oceans >= NUM_OCEANS)
 }
 
 /// (lot 6, brique 6) **Révélation du dessus de la pioche.**
@@ -1796,6 +1992,11 @@ pub(crate) fn apply_blue_action(
             // Le bonus peut REMPLACER le coût imprimé (« spend 3 plants
             // instead ») ; sinon le coût est celui de l'action.
             let cost: &[ActionCost] = bonus.and_then(|b| b.cost).unwrap_or(cost);
+            // (lot acier-titane) Une action dont l'effet imprimé ne peut plus
+            // rien produire ne s'applique pas — on ne paie jamais pour rien.
+            if !action_effs_possible(game, effect) {
+                return false;
+            }
             // Payabilité (Java : *ActionValidator).
             for c in cost {
                 let ok = match *c {
@@ -1806,6 +2007,11 @@ pub(crate) fn apply_blue_action(
                     ActionCost::Plants(n) => game.players[p].plants >= n,
                     // (lot 6) Le coût se paie en CARTES : il faut les avoir.
                     ActionCost::DiscardCard(n) => game.players[p].hand.len() >= n as usize,
+                    // (lot acier-titane) Coût en MC diminué par les savoir-faire.
+                    ActionCost::McPerCapacity { .. } => {
+                        spendable_mc(db, &game.players[p])
+                            >= action_mc_cost(&game.players[p], *c)
+                    }
                 };
                 if !ok {
                     return false;
@@ -1815,6 +2021,13 @@ pub(crate) fn apply_blue_action(
                 match *c {
                     ActionCost::Heat(n) => game.players[p].heat -= n,
                     ActionCost::Mc(n) => {
+                        top_up_mc_with_heat(game, db, p, n);
+                        game.players[p].mc -= n;
+                    }
+                    // (lot acier-titane) Même chemin de dépense que `Mc` — donc
+                    // Helion peut le payer en chaleur, comme tout coût en MC.
+                    ActionCost::McPerCapacity { .. } => {
+                        let n = action_mc_cost(&game.players[p], *c);
                         top_up_mc_with_heat(game, db, p, n);
                         game.players[p].mc -= n;
                     }
@@ -2465,3 +2678,10 @@ pub fn play_round(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
     game.first_player = (game.first_player + 1) % NUM_PLAYERS;
     game.generation += 1;
 }
+
+/// (lot acier-titane) Tests des cas limites des effets d'action nouveaux —
+/// dans un fichier à part (`src/flow_tests.rs`) parce qu'ils nomment des cartes,
+/// ce que le flux de jeu lui-même s'interdit (I6).
+#[cfg(test)]
+#[path = "flow_tests.rs"]
+mod tests_acier_titane;

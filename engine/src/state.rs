@@ -120,7 +120,11 @@ pub enum AwardKind {
     Collector,
     /// Production de chaleur.
     Generator,
-    /// Capacités acier+titane (toujours 0 en v1 — stub).
+    /// (lot acier-titane) Somme des savoir-faire : aciers + titanes.
+    ///
+    /// Le commentaire d'origine disait « toujours 0 en v1 — stub » : ce n'est
+    /// plus vrai, `flow::award_value` lit deux comptes désormais dérivés des
+    /// cartes en jeu. La récompense est donc réellement disputée.
     Industrialist,
     /// Nombre de cartes jouées.
     ProjectManager,
@@ -158,8 +162,19 @@ pub struct PlayerState {
     pub heat_prod: i64,
     pub plant_prod: i64,
     pub card_prod: i64,
-    // Capacités acier/titane (stub v1, structure pour chantiers suivants).
+    /// (lot acier-titane) **Savoir-faire acier** du joueur : nombre d'aciers
+    /// qu'il possède. Chacun réduit de 2 MC le coût des cartes à badge bâtiment
+    /// (livret l. 355-359). Ce n'est pas une réserve de jetons : on ne le
+    /// dépense pas, le posséder suffit.
+    ///
+    /// **Champ-CACHE, pas source de vérité** : sa seule écriture est
+    /// `flow::refresh_capacities`, qui recopie la dérivation
+    /// `flow::capacities` (I1, I2). `sim::check_invariants` recompare les deux
+    /// à chaque manche : ils ne peuvent pas diverger sans que 1000 parties le
+    /// disent. Le commentaire d'origine (« stub v1 ») est caduc.
     pub steel_capacity: i64,
+    /// (lot acier-titane) **Savoir-faire titane** : 3 MC par unité sur les
+    /// cartes à badge espace. Mêmes règles d'écriture que `steel_capacity`.
     pub titanium_capacity: i64,
     /// Main (indices dans CardsDb.projects).
     pub hand: Vec<u16>,

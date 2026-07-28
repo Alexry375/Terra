@@ -267,7 +267,9 @@ fn les_cartes_declarees_non_gerees_le_sont_reellement() {
     // prérequis). Le canari est déplacé, pas désactivé : la boucle ci-dessus
     // vérifie toujours, carte par carte et par la sonde, que chaque muette
     // déclarée ne change RIEN à l'état.
-    assert_eq!(n, 18, "cartes muettes de la boîte de base");
+    // 28-07, lot acier-titane : 4 de plus sont encodées (les seules dont le
+    // texte parlait d'un NOMBRE d'aciers ou de titanes), il en reste **14**.
+    assert_eq!(n, 14, "cartes muettes de la boîte de base");
     // Les quatre cartes du groupe C du lot 5 (Biothermal Power, Mangrove,
     // Plantation, Protected Valley) ont quitté cette liste : elles sont
     // désormais encodées, et `lot5_tests.rs` les confronte à leur texte imprimé.

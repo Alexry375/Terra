@@ -262,7 +262,7 @@
   "in_deck_base": true,
   "planche": "P1",
   "lectures": 2,
-  "notes": "Encart bas gauche bleu (action) : 10 [MC] -> [ocean], -2 [MC] / acier. Pas d'encart de production orange. | Encart bas-gauche bleu (action) : 10 [MC] -> [ocean], et -2 / [building] ; pas d'encart de production orange."
+  "notes": "Encart bas gauche bleu (action) : 10 [MC] -> [ocean], -2 [MC] / acier. Pas d'encart de production orange. | CORRIGE 28-07 (CTO) : la seconde lecture ecrivait 'et -2 / [building]', ce qui contredit le champ text ('Reduce this by 2 MC per steel you have'). La reduction est PAR ACIER POSSEDE, pas par badge batiment de la carte jouee. Premiere lecture retenue ; pas d'encart de production orange."
  },
  {
   "name": "Archaebacteria",
@@ -3623,7 +3623,7 @@
   "in_deck_base": true,
   "planche": "P1",
   "lectures": 1,
-  "notes": "Le premier badge est une etoile jaune a 8 branches sur fond noir (verifie par agrandissement) : transcrit 'space' faute d'autre entree du vocabulaire, meme si la consigne decrit space comme une fusee. Encart bas gauche bleu (zone d'action : 15 -> [forest] avec point, et -2 / [event]), pas un encart de production orange, donc production vide."
+  "notes": "Le premier badge est une etoile jaune a 8 branches sur fond noir (verifie par agrandissement) : transcrit 'space' faute d'autre entree du vocabulaire, meme si la consigne decrit space comme une fusee. Encart bas gauche bleu (zone d'action : 15 -> [forest] avec point, et -2 / [titanium]), pas un encart de production orange, donc production vide. | CORRIGE 28-07 (CTO) : la note ecrivait '-2 / [event]' — un badge que cette carte ne porte meme pas (ses badges sont space et plant) — alors que le champ text dit 'Reduce this by 2 MC per titanium you have'. La reduction est PAR TITANE POSSEDE."
  },
  {
   "name": "Soletta",

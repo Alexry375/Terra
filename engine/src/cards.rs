@@ -175,6 +175,30 @@ pub struct ProjectCard {
 ///
 /// Le prédicat est POSITIF au niveau des données : il lit l'encodage, il ne
 /// cite aucun nom de carte.
+/// (lot acier-titane, I3) Une réduction portée par un savoir-faire (carte verte
+/// ou corporation) est-elle un multiple EXACT du taux du livret ? Renvoie une
+/// erreur de chargement sinon — voir le garde-fou de `CardsDb::load_boites`.
+///
+/// Fonction séparée pour être testable directement : `lot_acier_titane_tests`
+/// lui présente une réduction bâtiment de 3 MC et exige qu'elle la refuse.
+pub fn verifier_multiple(nom: &str, r: effects::Reduction) -> Result<(), String> {
+    let effects::Reduction::Tag(t, n) = r else {
+        return Ok(());
+    };
+    let Some(cap) = effects::Capacity::from_tag(t) else {
+        return Ok(());
+    };
+    if cap.units_from(n).is_none() {
+        return Err(format!(
+            "savoir-faire non entier : « {nom} » porte une réduction {t:?} de {n} MC, \
+             qui n'est pas un multiple de {} — le compte d'aciers/titanes ne \
+             s'arrondit pas (I3)",
+            cap.mc_per_unit()
+        ));
+    }
+    Ok(())
+}
+
 pub fn encodage_integral(e: &CardEffects) -> bool {
     fn saute(effs: &[effects::ResEff]) -> bool {
         effs.iter().any(|r| matches!(r, effects::ResEff::PhaseUpgrade))
@@ -489,6 +513,34 @@ impl CardsDb {
             }
             let i = resolve_by_name(&projects, name).expect("carte du lot résolue");
             projects[i].effect = Some(spec);
+        }
+
+        // (lot acier-titane) **Garde-fou I3 : un montant qui n'est pas un
+        // multiple doit se voir.**
+        //
+        // Le compte d'aciers et de titanes se DÉRIVE des réductions déjà
+        // encodées (`flow::capacities`) : une réduction bâtiment de 3 MC ou
+        // espace de 4 MC sur une carte VERTE (ou sur une corporation) rendrait
+        // la dérivation fausse. Elle est refusée ICI, au chargement des tables,
+        // avant la première partie — jamais arrondie en silence.
+        //
+        // Le contrôle est au chargement et pas en `debug_assert!` parce que les
+        // contrôles et les simulations tournent en `--release` : un
+        // `debug_assert!` y serait muet, ce qui est exactement le contraire de
+        // « rendu visible ».
+        for c in &projects {
+            if c.color != Color::Green {
+                continue;
+            }
+            let Some(spec) = c.effect else { continue };
+            for r in spec.reductions {
+                verifier_multiple(&c.name, *r)?;
+            }
+        }
+        for (name, spec) in effects::CORPS {
+            for r in spec.reductions {
+                verifier_multiple(name, *r)?;
+            }
         }
 
         Ok(CardsDb {

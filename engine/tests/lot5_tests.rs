@@ -731,8 +731,9 @@ fn the_thirty_three_cards_resolve_to_the_base_box_deck() {
         assert!(card.effets_geres(), "{name} doit être déclarée gérée");
     }
     // 110 (lots 1-2) + 28 (ressources) + 17 (lot 4) + 33 (lot 5) + 11 (lot 6)
-    // = 199. ATTENTE MISE À JOUR par le lot 6 : taille EXACTE toujours épinglée.
-    assert_eq!(engine::effects::LOT1.len(), 199);
+    // + 4 (lot acier-titane) = 203. ATTENTE MISE À JOUR par le lot 6 puis par
+    // le lot acier-titane : taille EXACTE toujours épinglée.
+    assert_eq!(engine::effects::LOT1.len(), 203);
 }
 
 #[test]
@@ -795,19 +796,23 @@ fn exactly_eighteen_base_cards_remain_unhandled_and_they_are_the_right_ones() {
         .filter(|c| !c.effets_geres)
         .map(|c| c.name)
         .collect();
+    // ATTENTE MISE À JOUR par le lot acier-titane (18 → 14) : les quatre cartes
+    // qui parlaient d'un NOMBRE d'aciers ou de titanes (Advanced Alloys,
+    // Aquifer Pumping, Solarpunk, Water Import from Europa) sont encodées, elles
+    // quittent donc cette liste. La liste reste NOMMÉE, carte par carte : le
+    // test continue d'interdire qu'une muette hors périmètre disparaisse.
     let attendues: std::collections::BTreeSet<&str> = [
-        "Adaptation Technology", "Advanced Alloys",
-        "Aquifer Pumping", "Assembly Lines", "Asset Liquidation",
+        "Adaptation Technology", "Assembly Lines", "Asset Liquidation",
         "Automated Factories", "Composting Factory",
         "Extended Resources", "Interns",
         "Mars University", "Restructured Resources",
-        "Solarpunk", "Special Design", "Standard Technology", "Tall Station",
-        "United Planetary Alliance", "Water Import from Europa",
+        "Special Design", "Standard Technology", "Tall Station",
+        "United Planetary Alliance",
         "Work Crews",
     ]
     .into_iter()
     .collect();
-    assert_eq!(muettes.len(), 18, "cartes muettes restantes");
+    assert_eq!(muettes.len(), 14, "cartes muettes restantes");
     assert_eq!(muettes, attendues, "ce sont exactement les cartes hors périmètre");
     // Et aucune des 33 n'y figure.
     for name in LOT5 {
@@ -892,13 +897,17 @@ fn the_lot_did_not_touch_the_boxes_composition() {
 
 #[test]
 fn base_plus_discovery_leaves_fifty_five_unhandled() {
-    // 18 (base) + 37 (Découverte, inchangé par ce lot) = 55.
-    // ATTENTE MISE À JOUR par le lot 6 (66 → 55) : les 11 cartes encodées sont
-    // toutes de la boîte de base, Découverte n'a pas bougé.
+    // 14 (base) + 37 (Découverte, inchangé par ce lot) = 51. Le décompte porte
+    // sur le RECENSEMENT complet : les 37 de Découverte sont 33 projets plus
+    // 4 corporations sans encodage — d'où l'écart avec le contrôle
+    // `02-les-14-restantes.sh`, qui ne compte que les projets (47).
+    // ATTENTE MISE À JOUR par le lot 6 (66 → 55) puis par le lot acier-titane
+    // (55 → 51) : les 4 cartes encodées sont toutes de la boîte de base,
+    // Découverte n'a pas bougé.
     let db = CardsDb::load_boites(CARDS, BoiteSet::parse("base,decouverte").unwrap())
         .expect("base,decouverte");
     let n = db.recensement().into_iter().filter(|c| !c.effets_geres).count();
-    assert_eq!(n, 55, "muettes en base + Découverte");
+    assert_eq!(n, 51, "muettes en base + Découverte");
 }
 
 #[test]

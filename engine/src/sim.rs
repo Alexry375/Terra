@@ -79,6 +79,10 @@ pub struct InvariantTracker {
     prev_oceans: u8,
     prev_tr_increments: [u64; NUM_PLAYERS],
     prev_tr_decrements: [u64; NUM_PLAYERS],
+    /// (lot acier-titane) Comptes de savoir-faire de la manche précédente : ils
+    /// ne décroissent jamais (on ne dépense pas un acier).
+    prev_steel: [i64; NUM_PLAYERS],
+    prev_titanium: [i64; NUM_PLAYERS],
 }
 
 impl InvariantTracker {
@@ -94,6 +98,14 @@ impl InvariantTracker {
             prev_tr_decrements: [
                 game.players[0].tr_decrements,
                 game.players[1].tr_decrements,
+            ],
+            prev_steel: [
+                game.players[0].steel_capacity,
+                game.players[1].steel_capacity,
+            ],
+            prev_titanium: [
+                game.players[0].titanium_capacity,
+                game.players[1].titanium_capacity,
             ],
         }
     }
@@ -133,6 +145,26 @@ pub fn check_invariants(
             || pl.tr_decrements < tracker.prev_tr_decrements[p]
         {
             return Err(format!("joueur {p}: compteur de TR décroissant"));
+        }
+        // (lot acier-titane) Les deux champs de compte sont un CACHE : leur
+        // seule écriture est `flow::refresh_capacities`, qui recopie la
+        // dérivation. Un cache qui dérive en silence serait une seconde source
+        // de vérité — exactement ce que I2 interdit. On le recompare donc à la
+        // dérivation à CHAQUE manche de CHAQUE partie : 2 × 1000 parties sans
+        // violation, c'est la preuve que les deux ne peuvent pas diverger.
+        let derived = crate::flow::capacities(db, pl);
+        if pl.steel_capacity != derived.steel || pl.titanium_capacity != derived.titanium {
+            return Err(format!(
+                "joueur {p}: compte de savoir-faire divergent (acier {} != {}, \
+                 titane {} != {})",
+                pl.steel_capacity, derived.steel, pl.titanium_capacity, derived.titanium
+            ));
+        }
+        // Un savoir-faire est PERMANENT : il ne se dépense pas (NEVER 8), donc
+        // le compte ne décroît jamais.
+        if pl.steel_capacity < tracker.prev_steel[p] || pl.titanium_capacity < tracker.prev_titanium[p]
+        {
+            return Err(format!("joueur {p}: compte de savoir-faire décroissant"));
         }
     }
     if game.temperature > TEMPERATURE_MAX
@@ -177,6 +209,14 @@ pub fn check_invariants(
     tracker.prev_tr_decrements = [
         game.players[0].tr_decrements,
         game.players[1].tr_decrements,
+    ];
+    tracker.prev_steel = [
+        game.players[0].steel_capacity,
+        game.players[1].steel_capacity,
+    ];
+    tracker.prev_titanium = [
+        game.players[0].titanium_capacity,
+        game.players[1].titanium_capacity,
     ];
     Ok(())
 }

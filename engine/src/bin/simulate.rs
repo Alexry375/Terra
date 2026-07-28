@@ -13,7 +13,7 @@ use engine::boites::BoiteSet;
 use engine::cards::CardsDb;
 use engine::policy::RandomPolicy;
 use engine::probe::{
-    run_probe_action_opts, run_probe_seq_corp, ProbeCorp, ProbeDelta, ProbeOptions, ProbeRes,
+    run_probe_action_seq, run_probe_seq_corp, ProbeCorp, ProbeDelta, ProbeOptions, ProbeRes,
     ProbeScript,
 };
 use engine::sim::run_simulation;
@@ -294,6 +294,11 @@ fn main() {
                 "plants": r.derived_prod.2,
             },
             "vp_total": r.vp_total,
+            // (lot acier-titane) Le compte de savoir-faire du joueur sondé,
+            // TOUJOURS présent : sans lui, rien de ce lot n'est prouvable de
+            // l'extérieur.
+            "steel": r.steel,
+            "titanium": r.titanium,
         });
         if let Some(c) = &r.corp {
             line["corp"] = corp_json(c);
@@ -303,9 +308,13 @@ fn main() {
     }
 
     if let Some(name) = probe_action {
-        let r = run_probe_action_opts(
+        // (lot acier-titane) Séquence : cartes séparées par « ; », comme
+        // `--probe`. Un seul nom = une tranche d'un élément, donc le
+        // comportement des lots précédents, bit à bit.
+        let names: Vec<&str> = name.split(';').map(|s| s.trim()).collect();
+        let r = run_probe_action_seq(
             &db,
-            &name,
+            &names,
             &probe_script,
             probe_corp.as_deref(),
             probe_opts,

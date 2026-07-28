@@ -236,6 +236,79 @@ pub struct ResearchBonus {
 // Asteroid Mining : Java = revenu titane 2 → −6 MC Space ; imprimé = −6 MC Space
 // encodé directement, sans modéliser le titane).
 
+// ======================================== lot acier-titane : les savoir-faire
+//
+// **L'acier et le titane ne sont pas des jetons.** Le livret (FR, l. 355-359 et
+// 523-529) : « Chaque acier que vous possédez réduit de 2 MC le coût des cartes
+// à badge bâtiment que vous jouez », « chaque titane … de 3 MC … badge espace ».
+// Ce sont des savoir-faire PERMANENTS : on ne les dépense pas, les posséder
+// suffit.
+//
+// Le moteur encodait déjà l'EFFET NET de chaque savoir-faire — une carte à
+// 2 aciers porte `Reduction::Tag(Tag::Building, 4)`. Le compte n'a donc pas
+// besoin d'une seconde source de données : il se LIT sur les réductions déjà
+// encodées, en divisant par le taux du livret. C'est la seule façon qu'un
+// savoir-faire ajouté demain compte tout seul (I2).
+
+/// (lot acier-titane) Un savoir-faire permanent : l'acier ou le titane.
+///
+/// Porte les deux constantes de règle, et elles n'existent nulle part ailleurs
+/// dans le moteur : le badge sur lequel le savoir-faire agit, et sa valeur en MC
+/// par unité.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Capacity {
+    /// Acier : 2 MC par unité sur les cartes à badge bâtiment.
+    Steel,
+    /// Titane : 3 MC par unité sur les cartes à badge espace.
+    Titanium,
+}
+
+impl Capacity {
+    /// Badge sur lequel ce savoir-faire réduit le coût (livret l. 355-359).
+    pub const fn tag(self) -> Tag {
+        match self {
+            Capacity::Steel => Tag::Building,
+            Capacity::Titanium => Tag::Space,
+        }
+    }
+
+    /// Valeur d'UNE unité, en MC de réduction (livret l. 355-359 et 523-529).
+    pub const fn mc_per_unit(self) -> i64 {
+        match self {
+            Capacity::Steel => 2,
+            Capacity::Titanium => 3,
+        }
+    }
+
+    /// Le savoir-faire qui agit sur ce badge, s'il y en a un. C'est le seul
+    /// point du moteur qui fait le chemin inverse `Tag → Capacity` : une
+    /// réduction sur un autre badge (événement, énergie, Terre, Jupiter…) n'est
+    /// jamais un savoir-faire.
+    pub const fn from_tag(t: Tag) -> Option<Capacity> {
+        match t {
+            Tag::Building => Some(Capacity::Steel),
+            Tag::Space => Some(Capacity::Titanium),
+            _ => None,
+        }
+    }
+
+    /// **La dérivation, à l'unité près.** Combien d'unités de ce savoir-faire
+    /// vaut une réduction de `amount` MC ?
+    ///
+    /// `None` quand `amount` n'est pas un multiple EXACT du taux (I3) : la
+    /// fonction n'arrondit jamais, elle refuse. `flow::capacities` traduit ce
+    /// `None` en panique, et `CardsDb::load` le fait remonter beaucoup plus tôt
+    /// — au chargement des tables, avant la première partie.
+    pub const fn units_from(self, amount: i64) -> Option<i64> {
+        let per = self.mc_per_unit();
+        if amount < 0 || amount % per != 0 {
+            None
+        } else {
+            Some(amount / per)
+        }
+    }
+}
+
 /// (A) Réduction de coût permanente accordée par une carte EN JEU aux cartes
 /// jouées ensuite. Sommée par `flow::card_discount` (service unique).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -260,6 +333,24 @@ pub enum Reduction {
     /// servie par `flow::microbe_discount` et consommée par `flow::affordable`
     /// (montant potentiel) puis `flow::build_card_with` (décision + retrait).
     PayResources { kind: ResKind, count: u32, amount: i64 },
+    /// (lot acier-titane) Réduction ADDITIONNELLE de `per` MC **par unité** du
+    /// savoir-faire `cap` que le joueur possède, sur les cartes portant `tag`.
+    ///
+    /// Deux planches l'emploient, avec exactement leur texte imprimé :
+    /// *Advanced Alloys* (« Each titanium you have reduces the cost of [space]
+    /// cards an additional 1 MC. Each steel you have … [building] … 1 MC. ») et
+    /// *PhoboLog* (« EFFECT: Each titanium you have reduces the cost of [space]
+    /// cards an additional 1 MC. »).
+    ///
+    /// Elle vaut 0 dans [`Reduction::amount_for`], qui ne connaît que la carte
+    /// visée : son montant dépend de l'ÉTAT DU JOUEUR. `flow::card_discount`,
+    /// qui a cet état, est le seul à la résoudre — au moment du paiement, jamais
+    /// figée à la pose (I7).
+    ///
+    /// `tag` et `cap` sont deux données distinctes parce que le texte imprimé
+    /// les distingue : rien n'oblige un savoir-faire à n'amplifier que son
+    /// propre badge, et deux tables séparées seraient une règle inventée.
+    PerCapacity { tag: Tag, cap: Capacity, per: i64 },
 }
 
 impl Reduction {
@@ -284,7 +375,39 @@ impl Reduction {
                 }
             }
             Reduction::PayResources { .. } => 0,
+            // (lot acier-titane) Dépend du nombre d'aciers/titanes du joueur,
+            // que cette fonction ne connaît pas : résolue par
+            // `flow::card_discount`, comme `PayResources` l'est par
+            // `flow::microbe_discount`.
+            Reduction::PerCapacity { .. } => 0,
         }
+    }
+
+    /// (lot acier-titane) Les unités de savoir-faire que cette réduction
+    /// DÉCLARE, quand elle en est une. C'est **le** point de lecture de la
+    /// dérivation : `flow::capacities` ne connaît rien d'autre.
+    ///
+    /// - `Tag(Building, n)` → `(Steel, n/2)`, `Tag(Space, n)` → `(Titanium, n/3)` ;
+    /// - toute autre réduction, y compris `PerCapacity` (qui AMPLIFIE un
+    ///   savoir-faire sans en être un) → `None`.
+    ///
+    /// `panic!` si le montant n'est pas un multiple exact du taux (I3) : voir
+    /// `Capacity::units_from`. Le garde-fou de `CardsDb::load` rend ce cas
+    /// impossible en pratique — c'est lui le contrôle utile, celui-ci est le
+    /// filet.
+    pub fn capacity_units(self) -> Option<(Capacity, i64)> {
+        let Reduction::Tag(t, n) = self else {
+            return None;
+        };
+        let cap = Capacity::from_tag(t)?;
+        let units = cap.units_from(n).unwrap_or_else(|| {
+            panic!(
+                "réduction {t:?} de {n} MC : pas un multiple de {} — \
+                 un savoir-faire ne s'arrondit pas (I3)",
+                cap.mc_per_unit()
+            )
+        });
+        Some((cap, units))
     }
 }
 
@@ -497,6 +620,19 @@ pub enum ActionCost {
     /// (point de décision existant) et rejoignent la défausse commune : la
     /// conservation des cartes reste vraie (I6, invariant 4).
     DiscardCard(u8),
+    /// (lot acier-titane) **Coût en MC réduit par un savoir-faire** : `base` MC,
+    /// moins `per` MC par unité de `cap` que le joueur possède, jamais négatif.
+    ///
+    /// Trois planches l'emploient, mot pour mot leur texte imprimé :
+    /// *Aquifer Pumping* (« Spend 10 MC … Reduce this by 2 MC per steel you
+    /// have »), *Solarpunk* (15 MC, −2 par titane), *Water Import from Europa*
+    /// (12 MC, −1 par titane).
+    ///
+    /// Le montant est calculé à l'ACTIVATION, sur le compte du joueur à cet
+    /// instant : un savoir-faire acquis après la pose de la carte compte (I7).
+    /// Comme tout coût en MC, il passe par `flow::spendable_mc` /
+    /// `top_up_mc_with_heat` — Helion peut le payer en chaleur, comme partout.
+    McPerCapacity { base: i64, cap: Capacity, per: i64 },
 }
 
 /// Effet d'une action de carte bleue.
@@ -525,6 +661,25 @@ pub enum ActionEff {
     ///
     /// **Brique 6 du lot 6.**
     Reveal(Reveal),
+    /// (lot acier-titane) **Retourne `n` tuiles océan** — *Aquifer Pumping*,
+    /// *Water Import from Europa* : « Spend … MC to flip an ocean tile ».
+    ///
+    /// Emprunte `flow::reveal_ocean`, le chemin océan unique du moteur : bonus
+    /// de la tuile, +1 NT, déclencheurs « when you flip an ocean tile », cap sur
+    /// l'instantané de début de phase. Une action qui poserait un océan alors
+    /// qu'il n'en reste plus ne s'applique pas du tout (voir
+    /// `flow::action_effs_possible`) : le joueur ne paie jamais pour rien —
+    /// c'est déjà la règle de `Action::FlipOceanTagDiscount`.
+    Ocean(u8),
+    /// (lot acier-titane) **Gain de `n` jetons PV Forêt** — *Solarpunk* :
+    /// « Spend 15 MC to gain a forest VP and raise oxygen 1 step ».
+    ///
+    /// Emprunte `flow::gain_forest`, le chemin de forêt unique du moteur, exactement
+    /// comme `Eff::Forest` du lot 5 : le jeton, UN pas d'oxygène (donc le NT), et
+    /// l'événement « when you gain a forest VP ». « … and raise oxygen 1 step »
+    /// décrit ce que la forêt produit, ce n'est pas un second effet — l'oxygène
+    /// ne monte jamais deux fois (règle R1, lot 5).
+    Forest(u8),
 }
 
 /// (lot 6) Ressource d'un coût ou d'un gain VARIABLE (brique 4).
@@ -1603,6 +1758,54 @@ pub static LOT1: &[(&str, CardEffects)] = &[
     // exactement sa condition d'entrée — et c'est le second trou de prérequis
     // de la boîte de base, fermé ici.
     card!("Colonizer Training Camp", reqs: [OxyMax(OXY_R_MAX)], effects: []),
+
+    // ============================================ LOT ACIER-TITANE (4 cartes)
+    //
+    // Les quatre cartes de la boîte de base dont le texte parle d'un NOMBRE
+    // d'aciers ou de titanes. Elles étaient muettes pour cette seule raison :
+    // le nombre n'existait pas. Il existe désormais (`flow::capacities`), et
+    // leur encodage n'est que la transcription de leur texte imprimé
+    // (`inputs/textes-cartes.json`, champs `text` / `requirement` / `notes` —
+    // aucune des quatre ne porte de prérequis).
+    //
+    // Les quatre sont BLEUES : elles se servent des savoir-faire des autres,
+    // elles n'en sont pas (I4).
+
+    // « Effect: Each titanium you have reduces the cost of [space] cards an
+    // additional 1 MC. Each steel you have reduces the cost of [building] cards
+    // an additional 1 MC. » — un EFFET permanent, pas une action : rien ne se
+    // passe à la pose, tout se voit sur le prix des cartes jouées ensuite.
+    card!("Advanced Alloys", reqs: [], effects: [],
+          red: [Reduction::PerCapacity { tag: Tag::Space, cap: Capacity::Titanium, per: 1 },
+                Reduction::PerCapacity { tag: Tag::Building, cap: Capacity::Steel, per: 1 }],
+          ptrig: [], gtrig: [], action: None),
+
+    // « Action: Spend 10 MC to flip an ocean tile. Reduce this by 2 MC per steel
+    // you have. »
+    card!("Aquifer Pumping", reqs: [], effects: [],
+          red: [], ptrig: [], gtrig: [],
+          action: Some(Action::Fixed {
+              cost: &[ActionCost::McPerCapacity { base: 10, cap: Capacity::Steel, per: 2 }],
+              effect: &[ActionEff::Ocean(1)] })),
+
+    // « Action: Spend 15 MC to gain a forest VP and raise oxygen 1 step. Reduce
+    // this by 2 MC per titanium you have. » — « and raise oxygen 1 step »
+    // décrit la forêt, l'oxygène ne monte pas deux fois (règle R1 du lot 5).
+    card!("Solarpunk", reqs: [], effects: [],
+          red: [], ptrig: [], gtrig: [],
+          action: Some(Action::Fixed {
+              cost: &[ActionCost::McPerCapacity { base: 15, cap: Capacity::Titanium, per: 2 }],
+              effect: &[ActionEff::Forest(1)] })),
+
+    // « *=1 VP per [jupiter] you have. Action: Spend 12 MC to flip an ocean
+    // tile. Reduce this by 1 MC per titanium you have. » — les PV par badge
+    // Jupiter sont déjà servis par `VpKind::Jupiter` (donnée `vp_dynamic` de
+    // cards.json) : seule l'action restait à encoder.
+    card!("Water Import from Europa", reqs: [], effects: [],
+          red: [], ptrig: [], gtrig: [],
+          action: Some(Action::Fixed {
+              cost: &[ActionCost::McPerCapacity { base: 12, cap: Capacity::Titanium, per: 1 }],
+              effect: &[ActionEff::Ocean(1)] })),
 ];
 
 // ======================================== LOT CORPORATIONS (chantier corpo-1)
@@ -1753,17 +1956,34 @@ pub static CORPS: &[(&str, CorpEffects)] = &[
           research: None, forest: 0, heat_as_mc: false, flex: true, tr_boost: None),
     // 214 Mining Guild — « You start with 27 MC. When you play a [building], you
     // pay 2 MC less for it. EFFECT: Each time you play steel production,
-    // excluding this, gain 1 TR. » (l'acier n'existe pas dans le moteur : le
-    // déclencheur reste hors portée, cadrage imposé par le prompt.)
+    // excluding this, gain 1 TR. »
+    //
+    // (lot acier-titane) Le commentaire d'origine disait « l'acier n'existe pas
+    // dans le moteur » : ce n'est plus vrai — la planche porte un acier (encart
+    // gris, dérivé de son −2 MC bâtiment) et il compte. Le DÉCLENCHEUR, lui,
+    // reste hors portée, et pour une autre raison : « play steel production »
+    // parle d'une PRODUCTION d'acier, pas d'un compte d'aciers ; c'est une
+    // notion que le moteur ne modélise toujours pas, et la transcription de ce
+    // texte est elle-même signalée « légèrement floue »
+    // (`inputs/textes-cartes.json`, champ `notes`). Cadrage imposé par le prompt.
     corp!("Mining Guild", prod: NO_PROD, draw: 0,
           red: [Reduction::Tag(Tag::Building, 2)], ptrig: [],
           research: None, forest: 0, heat_as_mc: false, flex: false, tr_boost: None),
     // 215 PhoboLog — « You start with 20 MC. When you play a [space], you pay
     // 3 MC less for it. EFFECT: Each titanium you have reduces the cost of
-    // [space] cards an additional 1 MC. » (le titane n'est pas modélisé : cadrage
-    // imposé par le prompt, seul le −3 est encodé.)
+    // [space] cards an additional 1 MC. »
+    //
+    // (lot acier-titane) Le commentaire d'origine disait « le titane n'est pas
+    // modélisé … seul le −3 est encodé » : il est devenu faux, l'EFFET est
+    // désormais encodé lui aussi. Les deux lignes de la planche sont donc là :
+    // le −3 MC des cartes espace, qui EST son savoir-faire (encart gris, un
+    // titane), et l'effet qui amplifie chaque titane d'1 MC — son propre titane
+    // compris, puisque `flow::capacities` lit les réductions de la corporation
+    // comme celles des cartes.
     corp!("Phobolog", prod: NO_PROD, draw: 0,
-          red: [Reduction::Tag(Tag::Space, 3)], ptrig: [],
+          red: [Reduction::Tag(Tag::Space, 3),
+                Reduction::PerCapacity { tag: Tag::Space, cap: Capacity::Titanium, per: 1 }],
+          ptrig: [],
           research: None, forest: 0, heat_as_mc: false, flex: false, tr_boost: None),
     // 216 Saturn Systems — « You start with 24 MC. When you play a [space], you
     // pay 3 MC less for it. EFFECT: Each time you play a [jupiter], excluding
