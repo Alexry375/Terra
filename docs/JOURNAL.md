@@ -769,3 +769,93 @@ leurs prérequis — l'écart est inobservable. [VÉRIFIÉ 27-07]
 **Découverte devient le chantier principal**, Alexis ayant confirmé qu'on joue
 avec. Il reste bloqué sur une seule chose : **les photos des cartes Phases
 améliorées**, absentes de toute source depuis le 25-07.
+
+## 2026-07-27 (suite 2) — L'extension Découverte transcrite, la pioche assainie, et un chiffre faux que j'avais scellé deux fois
+
+### Transcriptions (sources physiques, promues dans `data/cartes-imprimees/`)
+
+- **4 corporations Découverte** lues sur scan : Apollo Industries (33 MC, espace,
+  améliore II), Exocorp (26, science, V), Hyperion Systems (30, Terre, III),
+  Sultira (38, énergie, I). Concordance parfaite avec `cards.json` **sauf** la
+  clause « y compris celui-ci » de Sultira, absente de `cards.json` : le carton
+  fait foi (2 chaleurs dès la mise en place). [VÉRIFIÉ 27-07]
+- **38 cartes Projet Découverte** (`D05`–`D42`), 37 photographiées. `D37` manque
+  au scan ; par élimination contre les 38 entrées `box: discovery` de
+  `cards.json`, ce serait `Perfluorocarbon Production`. **Déduction, pas
+  vérification** — la source d'élimination est celle-là même qui a inventé deux
+  cartes fantômes. [DÉCLARÉ, à confirmer par photo]
+- **11 objectifs et 7 récompenses** transcrits depuis les photos d'Alexis.
+  [VÉRIFIÉ 27-07]
+- **Carte au coût 28** (*Jardins Hydroponiques*) : l'exemplaire d'Alexis est
+  modifié à la main (« une » recouvert d'un « 2 »). Décision d'Alexis : on garde
+  le TEXTE D'ORIGINE, une seule amélioration. [VÉRIFIÉ — son message du jour]
+- Mon oubli, signalé par Alexis : `docs/regles/livret-decouverte.md` existait
+  depuis le 24-07 et je ne l'avais pas relu avant de parler de l'extension.
+
+### Chantier `moteur-boites-1` — cadré, scellé, livré, audité OK, promu
+
+- **Résultat** : la pioche est dérivée des planches physiques
+  (`textes-cartes.json`), plus du drapeau `in_deck_v1` hérité du portage Java.
+  Point unique de composition : `engine/src/boites.rs`. Option
+  `--boites base|promo|decouverte`, recensement `--dump-deck`, compteur
+  `cards_effects_unhandled`. **208/12, 219/12, 246/16, 257/16** — les quatre
+  nombres exacts. **336 tests verts**, 6/6 contrôles, 3/3 hold-outs.
+  [VÉRIFIÉ 27-07 par ma main après promotion]
+- Le moteur distribuait **248 cartes au lieu de 208** : 38 de Découverte aux
+  pouvoirs sautés (599 fois sur 1000 parties) et 2 inexistantes
+  (*Microbiology Patents*, *Project Inspection*). [VÉRIFIÉ 27-07]
+
+### L'erreur de la journée, et elle est à moi
+
+- **Mon contrat affirmait que 7 cartes de la boîte de base ont un pouvoir non
+  appliqué. Il y en a 62.** L'agent l'a mesuré, m'a contredit, et l'a prouvé
+  trois fois (comptage de `effects::LOT1`, recherche dans les sources, sonde sur
+  *Power Plant* dont la production imprimée donne un delta nul). **Re-vérifié
+  par ma main, indépendamment, sur le moteur d'AVANT le lot : 146 des 208 noms
+  de base figurent dans `src/`, donc 62 muettes.** [VÉRIFIÉ 27-07]
+- **Cause** : le « 7 » est le sous-total `ABSENT` de
+  `docs/cartes/moteur-vs-imprime.md`, qui n'échantillonne que **66 des 208**
+  cartes. Le contrat précédent (`moteur-corporations-1`) citait encore
+  correctement « les 7 déclarées ABSENT **par** ce rapport » ; dans le mien, le
+  qualificatif de périmètre a sauté et un sous-total de tri est devenu une
+  mesure de couverture.
+- **Deuxième contrat de suite où je scelle une exigence fausse** (au lot
+  précédent : une preuve que la sonde imposée ne pouvait pas produire). Leçon :
+  **ne jamais reprendre un nombre d'un document sans re-lire sa phrase de
+  périmètre.** Mon propre hold-out 02 portait la preuve — il mesurait
+  « 146 / 208 » — et je ne l'ai lu que comme une référence anti-recopie, sans
+  faire la soustraction.
+- **Ce qui a sauvé la situation** : le contrat exigeait la vérité (I4, « aucun
+  pouvoir sauté en silence ») plutôt que la conformité aux nombres. L'agent a
+  refusé les deux options complaisantes, levé l'ASK 3 prévu, et documenté trois
+  options chiffrées. C'est la deuxième fois qu'un agent corrige une erreur
+  factuelle de mon contrat : la clause « déclare et demande » vaut son coût.
+- **Corrections apportées par ma main** : contrôles 02 et 03 réécrits sur la
+  mesure réelle et **retestés dans les deux sens** (la clause 02 ne compare plus
+  à une liste écrite à la main, elle DÉRIVE les muettes de l'absence du nom dans
+  le code source, et exige l'équivalence exacte — plus sévère que l'ancienne) ;
+  avertissement de périmètre ajouté en tête de `moteur-vs-imprime.md`.
+  [VÉRIFIÉ 27-07]
+
+### Deux décisions d'Alexis
+
+- **Les cartes promotionnelles ne sont PAS possédées.** J'avais affirmé le
+  contraire en séance ; Alexis a demandé d'où je le tenais. Vérification : les
+  planches `PROMO` (11 projets) et `PROMOCORP` (6 corporations) viennent de
+  l'adaptation Tabletop Simulator, pas de sa boîte, et forment exactement le
+  pack Kickstarter 2021 — dont l'absence était **déjà tranchée et écrite le
+  24-07**. J'ai parlé de mémoire au lieu de relire la carte d'état. Commentaire
+  inverse corrigé dans `boites.rs`. [VÉRIFIÉ 27-07]
+- **Découverte se joue EN ENTIER** — les quatre modules (Objectifs, Récompenses,
+  cartes Phase améliorées, badges jokers). Configuration cible de
+  l'entraînement : **`--boites base,decouverte`, soit 246 projets et
+  16 corporations.** [VÉRIFIÉ — son message du jour]
+
+### Conséquence sur l'ordre des chantiers
+
+L'IA apprend en jouant contre elle-même. Si 62 cartes sur 208 ne font rien, elle
+apprendra qu'elles sont mauvaises et les évitera dans la vraie partie. **Finir la
+boîte de base passe donc avant d'implanter les effets de Découverte** — ce sont
+plusieurs lots, certaines des 62 réclamant des mécanismes absents (acier et
+titane comme monnaies, actions standard, cartes jouées en supplément).
+Recommandation posée à Alexis, réponse en attente.
