@@ -77,32 +77,18 @@ fn spec(nom: &str) -> &'static engine::effects::CardEffects {
 // La politique scriptée : elle dit OUI à des poses nommées, et NON au reste.
 // =========================================================================
 
-/// Politique qui pose les cartes nommées, dans l'ordre, dès qu'elles sont
-/// offertes — et refuse tout le reste. C'est ce qui rend une pose
-/// supplémentaire OBSERVABLE : sans script, on ne saurait pas distinguer
-/// « le moteur n'a pas offert la 2e pose » de « la politique a renoncé ».
+/// Politique qui REFUSE toute pose. Elle sert aux contre-témoins : une
+/// permission qui n'est pas exercée ne doit rien faire arriver. La politique
+/// qui accepte, elle, est `ToujoursPoser` plus bas.
 struct Poseur {
     base: RandomPolicy,
-    /// Noms à poser, dans l'ordre.
-    voulues: VecDeque<u16>,
-    /// Ce qui a été réellement posé, dans l'ordre (identifiants de carte).
-    posees: Vec<u16>,
-    /// Nombre de fois où une pose a été OFFERTE (liste d'options non vide).
-    offres: usize,
     phase: u8,
     choix: VecDeque<usize>,
 }
 
 impl Poseur {
     fn new(phase: u8) -> Poseur {
-        Poseur {
-            base: RandomPolicy,
-            voulues: VecDeque::new(),
-            posees: Vec::new(),
-            offres: 0,
-            phase,
-            choix: VecDeque::new(),
-        }
+        Poseur { base: RandomPolicy, phase, choix: VecDeque::new() }
     }
 }
 
@@ -120,8 +106,8 @@ impl Policy for Poseur {
         if allowed.contains(&self.phase) { self.phase } else { allowed[0] }
     }
     fn choose_build(&mut self, _r: &mut StdRng, _p: usize, _a: &[usize]) -> Option<usize> {
-        // Volontairement inerte : les tests qui veulent poser passent par
-        // `PoseurEnMain` ci-dessous, qui connaît la main.
+        // Refuse tout : « you MAY play an additional card » doit rester une
+        // offre, jamais une obligation.
         None
     }
     fn construction_bonus(&mut self, r: &mut StdRng, p: usize) -> ConstructionBonus {
@@ -327,14 +313,14 @@ fn les_cinq_prix_sont_ceux_du_carton() {
 /// combien de fois une pose lui a été proposée.
 struct ToujoursPoser {
     base: RandomPolicy,
-    offres: usize,
+    /// Poses réellement acceptées — lu par les tests qui comptent les offres.
     poses: usize,
     phase: u8,
 }
 
 impl ToujoursPoser {
     fn new(phase: u8) -> ToujoursPoser {
-        ToujoursPoser { base: RandomPolicy, offres: 0, poses: 0, phase }
+        ToujoursPoser { base: RandomPolicy, poses: 0, phase }
     }
 }
 
@@ -355,7 +341,6 @@ impl Policy for ToujoursPoser {
         if a.is_empty() {
             return None;
         }
-        self.offres += 1;
         self.poses += 1;
         Some(a[0])
     }

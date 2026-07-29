@@ -38,6 +38,34 @@ prérequis (2), divers (4). Liste nominative :
 **Ne JAMAIS citer le « 7 » de `docs/cartes/moteur-vs-imprime.md` comme une
 couverture de la boîte de base** : ce rapport n'échantillonne que 66 cartes.
 
+## LES DEUX DÉFAUTS DES TUILES SONT CORRIGÉS (28-07) — fait en direct
+
+Les deux défauts trouvés en faisant le décompte d'avancement, réparés et
+**verrouillés par des contrôles** (`engine/tests/tuiles_tests.rs`, 6 tests).
+
+1. **BARON SPATIAL : seuil 7 → 6.** La tuile imprimée dit « 6 badges espace » ;
+   le moteur en exigeait 7, chiffre venu du squelette et d'aucune source.
+   `flow.rs:3063`. Le test vérifie les DEUX bords : rien à 5, acquis à 6.
+2. **COLLECTIONNEUR ressuscitée.** « Le plus de ressources sur les cartes »
+   renvoyait **0 pour tout le monde** depuis la création du squelette, alors que
+   les ressources posées sur les cartes existent depuis le lot 3 : la récompense
+   distribuait une égalité systématique dans toutes les parties où elle sortait.
+   `flow.rs:3089`. Vérifiée dans les deux sens (le classement s'inverse quand les
+   ressources s'inversent) ET sur cinq parties entières.
+
+**Les onze seuils d'objectifs sont désormais épinglés un par un**, chacun
+confronté au texte de sa tuile, chacun vérifié juste en dessous puis pile
+dessus. Il y a maintenant un contrôle en face de chaque chiffre.
+
+**Dette assumée et épinglée** : la 7e tuile de récompense, *VISIONNAIRE* (« le
+plus de cartes Phase améliorées »), n'a toujours pas de variante dans le moteur —
+elle ne peut pas en avoir tant que les améliorations de phase ne sont pas
+implantées (`state.rs` `phase_upgrades` n'est lu nulle part). Un test épingle
+l'écart 6 contre 7 et devra être RETOURNÉ le jour où la variante existera.
+
+**640 tests verts**, 1000/1000 parties dans les deux boîtes, aucun invariant
+violé. [VÉRIFIÉ 28-07]
+
 ## 🏁 LA BOÎTE DE BASE EST TERMINÉE (28-07) — `cartes-8`, fait EN DIRECT par le CTO
 
 **Les 208 projets de la boîte de base sont encodés. Zéro carte muette.**
@@ -259,8 +287,8 @@ Mesuré par `--dump-deck` et lecture du code, pas de mémoire. [VÉRIFIÉ 28-07]
 | Corporations boîte de base | 12 / 12 |
 | Projets en configuration cible `base,decouverte` | **213 / 246** (33 muettes, **toutes de Découverte**) |
 | Corporations Découverte | 0 / 4 (écartées, table `effects::CORPS`) |
-| Objectifs (tuiles) | 11 / 11 encodés — **1 seuil faux** |
-| Récompenses (tuiles) | **5 / 7** fonctionnelles (*Industrialist* ressuscitée le 28-07) |
+| Objectifs (tuiles) | **11 / 11 encodés, 11 seuils vérifiés à la tuile** |
+| Récompenses (tuiles) | **6 / 7** fonctionnelles (*Collectionneur* ressuscitée le 28-07 ; *Visionnaire* attend les améliorations de phase) |
 | Cartes Phase améliorées | **transcrites (10), jamais appliquées** — `state.rs:181` `phase_upgrades` n'est lu nulle part dans `flow.rs` |
 | Badges jokers de Découverte | non implantés |
 | Interface de jeu | rien |

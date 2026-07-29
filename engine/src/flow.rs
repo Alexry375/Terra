@@ -3060,7 +3060,11 @@ fn milestone_goal(kind: MilestoneKind) -> i64 {
         MilestoneKind::Legend => 6,
         MilestoneKind::Magnate => 8,
         MilestoneKind::Planner => 12,
-        MilestoneKind::SpaceBaron => 7,
+        // (28-07) Corrigé 7 → 6. La tuile imprimée dit « 6 badges espace »
+        // (`data/cartes-imprimees/objectifs-recompenses/objectifs-recompenses.json`,
+        // lue à la photo le 27-07). Le 7 venait du squelette et ne correspondait
+        // à aucune source ; les dix autres seuils concordent avec les tuiles.
+        MilestoneKind::SpaceBaron => 6,
         MilestoneKind::Terraformer => 15,
         MilestoneKind::Tycoon => 6,
         MilestoneKind::Gardener => 3,
@@ -3086,7 +3090,15 @@ pub fn assign_milestones(game: &mut GameState) {
 fn award_value(kind: AwardKind, pl: &PlayerState) -> i64 {
     match kind {
         AwardKind::Celebrity => pl.mc_prod,
-        AwardKind::Collector => 0, // ressources sur cartes : stub v1
+        // (28-07) Réparée. « Le plus de ressources sur les cartes » (tuile
+        // imprimée). Elle renvoyait 0 pour tout le monde depuis la création du
+        // squelette, alors que les ressources posées sur les cartes existent
+        // depuis le lot 3 : la récompense était morte, et comptait une égalité
+        // à zéro dans toutes les parties où elle sortait.
+        //
+        // Somme de TOUTES les ressources du joueur, tous types confondus —
+        // microbes, animaux, science, flottantes. La tuile ne distingue pas.
+        AwardKind::Collector => pl.card_resources.values().map(|&n| n as i64).sum(),
         AwardKind::Generator => pl.heat_prod,
         AwardKind::Industrialist => pl.steel_capacity + pl.titanium_capacity,
         AwardKind::ProjectManager => pl.played.len() as i64,
