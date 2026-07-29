@@ -3,7 +3,7 @@
 > Source de vérité du projet. Ancrée au code (`fichier:ligne`) dès qu'il y aura du
 > code. [VÉRIFIÉ JJ-MM] = relu à la source ce jour-là. [DÉCLARÉ] = non re-vérifié.
 
-Dernière mise à jour : 2026-07-28 (soir)
+Dernière mise à jour : 2026-07-29 (soir)
 
 ## Infrastructure du dépôt
 
@@ -20,26 +20,81 @@ Dernière mise à jour : 2026-07-28 (soir)
   221 cartes transcrites de `textes-cartes` n'existent que sur le disque local
   tant qu'elles ne sont pas auditées et promues. [VÉRIFIÉ 26-07]
 
-## ⚠️ LE CHIFFRE QUI COMPTE (29-07) — 243 cartes sur 246 sont encodées
+## 🏁 LE CHIFFRE QUI COMPTE (29-07 soir) — TOUT LE CONTENU IMPRIMÉ EST ENCODÉ
 
-**Il ne reste que 3 cartes projet muettes sur les 246** de la configuration
-cible `base,decouverte`, et ce sont les trois cartes à **badge joker** (*Local
-Market* D26, *Political Influence* D39, *Topographic Mapping* D20), qui
-réclament un mécanisme à part. [VÉRIFIÉ 29-07 par ma main après promotion,
-`simulate --dump-deck --boites base,decouverte`]
+**246 cartes projet sur 246 et 16 corporations sur 16 agissent.** Zéro carte
+muette dans la configuration cible `base,decouverte`. [VÉRIFIÉ 29-07 par ma
+main après promotion, `simulate --dump-deck --boites base,decouverte`]
+
+Oracle disjoint du recensement : `cards_effects_unhandled` mesuré en partie
+réelle passe de **991 à 0** sur 1000 parties, graine 4242. [VÉRIFIÉ 29-07]
 
 Trajectoire : 62 muettes le 27-07 → 29 → 18 → 14 → **0 en boîte de base**
-(28-07) → 31 en `base,decouverte` → **3** (29-07, `decouverte-projets`).
+(28-07) → 31 en `base,decouverte` → 3 (`decouverte-projets`) → **0**
+(`decouverte-jokers-corpos`, 29-07 soir).
 
 **Et plus aucun prérequis imprimé ne manque**, ni en base ni dans les 38 cartes
 de Découverte. [VÉRIFIÉ 29-07]
 
-### Ce qui reste, nominativement
+**Le prochain chantier n'est plus du contenu : c'est l'intelligence
+artificielle**, qui n'existe pas du tout à ce jour.
 
-| Reste | Nombre |
-|---|---|
-| Cartes projet à badge joker | 3 (D20, D26, D39) |
-| Corporations de Découverte | 4 (Apollo Industries, Exocorp, Hyperion Systems, Sultira) |
+## LES 7 DERNIÈRES CARTES (29-07 soir) — `decouverte-jokers-corpos`, audité OK et promu
+
+**793 tests verts** (765 avant), aucun désactivé. Empreinte de la boîte de base
+**inchangée** (`cee020cda9db283b`, graine 2024), 1000/1000 parties, 0 violation
+d'invariant. [VÉRIFIÉ 29-07]
+
+### Le badge joker
+
+Le badge est choisi **dès que la carte est en main**, avant que le moteur ne
+juge si le joueur peut se l'offrir — c'est ce que veut le livret, qui donne
+l'exemple d'un joker déclaré Espace faisant baisser le prix de sa propre carte.
+Mesuré : *Political Influence* derrière *Metallurgy*, déclarée ESPACE, coûte
+**7 au lieu de 10** ; déclarée BÂTIMENT, elle coûte 10. [VÉRIFIÉ 29-07]
+
+Un jeton par carte (`PlayerState::joker_tags`), posé par un nouveau point de
+décision `Policy::pick_joker_tag` — donc **interceptable par la future
+intelligence artificielle**, au même titre que le choix de phase. Le comptage
+passe par le **point de passage unique** `put_in_play` → `tag_counts` : les
+prérequis, les productions par badge, les points de victoire, les Objectifs et
+les Récompenses en découlent sans code dispersé.
+
+`TAG_COUNT` reste à **10** et `Tag::Dynamic` reste hors décompte : le joker
+n'est pas devenu un onzième badge. **Zéro catégorie d'effet neuve.**
+
+### Les 4 corporations
+
+Chacune améliore sa carte Phase à la mise en place (Apollo II, Exocorp V,
+Hyperion III, Sultira I), depuis la table d'effets, sans aucun nom de
+corporation dans le code du déroulement. [VÉRIFIÉ 29-07]
+
+**Écart de source tranché en faveur du carton** : *Sultira* porte « chaque
+badge énergie, **y compris celui-ci** » — soit 2 chaleurs dès la mise en place.
+`cards.json` omettait la clause. Mesuré : `corp.start_heat = 2`. [VÉRIFIÉ 29-07]
+
+### Mes deux erreurs de ce chantier
+
+1. **Mon contrat affirmait faux** : « les productions et l'amélioration de phase
+   sont déjà encodées, la seule chose neuve est le badge joker ». Les 3 cartes
+   n'avaient **aucune entrée** dans la table d'effets (mesuré : 245 → 248
+   entrées `card!`). J'ai confondu « le mécanisme existe » et « la carte est
+   encodée ». Trouvé par l'agent.
+2. **Mes deux contrôles cachés accusaient la livraison de mes propres oublis** :
+   l'un n'attendait que les 3 projets dans la liste des cartes devenues actives,
+   oubliant les 4 corporations ; l'autre exigeait qu'un badge soit posé au moins
+   aussi souvent qu'il est choisi, alors que le choix se fait **en main** et que
+   toute carte en main n'est pas posée (540 poses pour 1220 choix est le rapport
+   normal). Corrigés, puis les 3 contrôles cachés passent.
+
+### Dette laissée par ce chantier
+
+- **Plus aucun test ne prouve que `cards_effects_unhandled` sait encore
+  compter** : il vaut 0 partout et tous les tests épinglent 0. Si son
+  incrémentation était supprimée, rien ne virerait au rouge. [VÉRIFIÉ 29-07]
+- Le badge joker n'est pas choisi **à la révélation depuis la pioche**, comme le
+  prévoit le livret, mais à l'entrée en main. Écart assumé et documenté.
+- Le badge n'est pas revu après une défausse suivie d'une repioche.
 
 ## L'HISTORIQUE (28-07 soir) — 194 cartes sur 208
 
@@ -498,14 +553,14 @@ Mesuré par `--dump-deck` et lecture du code, pas de mémoire. [VÉRIFIÉ 28-07]
 | Déroulement d'une partie (phases I-V, production, score, fin) | fait |
 | Projets boîte de base | **208 / 208** encodés — **BOÎTE DE BASE TERMINÉE** |
 | Corporations boîte de base | 12 / 12 |
-| Projets en configuration cible `base,decouverte` | **243 / 246** (3 muettes, les trois badges jokers) [VÉRIFIÉ 29-07] |
-| Corporations Découverte | 0 / 4 (écartées, table `effects::CORPS`) |
+| Projets en configuration cible `base,decouverte` | **246 / 246**, zéro muette [VÉRIFIÉ 29-07 soir] |
+| Corporations Découverte | **4 / 4** encodées [VÉRIFIÉ 29-07 soir] |
 | Objectifs (tuiles) | **11 / 11 encodés, 11 seuils vérifiés à la tuile** |
 | Récompenses (tuiles) | **7 / 7** fonctionnelles |
 | Cartes Phase améliorées | **10 / 10 appliquées** (chantier `decouverte-phases`, 28-07) |
-| Badges jokers de Découverte | non implantés — **prochain chantier** |
+| Badges jokers de Découverte | **3 / 3 implantés** [VÉRIFIÉ 29-07 soir] |
 | Interface de jeu | rien |
-| IA | rien |
+| IA | rien — **c'est le prochain chantier, et le dernier grand** |
 
 ### Deux défauts trouvés en faisant ce décompte [VÉRIFIÉ 28-07]
 

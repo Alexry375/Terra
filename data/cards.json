@@ -2301,7 +2301,7 @@
     "tags": [
       "ENERGY"
     ],
-    "description": "38 Mc. Upgrade your phase 1 card. When you play an Energy tag, get 2 Heat.",
+    "description": "38 Mc. Upgrade your phase 1 card. Effect: Each time you play an Energy tag, including this, get 2 Heat.",
     "price": 38,
     "box": "discovery",
     "in_deck_v1": true,

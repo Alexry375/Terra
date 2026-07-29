@@ -1077,6 +1077,16 @@ fn une_carte_a_amelioration_accorde_reellement_une_amelioration() {
     // *Cryogenic Shipment* (Découverte) : « Améliorez une carte Phase. »
     let db = db_dec();
     let mut g = jeu(&db);
+    // (jokers-corpos) Les corporations de Découverte améliorent une carte Phase à
+    // LA MISE EN PLACE : en boîte `base,decouverte`, le joueur peut donc déjà en
+    // porter une avant la moindre pose. Ce test-ci porte sur l'octroi par une
+    // CARTE : on repart des cinq cartes Phase normales et d'un compteur remis à
+    // zéro, l'état exact que ce test éprouvait avant ce chantier.
+    g.players[0].phase_upgrades = [None; 5];
+    g.players[1].phase_upgrades = [None; 5];
+    g.phase_upgrades_granted = 0;
+    g.phase_upgrades_reupgraded = 0;
+    g.corp_phase_upgrades_at_setup = 0;
     let mut pol = Scenario::new(1).choix(&[0]); // la première candidate : 1A
     let id = en_main(&mut g, &db, "Cryogenic Shipment");
     let i = g.players[0].hand.iter().position(|&c| c == id).unwrap();
@@ -1094,6 +1104,16 @@ fn la_politique_choisit_laquelle_des_dix() {
     // désigne donc 4B.
     let db = db_dec();
     let mut g = jeu(&db);
+    // (jokers-corpos) Les corporations de Découverte améliorent une carte Phase à
+    // LA MISE EN PLACE : en boîte `base,decouverte`, le joueur peut donc déjà en
+    // porter une avant la moindre pose. Ce test-ci porte sur l'octroi par une
+    // CARTE : on repart des cinq cartes Phase normales et d'un compteur remis à
+    // zéro, l'état exact que ce test éprouvait avant ce chantier.
+    g.players[0].phase_upgrades = [None; 5];
+    g.players[1].phase_upgrades = [None; 5];
+    g.phase_upgrades_granted = 0;
+    g.phase_upgrades_reupgraded = 0;
+    g.corp_phase_upgrades_at_setup = 0;
     let mut pol = Scenario::new(1).choix(&[7]);
     let id = en_main(&mut g, &db, "Cryogenic Shipment");
     let i = g.players[0].hand.iter().position(|&c| c == id).unwrap();
@@ -1107,7 +1127,18 @@ fn la_politique_choisit_laquelle_des_dix() {
 fn ameliorer_deux_fois_la_meme_phase_est_compte_comme_une_bascule() {
     let db = db_dec();
     let mut g = jeu(&db);
+    // (jokers-corpos) Les corporations de Découverte améliorent une carte Phase à
+    // LA MISE EN PLACE : en boîte `base,decouverte`, le joueur peut donc déjà en
+    // porter une avant la moindre pose. Ce test-ci porte sur l'octroi par une
+    // CARTE : on repart des cinq cartes Phase normales et d'un compteur remis à
+    // zéro, l'état exact que ce test éprouvait avant ce chantier.
+    g.players[0].phase_upgrades = [None; 5];
+    g.players[1].phase_upgrades = [None; 5];
+    g.phase_upgrades_granted = 0;
+    g.phase_upgrades_reupgraded = 0;
+    g.corp_phase_upgrades_at_setup = 0;
     g.players[0].upgrade_phase(1, PhaseUpgrade::VariantA);
+    g.phase_upgrades_granted = 0;
     // 1A étant déjà en place, elle n'est plus candidate : l'indice 0 vise 1B.
     let mut pol = Scenario::new(1).choix(&[0]);
     let id = en_main(&mut g, &db, "Cryogenic Shipment");

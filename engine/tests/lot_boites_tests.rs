@@ -178,7 +178,7 @@ fn les_corporations_promotionnelles_ne_sont_pas_distribuees_faute_de_donnees() {
 }
 
 #[test]
-fn decouverte_ajoute_quatre_corporations_sans_encodage() {
+fn decouverte_ajoute_quatre_corporations_encodees() {
     let db = db_de("base,decouverte");
     let d: Vec<&engine::cards::Corporation> = db
         .corporations
@@ -187,7 +187,11 @@ fn decouverte_ajoute_quatre_corporations_sans_encodage() {
         .collect();
     assert_eq!(d.len(), 4);
     for c in &d {
-        assert!(c.effect.is_none(), "{} : Découverte n'est pas encodée", c.name);
+        // TÉMOIN RETOURNÉ par `jokers-corpos` : les quatre planches de
+        // l'extension sont encodées. Le test garde son objet — il épingle ce
+        // que Découverte ajoute à la pioche — mais dans l'autre sens, qui est
+        // plus exigeant : une planche qui redeviendrait muette le ferait échouer.
+        assert!(c.effect.is_some(), "{} : Découverte doit être encodée", c.name);
         assert_eq!(c.planche, None);
     }
     let noms: HashSet<&str> = d.iter().map(|c| c.name.as_str()).collect();
@@ -297,12 +301,12 @@ fn les_cartes_declarees_non_gerees_le_sont_reellement() {
     // jamais désactivé : la boucle ci-dessus vérifie toujours, carte par carte
     // et par la sonde, que chaque muette déclarée ne change RIEN à l'état.
     // 29-07, `decouverte-projets` : les 28 derniers projets muets de
-    // l'extension sont encodés. Il en reste **3**, et ce sont les trois à badge
-    // JOKER (*Local Market*, *Political Influence*, *Topographic Mapping*),
-    // explicitement hors périmètre. Le canari est déplacé, jamais désactivé :
-    // la boucle ci-dessus vérifie toujours, carte par carte et par la sonde,
-    // que chaque muette déclarée ne change RIEN à l'état.
-    assert_eq!(n, 3, "projets SANS AUCUN encodage en base + Découverte");
+    // l'extension sont encodés. Il en restait **3**, les trois à badge JOKER.
+    // 29-07, `jokers-corpos` : ces trois-là sont encodées. Il en reste **0** :
+    // tout le contenu imprimé des deux boîtes est appliqué. La boucle ci-dessus
+    // n'a plus de sujet — il n'existe plus de carte muette à éprouver — mais le
+    // canari, lui, reste, et il est devenu le plus strict possible.
+    assert_eq!(n, 0, "projets SANS AUCUN encodage en base + Découverte");
     assert!(
         db_de("base")
             .recensement()
@@ -316,15 +320,22 @@ fn les_cartes_declarees_non_gerees_le_sont_reellement() {
     //
     // TÉMOINS RETOURNÉS par `decouverte-projets` : *Ore Leaching*,
     // *Warehouses* et *Metallurgy* sont trois des 28 cartes de ce chantier —
-    // elles agissent désormais. Les trois seuls témoins de muettes qui restent
-    // dans tout le moteur sont les cartes à badge JOKER, hors périmètre.
-    for muette in ["Local Market", "Political Influence", "Topographic Mapping"] {
+    // elles agissent désormais. Les trois derniers témoins de muettes du moteur
+    // étaient alors les cartes à badge JOKER.
+    //
+    // TÉMOINS RETOURNÉS une dernière fois par `jokers-corpos` : elles sont
+    // encodées à leur tour, et il n'existe plus AUCUNE carte déclarée ABSENT.
+    // Ce que le test épingle change donc de signe — il exige désormais que ces
+    // trois cartes soient GÉRÉES — et la boucle du haut, qui éprouvait par la
+    // sonde que toute muette déclarée ne change rien à l'état, tourne sur une
+    // liste vide parce que le moteur n'en produit plus.
+    for encodee in ["Local Market", "Political Influence", "Topographic Mapping"] {
         let c = db
             .recensement()
             .into_iter()
-            .find(|r| r.name == muette)
+            .find(|r| r.name == encodee)
             .expect("carte de Découverte");
-        assert!(!c.effets_geres, "{muette} est déclarée ABSENT par moteur-vs-imprime.md");
+        assert!(c.effets_geres, "{encodee} (badge joker) doit être gérée");
     }
 }
 
@@ -351,31 +362,45 @@ fn decouverte_n_est_pas_declaree_geree_en_bloc() {
     // n'ont toujours aucun encodage — aucune carte n'a été encodée.
     //
     // TÉMOIN RETOURNÉ par `decouverte-projets` (35 → 7) : 28 projets encodés,
-    // il reste les 3 projets à badge JOKER et les 4 corporations de Découverte.
-    // Le test dit toujours ce qu'il disait — Découverte n'est PAS déclarée
-    // gérée en bloc — mais sur un nombre exact, et bien plus petit.
-    assert_eq!(non_geres, 7);
+    // il restait les 3 projets à badge JOKER et les 4 corporations de
+    // Découverte.
+    //
+    // TÉMOIN RETOURNÉ par `jokers-corpos` (7 → 0) : ces sept-là sont encodées.
+    // Découverte n'est toujours pas déclarée gérée « en bloc » — chaque carte
+    // l'est une par une, par son propre encodage — et le nombre exact épinglé
+    // est désormais zéro.
+    assert_eq!(non_geres, 0);
 }
 
 // ------------------------------------------------- le compteur I4 compte
 
 #[test]
-fn le_compteur_s_incremente_carte_par_carte_a_la_pose() {
+fn le_compteur_ne_bouge_plus_car_plus_aucune_carte_n_est_muette() {
+    // TÉMOIN RETOURNÉ par `jokers-corpos`. Ce test posait une carte ENCODÉE
+    // puis une carte MUETTE et vérifiait que le compteur ne bougeait que pour
+    // la seconde. Les témoins muets successifs (`Power Plant`, `Interns`,
+    // `Work Crews`, `Ore Leaching`, puis les cartes à badge JOKER) ont tous été
+    // encodés par le lot suivant ; il n'en reste AUCUN. Le test ne peut plus
+    // exercer le second sens sans fabriquer une carte que le jeu ne contient
+    // pas — ce que la clause anti-shortcut interdit.
+    //
+    // Il devient donc l'épinglage le plus fort qui reste vrai, et il est plus
+    // exigeant que celui qu'il remplace : poser une carte par le chemin réel ne
+    // compte JAMAIS de pouvoir sauté, parce qu'il n'existe plus une seule carte
+    // des deux boîtes dont le texte imprimé ne soit pas appliqué.
     let db = db_de("base,decouverte");
     let mut pol = RandomPolicy;
     let mut game = setup_game(&db, 77, &mut pol);
 
-    // Une carte encodée puis une carte muette, posées par le chemin réel : le
-    // compteur ne bouge que pour la seconde.
     let encodee = db.resolve_card("Comet").expect("Comet");
-    // Carte témoin muette : `Power Plant` jusqu'au lot 5, `Interns` jusqu'au
-    // lot cartes-7, `Work Crews` jusqu'au lot cartes-8, `Ore Leaching` jusqu'à
-    // `decouverte-projets` — chacune encodée par le lot suivant. Le témoin est
-    // désormais une carte à badge JOKER, seule catégorie encore muette, et
-    // explicitement hors périmètre de ce chantier (NEVER 5).
-    let muette = db.resolve_card("Local Market").expect("Local Market");
+    let joker = db.resolve_card("Local Market").expect("Local Market");
     assert!(db.projects[encodee as usize].effect.is_some());
-    assert!(db.projects[muette as usize].effect.is_none());
+    // La carte à badge joker, dernier témoin muet en date, est encodée elle aussi.
+    assert!(db.projects[joker as usize].effect.is_some());
+    assert!(
+        db.projects.iter().all(|c| !c.in_deck || c.effets_geres()),
+        "plus aucune carte de la pioche ne doit être muette"
+    );
 
     game.players[0].mc = 1000;
     game.players[0].hand.clear();
@@ -385,29 +410,31 @@ fn le_compteur_s_incremente_carte_par_carte_a_la_pose() {
     assert_eq!(game.cards_effects_unhandled, avant, "carte encodée : rien à compter");
 
     // La pose de Comet a pu faire piocher (bonus de tuile océan) : on repart
-    // d'une main ne contenant QUE la carte muette, sinon l'indice 0 désignerait
+    // d'une main ne contenant QUE la carte visée, sinon l'indice 0 désignerait
     // la carte piochée.
     game.players[0].hand.clear();
     game.players[0].mc = 1000;
-    game.players[0].hand.push(muette);
+    game.players[0].hand.push(joker);
     build_card(&mut game, &db, 0, 0, 0);
     assert_eq!(
-        game.cards_effects_unhandled,
-        avant + 1,
-        "carte muette : un pouvoir sauté, compté une fois"
+        game.cards_effects_unhandled, avant,
+        "carte à badge joker : encodée, donc rien à compter non plus"
     );
 }
 
 #[test]
-fn le_compteur_grossit_quand_la_pioche_s_elargit() {
-    // Propriété attendue du contrat : ajouter Découverte, dont aucun pouvoir
-    // n'est implémenté, augmente le nombre de pouvoirs sautés.
+fn le_compteur_est_nul_dans_les_deux_configurations_de_boites() {
+    // Propriété d'origine : ajouter Découverte, dont aucun pouvoir n'était
+    // implémenté, augmentait le nombre de pouvoirs sautés.
     //
-    // (lot cartes-8) L'assertion de départ était « la base a des cartes
-    // muettes ». Elle est RETOURNÉE et devient bien plus exigeante : en boîte
-    // de base, 200 parties entières ne sautent plus **aucun** pouvoir. C'est le
-    // résultat du lot, mesuré en partie réelle et non sur le recensement — deux
-    // oracles disjoints qui doivent s'accorder.
+    // (lot cartes-8) La moitié « base » avait déjà été RETOURNÉE : 200 parties
+    // entières n'y sautaient plus aucun pouvoir.
+    //
+    // (jokers-corpos) La seconde moitié l'est à son tour. Le compteur mesuré en
+    // PARTIE RÉELLE — oracle disjoint du recensement — vaut zéro dans les deux
+    // configurations : tout le contenu imprimé des deux boîtes est appliqué.
+    // C'est le résultat du chantier, et c'est un épinglage plus strict que
+    // l'inégalité qu'il remplace.
     let mut pol = RandomPolicy;
     let base = engine::sim::run_simulation(&db_de("base"), 200, 2024, &mut pol);
     let mut pol = RandomPolicy;
@@ -416,11 +443,9 @@ fn le_compteur_grossit_quand_la_pioche_s_elargit() {
         base.cards_effects_unhandled, 0,
         "boîte de base : plus un seul pouvoir sauté en partie réelle"
     );
-    assert!(
-        disc.cards_effects_unhandled > base.cards_effects_unhandled,
-        "Découverte ajoute des pouvoirs sautés : {} vs {}",
-        disc.cards_effects_unhandled,
-        base.cards_effects_unhandled
+    assert_eq!(
+        disc.cards_effects_unhandled, 0,
+        "base + Découverte : plus un seul pouvoir sauté en partie réelle"
     );
 }
 

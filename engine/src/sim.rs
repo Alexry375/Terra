@@ -304,6 +304,16 @@ pub struct GameOutcome {
     pub standard_action_discounts: u64,
     /// (lot cartes-7) MC gagnés par Assembly Lines sur une action de carte.
     pub action_mc_bonuses: u64,
+    /// (jokers-corpos) voir `state::GameState::joker_tag_choices`.
+    pub joker_tag_choices: u64,
+    /// (jokers-corpos) voir `state::GameState::joker_tag_hits`.
+    pub joker_tag_hits: u64,
+    /// (jokers-corpos) voir `state::GameState::corp_phase_upgrades_at_setup`.
+    pub corp_phase_upgrades_at_setup: u64,
+    /// (jokers-corpos) voir `state::GameState::discard_bonus_mc`.
+    pub discard_bonus_mc: u64,
+    /// (jokers-corpos) voir `state::GameState::action_phase_self_bonus`.
+    pub action_phase_self_bonus: u64,
 }
 
 /// Joue une partie complète (politique fournie), invariants vérifiés à chaque
@@ -375,6 +385,11 @@ pub fn play_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameOutcom
         cards_revealed: game.cards_revealed,
         standard_action_discounts: game.standard_action_discounts,
         action_mc_bonuses: game.action_mc_bonuses,
+        joker_tag_choices: game.joker_tag_choices,
+        joker_tag_hits: game.joker_tag_hits,
+        corp_phase_upgrades_at_setup: game.corp_phase_upgrades_at_setup,
+        discard_bonus_mc: game.discard_bonus_mc,
+        action_phase_self_bonus: game.action_phase_self_bonus,
     }
 }
 
@@ -460,6 +475,16 @@ pub struct SimSummary {
     pub standard_action_discounts: u64,
     /// (lot cartes-7) MC gagnés par Assembly Lines sur une action de carte.
     pub action_mc_bonuses: u64,
+    /// (jokers-corpos) voir `state::GameState::joker_tag_choices`.
+    pub joker_tag_choices: u64,
+    /// (jokers-corpos) voir `state::GameState::joker_tag_hits`.
+    pub joker_tag_hits: u64,
+    /// (jokers-corpos) voir `state::GameState::corp_phase_upgrades_at_setup`.
+    pub corp_phase_upgrades_at_setup: u64,
+    /// (jokers-corpos) voir `state::GameState::discard_bonus_mc`.
+    pub discard_bonus_mc: u64,
+    /// (jokers-corpos) voir `state::GameState::action_phase_self_bonus`.
+    pub action_phase_self_bonus: u64,
 }
 
 /// Lance `games` parties aléatoires. Graine unique : un RNG maître seedé par
@@ -522,6 +547,11 @@ pub fn run_simulation(
     let mut cards_revealed = 0u64;
     let mut standard_action_discounts = 0u64;
     let mut action_mc_bonuses = 0u64;
+    let mut joker_tag_choices = 0u64;
+    let mut joker_tag_hits = 0u64;
+    let mut corp_phase_upgrades_at_setup = 0u64;
+    let mut discard_bonus_mc = 0u64;
+    let mut action_phase_self_bonus = 0u64;
 
     let t0 = std::time::Instant::now();
     for _ in 0..games {
@@ -581,6 +611,11 @@ pub fn run_simulation(
         cards_revealed += out.cards_revealed;
         standard_action_discounts += out.standard_action_discounts;
         action_mc_bonuses += out.action_mc_bonuses;
+        joker_tag_choices += out.joker_tag_choices;
+        joker_tag_hits += out.joker_tag_hits;
+        corp_phase_upgrades_at_setup += out.corp_phase_upgrades_at_setup;
+        discard_bonus_mc += out.discard_bonus_mc;
+        action_phase_self_bonus += out.action_phase_self_bonus;
         turn_orders.push(out.turn_order);
         agg.write_u64(out.state_hash);
     }
@@ -641,5 +676,10 @@ pub fn run_simulation(
         cards_revealed,
         standard_action_discounts,
         action_mc_bonuses,
+        joker_tag_choices,
+        joker_tag_hits,
+        corp_phase_upgrades_at_setup,
+        discard_bonus_mc,
+        action_phase_self_bonus,
     }
 }

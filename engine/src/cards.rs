@@ -25,11 +25,38 @@ pub enum Tag {
     Jupiter,
     Energy,
     Event,
-    /// Tag wild de Discovery — stub neutre en v1 (compté comme aucun tag, D16).
+    /// **BADGE JOKER de Discovery** — le rond gris « ? ». Ce n'est pas un
+    /// onzième badge : c'est un badge INDÉTERMINÉ, qui devient l'un des dix dès
+    /// que le joueur pose son jeton dessus (`PlayerState::joker_tags`, écrit par
+    /// `flow::ensure_joker_tag`). Tant qu'aucun jeton n'est posé, il ne compte
+    /// nulle part — `Tag::index()` rend `None`, et c'est ce qui doit rester
+    /// vrai : un joker déclaré Espace compte comme ESPACE, jamais comme
+    /// « Dynamic ». Le commentaire d'origine (« stub neutre en v1 ») décrivait
+    /// l'état d'avant le chantier `jokers-corpos`.
     Dynamic,
 }
 
 pub const TAG_COUNT: usize = 10; // tags comptés (Dynamic exclu)
+
+/// **(jokers-corpos) Les dix badges qu'un BADGE JOKER peut devenir**, dans
+/// l'ordre de l'énumération (= l'ordre de `Tag::index`).
+///
+/// `Tag::Dynamic` n'y figure pas et ne peut pas y figurer : « choisissez un
+/// badge » désigne les dix badges du jeu, pas le rond gris à point
+/// d'interrogation lui-même. C'est cette liste, et elle seule, que
+/// `Policy::pick_joker_tag` reçoit et que `--probe-joker-tag` accepte.
+pub const JOKER_TAG_CHOICES: [Tag; TAG_COUNT] = [
+    Tag::Building,
+    Tag::Space,
+    Tag::Science,
+    Tag::Plant,
+    Tag::Microbe,
+    Tag::Animal,
+    Tag::Earth,
+    Tag::Jupiter,
+    Tag::Energy,
+    Tag::Event,
+];
 
 impl Tag {
     pub fn from_str(s: &str) -> Option<Tag> {
@@ -83,6 +110,22 @@ impl Tag {
             Tag::Event => Some(9),
             Tag::Dynamic => None,
         }
+    }
+
+    /// **(jokers-corpos) Ce badge est-il un BADGE JOKER** — le rond gris « ? »
+    /// de l'extension Découverte, à déterminer par le joueur ?
+    ///
+    /// Prédicat de lecture unique : rien dans le moteur ne compare un badge à
+    /// `Tag::Dynamic` autrement que par ici.
+    pub fn is_joker(self) -> bool {
+        matches!(self, Tag::Dynamic)
+    }
+
+    /// **(jokers-corpos) Le badge nommé par `s`, s'il est un CHOIX VALIDE pour
+    /// un badge joker.** Refuse `DYNAMIC` — un joker ne devient pas un joker —
+    /// et tout nom inconnu. Employé par `--probe-joker-tag`.
+    pub fn parse_joker_choice(s: &str) -> Option<Tag> {
+        Tag::from_str(s).filter(|t| !t.is_joker())
     }
 }
 
@@ -271,12 +314,11 @@ impl ProjectCard {
 /// Corporation retenue par la configuration `--boites` : tags + MC de départ
 /// (champ `price`) + effets déclaratifs (chantier corpo-1).
 ///
-/// `effect` est `Some` pour les 12 corporations de la boîte de base — la table
-/// `effects::CORPS` les couvre toutes, et le chargement le vérifie. Il est
-/// `None` pour les corporations de Découverte (chantier boites-1) : elles
-/// restent à encoder. Leurs pouvoirs reposent sur l'amélioration des cartes
-/// Phase — le mécanisme existe depuis le chantier `decouverte-phases`, l'appel
-/// depuis `install_corporation` reste à écrire (hors périmètre de ce chantier).
+/// (jokers-corpos) `effect` est `Some` pour les SEIZE corporations des deux
+/// boîtes — la table `effects::CORPS` les couvre toutes, et le chargement refuse
+/// désormais toute planche chargée sans encodage. Le commentaire d'origine
+/// disait « `None` pour les corporations de Découverte, elles restent à
+/// encoder » : c'est fait.
 /// Elles sont donc comptées dans `cards_effects_unhandled` à chaque partie où
 /// elles sont jouées, jamais appliquées en silence.
 #[derive(Debug, Clone)]
@@ -466,11 +508,11 @@ impl CardsDb {
                 // 51 MC plutôt que le jumeau à 48 MC rangé en `promo2021` —
                 // choix d'IDENTITÉ que la planche seule ne pouvait pas faire.
                 //
-                // Les 4 corporations de Découverte (Apollo Industries, Exocorp,
-                // Hyperion Systems, Sultira) entrent ici sans encodage : leurs
-                // pouvoirs reposent sur l'amélioration des cartes Phase, que le
-                // moteur ne modélise pas. Elles sont comptées dans
-                // `cards_effects_unhandled`, pas jouées en silence.
+                // (jokers-corpos) Les 4 corporations de Découverte (Apollo
+                // Industries, Exocorp, Hyperion Systems, Sultira) entrent ici
+                // AVEC leur encodage : le commentaire d'origine disait qu'elles
+                // n'en avaient pas, faute d'un mécanisme d'amélioration de carte
+                // Phase — il est devenu faux.
                 "corporation" if retenue => {
                     let app = app.expect("corporation retenue sans appartenance");
                     let effect = effects::corp_lookup(&c.name);
@@ -505,30 +547,49 @@ impl CardsDb {
         // d'appariement (deux « Teractor Corporation ») serait sinon
         // indécidable. La table de boîtes et `CORPS` se contrôlent ainsi
         // mutuellement : un désaccord fait échouer le chargement.
-        if boites.contains(Boite::Base) {
-            for (name, _) in effects::CORPS {
-                let n = corporations
-                    .iter()
-                    .filter(|c| c.name == *name && c.boite == Boite::Base)
-                    .count();
-                if n != 1 {
-                    return Err(format!(
-                        "pioche de corporations: '{name}' résolue {n} fois dans {path} \
-                         (une et une seule planche CORP attendue)"
-                    ));
-                }
-            }
-            let base_corps = corporations
-                .iter()
-                .filter(|c| c.boite == Boite::Base)
-                .count();
-            if base_corps != effects::CORPS.len() {
+        //
+        // (jokers-corpos) La table décrit désormais les SEIZE planches des deux
+        // boîtes, et non plus les douze de la seule boîte de base : le garde-fou
+        // ne peut plus exiger que chaque entrée résolve dans la boîte de base.
+        // Il devient, dans les deux sens :
+        //   — aucune entrée de `CORPS` ne doit résoudre vers PLUSIEURS
+        //     corporations chargées (l'appariement serait indécidable) ;
+        //   — aucune corporation chargée ne doit rester SANS encodage.
+        // La seconde moitié est plus forte que l'ancien décompte : c'est elle
+        // qui interdit qu'une planche revienne muette.
+        //
+        // Ce que ce garde-fou-ci ne peut PAS voir, et qui est vérifié ailleurs :
+        // une entrée ORPHELINE de `CORPS` (un nom qui ne correspond à aucune
+        // planche d'aucune boîte) résoudrait vers 0 corporation et passerait
+        // ici — le chargement ne connaît que les boîtes DEMANDÉES, il ne peut
+        // donc pas distinguer « absente de cette configuration » de « n'existe
+        // nulle part ». C'est le test structurel
+        // `lot_jokers_corpos_tests::la_table_des_corporations_n_a_aucune_entree_orpheline`
+        // qui ferme ce cas, en chargeant toutes les boîtes à la fois.
+        // (Défaut trouvé en relecture adversariale : le commentaire précédent
+        // attribuait à tort ce contrôle à `boites::composer`, qui confronte
+        // `cards.json` à la table des planches et ne lit jamais `CORPS`.)
+        for (name, _) in effects::CORPS {
+            let n = corporations.iter().filter(|c| c.name == *name).count();
+            if n > 1 {
                 return Err(format!(
-                    "pioche de corporations: {base_corps} planches CORP chargées pour {} \
-                     déclarées dans la table d'effets",
-                    effects::CORPS.len()
+                    "pioche de corporations: '{name}' résolue {n} fois dans {path} \
+                     (une et une seule planche CORP attendue)"
                 ));
             }
+        }
+        let nues: Vec<&str> = corporations
+            .iter()
+            .filter(|c| c.effect.is_none())
+            .map(|c| c.name.as_str())
+            .collect();
+        if !nues.is_empty() {
+            return Err(format!(
+                "pioche de corporations: {} planche(s) sans encodage dans la table \
+                 d'effets : {}",
+                nues.len(),
+                nues.join(", ")
+            ));
         }
 
         // Garde-fou : chaque entrée de la table d'effets doit résoudre vers

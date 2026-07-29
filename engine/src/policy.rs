@@ -36,6 +36,12 @@ pub enum ActionOpt {
     SellCard,
     /// Action de la carte bleue jouée d'indice donné (stub neutre).
     BlueAction(u16),
+    /// (jokers-corpos) **Action portée par la CORPORATION du joueur** — une
+    /// planche de l'extension Découverte en porte une (« Action : gagnez 1 MC…
+    /// »). Elle s'active comme celle d'une carte bleue, une fois par phase III,
+    /// et consomme une activation comme elle. Aucun identifiant : un joueur n'a
+    /// qu'une corporation.
+    CorpAction,
 }
 
 /// Points de décision du flux de jeu. Les tests peuvent fournir une politique
@@ -176,6 +182,40 @@ pub trait Policy {
         } else {
             rng.gen_range(0..candidates.len())
         }
+    }
+
+    /// **(jokers-corpos) « Choisissez un badge et ajoutez-le à cette carte. »**
+    ///
+    /// Point de décision au même titre que `pick_phase` ou `pick_corporation` :
+    /// le badge d'une carte joker est CHOISI par le joueur, jamais câblé dans le
+    /// déroulement — une intelligence artificielle viendra le décider plus tard.
+    ///
+    /// Renvoie un indice dans [`crate::cards::JOKER_TAG_CHOICES`], les dix
+    /// badges du jeu (le joker lui-même n'en fait pas partie). `tag_counts` est
+    /// le décompte de badges du joueur À CET INSTANT ; il est indexé par
+    /// `Tag::index`, c'est-à-dire dans le MÊME ordre que `JOKER_TAG_CHOICES` —
+    /// un indice vaut donc pour les deux.
+    ///
+    /// **Heuristique par défaut, et sa raison en une phrase** : prendre le badge
+    /// que le joueur possède DÉJÀ le plus, parce que c'est celui que ses cartes
+    /// en jeu valorisent déjà (réductions de prix par badge, productions et
+    /// points de victoire par badge, Objectifs et Récompenses) ; à égalité, le
+    /// premier dans l'ordre de l'énumération — déterministe, et sans consommer
+    /// le RNG de la partie.
+    fn pick_joker_tag(
+        &mut self,
+        _rng: &mut StdRng,
+        _player: usize,
+        _card: u16,
+        tag_counts: &[u32],
+    ) -> usize {
+        let mut best = 0usize;
+        for i in 1..tag_counts.len() {
+            if tag_counts[i] > tag_counts[best] {
+                best = i;
+            }
+        }
+        best
     }
 
     /// Recherche : garder `keep` cartes parmi `drawn` — renvoie les indices gardés.

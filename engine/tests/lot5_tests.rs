@@ -746,10 +746,11 @@ fn the_thirty_three_cards_resolve_to_the_base_box_deck() {
     }
     // 110 (lots 1-2) + 28 (ressources) + 17 (lot 4) + 33 (lot 5) + 11 (lot 6)
     // + 4 (lot acier-titane) + 9 (lot cartes-7) + 5 (lot cartes-8)
-    // + 28 (decouverte-projets) = 245. ATTENTE MISE À JOUR par le lot 6, le lot
-    // acier-titane, le lot cartes-7, le lot cartes-8 puis
-    // `decouverte-projets` : taille EXACTE toujours épinglée.
-    assert_eq!(engine::effects::LOT1.len(), 245);
+    // + 28 (decouverte-projets) + 3 (jokers-corpos) = 248. ATTENTE MISE À JOUR
+    // par le lot 6, le lot acier-titane, le lot cartes-7, le lot cartes-8,
+    // `decouverte-projets` puis `jokers-corpos` : taille EXACTE toujours
+    // épinglée.
+    assert_eq!(engine::effects::LOT1.len(), 248);
 }
 
 #[test]
@@ -926,23 +927,40 @@ fn only_discovery_cards_remain_unhandled() {
     // sont plus muettes. Reste 31 projets + 4 corporations = 35.
     //
     // TÉMOIN RETOURNÉ une seconde fois par `decouverte-projets` (35 → 7) : les
-    // 28 derniers projets muets de l'extension sont encodés. Il ne reste que
+    // 28 derniers projets muets de l'extension sont encodés. Il ne restait que
     // les 3 projets à badge JOKER (*Local Market*, *Political Influence*,
-    // *Topographic Mapping*, hors périmètre) et les 4 corporations de
-    // Découverte (hors périmètre) — 3 + 4 = 7. Le test n'est ni supprimé ni
-    // assoupli : il épingle un nombre EXACT, et il nomme les sept.
+    // *Topographic Mapping*) et les 4 corporations de Découverte — 3 + 4 = 7.
+    //
+    // TÉMOIN RETOURNÉ une TROISIÈME fois par `jokers-corpos` (7 → 0) : ces
+    // sept-là sont encodées à leur tour. Le NOM du test est devenu faux — plus
+    // aucune carte de Découverte n'est muette — mais il garde tout son objet :
+    // il épingle un nombre EXACT, et ce nombre est désormais ZÉRO. Il n'est ni
+    // supprimé ni assoupli ; il devient au contraire plus strict, et il nomme
+    // toujours les sept dernières pour dire qu'elles sont, elles aussi, gérées.
     let db = CardsDb::load_boites(CARDS, BoiteSet::parse("base,decouverte").unwrap())
         .expect("base,decouverte");
-    let n = db.recensement().into_iter().filter(|c| !c.effets_geres).count();
-    assert_eq!(n, 7, "muettes en base + Découverte");
     let muettes: Vec<&str> = db
         .recensement()
         .into_iter()
         .filter(|c| !c.effets_geres)
         .map(|c| c.name)
         .collect();
-    for nom in ["Local Market", "Political Influence", "Topographic Mapping"] {
-        assert!(muettes.contains(&nom), "{nom} (badge JOKER) doit rester muette");
+    assert_eq!(muettes.len(), 0, "muettes en base + Découverte : {muettes:?}");
+    for nom in [
+        "Local Market",
+        "Political Influence",
+        "Topographic Mapping",
+        "Apollo Industries",
+        "Exocorp",
+        "Hyperion Systems",
+        "Sultira",
+    ] {
+        let c = db
+            .recensement()
+            .into_iter()
+            .find(|c| c.name == nom)
+            .unwrap_or_else(|| panic!("{nom} absente du recensement"));
+        assert!(c.effets_geres, "{nom} : son texte imprimé est appliqué");
     }
     // Et la raison exacte : les deux cartes à « améliorez une carte Phase »
     // sont désormais intégralement gérées.

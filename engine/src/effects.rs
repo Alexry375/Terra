@@ -2488,6 +2488,32 @@ pub static LOT1: &[(&str, CardEffects)] = &[
     // Production : 3 chaleurs. (D41)
     card!("Nuclear Detonation Site", reqs: [], effects: [HeatProd(3)],
           red: [], action: None, phase: None, on_build: [], reveal: []),
+
+    // ======================================= (jokers-corpos) LES 3 CARTES
+    // À BADGE JOKER — les trois dernières muettes du jeu.
+    //
+    // « Choisissez un badge et ajoutez-le à cette carte » ne s'encode PAS ici :
+    // le badge joker est une donnée de la carte (`Tag::Dynamic` dans
+    // `cards.json`), et le jeton qu'on pose dessus est un état de JOUEUR
+    // (`PlayerState::joker_tags`), posé par `flow::ensure_joker_tag` avant tout
+    // calcul de prix. Ce que ces trois entrées apportent est le RESTE de leur
+    // texte imprimé — deux productions fixes et une amélioration de carte
+    // Phase — qui, lui, se décrit avec le vocabulaire existant.
+
+    // « Choisissez un badge et ajoutez-le à cette carte. Lors de la phase de
+    //   production, cette carte produit 2 MC. » (D26, verte, 7 MC)
+    card!("Local Market", reqs: [], effects: [McProd(2)],
+          red: [], action: None, phase: None, on_build: [], reveal: []),
+    // Idem, 3 MC. (D39, verte, 10 MC)
+    card!("Political Influence", reqs: [], effects: [McProd(3)],
+          red: [], action: None, phase: None, on_build: [], reveal: []),
+    // « Choisissez un badge et ajoutez-le à cette carte. Améliorez une carte
+    //   Phase. » (D20, ROUGE — un événement) : la phase est au choix du joueur,
+    //   d'où `UPGRADE_ANY`. La carte part en jeu comme les autres rouges et son
+    //   badge continue d'y compter — livret de base : une carte rouge n'a plus
+    //   d'effet après avoir été jouée, « autre que les badges qu'elle fournit ».
+    card!("Topographic Mapping", reqs: [], effects: [],
+          red: [], action: None, phase: None, on_build: [UPGRADE_ANY], reveal: []),
 ];
 
 // ======================================== LOT CORPORATIONS (chantier corpo-1)
@@ -2500,16 +2526,17 @@ pub static LOT1: &[(&str, CardEffects)] = &[
 // paraphrase infidèle sur quatre corporations (Interplanetary Cinematics,
 // Mining Guild, Phobolog, Saturn Systems : voir `outputs/corporations.md`).
 //
-// Cette table est aussi la DÉFINITION de la boîte de base : `CardsDb::load` ne
-// retient dans la pioche de corporations que les entrées `in_deck_v1` de
-// `cards.json` dont le nom y figure. Les quatre corporations « améliorez votre
-// carte Phase n » (Apollo Industries, Exocorp, Hyperion Systems, Sultira) n'ont
-// aucune planche imprimée dans la boîte de base et reposent toutes sur
-// l'amélioration de carte Phase, mécanisme que le moteur saute
-// (`phase_upgrades_skipped`) : elles n'ont donc pas leur place dans la pioche.
-// Quand le chantier des améliorations de phase existera, il suffira de leur
-// ajouter une entrée ICI : elles reviendront dans la pioche par le même chemin,
-// sans toucher au chargement.
+// Cette table est aussi la DÉFINITION des deux boîtes : `CardsDb::load_boites`
+// exige que chaque corporation chargée y figure, et refuse le chargement sinon.
+//
+// (jokers-corpos) Le commentaire d'origine annonçait que les quatre planches de
+// Découverte (Apollo Industries, Exocorp, Hyperion Systems, Sultira)
+// « reviendraient dans la pioche par le même chemin, sans toucher au
+// chargement, le jour où le chantier des améliorations de phase existerait ».
+// C'est exactement ce qui s'est passé : elles ont reçu une entrée ICI, et
+// `install_corporation_with` applique leur `setup` par le chemin d'octroi
+// unique. Elles restent hors de la pioche de la BOÎTE DE BASE, où elles n'ont
+// aucune planche imprimée — c'est la table de boîtes qui en décide, pas celle-ci.
 
 /// Production de départ FIXE d'une corporation, inscrite sur les pistes
 /// `mc_prod` / `heat_prod` / `plant_prod` du joueur à la mise en place — donc
@@ -2556,6 +2583,42 @@ pub struct CorpEffects {
     /// (NEUF) Unmi : premier pas de NT de chaque phase, doublable contre 6 MC
     /// (`flow::gain_tr`).
     pub tr_boost: Option<TrBoost>,
+    // ==================================================== lot jokers-corpos
+    /// **(jokers-corpos) Effets appliqués à la MISE EN PLACE de la
+    /// corporation** — « Améliorez votre carte Phase n », que les quatre
+    /// planches de Découverte portent toutes.
+    ///
+    /// Le vocabulaire est celui des cartes projets, `ResEff`, et l'octroi passe
+    /// par le chemin UNIQUE `flow::apply_phase_upgrade` avec
+    /// `UpgradeSource::Setup` : une corporation n'a pas de mécanisme
+    /// d'amélioration à elle, et le déroulement ne compare aucun nom.
+    ///
+    /// Seuls `PhaseUpgrade` et `Gain` y sont exprimables : les variantes à
+    /// ressources exigent une carte réceptacle, qu'une planche n'est pas. Un
+    /// test structurel du lot (`lot_jokers_corpos_tests`) le vérifie sur toute
+    /// la table, faute de quoi un encodage serait silencieusement inerte.
+    pub setup: &'static [ResEff],
+    /// **(jokers-corpos) MC supplémentaires par carte défaussée pour du MC** —
+    /// Exocorp, « Les cartes que vous défaussez pour gagner des MC vous
+    /// rapportent 1 MC supplémentaire ».
+    ///
+    /// Exactement le champ `CardEffects::discard_bonus` de *Composting
+    /// Factory*, porté par une planche : le même service unique
+    /// `flow::discard_mc_rate` les cumule tous les deux, il n'y a pas de second
+    /// calcul du taux.
+    pub discard_bonus: i64,
+    /// **(jokers-corpos) Action activable portée par la planche** — Hyperion
+    /// Systems, « Action : gagnez 1 MC ».
+    ///
+    /// Même vocabulaire et même chemin d'activation que l'action d'une carte
+    /// bleue (`flow::apply_action_spec`) ; elle s'offre en phase III comme les
+    /// autres, une fois par phase, et consomme une activation.
+    pub action: Option<Action>,
+    /// **(jokers-corpos) Bonus d'action conditionné à la phase choisie** —
+    /// Hyperion Systems, « *Si vous choisissez la phase d'actions lors de cette
+    /// manche, gagnez 1 MC supplémentaire ». Champ jumeau de
+    /// `CardEffects::phase_bonus`, lu par le même code.
+    pub phase_bonus: Option<PhaseBonus>,
 }
 
 /// Paliers de couleur (0 = violet, 1 = rouge, 2 = jaune, 3 = blanc) — bornes du
@@ -2586,6 +2649,8 @@ pub fn oxy_color(level: u8) -> u8 {
 }
 
 macro_rules! corp {
+    // Forme des 12 planches de la boîte de base : aucune n'a de mise en place à
+    // effets, ni d'action, ni de taux de défausse majoré.
     ($name:literal, prod: $sp:expr, draw: $dr:literal,
      red: [$($rd:expr),*], ptrig: [$($pt:expr),*], research: $rs:expr,
      forest: $fo:literal, heat_as_mc: $hm:literal, flex: $fx:literal,
@@ -2595,14 +2660,31 @@ macro_rules! corp {
             reductions: &[$($rd),*], play_triggers: &[$($pt),*],
             research: $rs, forest_plant_rebate: $fo, heat_as_mc: $hm,
             req_color_flex: $fx, tr_boost: $tb,
+            setup: &[], discard_bonus: 0, action: None, phase_bonus: None,
+        })
+    };
+    // (jokers-corpos) Forme des 4 planches de Découverte : TOUTES améliorent
+    // une carte Phase à la mise en place ; l'une porte un déclencheur de pose,
+    // l'une un taux de défausse majoré, l'une une action. D'où ces quatre
+    // champs, et rien d'autre.
+    ($name:literal, setup: [$($su:expr),*], ptrig: [$($pt:expr),*],
+     discard: $db:expr, action: $ac:expr, phase: $pb:expr) => {
+        ($name, CorpEffects {
+            start_prod: NO_PROD, start_draw: 0,
+            reductions: &[], play_triggers: &[$($pt),*],
+            research: None, forest_plant_rebate: 0, heat_as_mc: false,
+            req_color_flex: false, tr_boost: None,
+            setup: &[$($su),*], discard_bonus: $db, action: $ac,
+            phase_bonus: $pb,
         })
     };
 }
 
 const NO_PROD: StartProd = StartProd { mc: 0, heat: 0, plants: 0 };
 
-/// Les 12 corporations de la boîte de base, dans l'ordre de leur NUMÉRO IMPRIMÉ
-/// (209 → 220) — cet ordre est celui de la lecture, il n'a aucun effet sur le
+/// Les 16 corporations des deux boîtes : les 12 de la boîte de base dans
+/// l'ordre de leur NUMÉRO IMPRIMÉ (209 → 220), puis les 4 de Découverte
+/// (D01 → D04). Cet ordre est celui de la lecture, il n'a aucun effet sur le
 /// moteur : la pioche suit l'ordre de chargement de `cards.json`, et c'est cet
 /// ordre-là que rend `--dump-corporations`.
 pub static CORPS: &[(&str, CorpEffects)] = &[
@@ -2703,6 +2785,70 @@ pub static CORPS: &[(&str, CorpEffects)] = &[
           red: [], ptrig: [],
           research: None, forest: 0, heat_as_mc: false, flex: false,
           tr_boost: Some(TrBoost { cost_mc: 6, steps: 1 })),
+
+    // =================================================== (Découverte) D01-D04
+    // Les quatre planches de l'extension. Toutes améliorent une carte Phase
+    // IMPOSÉE à la mise en place — `ResEff::PhaseUpgrade(Some(n))`, le même
+    // paramètre que les trois cartes projets à phase imposée (D05, D37, D40).
+    //
+    // Leur ENCART DE PHASES (I-II, I-V, III) n'appelle aucun mécanisme nouveau :
+    // un déclencheur « lorsque vous jouez un badge » ne peut se lever qu'aux
+    // phases où l'on pose une carte (I et II) ; un taux de défausse marqué I-V
+    // vaut partout ; une action ne s'active qu'en phase III. Voir result.md,
+    // § bornes de phase.
+
+    // D01 Apollo Industries — « Vous commencez avec 33 MC. Améliorez votre carte
+    // Phase II. Effet (I-II) : Lorsque vous jouez un badge [science], piochez
+    // une carte. » Comme Saturn Systems, `scale_by_matched_tags: true` (livret
+    // p.9 l.106 : condition remplie plusieurs fois → effet résolu autant de
+    // fois) et `include_self: false` — le badge [espace] de la planche n'est pas
+    // un badge [science], et la planche n'est de toute façon jamais « jouée ».
+    corp!("Apollo Industries",
+          setup: [ResEff::PhaseUpgrade(Some(2))],
+          ptrig: [PlayTrigger { cond: TrigCond::Tag(Tag::Science),
+                    gains: &[TrigGain::Draw(1)], scale_by_matched_tags: true,
+                    include_self: false }],
+          discard: 0, action: None, phase: None),
+
+    // D02 Exocorp — « Vous commencez avec 26 MC. Améliorez votre carte Phase V.
+    // Effet (I-V) : Les cartes que vous défaussez pour gagner des MC vous
+    // rapportent 1 MC supplémentaire. » Le taux de base est celui du livret
+    // (3 MC) ; seul le supplément est un effet, cumulé par le service unique
+    // `flow::discard_mc_rate` — exactement comme *Composting Factory*.
+    corp!("Exocorp",
+          setup: [ResEff::PhaseUpgrade(Some(5))],
+          ptrig: [],
+          discard: 1, action: None, phase: None),
+
+    // D03 Hyperion Systems — « Vous commencez avec 30 MC. Améliorez votre carte
+    // Phase III. Action (III) : Gagnez 1 MC. *Si vous choisissez la phase
+    // d'actions lors de cette manche, gagnez 1 MC supplémentaire. »
+    // Le bonus étoilé est le `PhaseBonus` du lot 6, mot pour mot : phase 3, un
+    // effet EN PLUS (« supplémentaire »), aucun coût de remplacement.
+    corp!("Hyperion Systems",
+          setup: [ResEff::PhaseUpgrade(Some(3))],
+          ptrig: [],
+          discard: 0,
+          action: Some(Action::Fixed { cost: &[], effect: &[ActionEff::Mc(1)] }),
+          phase: Some(PhaseBonus { phase: 3, require_upgraded: false,
+                                   cost: None, extra: &[ActionEff::Mc(1)] })),
+
+    // D04 Sultira — « Vous commencez avec 38 MC. Améliorez votre carte Phase I.
+    // Effet (I-II) : Chaque fois que vous jouez un badge [énergie], **y compris
+    // celui-ci**, gagnez 2 chaleurs. »
+    //
+    // « Y COMPRIS CELUI-CI » : `include_self: true`. Contrairement au « excluding
+    // this » de Saturn Systems, le badge [énergie] de la planche elle-même
+    // déclenche l'effet — d'où 2 chaleurs dès la mise en place, levées par
+    // `flow::fire_corp_self_triggers` contre les badges de la planche. Rien
+    // n'est écrit en dur : c'est le déclencheur qui les produit.
+    // (`cards.json` omettait la clause ; le carton fait foi — voir result.md.)
+    corp!("Sultira",
+          setup: [ResEff::PhaseUpgrade(Some(1))],
+          ptrig: [PlayTrigger { cond: TrigCond::Tag(Tag::Energy),
+                    gains: &[TrigGain::Heat(2)], scale_by_matched_tags: true,
+                    include_self: true }],
+          discard: 0, action: None, phase: None),
 ];
 
 /// Cherche l'encodage d'une corporation par nom exact.

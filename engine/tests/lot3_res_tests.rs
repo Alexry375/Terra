@@ -30,6 +30,7 @@ fn script(choices: &[usize], targets: &[&str]) -> ProbeScript {
     ProbeScript {
         choices: choices.to_vec(),
         targets: targets.iter().map(|s| s.to_string()).collect(),
+        joker_tag: None,
     }
 }
 
@@ -782,15 +783,17 @@ fn every_lot3_card_is_encoded_and_resolves_to_the_v1_deck() {
     // Solarpunk, Water Import from Europa) + 9 (lot cartes-7 : les neuf
     // modificateurs permanents) + 5 (lot cartes-8 : les cinq
     // dernières muettes de la boîte de base) + 28 (decouverte-projets : les 28
-    // derniers projets muets de l'extension) = 245 entrées.
+    // derniers projets muets de l'extension) + 3 (jokers-corpos : les trois
+    // projets à badge joker) = 248 entrées, soit TOUS les projets des deux
+    // boîtes.
     //
     // ATTENTE MISE À JOUR par le lot 5 (155 → 188), par le lot 6 (188 → 199),
     // par le lot acier-titane (199 → 203), puis par le lot cartes-7 (203 → 212),
-    // le lot cartes-8 (212 → 217) et `decouverte-projets` (217 → 245) : le test
-    // n'est ni supprimé ni assoupli, il continue d'épingler la taille EXACTE de
-    // la table. Les 28 cartes du lot 3 vérifiées juste au-dessus le sont à
-    // l'identique.
-    assert_eq!(engine::effects::LOT1.len(), 245);
+    // le lot cartes-8 (212 → 217), `decouverte-projets` (217 → 245) et
+    // `jokers-corpos` (245 → 248) : le test n'est ni supprimé ni assoupli, il
+    // continue d'épingler la taille EXACTE de la table. Les 28 cartes du lot 3
+    // vérifiées juste au-dessus le sont à l'identique.
+    assert_eq!(engine::effects::LOT1.len(), 248);
 }
 
 #[test]

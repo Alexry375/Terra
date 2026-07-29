@@ -84,7 +84,7 @@ fn seq(db: &CardsDb, names: &[&str], o: ProbeOptions) -> ProbeResult {
 
 /// Sonde séquence scriptée (les « may » du lot).
 fn seq_choix(db: &CardsDb, names: &[&str], o: ProbeOptions, choix: &[usize]) -> ProbeResult {
-    let script = ProbeScript { choices: choix.to_vec(), targets: Vec::new() };
+    let script = ProbeScript { choices: choix.to_vec(), targets: Vec::new(), joker_tag: None };
     let r = run_probe_seq_corp(db, names, o, &script, false, None);
     assert!(r.found, "sonde : carte introuvable « {} »", r.card);
     r

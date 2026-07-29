@@ -415,7 +415,7 @@ fn greenhouses_amount_is_a_choice_of_the_policy() {
     // Imposée par `--probe-choice`, elle se lit directement dans le delta.
     let db = db();
     for (branche, montant) in [(0usize, 1i64), (1, 2), (2, 3), (3, 4)] {
-        let script = ProbeScript { choices: vec![branche], targets: Vec::new() };
+        let script = ProbeScript { choices: vec![branche], targets: Vec::new(), joker_tag: None };
         let r = run_probe_action_opts(
             &db,
             "Greenhouses",
@@ -910,10 +910,14 @@ fn only_discovery_cards_remain_unhandled() {
     // encodée par ce chantier — 31 projets + 4 corporations restent muets.
     //
     // TÉMOIN RETOURNÉ par `decouverte-projets` (35 → 7) : les 28 derniers
-    // projets muets de l'extension sont encodés. Ne restent que les 3 projets à
-    // badge JOKER et les 4 corporations de Découverte, tous deux hors périmètre
-    // de ce chantier-là.
-    assert_eq!(n, 7);
+    // projets muets de l'extension sont encodés. Ne restaient que les 3 projets
+    // à badge JOKER et les 4 corporations de Découverte.
+    //
+    // TÉMOIN RETOURNÉ par `jokers-corpos` (7 → 0) : ces sept-là sont encodées à
+    // leur tour, tout le contenu imprimé des deux boîtes est appliqué. Le test
+    // épingle toujours un nombre EXACT — il devient plus strict, pas plus
+    // souple.
+    assert_eq!(n, 0);
 }
 
 #[test]
@@ -1155,13 +1159,13 @@ fn the_table_has_one_entry_per_card_of_this_lot() {
         assert_eq!(n, 1, "{name} : une entrée et une seule");
     }
     // ATTENTE MISE À JOUR par le lot acier-titane (199 → 203), le lot cartes-7
-    // (203 → 212), le lot cartes-8 (212 → 217) puis `decouverte-projets`
-    // (217 → 245).
+    // (203 → 212), le lot cartes-8 (212 → 217), `decouverte-projets`
+    // (217 → 245) puis `jokers-corpos` (245 → 248).
     assert_eq!(
         LOT1.len(),
-        245,
+        248,
         "188 + 11 (lot 6) + 4 (acier-titane) + 9 (cartes-7) + 5 (cartes-8) \
-         + 28 (decouverte-projets)"
+         + 28 (decouverte-projets) + 3 (jokers-corpos)"
     );
 }
 

@@ -42,7 +42,7 @@ fn db() -> CardsDb {
 
 /// Sonde séquence (chemin réel de pose `flow::build_card_with`).
 fn seq(db: &CardsDb, names: &[&str], choices: &[usize]) -> ProbeResult {
-    let script = ProbeScript { choices: choices.to_vec(), targets: Vec::new() };
+    let script = ProbeScript { choices: choices.to_vec(), targets: Vec::new(), joker_tag: None };
     run_probe_seq_full(db, names, ProbeOptions::default(), &script, false)
 }
 

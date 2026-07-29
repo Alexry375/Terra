@@ -675,12 +675,13 @@ fn the_seventeen_cards_are_encoded_and_resolve_to_the_v1_deck() {
     }
     // 110 (lots 1-2) + 28 (ressources) + 17 (lot 4) + 33 (lot 5) + 11 (lot 6)
     // + 4 (lot acier-titane) + 9 (lot cartes-7) + 5 (lot cartes-8)
-    // + 28 (decouverte-projets) = 245 entrées.
+    // + 28 (decouverte-projets) + 3 (jokers-corpos) = 248 entrées.
     // ATTENTE MISE À JOUR par le lot 5 (155 → 188), le lot 6 (188 → 199), le
     // lot acier-titane (199 → 203), le lot cartes-7 (203 → 212), le lot
-    // cartes-8 (212 → 217) puis `decouverte-projets` (217 → 245) : taille
-    // EXACTE toujours épinglée, aucun test supprimé ni assoupli.
-    assert_eq!(engine::effects::LOT1.len(), 245);
+    // cartes-8 (212 → 217), `decouverte-projets` (217 → 245) puis
+    // `jokers-corpos` (245 → 248) : taille EXACTE toujours épinglée, aucun test
+    // supprimé ni assoupli.
+    assert_eq!(engine::effects::LOT1.len(), 248);
 }
 
 #[test]

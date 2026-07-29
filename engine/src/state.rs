@@ -9,7 +9,7 @@
 //!   `Constants.java` (STARTING_RT, DEFAULT_START_HAND_SIZE,
 //!   MAX_HAND_SIZE_LAST_ROUND) + livret (avslutningssteget p.16).
 
-use crate::cards::{CardsDb, Color, TAG_COUNT};
+use crate::cards::{CardsDb, Color, Tag, TAG_COUNT};
 use crate::effects::{BuildGrant, NextCardMod};
 use rand::rngs::StdRng;
 use std::collections::BTreeMap;
@@ -331,6 +331,25 @@ pub struct PlayerState {
     /// *Special Design*, consommé par la pose suivante, effacé en début de
     /// phase — mêmes règles de vie que `pending_builds`.
     pub next_card_mod: NextCardMod,
+    /// **(jokers-corpos) Les JETONS BADGE posés sur les badges jokers de ce
+    /// joueur** : identifiant de carte → badge choisi.
+    ///
+    /// Livret Découverte, « BADGE JOKER » : « le joueur qui l'a révélée choisit
+    /// à quel badge équivaut le joker. […] vous devez prendre un jeton Badge
+    /// correspondant au badge choisi et le placer sur le badge joker. Désormais,
+    /// il déclenchera les effets relatifs à ce badge. »
+    ///
+    /// Une entrée PAR CARTE, jamais par joueur : deux cartes joker déclarées
+    /// Terre valent deux badges Terre. L'entrée est écrite une seule fois
+    /// (`flow::ensure_joker_tag` ne réécrit jamais une case occupée) : le choix
+    /// est DÉFINITIF, comme le veut le carton.
+    ///
+    /// `BTreeMap` et non une table de hachage, pour la même raison que
+    /// `card_resources` : l'ordre d'itération doit être totalement déterministe.
+    ///
+    /// Le badge choisi n'est pas un onzième badge : il est l'un des dix, et
+    /// c'est `tags_of` qui fait la substitution.
+    pub joker_tags: BTreeMap<u16, Tag>,
 }
 
 impl PlayerState {
@@ -362,7 +381,42 @@ impl PlayerState {
             card_resources: BTreeMap::new(),
             pending_builds: Vec::new(),
             next_card_mod: NextCardMod::default(),
+            joker_tags: BTreeMap::new(),
         }
+    }
+
+    /// **(jokers-corpos) Le badge choisi pour la carte `card_id`**, `None` si
+    /// elle ne porte pas de badge joker ou si le choix n'a pas encore été fait.
+    /// Lecture seule : l'écriture passe exclusivement par
+    /// `flow::ensure_joker_tag`.
+    pub fn joker_tag(&self, card_id: u16) -> Option<Tag> {
+        self.joker_tags.get(&card_id).copied()
+    }
+
+    /// **(jokers-corpos) POINT DE LECTURE UNIQUE des badges d'une carte, vus par
+    /// CE joueur** : les badges imprimés, le badge joker remplacé par le jeton
+    /// posé dessus.
+    ///
+    /// Tout le moteur passe par ici dès qu'il lit les badges d'une carte qui
+    /// appartient à un joueur — le décompte de `put_in_play`, la réduction de
+    /// prix `flow::card_discount`, les déclencheurs de pose. Un joker déclaré
+    /// Espace y est donc **Espace**, pas « Dynamic » : `TAG_COUNT` reste à 10 et
+    /// `Tag::Dynamic` reste hors décompte, comme le veut le contrat.
+    ///
+    /// Un joker SANS jeton (choix pas encore fait, ou couche d'effets coupée)
+    /// reste `Tag::Dynamic`, dont `Tag::index()` rend `None` : il ne compte
+    /// nulle part, exactement le comportement d'avant ce chantier.
+    pub fn tags_of(&self, db: &CardsDb, card_id: u16) -> Vec<Tag> {
+        let printed = &db.projects[card_id as usize].tags;
+        // Cas courant, 243 cartes sur 246 : aucun badge joker, rien à substituer.
+        if !printed.iter().any(|t| t.is_joker()) {
+            return printed.clone();
+        }
+        let token = self.joker_tag(card_id);
+        printed
+            .iter()
+            .map(|&t| if t.is_joker() { token.unwrap_or(t) } else { t })
+            .collect()
     }
 
     /// (lot 3) Ressources posées sur une carte donnée (0 si la carte ne porte
@@ -373,15 +427,32 @@ impl PlayerState {
     }
 
     /// Fait entrer une carte en jeu (tags + couleur) — effet unique : aucun (stub).
-    pub fn put_in_play(&mut self, card_id: u16, db: &CardsDb) {
+    ///
+    /// (jokers-corpos) Les badges comptés sont ceux que `tags_of` rend : le
+    /// badge joker y est déjà remplacé par le jeton posé dessus. C'est LE point
+    /// par lequel un joker déclaré Jupiter satisfait un prérequis « 1 badge
+    /// Jupiter », alimente une production par badge, un point de victoire par
+    /// badge, un Objectif ou une Récompense — il n'y en a pas d'autre.
+    ///
+    /// Renvoie `true` si un badge joker déterminé vient d'être compté (le
+    /// compteur d'audit `joker_tag_hits` est incrémenté au site appelant, qui
+    /// seul tient `GameState`).
+    pub fn put_in_play(&mut self, card_id: u16, db: &CardsDb) -> bool {
         let card = &db.projects[card_id as usize];
-        for t in &card.tags {
+        let tags = self.tags_of(db, card_id);
+        let joker_compte = db.projects[card_id as usize]
+            .tags
+            .iter()
+            .any(|t| t.is_joker())
+            && self.joker_tag(card_id).is_some();
+        for t in &tags {
             if let Some(i) = t.index() {
                 self.tag_counts[i] += 1;
             }
         }
         self.color_counts[card.color.index()] += 1;
         self.played.push(card_id);
+        joker_compte
     }
 
     pub fn played_count(&self, color: Color) -> u32 {
@@ -670,6 +741,31 @@ pub struct GameState {
     /// MC gagnés par *Assembly Lines* sur l'activation d'une action de carte —
     /// incrémenté dans `flow::fire_card_action_triggers`, en MC.
     pub action_mc_bonuses: u64,
+    // ---------------------------------------------------- lot jokers-corpos
+    // Cinq compteurs, chacun incrémenté au SITE EXACT de son mécanisme, jamais
+    // dans une fonction de résumé. Tous nuls en `--effects off` : les services
+    // qui les portent y sortent avant d'agir.
+    /// **Badges jokers réellement CHOISIS** — incrémenté dans
+    /// `flow::ensure_joker_tag`, une fois par carte joker recevant son jeton.
+    pub joker_tag_choices: u64,
+    /// **Badges jokers qui ont réellement COMPTÉ** — incrémenté à la pose, quand
+    /// un jeton déterminé entre dans les compteurs de badges du joueur
+    /// (`PlayerState::put_in_play`, l'unique passage par lequel un badge compte
+    /// pour les prérequis, les productions et points par badge, les Objectifs et
+    /// les Récompenses). Toujours ≤ `joker_tag_choices` : une carte joker
+    /// choisie peut rester en main.
+    pub joker_tag_hits: u64,
+    /// **Cartes Phase améliorées par la MISE EN PLACE d'une corporation** —
+    /// incrémenté dans `flow::apply_phase_upgrade`, source `Setup`.
+    pub corp_phase_upgrades_at_setup: u64,
+    /// **MC versés en plus par un taux de défausse MAJORÉ** (*Composting
+    /// Factory*, Exocorp) — incrémenté aux sites de crédit d'une défausse pour
+    /// du MC, en MC au-delà du taux du livret.
+    pub discard_bonus_mc: u64,
+    /// **MC versés par un bonus d'action conditionné à la phase que le joueur a
+    /// LUI-MÊME sélectionnée** (`PhaseBonus` à `phase != 0`) — incrémenté dans
+    /// `flow::apply_action_spec`, au site du versement.
+    pub action_phase_self_bonus: u64,
 }
 
 impl GameState {

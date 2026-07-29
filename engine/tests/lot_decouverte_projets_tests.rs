@@ -85,7 +85,7 @@ fn probe(db: &CardsDb, name: &str) -> ProbeResult {
 
 /// Sonde de pose scriptée : `choices` impose les réponses de la politique.
 fn probe_choix(db: &CardsDb, name: &str, choices: Vec<usize>) -> ProbeResult {
-    let script = ProbeScript { choices, targets: Vec::new() };
+    let script = ProbeScript { choices, targets: Vec::new(), joker_tag: None };
     run_probe_seq_corp(db, &[name], opts(), &script, false, None)
 }
 
@@ -131,36 +131,53 @@ fn les_28_sont_encodees_et_resolvent_vers_la_carte_canonique() {
 }
 
 #[test]
-fn les_trois_jokers_restent_muets() {
-    // L'AUTRE SENS du test précédent, et le respect de NEVER 5 : les trois
-    // cartes à badge JOKER sont hors périmètre, elles ne doivent RIEN gagner.
+fn les_trois_jokers_ne_sont_plus_muets() {
+    // TÉMOIN RETOURNÉ par `jokers-corpos`. Les trois cartes à badge JOKER
+    // étaient hors périmètre de `decouverte-projets` et devaient rester
+    // inertes ; elles sont encodées depuis, et le test épingle désormais ce
+    // qu'elles font — deux productions de MC et une amélioration de carte
+    // Phase, mesurées par la sonde, sur le chemin réel.
     let db = db();
     for name in JOKERS {
         let id = db.resolve_card(name).unwrap_or_else(|| panic!("{name}"));
         assert!(
-            db.projects[id as usize].effect.is_none(),
-            "{name} porte un badge JOKER : son pouvoir est hors périmètre"
+            db.projects[id as usize].effect.is_some(),
+            "{name} doit être encodée"
         );
-        // Et cela s'observe : la sonde la pose sans que l'état bouge.
         let r = probe(&db, name);
         assert!(r.found && r.played, "{name} doit se poser");
         let d = &r.delta;
+        let attendu_mc_prod = match name {
+            "Local Market" => 2,
+            "Political Influence" => 3,
+            _ => 0,
+        };
+        assert_eq!(d.mc_prod, attendu_mc_prod, "{name} : production de MC imprimée");
+        // Rien d'autre ne bouge : les trois cartes n'ont pas d'autre effet.
         assert_eq!(
             (
-                d.heat, d.plants, d.mc_prod, d.heat_prod, d.plant_prod, d.card_prod,
+                d.heat, d.plants, d.heat_prod, d.plant_prod, d.card_prod,
                 d.tr, d.temperature, d.oxygen, d.oceans, d.forests
             ),
-            (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-            "{name} doit rester inerte"
+            (0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+            "{name} : aucun autre effet imprimé"
         );
-        assert!(r.upgrades.is_empty(), "{name} n'améliore aucune carte Phase");
+        // Seule la carte rouge améliore une carte Phase (« Améliorez une carte
+        // Phase »), et une seule.
+        let attendu_upgrades = usize::from(name == "Topographic Mapping");
+        assert_eq!(
+            r.upgrades.len(),
+            attendu_upgrades,
+            "{name} : cartes Phase améliorées"
+        );
     }
 }
 
 #[test]
-fn le_recensement_ne_compte_plus_que_trois_projets_muets() {
+fn le_recensement_ne_compte_plus_aucun_projet_muet() {
     // Oracle disjoint de la table d'effets : le recensement que `--dump-deck`
-    // publie. 246 projets, 3 muets, et ce sont les trois jokers.
+    // publie. 246 projets, et — depuis `jokers-corpos` — AUCUN muet : les trois
+    // jokers, derniers de la liste, sont encodés.
     let db = db();
     let r = db.recensement();
     let projets: Vec<_> = r
@@ -174,9 +191,8 @@ fn le_recensement_ne_compte_plus_que_trois_projets_muets() {
         .map(|c| c.name)
         .collect();
     muets.sort_unstable();
-    let mut attendu = JOKERS.to_vec();
-    attendu.sort_unstable();
-    assert_eq!(muets, attendu, "exactement les trois jokers");
+    let attendu: Vec<&str> = Vec::new();
+    assert_eq!(muets, attendu, "plus aucun projet muet, jokers compris");
     // Et la boîte de base reste à zéro muette (NEVER 4).
     assert!(
         projets
@@ -690,13 +706,18 @@ fn communications_streamlining_paie_a_la_revelation_dune_phase_amelioree() {
     game.players[0].hand.clear();
     game.players[0].hand.push(id);
     game.players[0].mc = 1000;
+    // (jokers-corpos) Instantané des cartes Phase AVANT la pose : depuis que les
+    // corporations de Découverte améliorent une carte Phase à la mise en place,
+    // le joueur peut déjà en porter une. Ce que l'on mesure est ce que LA POSE
+    // change, pas l'état absolu — la propriété testée est inchangée.
+    let avant_upg = game.players[0].phase_upgrades;
     engine::flow::build_card(&mut game, &db, 0, 0, 0);
-    // La pose a déjà amélioré la phase III (effet imposé du carton), et ELLE
-    // SEULE : les quatre autres cartes Phase restent normales.
+    // La pose a amélioré la phase III (effet imposé du carton), et ELLE SEULE.
     assert!(game.players[0].phase_upgrade(3).is_some(), "phase III améliorée");
     for autre in [1u8, 2, 4, 5] {
-        assert!(
-            game.players[0].phase_upgrade(autre).is_none(),
+        assert_eq!(
+            game.players[0].phase_upgrade(autre),
+            avant_upg[autre as usize - 1],
             "phase {autre} : le carton n'améliore que la III"
         );
     }
@@ -1053,8 +1074,9 @@ fn le_lot_n_ajoute_aucune_categorie_d_effets() {
         .filter(|l| l.starts_with("pub enum "))
         .count();
     assert_eq!(n, 19, "19 catégories d'effets avant le chantier, 19 après");
-    // Et la table a grossi d'exactement 28 entrées : 217 → 245.
-    assert_eq!(LOT1.len(), 245);
+    // Et la table a grossi d'exactement 28 entrées : 217 → 245 ; puis de 3 de
+    // plus avec `jokers-corpos` (les projets à badge joker) : 245 → 248.
+    assert_eq!(LOT1.len(), 248);
 }
 
 #[test]
@@ -1173,17 +1195,48 @@ fn le_compteur_d_objectif_s_accorde_avec_un_oracle_disjoint() {
         let heat_avant = game.players[0].heat;
         let compteur_avant = game.objective_condition_hits;
         build_card(&mut game, &db, 0, 0, 0);
+        // (jokers-corpos) La chaleur gagnée à la pose n'est plus imputable à la
+        // seule carte : D35 porte un badge ÉNERGIE, et une corporation de
+        // l'extension (Sultira) donne 2 chaleurs par badge énergie joué.
+        //
+        // Le contexte est calculé depuis la TABLE D'EFFETS — un oracle disjoint
+        // du chemin de pose, jamais un rejeu de ce même chemin : rejouer la pose
+        // à l'identique comparerait le moteur à lui-même, et la branche « aucun
+        // Objectif » ne pourrait alors plus jamais devenir rouge (ALWAYS 2).
+        let contexte: i64 = {
+            let tags = &db.projects[id as usize].tags;
+            engine::flow::corp_effects(&db, &game.players[0]).map_or(0, |spec| {
+                spec.play_triggers
+                    .iter()
+                    .map(|t| {
+                        let m = t.cond.matched_tags(tags) as i64;
+                        if m == 0 {
+                            return 0;
+                        }
+                        let mult = if t.scale_by_matched_tags { m } else { 1 };
+                        t.gains
+                            .iter()
+                            .map(|g| match g {
+                                engine::effects::TrigGain::Heat(n) => n * mult,
+                                _ => 0,
+                            })
+                            .sum::<i64>()
+                    })
+                    .sum()
+            })
+        };
         if oracle {
             attendu += 1;
             assert_eq!(
                 game.players[0].heat,
-                heat_avant + 4,
-                "graine {graine} : Objectif présent, 4 chaleurs dues"
+                heat_avant + contexte + 4,
+                "graine {graine} : Objectif présent, 4 chaleurs dues en plus du contexte"
             );
         } else {
             assert_eq!(
-                game.players[0].heat, heat_avant,
-                "graine {graine} : aucun Objectif, aucune chaleur"
+                game.players[0].heat,
+                heat_avant + contexte,
+                "graine {graine} : aucun Objectif, aucune chaleur de la carte"
             );
         }
         mesure += game.objective_condition_hits - compteur_avant;

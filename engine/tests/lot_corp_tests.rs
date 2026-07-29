@@ -68,7 +68,7 @@ fn probe_opts(
     produce: bool,
 ) -> ProbeResult {
     let opts = ProbeOptions { mc, ..ProbeOptions::default() };
-    let script = ProbeScript { choices, targets: Vec::new() };
+    let script = ProbeScript { choices, targets: Vec::new(), joker_tag: None };
     run_probe_seq_corp(db, cards, opts, &script, produce, corp)
 }
 
@@ -154,9 +154,9 @@ fn pioche_exactement_les_12_corporations_de_la_boite_de_base() {
     for n in BASE {
         assert!(noms.contains(&n), "{n} manque à la pioche");
     }
-    // Les quatre corporations `in_deck_v1` qui ne sont sur aucune planche de la
-    // boîte : toutes bâties sur l'amélioration de carte Phase, mécanisme que le
-    // moteur saute.
+    // Les quatre corporations de l'EXTENSION : encodées depuis le chantier
+    // `jokers-corpos`, elles n'en restent pas moins hors de la pioche de la
+    // BOÎTE DE BASE — elles n'ont aucune planche imprimée dedans.
     for intruse in ["Apollo Industries", "Exocorp", "Hyperion Systems", "Sultira"] {
         assert!(!noms.contains(&intruse), "{intruse} ne doit pas être dans la pioche");
     }
@@ -166,12 +166,18 @@ fn pioche_exactement_les_12_corporations_de_la_boite_de_base() {
 fn la_table_des_corporations_est_la_definition_de_la_boite() {
     // La pioche est un MIROIR de la table déclarée : c'est elle qui décide, pas
     // un filtre par nom écrit ailleurs.
-    assert_eq!(CORPS.len(), 12);
+    //
+    // (jokers-corpos) La table décrit désormais les SEIZE planches des deux
+    // boîtes, et non plus les douze de la seule boîte de base : les quatre
+    // planches de Découverte y sont entrées avec leur encodage. Les deux sens du
+    // miroir sont conservés — chaque planche de la BOÎTE CHARGÉE figure dans la
+    // table, et chaque planche chargée y est retrouvée.
+    assert_eq!(CORPS.len(), 16);
     let db = db();
-    for (name, _) in CORPS {
+    for n in BASE {
         assert!(
-            db.corporations.iter().any(|c| c.name == *name),
-            "{name} déclarée dans la table mais absente de la pioche"
+            CORPS.iter().any(|(name, _)| *name == n),
+            "{n} chargée dans la pioche mais absente de la table"
         );
     }
     for c in &db.corporations {
@@ -324,7 +330,7 @@ fn helion_le_may_est_un_vrai_choix_quand_il_en_est_un() {
     let db = db();
     let opts = ProbeOptions { mc: 0, filler: 6, ..ProbeOptions::default() };
     // Branche 0 (l'option imprimée) : la chaleur paie, aucune carte défaussée.
-    let script = ProbeScript { choices: vec![0], targets: Vec::new() };
+    let script = ProbeScript { choices: vec![0], targets: Vec::new(), joker_tag: None };
     let avec = run_probe_seq_corp(
         &db, &["Mohole Area"], opts, &script, false, Some("Helion Corporation"),
     );
@@ -332,7 +338,7 @@ fn helion_le_may_est_un_vrai_choix_quand_il_en_est_un() {
     assert_eq!(avec.delta.heat, -18);
     assert_eq!(avec.discarded, vec![0]);
     // Branche 1 : le joueur renonce à la chaleur et paie en défaussant.
-    let script = ProbeScript { choices: vec![1], targets: Vec::new() };
+    let script = ProbeScript { choices: vec![1], targets: Vec::new(), joker_tag: None };
     let sans = run_probe_seq_corp(
         &db, &["Mohole Area"], opts, &script, false, Some("Helion Corporation"),
     );
@@ -343,7 +349,7 @@ fn helion_le_may_est_un_vrai_choix_quand_il_en_est_un() {
     // moteur ne pose pas la question et emploie la chaleur (convention du lot 3,
     // `choose_option` n'est appelée qu'à partir de 2 branches jouables).
     let opts = ProbeOptions { mc: 0, ..ProbeOptions::default() };
-    let script = ProbeScript { choices: vec![1], targets: Vec::new() };
+    let script = ProbeScript { choices: vec![1], targets: Vec::new(), joker_tag: None };
     let force = run_probe_seq_corp(
         &db, &["Mohole Area"], opts, &script, false, Some("Helion Corporation"),
     );
@@ -721,7 +727,13 @@ fn les_douze_corporations_portent_un_effet_declare() {
             && spec.forest_plant_rebate == 0
             && !spec.heat_as_mc
             && !spec.req_color_flex
-            && spec.tr_boost.is_none();
+            && spec.tr_boost.is_none()
+            // (jokers-corpos) Les quatre champs des planches de Découverte : une
+            // corporation qui ne ferait QUE l'un d'eux n'est pas un stub non plus.
+            && spec.setup.is_empty()
+            && spec.discard_bonus == 0
+            && spec.action.is_none()
+            && spec.phase_bonus.is_none();
         assert!(!vide, "{name} est un stub neutre");
     }
 }

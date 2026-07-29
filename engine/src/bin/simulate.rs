@@ -16,7 +16,7 @@ use engine::boites::BoiteSet;
 use engine::cards::CardsDb;
 use engine::policy::RandomPolicy;
 use engine::probe::{
-    run_probe_action_seq, run_probe_seq_corp, ProbeCorp, ProbeDelta, ProbeOptions, ProbeRes,
+    run_probe_action_target, run_probe_seq_corp, ProbeCorp, ProbeDelta, ProbeOptions, ProbeRes,
     ProbeScript,
 };
 use engine::sim::run_simulation;
@@ -63,6 +63,13 @@ fn corp_json(c: &ProbeCorp) -> serde_json::Value {
             "heat": c.start_prod.1,
             "plants": c.start_prod.2,
         },
+        // (jokers-corpos) Ce que la MISE EN PLACE de la planche a produit : les
+        // cartes Phase qu'elle a améliorées, la chaleur qu'elle a apportée, le
+        // taux de défausse du joueur, et le fait qu'elle porte une action.
+        "upgrades": c.upgrades,
+        "start_heat": c.start_heat,
+        "discard_rate": c.discard_rate,
+        "has_action": c.has_action,
     })
 }
 
@@ -258,6 +265,28 @@ fn main() {
                 i += 2;
             }
             // (corpo-1) Corporation imposée au joueur sondé, à la place du tirage.
+            // (jokers-corpos) `--probe-joker-tag <BADGE>` : impose le badge
+            // choisi pour TOUTES les cartes à badge joker de la sonde. Les dix
+            // noms acceptés sont ceux de `Tag::as_str()` ; « DYNAMIC » n'en est
+            // pas un — un joker ne devient pas un joker — et tout autre nom,
+            // vide compris, est REFUSÉ, jamais ignoré. Sans l'option, la sonde
+            // choisit comme la politique de jeu ordinaire.
+            "--probe-joker-tag" => {
+                let arg = value(i);
+                let Some(t) = engine::cards::Tag::parse_joker_choice(arg) else {
+                    let noms: Vec<&str> = engine::cards::JOKER_TAG_CHOICES
+                        .iter()
+                        .map(|t| t.as_str())
+                        .collect();
+                    die(&format!(
+                        "--probe-joker-tag invalide: « {arg} » \
+                         (badges choisissables : {})",
+                        noms.join(", ")
+                    ));
+                };
+                probe_script.joker_tag = Some(t);
+                i += 2;
+            }
             "--probe-corp" => {
                 probe_corp = Some(value(i).to_string());
                 i += 2;
@@ -334,6 +363,45 @@ fn main() {
     // nom vide : `--probe ""` doit continuer de rendre `found:false`.
     let corp_only = probe.is_none() && probe_corp.is_some() && probe_action.is_none();
 
+    // (jokers-corpos) `--probe-action` PREND LA MAIN quand il est donné. Jusqu'à
+    // ce chantier, `--probe` et `--probe-action` employés ENSEMBLE faisaient
+    // silencieusement ignorer le second (la branche `--probe` sortait la
+    // première) : il n'y avait donc aucun moyen de poser des cartes PUIS
+    // d'activer l'action de la corporation. Désormais, `--probe` fournit la
+    // séquence posée et `--probe-action` désigne ce dont on active l'action —
+    // une carte de la séquence, ou la corporation installée. `--probe-action`
+    // employé SEUL garde son comportement des lots précédents, bit à bit
+    // (séquence = son propre argument, cible = la dernière carte).
+    if let Some(aname) = probe_action.clone() {
+        let sequence = probe.clone().unwrap_or_else(|| aname.clone());
+        let names: Vec<&str> = sequence.split(';').map(|s| s.trim()).collect();
+        let target: Option<&str> = if probe.is_some() { Some(&aname) } else { None };
+        let r = run_probe_action_target(
+            &db,
+            &names,
+            &probe_script,
+            probe_corp.as_deref(),
+            probe_opts,
+            target,
+        );
+        let mut line = serde_json::json!({
+            "card": r.card,
+            "found": r.found,
+            "in_lot": r.in_lot,
+            "has_action": r.has_action,
+            "action_applied": r.action_applied,
+            "upgrades": r.upgrades,
+            "delta": delta_json(&r.delta),
+            "resources": resources_json(&r.resources),
+            "target_error": r.target_error,
+        });
+        if let Some(c) = &r.corp {
+            line["corp"] = corp_json(c);
+        }
+        println!("{line}");
+        return;
+    }
+
     if probe.is_some() || corp_only {
         // Séquence : cartes séparées par « ; » (rétro-compatible : 1 carte).
         let name = probe.unwrap_or_default();
@@ -387,40 +455,9 @@ fn main() {
             // du sélectionneur tel que le point de calcul unique le rend.
             "upgrades": r.upgrades,
             "selector_bonus": selector_bonus_json(&r.selector_bonus),
-        });
-        if let Some(c) = &r.corp {
-            line["corp"] = corp_json(c);
-        }
-        println!("{line}");
-        return;
-    }
-
-    if let Some(name) = probe_action {
-        // (lot acier-titane) Séquence : cartes séparées par « ; », comme
-        // `--probe`. Un seul nom = une tranche d'un élément, donc le
-        // comportement des lots précédents, bit à bit.
-        let names: Vec<&str> = name.split(';').map(|s| s.trim()).collect();
-        let r = run_probe_action_seq(
-            &db,
-            &names,
-            &probe_script,
-            probe_corp.as_deref(),
-            probe_opts,
-        );
-        let mut line = serde_json::json!({
-            "card": r.card,
-            "found": r.found,
-            "in_lot": r.in_lot,
-            "has_action": r.has_action,
-            "action_applied": r.action_applied,
-            // (decouverte-projets) Les cartes Phase améliorées du joueur sondé
-            // APRÈS l'activation : sans ce champ, une action qui améliore une
-            // carte Phase (D07, D12) n'est observable nulle part de
-            // l'extérieur. Même source que `--probe` : `phase_upgrade_labels`.
-            "upgrades": r.upgrades,
-            "delta": delta_json(&r.delta),
-            "resources": resources_json(&r.resources),
-            "target_error": r.target_error,
+            // (jokers-corpos) Le badge retenu pour la dernière carte posée,
+            // `null` si elle n'en porte pas.
+            "joker_tag": r.joker_tag,
         });
         if let Some(c) = &r.corp {
             line["corp"] = corp_json(c);
@@ -507,6 +544,12 @@ fn main() {
         // (lot cartes-7) mécanismes du lot 7 observés en partie réelle.
         "standard_action_discounts": s.standard_action_discounts,
         "action_mc_bonuses": s.action_mc_bonuses,
+        // (jokers-corpos) les cinq mécanismes de ce lot en partie réelle.
+        "joker_tag_choices": s.joker_tag_choices,
+        "joker_tag_hits": s.joker_tag_hits,
+        "corp_phase_upgrades_at_setup": s.corp_phase_upgrades_at_setup,
+        "discard_bonus_mc": s.discard_bonus_mc,
+        "action_phase_self_bonus": s.action_phase_self_bonus,
     });
     println!("{line}");
 }

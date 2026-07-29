@@ -7,7 +7,7 @@
 //! `CollectIncomeTurnProcessor`, `DraftCardsTurnProcessor`,
 //! `PickPhaseProcessor`, `TerraformingService`, `MarsGame.assignMilestones`).
 
-use crate::cards::{CardsDb, Color, Tag, VpKind};
+use crate::cards::{CardsDb, Color, Tag, VpKind, JOKER_TAG_CHOICES};
 use crate::boites::Boite;
 use crate::effects::{
     self, Action, ActionCost, ActionEff, ActionRes, BuildGrant, Capacity, CorpEffects, Eff,
@@ -139,6 +139,11 @@ pub fn setup_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameState
         cards_revealed: 0,
         standard_action_discounts: 0,
         action_mc_bonuses: 0,
+        joker_tag_choices: 0,
+        joker_tag_hits: 0,
+        corp_phase_upgrades_at_setup: 0,
+        discard_bonus_mc: 0,
+        action_phase_self_bonus: 0,
     };
 
     // Milestones/awards : 3 + 3 tirés des pools (Discovery p.2 « reveal three »).
@@ -202,7 +207,7 @@ pub fn setup_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameState
         for other in corps[p].drain(..) {
             game.corp_discard.push(other);
         }
-        install_corporation(&mut game, db, p, chosen);
+        install_corporation_with(&mut game, db, p, chosen, policy);
     }
 
     game
@@ -220,7 +225,25 @@ pub fn setup_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameState
 /// Comme tout effet de carte, les effets de corporation sont coupés par
 /// `--effects off` (journal D5) ; le MC de départ et les badges, eux, sont la
 /// planche elle-même et restent dans les deux modes (comportement historique).
+/// Façade historique (signature du lot corpo-1) : mise en place avec la règle de
+/// décision par défaut. Délègue à [`install_corporation_with`] — il n'existe pas
+/// de second chemin d'installation.
 pub fn install_corporation(game: &mut GameState, db: &CardsDb, p: usize, corp_id: u16) {
+    let mut default = crate::policy::RandomPolicy;
+    install_corporation_with(game, db, p, corp_id, &mut default);
+}
+
+/// (jokers-corpos) La mise en place complète, politique comprise : « Améliorez
+/// votre carte Phase n » laisse au joueur le choix de la VARIANTE (A ou B), qui
+/// est une décision comme une autre (`Policy::choose_option`, via
+/// `apply_phase_upgrade`).
+pub fn install_corporation_with(
+    game: &mut GameState,
+    db: &CardsDb,
+    p: usize,
+    corp_id: u16,
+    policy: &mut dyn Policy,
+) {
     let corp = &db.corporations[corp_id as usize];
     let starting_mc = corp.starting_mc;
     let tags = corp.tags.clone();
@@ -264,6 +287,71 @@ pub fn install_corporation(game: &mut GameState, db: &CardsDb, p: usize, corp_id
             game.players[p].hand.push(c);
         }
     }
+    // (jokers-corpos) « Améliorez votre carte Phase n » : le chemin d'octroi
+    // UNIQUE du moteur, avec la phase IMPOSÉE par le carton. Le déroulement ne
+    // connaît aucune corporation par son nom — il lit la table.
+    for e in spec.setup {
+        match *e {
+            ResEff::PhaseUpgrade(t) => {
+                apply_phase_upgrade(game, p, policy, t, UpgradeSource::Setup)
+            }
+            ResEff::Gain(g) => apply_eff(game, db, p, g, policy),
+            // Les variantes à ressources exigent une carte réceptacle, qu'une
+            // planche n'est pas : un test structurel du lot interdit de les
+            // déclarer ici, elles ne peuvent donc pas arriver.
+            other => unreachable!(
+                "effet de mise en place non exprimable pour une corporation : {other:?}"
+            ),
+        }
+    }
+    // (jokers-corpos) « … y compris celui-ci » : les badges de la PLANCHE
+    // déclenchent ses propres déclencheurs de pose marqués `include_self`.
+    fire_corp_self_triggers(game, db, p, policy);
+}
+
+/// **(jokers-corpos) « Chaque fois que vous jouez un badge [énergie], Y COMPRIS
+/// CELUI-CI, gagnez 2 chaleurs »** — Sultira.
+///
+/// Le badge de la planche elle-même est un badge « joué » au sens du carton :
+/// les déclencheurs de la corporation qui portent `include_self` sont donc levés
+/// contre ses PROPRES badges, à la mise en place. Rien n'est écrit en dur : ce
+/// sont les mêmes `TrigGain`, appliqués par le même `apply_trig_gain`, que ceux
+/// que lève la pose d'une carte.
+///
+/// Les onze autres planches encodées ne portent aucun déclencheur
+/// `include_self` — Saturn Systems dit au contraire « excluding this » — et rien
+/// ne se produit pour elles (contre-témoin du contrôle 05).
+fn fire_corp_self_triggers(
+    game: &mut GameState,
+    db: &CardsDb,
+    p: usize,
+    policy: &mut dyn Policy,
+) {
+    let Some(spec) = corp_effects(db, &game.players[p]) else {
+        return;
+    };
+    let Some(cid) = game.players[p].corporation else {
+        return;
+    };
+    let own_tags = db.corporations[cid as usize].tags.clone();
+    let triggers = spec.play_triggers;
+    for trig in triggers {
+        if !trig.include_self {
+            continue;
+        }
+        let matched = trig.cond.matched_tags(&own_tags);
+        if matched == 0 {
+            continue;
+        }
+        let mult = if trig.scale_by_matched_tags {
+            matched as i64
+        } else {
+            1
+        };
+        for g in trig.gains {
+            apply_trig_gain(game, db, p, None, *g, mult, policy);
+        }
+    }
 }
 
 /// (corpo-1) Encodage de la corporation d'un joueur, ou `None` si les effets
@@ -289,6 +377,101 @@ pub fn allowed_phases(player: &PlayerState) -> Vec<u8> {
 
 fn effective_cost(price: i64, discount: i64) -> i64 {
     (price - discount).max(0)
+}
+
+// =============================================================================
+// (jokers-corpos) LE BADGE JOKER — « Choisissez un badge et ajoutez-le à cette
+// carte. »
+//
+// Livret Découverte : « Dès qu'une carte indiquant un badge joker est révélée,
+// le joueur qui l'a révélée choisit à quel badge équivaut le joker. Lorsque vous
+// jouez une carte disposant de ce badge, vous devez prendre un jeton Badge
+// correspondant au badge choisi et le placer sur le badge joker. Désormais, il
+// déclenchera les effets relatifs à ce badge. Par exemple, si vous choisissez le
+// badge Espace, les savoir-faire Titanium réduiront le coût en MC pour jouer la
+// carte. »
+//
+// Le moteur n'a pas de notion de RÉVÉLATION publique. Le jeton est donc posé au
+// dernier moment où le livret l'autorise encore et où la conséquence imprimée
+// reste vraie : AVANT que le prix de la carte ne soit calculé. Concrètement, les
+// jokers de la main reçoivent leur jeton juste avant l'énumération
+// d'abordabilité (`resolve_hand_jokers`, aux quatre sites qui appellent
+// `affordable`), et `build_card_granted` en repasse une couche en garde-fou
+// avant tout calcul de prix. L'abordabilité et le paiement voient donc
+// exactement le même badge (I2), et l'exemple du livret tient.
+//
+// Le CHOIX lui-même n'est pas dans le déroulement : il est demandé à
+// `Policy::pick_joker_tag`, au même titre que `pick_phase` (NEVER 4).
+//
+// Une entrée PAR CARTE (`PlayerState::joker_tags`), écrite une seule fois : le
+// badge est définitif, et deux cartes joker déclarées Terre valent deux badges
+// Terre.
+// =============================================================================
+
+/// (jokers-corpos) La carte `card_id` porte-t-elle un badge joker ?
+pub fn has_joker_tag(db: &CardsDb, card_id: u16) -> bool {
+    db.projects[card_id as usize].tags.iter().any(|t| t.is_joker())
+}
+
+/// **(jokers-corpos) Pose le jeton Badge sur le badge joker de `card_id`**, si
+/// la carte en porte un et n'en a pas encore reçu. Écriture UNIQUE de
+/// `PlayerState::joker_tags` : rien d'autre dans le moteur n'y touche, ce qui
+/// rend le choix définitif par construction.
+///
+/// `--effects off` : aucun choix n'est fait — le moteur y est un squelette où
+/// aucun pouvoir imprimé n'est appliqué, et le badge reste indéterminé, donc
+/// hors décompte (`Tag::index()` rend `None` pour `Tag::Dynamic`). C'est ce qui
+/// laisse `joker_tag_choices` à zéro dans ce mode.
+pub fn ensure_joker_tag(
+    game: &mut GameState,
+    db: &CardsDb,
+    p: usize,
+    card_id: u16,
+    policy: &mut dyn Policy,
+) {
+    if !db.effects_on || !has_joker_tag(db, card_id) {
+        return;
+    }
+    if game.players[p].joker_tags.contains_key(&card_id) {
+        return; // le badge est DÉFINITIF : jamais réécrit.
+    }
+    let counts = game.players[p].tag_counts;
+    let i = policy.pick_joker_tag(&mut game.rng, p, card_id, &counts);
+    // Un indice hors bornes est un manquement au contrat de `Policy`, pas un cas
+    // de jeu : le moteur le SIGNALE au lieu de le raboter en silence sur EVENT.
+    // Même discipline que `choose_build` (« choix de pose hors options ») et que
+    // le coût en cartes d'une action (« la politique doit rendre n indices »).
+    // Sans elle, une intelligence artificielle fautive obtiendrait un badge
+    // arbitraire sans que rien ne le dise (défaut trouvé en relecture
+    // adversariale).
+    assert!(
+        i < JOKER_TAG_CHOICES.len(),
+        "badge joker hors bornes : la politique doit rendre un indice dans \
+         0..{} (reçu {i})",
+        JOKER_TAG_CHOICES.len()
+    );
+    let tag = JOKER_TAG_CHOICES[i];
+    game.players[p].joker_tags.insert(card_id, tag);
+    game.joker_tag_choices += 1;
+}
+
+/// **(jokers-corpos) Pose le jeton sur tous les badges jokers de la MAIN** du
+/// joueur `p`. Appelée juste avant chaque énumération d'abordabilité : c'est ce
+/// qui garantit qu'`affordable` juge une carte joker sur son badge réel, et donc
+/// qu'elle ne refuse jamais une carte que le paiement, lui, saurait poser (I2).
+pub fn resolve_hand_jokers(
+    game: &mut GameState,
+    db: &CardsDb,
+    p: usize,
+    policy: &mut dyn Policy,
+) {
+    if !db.effects_on {
+        return;
+    }
+    let hand = game.players[p].hand.clone();
+    for c in hand {
+        ensure_joker_tag(game, db, p, c, policy);
+    }
 }
 
 // =============================================================================
@@ -424,7 +607,14 @@ pub fn card_discount(game: &GameState, db: &CardsDb, p: usize, card_id: u16) -> 
         return 0;
     }
     let card = &db.projects[card_id as usize];
-    let (tags, price) = (&card.tags, card.price);
+    // (jokers-corpos) Les badges de la carte VUS PAR CE JOUEUR : le badge joker
+    // y est déjà remplacé par le jeton posé dessus. C'est ici que se joue
+    // l'exemple du livret — « si vous choisissez le badge Espace, les
+    // savoir-faire Titanium réduiront le coût en MC pour jouer LA CARTE ».
+    // `card_discount` étant le service unique de réduction, consommé par
+    // l'abordabilité comme par le paiement, les deux voient le même badge (I2).
+    let tags = game.players[p].tags_of(db, card_id);
+    let (tags, price) = (&tags, card.price);
     // (lot acier-titane) Le compte du joueur À CET INSTANT : `Reduction::
     // PerCapacity` en dépend, et rien n'est figé à
     // la pose (I7). Lu sur l'état du joueur, jamais recalculé ici.
@@ -769,6 +959,10 @@ pub enum UpgradeSource {
     Build,
     /// Effet appliqué depuis l'ACTIVATION d'une action de carte bleue.
     Action,
+    /// (jokers-corpos) Effet appliqué à la MISE EN PLACE d'une corporation
+    /// (« Améliorez votre carte Phase n »). C'est cette source, et elle seule,
+    /// qui alimente `corp_phase_upgrades_at_setup`.
+    Setup,
 }
 
 fn apply_phase_upgrade(
@@ -819,6 +1013,11 @@ fn apply_phase_upgrade(
     }
     if src == UpgradeSource::Action {
         game.phase_upgrades_by_action += 1;
+    }
+    // (jokers-corpos) Compteur d'audit au site EXACT de l'octroi : une
+    // amélioration due à la mise en place d'une corporation, et rien d'autre.
+    if src == UpgradeSource::Setup {
+        game.corp_phase_upgrades_at_setup += 1;
     }
 }
 
@@ -1291,7 +1490,21 @@ pub fn discard_mc_rate(db: &CardsDb, pl: &PlayerState) -> i64 {
             rate += spec.discard_bonus;
         }
     }
+    // (jokers-corpos) La CORPORATION est une source de supplément comme les
+    // cartes (Exocorp) : elle entre dans la MÊME somme, il n'y a pas de second
+    // calcul du taux. Le commentaire d'origine disait que ce service « ne lit
+    // que les cartes posées » — ce n'est plus vrai.
+    if let Some(spec) = corp_effects(db, pl) {
+        rate += spec.discard_bonus;
+    }
     rate
+}
+
+/// **(jokers-corpos) Le SUPPLÉMENT du taux de défausse**, en MC par carte :
+/// ce que le taux réel du joueur dépasse celui du livret. C'est cette grandeur,
+/// et elle seule, que `discard_bonus_mc` accumule aux sites de crédit.
+fn discard_bonus_per_card(db: &CardsDb, pl: &PlayerState) -> u64 {
+    (discard_mc_rate(db, pl) - SELL_CARD_MC).max(0) as u64
 }
 
 // =============================================================================
@@ -1461,6 +1674,10 @@ fn drain_pending_builds(
         // ordinaire : le livret l'attache au choix de la phase, pas à la carte.
         // Une permission offerte ne reçoit évidemment aucune remise non plus.
         let disc = if grant.free { 0 } else { discount };
+        // (jokers-corpos) Les badges jokers de la main reçoivent leur jeton AVANT
+        // l'énumération : `affordable` juge alors chaque carte joker sur son
+        // badge réel, exactement comme le paiement le fera (I2).
+        resolve_hand_jokers(game, db, p, policy);
         let opts = affordable(game, db, p, &grant, disc);
         // « You MAY play an additional card » : renoncer est une option, et
         // c'est `Policy` qui tranche — jamais le moteur (I4).
@@ -1920,6 +2137,14 @@ pub fn build_card_granted(
 ) -> usize {
     let hand_len_before = game.players[p].hand.len();
     let card_id = game.players[p].hand.remove(idx);
+    // (jokers-corpos) Le jeton Badge est posé AVANT tout calcul de prix : c'est
+    // l'exemple du livret (« si vous choisissez le badge Espace, les
+    // savoir-faire Titanium réduiront le coût en MC pour jouer la carte »).
+    // Normalement déjà fait par `resolve_hand_jokers` avant l'abordabilité ; ce
+    // second appel est le garde-fou des chemins qui posent une carte sans passer
+    // par une énumération (la sonde, les tests), et il ne réécrit jamais un
+    // jeton déjà posé.
+    ensure_joker_tag(game, db, p, card_id, policy);
     // (lot cartes-8) Le modificateur armé pour la prochaine carte de la phase
     // (*Work Crews*, *Special Design*) est consommé PAR CETTE POSE : lu ici,
     // effacé aussitôt. Il vaut pour la carte qu'on est en train de poser, pas
@@ -2048,10 +2273,14 @@ pub fn build_card_granted(
         // libre ; prendre par la fin est déterministe, en O(1), et préserve la
         // tête de main — ce dont dépend la sonde séquence, qui pose toujours à
         // l'indice 0.
+        // (jokers-corpos) Ce que le taux MAJORÉ verse au-delà du livret, compté
+        // à l'endroit exact du crédit.
+        let bonus = discard_bonus_per_card(db, &game.players[p]);
         for _ in 0..n {
             let card = game.players[p].hand.pop().expect("défausse-paiement hors main");
             game.discard.push(card);
             game.players[p].mc += rate;
+            game.discard_bonus_mc += bonus;
         }
         discarded = n;
         game.discard_payments += n as u64;
@@ -2074,7 +2303,16 @@ pub fn build_card_granted(
         assert!(game.players[p].plants >= n, "dépense de plantes sans les plantes");
         game.players[p].plants -= n;
     }
-    game.players[p].put_in_play(card_id, db);
+    // (jokers-corpos) `put_in_play` dit si un badge joker DÉTERMINÉ vient
+    // d'entrer dans les compteurs de badges : c'est l'unique passage par lequel
+    // il compte pour les prérequis, les productions et points par badge, les
+    // Objectifs et les Récompenses. Compté ici, où seul `GameState` est
+    // accessible. Le badge d'une carte ROUGE y entre comme les autres : le
+    // moteur garde les événements en jeu, et le livret de base dit qu'une carte
+    // rouge n'a plus d'effet « autre que les badges qu'elle fournit ».
+    if game.players[p].put_in_play(card_id, db) {
+        game.joker_tag_hits += 1;
+    }
     // (lot acier-titane) La carte vient d'entrer en jeu : si elle porte un
     // savoir-faire, le compte change MAINTENANT. Rafraîchi ici, juste après
     // `put_in_play` et AVANT tout effet — une carte qui gagnerait un acier et
@@ -2124,7 +2362,10 @@ fn fire_play_triggers(
     played_id: u16,
     policy: &mut dyn Policy,
 ) {
-    let played_tags = db.projects[played_id as usize].tags.clone();
+    // (jokers-corpos) Les badges de la carte posée VUS PAR SON PROPRIÉTAIRE :
+    // un joker déclaré Science déclenche « lorsque vous jouez un badge
+    // science », un joker déclaré Énergie déclenche celui de Sultira.
+    let played_tags = game.players[p].tags_of(db, played_id);
 
     // (corpo-1) La CORPORATION est une source de déclencheurs comme les autres
     // (Saturn Systems : « Each time you play a [jupiter] … gain 1 TR »). Elle
@@ -2264,7 +2505,9 @@ fn apply_trig_gain(
                     continue; // renoncement explicite (convention du lot 3)
                 }
                 let card = hand[i];
-                let had = db.projects[card as usize].tags.contains(&if_tag);
+                // (jokers-corpos) Badges vus par le joueur : une carte joker
+                // défaussée compte pour le badge qu'il lui a donné.
+                let had = game.players[p].tags_of(db, card).contains(&if_tag);
                 if !discard_from_hand(game, p, card) {
                     continue;
                 }
@@ -2520,10 +2763,21 @@ fn action_options(
     db: &CardsDb,
     p: usize,
     remaining_blue: &[u16],
+    // (jokers-corpos) L'activation de l'action de corporation est-elle encore
+    // disponible cette phase ? Même budget qu'une carte bleue : une fois, plus
+    // les répétitions accordées par le bonus du sélectionneur.
+    corp_action_left: bool,
     out: &mut Vec<ActionOpt>,
 ) {
     out.clear();
     let pl = &game.players[p];
+    // (jokers-corpos) L'action de la planche s'offre comme celle d'une carte
+    // bleue. Elle n'existe que si la corporation en porte une — donc jamais en
+    // `--effects off` (`corp_effects` y rend `None`), et jamais pour les douze
+    // planches de la boîte de base.
+    if corp_action_left && corp_effects(db, pl).and_then(|s| s.action).is_some() {
+        out.push(ActionOpt::CorpAction);
+    }
     // (corpo-1) Les seuils passent par les services uniques : `spendable_mc`
     // (Helion, chaleur = MC) et `forest_plant_cost` (Ecoline, 7 plantes). Sans
     // corporation à effet, ils valent exactement `pl.mc` et `FOREST_PLANT_COST`.
@@ -2789,6 +3043,60 @@ pub fn apply_blue_action(
     let Some(action) = spec.action else {
         return false;
     };
+    apply_action_spec(
+        game,
+        db,
+        p,
+        ActionSource::Card(card_id),
+        action,
+        spec.phase_bonus,
+        policy,
+    )
+}
+
+/// **(jokers-corpos) D'où vient l'action que l'on active.** Une action de
+/// CORPORATION n'a pas de carte porteuse : c'est la seule différence, et elle ne
+/// concerne que les actions à ressources, qui ont besoin d'un réceptacle.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ActionSource {
+    /// Action d'une carte bleue en jeu.
+    Card(u16),
+    /// Action portée par la planche de corporation du joueur.
+    Corp,
+}
+
+/// **(jokers-corpos) Active l'action de la CORPORATION du joueur** — Hyperion
+/// Systems, « Action : gagnez 1 MC ». Point d'entrée jumeau de
+/// [`apply_blue_action`] : les deux délèguent au même corps, il n'existe pas
+/// deux façons d'activer une action dans ce moteur.
+pub fn apply_corp_action(
+    game: &mut GameState,
+    db: &CardsDb,
+    p: usize,
+    policy: &mut dyn Policy,
+) -> bool {
+    let Some(spec) = corp_effects(db, &game.players[p]) else {
+        return false;
+    };
+    let Some(action) = spec.action else {
+        return false;
+    };
+    let phase_bonus = spec.phase_bonus;
+    apply_action_spec(game, db, p, ActionSource::Corp, action, phase_bonus, policy)
+}
+
+/// (jokers-corpos) **Le corps de l'activation d'une action**, extrait de
+/// `apply_blue_action` pour que l'action d'une corporation emprunte exactement
+/// le même code — coût, payabilité, effets, bonus de phase, déclencheurs.
+fn apply_action_spec(
+    game: &mut GameState,
+    db: &CardsDb,
+    p: usize,
+    src: ActionSource,
+    action: Action,
+    phase_bonus: Option<PhaseBonus>,
+    policy: &mut dyn Policy,
+) -> bool {
     // (lot 6, brique 2) Bonus « *If YOU chose the action phase this round … » :
     // il ne dépend que de la phase choisie par le joueur QUI ACTIVE l'action
     // (NEVER 8), lue à l'instant de l'activation sur l'état réel du joueur —
@@ -2798,7 +3106,7 @@ pub fn apply_blue_action(
     // exigée) et, pour D06, le fait que la carte Phase qu'il a RÉVÉLÉE cette
     // manche soit AMÉLIORÉE (`b.require_upgraded`). Jamais celle de
     // l'adversaire, jamais un compteur global (clause anti-shortcut n° 4).
-    let bonus: Option<PhaseBonus> = spec.phase_bonus.filter(|b| {
+    let bonus: Option<PhaseBonus> = phase_bonus.filter(|b| {
         let pl = &game.players[p];
         (b.phase == 0 || pl.chosen_phase == b.phase)
             && (!b.require_upgraded || pl.phase_upgrade(pl.chosen_phase).is_some())
@@ -2897,6 +3205,24 @@ pub fn apply_blue_action(
                 }
                 // Compteur d'audit, au site EXACT du mécanisme.
                 game.action_phase_bonuses += 1;
+                // (jokers-corpos) MC versés par un bonus conditionné à la phase
+                // que le joueur a LUI-MÊME sélectionnée (`phase != 0`). Les
+                // trois cartes de base à `phase: 3` versent des plantes, de la
+                // chaleur, ou remplacent un coût — jamais des MC ; D06, qui
+                // verse 2 MC, porte `phase: 0` (sa condition est « carte Phase
+                // améliorée », pas « phase Action »). Ce compteur est donc nul
+                // en boîte de base, et c'est la propriété qui le rend utile.
+                if b.phase != 0 {
+                    let mc: i64 = b
+                        .extra
+                        .iter()
+                        .map(|e| match *e {
+                            ActionEff::Mc(n) => n,
+                            _ => 0,
+                        })
+                        .sum();
+                    game.action_phase_self_bonus += mc.max(0) as u64;
+                }
                 // (decouverte-projets) Le supplément de D06 est un gain lié à
                 // une carte Phase AMÉLIORÉE révélée : il est compté comme tel,
                 // au même endroit que son versement.
@@ -3007,6 +3333,13 @@ pub fn apply_blue_action(
         // (`action_applied` faux, activation tout de même consommée par la
         // phase III, comme pour un coût impayable).
         Action::Res(branches) => {
+            // (jokers-corpos) Une action à ressources a besoin d'une carte
+            // RÉCEPTACLE : une planche de corporation n'en est pas une. Aucune
+            // n'en déclare (test structurel du lot) — la branche est un
+            // garde-fou, pas un cas de jeu.
+            let ActionSource::Card(card_id) = src else {
+                return false;
+            };
             let playable: Vec<usize> = (0..branches.len())
                 .filter(|&i| branch_playable(game, db, p, card_id, branches[i]))
                 .collect();
@@ -3189,6 +3522,10 @@ fn phase_development(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy
         let bonus = selector_bonus_applied(game, db, p, 1);
         let g = selector_branch(game, &bonus, p, policy);
         let discount = g.mc_discount;
+        // (jokers-corpos) Les badges jokers de la main reçoivent leur jeton AVANT
+        // l'énumération : `affordable` juge alors chaque carte joker sur son
+        // badge réel, exactement comme le paiement le fera (I2).
+        resolve_hand_jokers(game, db, p, policy);
         let opts = affordable(game, db, p, &GRANT_DEVELOPMENT, discount);
         if let Some(idx) = policy.choose_build(&mut game.rng, p, &opts) {
             assert!(opts.contains(&idx), "choix de construction hors options");
@@ -3258,6 +3595,10 @@ fn phase_construction(game: &mut GameState, db: &CardsDb, policy: &mut dyn Polic
             game.players[p].mc += g.mc;
         }
 
+        // (jokers-corpos) Les badges jokers de la main reçoivent leur jeton AVANT
+        // l'énumération : `affordable` juge alors chaque carte joker sur son
+        // badge réel, exactement comme le paiement le fera (I2).
+        resolve_hand_jokers(game, db, p, policy);
         let opts = affordable(game, db, p, &GRANT_CONSTRUCTION, 0);
         if let Some(idx) = policy.choose_build(&mut game.rng, p, &opts) {
             assert!(opts.contains(&idx), "choix de construction hors options");
@@ -3291,6 +3632,10 @@ fn phase_construction(game: &mut GameState, db: &CardsDb, policy: &mut dyn Polic
                 // La permission de la SECONDE branche de la carte Phase II de
                 // base — lue dans la table, pas écrite ici (NEVER 3).
                 let grant = &sb.spec.branches[1].builds[0];
+                // (jokers-corpos) Les badges jokers de la main reçoivent leur jeton AVANT
+                // l'énumération : `affordable` juge alors chaque carte joker sur son
+                // badge réel, exactement comme le paiement le fera (I2).
+                resolve_hand_jokers(game, db, p, policy);
                 let opts = affordable(game, db, p, grant, 0);
                 if let Some(idx) = policy.choose_build(&mut game.rng, p, &opts) {
                     assert!(opts.contains(&idx), "choix de construction hors options");
@@ -3316,6 +3661,11 @@ fn phase_action(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
     // Chaque carte bleue jouée offre son action une fois par phase.
     let mut remaining_blue: [Vec<u16>; NUM_PLAYERS] = Default::default();
     let mut passed = [false; NUM_PLAYERS];
+    // (jokers-corpos) L'action de la planche de corporation, une fois par phase
+    // comme celle d'une carte bleue. Le drapeau vaut pour tous les joueurs :
+    // ceux dont la planche ne porte pas d'action ne se verront simplement jamais
+    // proposer l'option (`action_options` lit la table).
+    let mut corp_action_left = [true; NUM_PLAYERS];
     for p in 0..NUM_PLAYERS {
         remaining_blue[p] = game.players[p]
             .played
@@ -3360,7 +3710,14 @@ fn phase_action(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
             if passed[p] {
                 continue;
             }
-            action_options(game, db, p, &remaining_blue[p], &mut options);
+            action_options(
+                game,
+                db,
+                p,
+                &remaining_blue[p],
+                corp_action_left[p],
+                &mut options,
+            );
             let Some(choice) = policy.action_choice(&mut game.rng, p, &options) else {
                 passed[p] = true;
                 continue;
@@ -3384,6 +3741,21 @@ fn phase_action(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
                     if game.players[p].extra_blue_activations > 0 {
                         game.players[p].extra_blue_activations -= 1;
                         remaining_blue[p].push(card);
+                    }
+                }
+                // (jokers-corpos) L'action de la planche : même comptabilité
+                // qu'une carte bleue — l'activation est consommée dans tous les
+                // cas, le compteur `blue_actions` ne monte que si un effet a
+                // réellement eu lieu, et le bonus du sélectionneur peut la
+                // rendre une fois de plus.
+                ActionOpt::CorpAction => {
+                    if db.effects_on && apply_corp_action(game, db, p, policy) {
+                        game.blue_actions += 1;
+                    }
+                    corp_action_left[p] = false;
+                    if game.players[p].extra_blue_activations > 0 {
+                        game.players[p].extra_blue_activations -= 1;
+                        corp_action_left[p] = true;
                     }
                 }
                 ActionOpt::ForestWithPlants => build_forest(game, db, p, true, policy),
@@ -3412,6 +3784,7 @@ fn phase_action(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
                     // la réduction de *Standard Technology* ne s'y applique
                     // jamais (NEVER 8), le taux de *Composting Factory* si.
                     game.players[p].mc += discard_mc_rate(db, &game.players[p]);
+                    game.discard_bonus_mc += discard_bonus_per_card(db, &game.players[p]);
                 }
             }
         }
@@ -3901,10 +4274,12 @@ pub fn play_round(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
             // service unique — contrairement à la lecture proposée par le
             // contrat, que le livret et le code contredisent tous deux.
             let rate = discard_mc_rate(db, &game.players[p]);
+            let bonus = discard_bonus_per_card(db, &game.players[p]);
             for &i in idx.iter().rev() {
                 let card = game.players[p].hand.remove(i);
                 game.discard.push(card);
                 game.players[p].mc += rate;
+                game.discard_bonus_mc += bonus;
             }
         }
     }

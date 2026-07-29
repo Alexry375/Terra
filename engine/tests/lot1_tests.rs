@@ -459,22 +459,28 @@ fn out_of_lot_card_stays_neutral_stub() {
         "la boîte de base doit rester intégralement encodée"
     );
 
+    // (jokers-corpos) Ce jour-là est arrivé : les trois dernières cartes muettes
+    // (les projets à badge joker) sont encodées, la pioche `base,decouverte` ne
+    // contient donc plus AUCUN stub. La seconde moitié du test devient ce que sa
+    // propre documentation annonçait — le même épinglage que la première, sur la
+    // configuration des deux boîtes. Le témoin « une carte sans encodage se
+    // comporte en stub neutre » n'a plus de sujet : il ne peut plus être écrit
+    // sans fabriquer une carte que le jeu ne contient pas.
     let db = CardsDb::load_boites(
         "../data/cards.json",
         engine::boites::BoiteSet::parse("base,decouverte").expect("configuration valide"),
     )
     .expect("cards.json doit se charger");
-    let nom = db
+    let nues: Vec<&str> = db
         .projects
         .iter()
-        .find(|c| c.in_deck && c.effect.is_none())
-        .map(|c| c.name.clone())
-        .expect("au moins une carte de Découverte reste sans encodage");
-    let r = run_probe(&db, &nom);
-    assert!(r.found && r.played, "carte témoin : {nom}");
-    assert!(!r.in_lot, "carte témoin : {nom}");
-    assert!(r.prereq_ok, "carte témoin : {nom}");
-    assert_eq!(r.delta, engine::probe::ProbeDelta::default(), "témoin {nom}");
+        .filter(|c| c.in_deck && c.effect.is_none())
+        .map(|c| c.name.as_str())
+        .collect();
+    assert!(
+        nues.is_empty(),
+        "base + Découverte doit rester intégralement encodée, or : {nues:?}"
+    );
 }
 
 /// Le score compte les VP fixes des cartes jouées avec les effets ON,

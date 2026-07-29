@@ -22,13 +22,13 @@
 //! les cartes nommées seules en main (dans l'ordre) ; pioche = cartes v1
 //! restantes en ordre d'index ; tuiles océan NON mélangées.
 
-use crate::cards::CardsDb;
+use crate::cards::{CardsDb, Tag, JOKER_TAG_CHOICES};
 use crate::flow::{
-    apply_blue_action, build_card_with, card_discount, card_points, discard_mc_rate,
-    next_card_discount,
-    heat_reserved_by, install_corporation, payable, phase_production, plant_discount,
+    apply_blue_action, apply_corp_action, build_card_with, card_discount, card_points,
+    discard_mc_rate, next_card_discount,
+    heat_reserved_by, install_corporation_with, payable, phase_production, plant_discount,
     plants_reserved_by, player_capacities, requirements_met, requirements_met_now,
-    research_extra, selector_bonus, spendable_mc_reserving, SelectorBonus,
+    research_extra, resolve_hand_jokers, selector_bonus, spendable_mc_reserving, SelectorBonus,
 };
 use crate::policy::{ActionOpt, ConstructionBonus, Policy, RandomPolicy};
 use crate::state::*;
@@ -129,6 +129,13 @@ pub struct ProbeResult {
     /// ne le recalcule pas, elle le lit. Sans `--probe-phase`, il décrit la
     /// phase 0 : tout est à zéro.
     pub selector_bonus: SelectorBonus,
+    /// **(jokers-corpos) Le badge effectivement retenu pour la DERNIÈRE carte de
+    /// la séquence**, `None` si elle ne porte pas de badge joker (ou si le
+    /// choix n'a pas eu lieu : carte introuvable, couche d'effets coupée).
+    ///
+    /// Lu sur `PlayerState::joker_tags`, l'état que la partie réelle emploie —
+    /// la sonde ne rejoue aucune décision.
+    pub joker_tag: Option<&'static str>,
 }
 
 /// (corpo-1) Corporation imposée à la sonde par `--probe-corp` : ce que le
@@ -146,6 +153,28 @@ pub struct ProbeCorp {
     pub starting_mc: i64,
     /// Production de départ inscrite sur les pistes fixes du joueur sondé.
     pub start_prod: (i64, i64, i64),
+    /// **(jokers-corpos) Les cartes Phase que la MISE EN PLACE de cette
+    /// corporation a améliorées**, numéros de phase triés (`[2]` pour Apollo
+    /// Industries). Liste VIDE pour les douze planches de la boîte de base.
+    ///
+    /// Mesuré par différence sur `PlayerState::phase_upgrades` avant/après
+    /// l'installation : ce sont les cases que le moteur a réellement écrites, pas
+    /// une relecture de la table.
+    pub upgrades: Vec<u8>,
+    /// **(jokers-corpos) La chaleur que la mise en place a APPORTÉE** — 2 pour
+    /// Sultira (« y compris celui-ci »), 0 pour les autres.
+    ///
+    /// C'est un DELTA, et non la chaleur totale du joueur sondé : l'état de
+    /// départ fixe de la sonde en porte déjà 20 en dur (`probe_state_base`), qui
+    /// ne doivent rien à la corporation. Distincte de `start_prod.heat`, qui est
+    /// une PRODUCTION répétée à chaque génération.
+    pub start_heat: i64,
+    /// **(jokers-corpos) Ce que rapporte au joueur une carte défaussée**, tel
+    /// que le service unique `flow::discard_mc_rate` le rend après la mise en
+    /// place : 3 MC du livret, 4 avec Exocorp.
+    pub discard_rate: i64,
+    /// **(jokers-corpos) La planche porte-t-elle une action activable ?**
+    pub has_action: bool,
 }
 
 /// Une carte porteuse et son contenu (champ `resources` de la sonde).
@@ -271,11 +300,20 @@ pub struct ProbeScript {
     /// Pile de noms de cartes imposés à `Policy::choose_res_target` PUIS
     /// `Policy::choose_res_source`, consommée dans l'ordre d'appel.
     pub targets: Vec<String>,
+    /// **(jokers-corpos) Badge imposé à `Policy::pick_joker_tag`**
+    /// (`--probe-joker-tag <BADGE>`). `None` = la sonde choisit comme la
+    /// politique de jeu ordinaire, elle ne plante pas.
+    ///
+    /// Il vaut pour TOUTES les cartes joker de la séquence : chacune reçoit son
+    /// propre jeton, et deux cartes déclarées Terre comptent pour deux badges
+    /// Terre. C'est une réponse imposée à la POLITIQUE, comme `choices` et
+    /// `targets` — jamais une valeur écrite dans le moteur.
+    pub joker_tag: Option<Tag>,
 }
 
 impl ProbeScript {
     pub fn is_empty(&self) -> bool {
-        self.choices.is_empty() && self.targets.is_empty()
+        self.choices.is_empty() && self.targets.is_empty() && self.joker_tag.is_none()
     }
 }
 
@@ -291,6 +329,8 @@ struct ProbePolicy {
     targets: Vec<(String, Option<u16>)>,
     ti: usize,
     error: Option<String>,
+    /// (jokers-corpos) Badge imposé à `pick_joker_tag`, pour toutes les cartes.
+    joker_tag: Option<Tag>,
 }
 
 impl ProbePolicy {
@@ -306,6 +346,7 @@ impl ProbePolicy {
                 .collect(),
             ti: 0,
             error: None,
+            joker_tag: script.joker_tag,
         }
     }
 
@@ -400,6 +441,25 @@ impl Policy for ProbePolicy {
             None => self.inner.choose_res_source(rng, p, cands),
         }
     }
+
+    /// (jokers-corpos) `--probe-joker-tag` impose le badge, sans épuisement :
+    /// toutes les cartes joker de la séquence reçoivent le même. Sans l'option,
+    /// c'est l'heuristique ordinaire de la politique de jeu qui décide.
+    fn pick_joker_tag(
+        &mut self,
+        rng: &mut StdRng,
+        p: usize,
+        card: u16,
+        tag_counts: &[u32],
+    ) -> usize {
+        match self.joker_tag {
+            Some(t) => JOKER_TAG_CHOICES
+                .iter()
+                .position(|&x| x == t)
+                .expect("badge imposé hors des dix choix — refusé par la CLI"),
+            None => self.inner.pick_joker_tag(rng, p, card, tag_counts),
+        }
+    }
 }
 
 /// Champ `resources` : toutes les cartes porteuses du joueur 0, triées par nom.
@@ -451,6 +511,7 @@ fn probe_state_corp(
     ids: &[u16],
     opts: ProbeOptions,
     corp_name: Option<&str>,
+    script: &ProbeScript,
 ) -> (GameState, Option<ProbeCorp>, usize) {
     let mut game = probe_state_base(db, ids, opts);
     let hand_before = game.players[0].hand.len();
@@ -458,6 +519,7 @@ fn probe_state_corp(
         return (game, None, hand_before);
     };
     let Some(cid) = db.corporations.iter().position(|c| c.name == name) else {
+        let rate = discard_mc_rate(db, &game.players[0]);
         return (
             game,
             Some(ProbeCorp {
@@ -466,11 +528,36 @@ fn probe_state_corp(
                 encoded: false,
                 starting_mc: 0,
                 start_prod: (0, 0, 0),
+                upgrades: Vec::new(),
+                start_heat: 0,
+                discard_rate: rate,
+                has_action: false,
             }),
             hand_before,
         );
     };
-    install_corporation(&mut game, db, 0, cid as u16);
+    // (jokers-corpos) Ce que la MISE EN PLACE change, relevé avant/après : les
+    // cartes Phase qu'elle améliore et la chaleur qu'elle apporte. Mesuré sur
+    // l'état, jamais relu dans la table.
+    let upg_before = game.players[0].phase_upgrades;
+    let heat_before = game.players[0].heat;
+    // La mise en place emprunte le chemin unique du moteur, avec la POLITIQUE de
+    // sonde : « Améliorez votre carte Phase n » laisse le choix de la variante
+    // (A ou B), scriptable par `--probe-choice` comme partout ailleurs.
+    //
+    // ATTENTION, convention à connaître : cette politique-ci est PROPRE à la
+    // mise en place. La séquence de cartes en construit une seconde, qui repart
+    // du DÉBUT de la pile `--probe-choice`. Les deux étapes ne se partagent donc
+    // pas la pile — c'est ce qui permet de scripter la séquence sans avoir à
+    // compter d'abord les choix consommés par la corporation.
+    let mut pol = ProbePolicy::new(db, script);
+    install_corporation_with(&mut game, db, 0, cid as u16, &mut pol);
+    let upgrades: Vec<u8> = (1u8..=5)
+        .filter(|&ph| {
+            game.players[0].phase_upgrade(ph) != upg_before[ph as usize - 1]
+        })
+        .collect();
+    let start_heat = game.players[0].heat - heat_before;
     game.players[0].mc = opts.mc;
     let corp = &db.corporations[cid];
     let sp = corp
@@ -478,6 +565,13 @@ fn probe_state_corp(
         .filter(|_| db.effects_on)
         .map(|s| s.start_prod)
         .unwrap_or_default();
+    let has_action = corp
+        .effect
+        .filter(|_| db.effects_on)
+        .and_then(|s| s.action)
+        .is_some();
+    // Le SERVICE UNIQUE appliqué au joueur sondé, lu et non recalculé.
+    let discard_rate = discard_mc_rate(db, &game.players[0]);
     (
         game,
         Some(ProbeCorp {
@@ -486,6 +580,10 @@ fn probe_state_corp(
             encoded: corp.effect.is_some(),
             starting_mc: corp.starting_mc,
             start_prod: (sp.mc, sp.heat, sp.plants),
+            upgrades,
+            start_heat,
+            discard_rate,
+            has_action,
         }),
         hand_before,
     )
@@ -593,6 +691,11 @@ fn probe_state_base(db: &CardsDb, ids: &[u16], opts: ProbeOptions) -> GameState 
         cards_revealed: 0,
         standard_action_discounts: 0,
         action_mc_bonuses: 0,
+        joker_tag_choices: 0,
+        joker_tag_hits: 0,
+        corp_phase_upgrades_at_setup: 0,
+        discard_bonus_mc: 0,
+        action_phase_self_bonus: 0,
     };
     game.snapshot_planet();
     game
@@ -729,7 +832,7 @@ pub fn run_probe_seq_corp(
             None => {
                 // Dernière carte introuvable : résultat « non trouvée »
                 // (comportement du lot 1, inchangé).
-                let (g, corp, _) = probe_state_corp(db, &[], opts, corp_name);
+                let (g, corp, _) = probe_state_corp(db, &[], opts, corp_name, script);
                 let caps = player_capacities(&g.players[0]);
                 return ProbeResult {
                     card: last.to_string(),
@@ -759,6 +862,8 @@ pub fn run_probe_seq_corp(
                     // demandées, carte trouvée ou non.
                     upgrades: g.players[0].phase_upgrade_labels(),
                     selector_bonus: selector_bonus(db, &g.players[0], opts.phase),
+                    // Aucune carte trouvée : aucun badge joker retenu.
+                    joker_tag: None,
                 };
             }
         }
@@ -767,7 +872,7 @@ pub fn run_probe_seq_corp(
     // Cartes résolues, dans l'ordre (les noms inconnus sont ignorés à la pose).
     let ids: Vec<u16> = names.iter().filter_map(|n| resolve(db, n)).collect();
 
-    let (mut game, corp, hand_before_corp) = probe_state_corp(db, &ids, opts, corp_name);
+    let (mut game, corp, hand_before_corp) = probe_state_corp(db, &ids, opts, corp_name, script);
     // (lot cartes-7, journal D2) Prérequis de la DERNIÈRE carte, relevés JUSTE
     // AVANT SA POSE — c'est-à-dire une fois les cartes qui la précèdent dans la
     // séquence entrées en jeu. Sans cela, un assouplissement porté par une
@@ -807,6 +912,13 @@ pub fn run_probe_seq_corp(
     // Pose de chaque carte dans l'ordre (toujours à l'indice 0 de la main : les
     // cartes de la séquence sont en tête, monnaie et pioches s'ajoutent en fin).
     let mut pol = ProbePolicy::new(db, script);
+    // (jokers-corpos) Les jetons Badge sont posés sur TOUTES les cartes joker de
+    // la main AVANT la première pose — donc avant le garde-fou de payabilité
+    // ci-dessous et avant tout calcul de prix. C'est exactement ce que fait la
+    // partie réelle avant son énumération d'abordabilité, par la même fonction :
+    // sans cela, la sonde jugerait une carte joker sur son prix NU et refuserait
+    // de poser ce que le jeu, lui, propose.
+    resolve_hand_jokers(&mut game, db, 0, &mut pol);
     let mut paid = Vec::with_capacity(n);
     let mut discarded = Vec::with_capacity(n);
     for (k, &id) in ids.iter().enumerate() {
@@ -931,6 +1043,12 @@ pub fn run_probe_seq_corp(
         // Le point de calcul unique appliqué au joueur sondé : c'est LA valeur
         // que la phase réelle lirait pour lui (clause anti-shortcut n° 1).
         selector_bonus: selector_bonus(db, &game.players[0], opts.phase),
+        // (jokers-corpos) Le jeton posé sur la DERNIÈRE carte de la séquence,
+        // lu sur l'état du joueur sondé. `None` pour une carte sans badge
+        // joker — c'est le contre-témoin du contrôle 02.
+        joker_tag: last_id
+            .and_then(|id| game.players[0].joker_tag(id))
+            .map(|t| t.as_str()),
     }
 }
 
@@ -997,13 +1115,50 @@ pub fn run_probe_action_seq(
     corp_name: Option<&str>,
     opts: ProbeOptions,
 ) -> ProbeActionResult {
-    let name = *names.last().unwrap_or(&"");
+    run_probe_action_target(db, names, script, corp_name, opts, None)
+}
+
+/// **(jokers-corpos) Ce dont on active l'action.**
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Cible {
+    /// Une carte bleue en jeu.
+    Carte(u16),
+    /// La planche de corporation du joueur sondé.
+    Corpo,
+}
+
+/// **(jokers-corpos) Sonde action à CIBLE explicite** — `--probe-action <nom>`
+/// accepte désormais un nom de CORPORATION en plus d'un nom de carte.
+///
+/// `target = None` : la cible est la dernière carte de `names`, c'est-à-dire le
+/// comportement des lots précédents, bit à bit. `target = Some(nom)` : `names`
+/// est la séquence POSÉE (elle vient de `--probe`), et `nom` désigne ce dont on
+/// active l'action — une carte de la séquence, ou la corporation installée.
+///
+/// Un nom qui ne désigne ni une carte de la base ni une corporation de la pioche
+/// chargée reste REFUSÉ : `found: false`, rien n'est activé.
+pub fn run_probe_action_target(
+    db: &CardsDb,
+    names: &[&str],
+    script: &ProbeScript,
+    corp_name: Option<&str>,
+    opts: ProbeOptions,
+    target: Option<&str>,
+) -> ProbeActionResult {
+    let name = target.unwrap_or(*names.last().unwrap_or(&""));
     // Toutes les cartes de la séquence, dans l'ordre. Les noms inconnus sont
-    // ignorés à la pose, comme dans `run_probe_seq_corp` ; seule la DERNIÈRE
-    // décide de `found` — c'est elle que l'on mesure.
+    // ignorés à la pose, comme dans `run_probe_seq_corp` ; seule la CIBLE décide
+    // de `found` — c'est elle que l'on mesure.
     let ids: Vec<u16> = names.iter().filter_map(|n| resolve(db, n)).collect();
-    let Some(card_id) = resolve(db, name) else {
-        let (_, corp, _) = probe_state_corp(db, &[], opts, corp_name);
+    // La cible : une carte d'abord (chemin des lots précédents), une corporation
+    // de la pioche chargée ensuite.
+    let cible = match resolve(db, name) {
+        Some(id) => Some(Cible::Carte(id)),
+        None if db.corporations.iter().any(|c| c.name == name) => Some(Cible::Corpo),
+        None => None,
+    };
+    let Some(cible) = cible else {
+        let (_, corp, _) = probe_state_corp(db, &[], opts, corp_name, script);
         return ProbeActionResult {
             card: name.to_string(),
             found: false,
@@ -1018,16 +1173,41 @@ pub fn run_probe_action_seq(
         };
     };
 
-    let card = &db.projects[card_id as usize];
-    let in_lot = db.effects_on && card.effect.is_some();
-    let has_action = in_lot && card.effect.and_then(|e| e.action).is_some();
-
-    let (mut game, corp, _) = probe_state_corp(db, &ids, opts, corp_name);
+    let (mut game, corp, _) = probe_state_corp(db, &ids, opts, corp_name, script);
+    // L'action visée est-elle celle d'une planche RÉELLEMENT installée chez le
+    // joueur sondé ? Une corporation nommée sans `--probe-corp` n'est pas en jeu :
+    // elle ne porte alors aucune action activable.
+    let corpo_en_place = matches!(cible, Cible::Corpo)
+        && game.players[0]
+            .corporation
+            .is_some_and(|c| db.corporations[c as usize].name == name);
+    let (in_lot, has_action) = match cible {
+        Cible::Carte(card_id) => {
+            let card = &db.projects[card_id as usize];
+            let in_lot = db.effects_on && card.effect.is_some();
+            (in_lot, in_lot && card.effect.and_then(|e| e.action).is_some())
+        }
+        Cible::Corpo => {
+            let spec = if corpo_en_place {
+                crate::flow::corp_effects(db, &game.players[0])
+            } else {
+                None
+            };
+            (spec.is_some(), spec.and_then(|s| s.action).is_some())
+        }
+    };
     // Pose (état de référence du delta d'action) — même chemin que `simulate`,
     // avec la politique de sonde (identique à RandomPolicy si le script est
     // vide). Les cartes de la séquence sont en tête de main, dans l'ordre : la
     // pose se fait toujours à l'indice 0, comme pour `--probe`.
     let mut pol = ProbePolicy::new(db, script);
+    // (jokers-corpos) Les jetons Badge sont posés AVANT la boucle de pose, donc
+    // avant le garde-fou de payabilité ci-dessous — exactement comme dans
+    // `run_probe_seq_corp`. Sans cet appel, ce garde-fou jugerait une carte à
+    // badge joker sur son prix NU alors que `build_card_with`, lui, la poserait
+    // au prix réduit : l'affordabilité et le paiement divergeraient dans ce
+    // chemin de sonde (I2). Défaut trouvé en relecture adversariale.
+    resolve_hand_jokers(&mut game, db, 0, &mut pol);
     for &id in &ids {
         // Payabilité, comme dans `run_probe_seq_corp` : la pose est forcée
         // quant aux PRÉREQUIS, jamais quant au PAIEMENT. Sans ce test,
@@ -1069,14 +1249,17 @@ pub fn run_probe_action_seq(
     let before = snap(&game);
 
     // L'action ne s'applique qu'à une carte réellement EN JEU : on n'active
-    // jamais l'action d'une carte que la séquence n'a pas pu poser.
-    let en_jeu = game.players[0].played.contains(&card_id);
-    let action_applied = if has_action && en_jeu {
-        // Les actions variables tirent leur montant via la politique sur le RNG
-        // déterministe (graine 0) de l'état de sonde.
-        apply_blue_action(&mut game, db, 0, card_id, &mut pol)
-    } else {
-        false
+    // jamais l'action d'une carte que la séquence n'a pas pu poser. Une
+    // corporation, elle, est en place dès la mise en place.
+    let action_applied = match cible {
+        Cible::Carte(card_id) if has_action && game.players[0].played.contains(&card_id) => {
+            // Les actions variables tirent leur montant via la politique sur le
+            // RNG déterministe (graine 0) de l'état de sonde.
+            apply_blue_action(&mut game, db, 0, card_id, &mut pol)
+        }
+        // (jokers-corpos) Même chemin d'activation, corps de règle identique.
+        Cible::Corpo if has_action => apply_corp_action(&mut game, db, 0, &mut pol),
+        _ => false,
     };
 
     let after = snap(&game);
