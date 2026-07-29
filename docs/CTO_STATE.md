@@ -38,6 +38,66 @@ prérequis (2), divers (4). Liste nominative :
 **Ne JAMAIS citer le « 7 » de `docs/cartes/moteur-vs-imprime.md` comme une
 couverture de la boîte de base** : ce rapport n'échantillonne que 66 cartes.
 
+## EN COURS (28-07 nuit) — `decouverte-phases`, contrat scellé et lancé
+
+**Le verrou de l'extension Découverte.** 26 des 38 cartes projet de Découverte
+reposent sur l'amélioration de carte Phase, mécanisme qui n'existe pas du tout :
+`PlayerState::phase_upgrades` est un tableau que rien ne lit, et
+`ResEff::PhaseUpgrade` se contente d'incrémenter un compteur de renoncement
+(`phase_upgrades_skipped = 510` sur 1000 parties en `base,decouverte`,
+mesuré le 28-07). Tant qu'il n'existe pas, les 26 cartes sont inencodables.
+
+**Périmètre** : le mécanisme, les **dix** cartes Phase améliorées, et la
+récompense **VISIONNAIRE** (7e tuile, absente du moteur). Les 26 cartes projet
+et les 4 corporations de Découverte sont hors périmètre — chantier suivant.
+
+### La bonne nouvelle : le vocabulaire existe déjà, à deux exceptions près
+
+En transcrivant les dix bonus, j'ai constaté que **huit sur dix se disent avec
+des briques déjà écrites** : `DEV_SELECTOR_DISCOUNT`, `extra_blue_activations`,
+`PRODUCTION_SELECTOR_MC`, `ResearchBonus` (lot 4), `Reveal` (lot 6),
+`ConstructionBonus`. Et surtout — le lot cartes-8 fini une heure plus tôt tombe
+pile : **I-B dit « une seconde carte verte dont le coût imprimé est de 12 MC ou
+moins »**, c'est-à-dire mot pour mot le `BuildGrant` que je venais de construire.
+Seules deux moitiés sont neuves : le « ou » de II-B et le « rejouer la production
+d'une carte verte » de IV-A. [VÉRIFIÉ 28-07]
+
+### Une erreur de mon contrat, trouvée AVANT scellement
+
+J'avais écrit que `--probe-phase` suffisait à démontrer les dix bonus. **Faux, et
+mesuré** : la sonde appelle `build_card_with(…, discount = 0, …)` et n'exécute
+aucune phase. `--probe-phase 1` laisse *Lichen* à 5 MC payés, remise du
+sélectionneur comprise ou non ; `--probe-phase 5` ne change rien au champ
+`research`. **Aucun bonus de sélectionneur n'est observable de l'extérieur
+aujourd'hui.** J'ai remplacé l'interface par un objet `selector_bonus` que la
+sonde doit rendre **tel que le service unique le calcule** — ce qui rend le
+mécanisme observable ET force la conception exigée.
+
+### Deux faux positifs de mes contrôles, attrapés au calibrage
+
+1. Mon contrôle « une seule file de poses supplémentaires » comptait
+   `extra_builds_granted` et `extra_builds_used` — des **compteurs**, pas des
+   files. Le type fait désormais partie du critère (`Vec<BuildGrant>`).
+2. Mon contrôle « le chantier a écrit ses propres tests » était **vert avant le
+   chantier** : trois fichiers mentionnent déjà `phase_upgrades_skipped`. Le
+   critère porte désormais sur des tests qui **installent** réellement une
+   amélioration (`PhaseUpgrade::Variant`), ce que zéro test fait aujourd'hui.
+
+### Et une erreur de MESURE, la plus bête de la journée
+
+En vérifiant l'état initial des huit contrôles, je les ai tous vus à zéro — donc
+tous verts, donc un scellement invalide. C'était ma commande qui mentait :
+`echo "$(basename $f) : $?"` exécute `basename` **avant** de lire `$?`, et écrase
+donc le code de retour à zéro. Même famille que le piège du tuyau
+(`cmd | tail` puis `echo $?`) noté au lot 5. Remesuré proprement : **8 contrôles
+rouges sur 8**. [VÉRIFIÉ 28-07]
+
+**Bidirectionnalité prouvée** : 8 contrôles rouges pour la bonne raison (vérifié
+sortie par sortie), sauf `07-non-regression.sh` vert dès aujourd'hui car c'est un
+garde-fou (208 cartes de base enregistrées dans `inputs/sondes-reference.json`).
+Trois hold-outs cachés rouges, dont les parties garde-fou (base intacte,
+déterminisme) vertes dès aujourd'hui.
+
 ## LES DEUX DÉFAUTS DES TUILES SONT CORRIGÉS (28-07) — fait en direct
 
 Les deux défauts trouvés en faisant le décompte d'avancement, réparés et
