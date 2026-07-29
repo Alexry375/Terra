@@ -902,7 +902,13 @@ fn only_discovery_cards_remain_unhandled() {
     // ATTENTE MISE À JOUR par le lot acier-titane (55 → 51), le lot cartes-7
     // (51 → 42) puis le lot cartes-8 (42 → 37) : plus une seule muette en base,
     // il ne reste que Découverte (33 projets + 4 corporations).
-    assert_eq!(n, 37);
+    //
+    // TÉMOIN RETOURNÉ par le chantier `decouverte-phases` (37 → 35) : le
+    // mécanisme des cartes Phase améliorées fait cesser le SAUT de
+    // `ResEff::PhaseUpgrade`, donc *Cryogenic Shipment* et *Fibrous Composite
+    // Material* sont désormais intégralement gérées. Aucune carte n'a été
+    // encodée par ce chantier — 31 projets + 4 corporations restent muets.
+    assert_eq!(n, 35);
 }
 
 #[test]

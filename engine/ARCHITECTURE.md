@@ -244,9 +244,10 @@ gagne toujours.
   comptée : elle reste offerte à la génération suivante, exactement comme une
   action dont le coût n'est pas payable.
 - **Amélioration de carte Phase** (Cryogenic Shipment, action de Fibrous
-  Composite Material) : mécanisme d'un lot ultérieur (`phase_upgrades` reste un
-  stub `None`). Le reste de la carte s'applique, l'amélioration est perdue et
-  comptée dans `phase_upgrades_skipped`. Aucun effet de compensation.
+  Composite Material) : l'effet était perdu et compté dans
+  `phase_upgrades_skipped` jusqu'au chantier `decouverte-phases`. Il est
+  désormais appliqué par `flow::apply_phase_upgrade` — voir §Cartes Phase
+  améliorées. Ces deux cartes sont donc intégralement gérées.
 - **Score** : `VpKind::Animal/Microbe/Science` ne valent plus 0. Ils comptent
   les ressources posées sur CETTE carte, dans `flow::card_points` — unique
   implémentation, qui renvoie `(total, part venant des ressources)` et que
@@ -460,6 +461,52 @@ de titane). Diagnostic complet, verdicts et preuves : `outputs/corporations.md`.
   ±1 d'Inventrix serait invisible) et `delta.hand` est calculé sur la main
   d'avant installation (pour que la pioche de départ d'Inventrix y apparaisse).
 
+## Cartes Phase améliorées (chantier decouverte-phases)
+
+L'extension Découverte double chacune des cinq cartes Phase : chaque joueur
+reçoit **dix** cartes Phase améliorées (deux options, A et B, par phase) et
+certaines cartes Projet ou Corporation lui permettent d'en échanger une contre
+la carte Phase correspondante de sa main. La carte améliorée donne un **BONUS de
+sélectionneur** meilleur ; sa COMPÉTENCE est identique mot pour mot.
+
+- **Les onze cartes Phase sont des DONNÉES** — `effects::PHASE_BASE` (les cinq
+  de la boîte de base) et `effects::PHASE_UPGRADED[phase][variante]` (les dix
+  améliorées). Chaque entrée porte le nom imprimé et des **branches** de bonus ;
+  plusieurs branches = un « ou » du texte imprimé, tranché par `Policy`.
+- **Un point de calcul unique** — `flow::selector_bonus(db, pl, phase)`, fonction
+  pure. Elle rend zéro hors sélectionneur, ignore les améliorations en
+  `--effects off`, et lit **une seule** entrée de table : le bonus amélioré
+  REMPLACE celui de base (livret l. 64), le cumul n'est pas exprimable. Les cinq
+  phases y passent (`phase_development`, `phase_construction`, `phase_action`,
+  `phase_production`, `research_base`) ; plus aucune constante de bonus n'est
+  lue dans le flux.
+- **L'octroi** — `flow::apply_phase_upgrade`, seul chemin, appelé par
+  `ResEff::PhaseUpgrade`. Les dix cartes moins la variante déjà en place sont
+  proposées à `Policy::choose_option` : améliorer une phase déjà améliorée
+  bascule A ↔ B (l. 66) et n'est jamais un gaspillage. `phase_upgrades_skipped`
+  ne peut donc plus bouger.
+- **Les poses supplémentaires** (I-B « une seconde verte à 12 MC imprimés ou
+  moins », II-A et II-B « une seconde bleue ou rouge ») empruntent le
+  `BuildGrant` et la file `pending_builds` du lot cartes-8 : aucune seconde
+  file, aucun second drainage.
+- **Quand le bonus prend effet** : il est LU au moment où la phase s'exécute.
+  Une amélioration gagnée en phase II vaut donc dès la phase IV de la même
+  manche. C'est pourquoi `extra_blue_activations` est écrit au début de la
+  phase III et non à la planification.
+- **VISIONNAIRE** — septième variante d'`AwardKind` (« le plus de cartes Phase
+  améliorées », valeur `PlayerState::phase_upgrades_count`).
+  `flow::award_pool(db)` ne la fait entrer dans la réserve que là où le
+  mécanisme peut jouer : boîte Découverte ET couche d'effets active. Sans cela
+  elle serait une égalité à zéro dans toutes les parties — et la réserve de la
+  boîte de base changerait de taille, donc de tirage, donc d'empreinte.
+- **Observabilité** — `simulate --probe-upgrade <phase><variante>` (répétable,
+  cumulable, argument mal formé refusé), champs `upgrades` et `selector_bonus`
+  de `--probe`, et cinq compteurs de bilan : `phase_upgrades_granted`,
+  `phase_upgrades_reupgraded`, `upgraded_bonus_applied`,
+  `upgraded_extra_builds`, `visionary_award_points`. Tous nuls en
+  `--effects off` et en boîte de base seule.
+
+
 ## Représentation de l'état
 
 Tout l'état d'une partie tient dans `GameState` (`src/state.rs`) :
@@ -597,7 +644,12 @@ avec `--effects off`) :
 | `res_added` | ressources posées sur des cartes (en unités) | `flow::add_resources` |
 | `res_removed` | ressources retirées | `flow::remove_resources` |
 | `res_targets_missing` | poses sautées faute de carte cible valide | `flow::apply_res_eff` / `apply_choice` |
-| `phase_upgrades_skipped` | améliorations de carte Phase demandées et non gérées | `flow::apply_res_eff` |
+| `phase_upgrades_skipped` | améliorations de carte Phase demandées et non gérées — **vaut 0 depuis le chantier `decouverte-phases`**, plus aucun site ne l'incrémente | (plus aucun) |
+| `phase_upgrades_granted` | améliorations de carte Phase accordées | `flow::apply_phase_upgrade` |
+| `phase_upgrades_reupgraded` | parmi elles, les bascules A ↔ B | `flow::apply_phase_upgrade` |
+| `upgraded_bonus_applied` | bonus de sélectionneur AMÉLIORÉS réellement lus | `flow::selector_bonus_applied` |
+| `upgraded_extra_builds` | permissions de pose versées par une carte Phase améliorée | `flow::grant_selector_builds` |
+| `visionary_award_points` | points distribués par la tuile VISIONNAIRE | `flow::award_points_split`, agrégé par `sim::play_game` |
 | `vp_from_resources` | points de victoire venant des ressources, tous joueurs | `flow::score_parts`, depuis `flow::card_points` |
 
 ## Paiement d'une carte (lot 3)
@@ -660,9 +712,8 @@ Explicitement hors périmètre, structure prête :
 - **Traité au chantier cartes-3** (n'est PLUS stub) : ressources posées sur les
   cartes (microbes/animaux/science) et leurs points de victoire.
 - **Hors vocabulaire (restent stubs)** : productions par tag (« 1 MC per Earth
-  tag »), pioche avec défausse à la pose (« draw 4 then discard 2 »),
-  améliorations de phases (« Upgrade a phase card » — demandée par deux cartes
-  du chantier cartes-3, sautée et comptée), jeu gratuit d'une carte, tag wild
+  tag »), pioche avec défausse à la pose (« draw 4 then discard 2 »), jeu
+  gratuit d'une carte, tag wild
   (DYNAMIC). Le « choix du joueur à la pose » (« gain X OR … ») est traité
   depuis le chantier cartes-3 (`ResStep::Choose` + `Policy::choose_option`). Une carte
   mêlant un mécanisme du lot 2 ET un de ceux-ci reste HORS lot 2 (fidélité
@@ -670,11 +721,9 @@ Explicitement hors périmètre, structure prête :
   « Buffed » (Greenhouses, Community Gardens : ambiguës par nom, exclues).
 - **Corporations** : traité au chantier corpo-1, ce n'est PLUS un stub — voir
   §Corporations (chantier corpo-1).
-- **Améliorations de phases (Discovery)** : `phase_upgrades` par joueur,
-  toujours `None` ; les bonus de sélectionneur utilisent les valeurs de base.
-  *Branchement* : `PhaseUpgrade::VariantA/B` par phase, consommé aux mêmes
-  endroits que les bonus de base (valeurs alternatives du Java :
-  `Constants.PHASE_*_UPGRADE_*`).
+- **Traité au chantier `decouverte-phases`** (n'est PLUS stub) : les
+  améliorations de cartes Phase (« Upgrade a Phase card ») et la récompense
+  VISIONNAIRE. Voir §Cartes Phase améliorées (chantier decouverte-phases).
 - **Tag DYNAMIC (wild)** : compté comme aucun tag (le choix du tag est un
   effet de carte).
 - **Award Collector** : les ressources posées existent depuis le chantier

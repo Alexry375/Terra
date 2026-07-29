@@ -167,11 +167,14 @@ pub struct ProjectCard {
 /// (boites-1) L'encodage d'une carte applique-t-il TOUT son texte imprimé, ou
 /// contient-il un effet que le moteur saute explicitement ?
 ///
-/// `ResEff::PhaseUpgrade` est le seul cas aujourd'hui : `flow::apply_res_eff`
-/// ne l'applique pas et l'incrémente dans `phase_upgrades_skipped`. Une carte
-/// qui en porte un est encodée MAIS pas entièrement gérée — `effets_geres`
-/// doit dire `false`, sinon le recensement affirmerait qu'un pouvoir est
-/// appliqué alors que le moteur reconnaît lui-même le sauter (I4).
+/// `ResEff::PhaseUpgrade` en fut le seul cas, jusqu'au chantier
+/// `decouverte-phases` : `flow::apply_res_eff` ne l'appliquait pas et
+/// l'incrémentait dans `phase_upgrades_skipped`. Une carte qui en portait un
+/// était encodée MAIS pas entièrement gérée — `effets_geres` devait dire
+/// `false`, sinon le recensement aurait affirmé qu'un pouvoir est appliqué
+/// alors que le moteur reconnaissait lui-même le sauter (I4). **Le moteur ne
+/// saute plus aucun effet encodé** ; le prédicat reste, pour que le jour où un
+/// texte imprimé demandera un mécanisme absent, le recensement le dise.
 ///
 /// Le prédicat est POSITIF au niveau des données : il lit l'encodage, il ne
 /// cite aucun nom de carte.
@@ -200,8 +203,20 @@ pub fn verifier_multiple(nom: &str, r: effects::Reduction) -> Result<(), String>
 }
 
 pub fn encodage_integral(e: &CardEffects) -> bool {
+    /// Les effets que le moteur reconnaît SAUTER. La liste est vide depuis le
+    /// chantier `decouverte-phases` : `ResEff::PhaseUpgrade`, seul cas
+    /// jusque-là, est désormais appliqué par `flow::apply_phase_upgrade` et
+    /// compté dans `phase_upgrades_granted`. Deux cartes de la boîte Découverte
+    /// (*Cryogenic Shipment*, *Fibrous Composite Material*) cessent donc d'être
+    /// « muettes » — sans qu'une seule carte ait été encodée par ce chantier.
     fn saute(effs: &[effects::ResEff]) -> bool {
-        effs.iter().any(|r| matches!(r, effects::ResEff::PhaseUpgrade))
+        effs.iter().any(|r| match r {
+            effects::ResEff::Gain(_)
+            | effects::ResEff::Put(_)
+            | effects::ResEff::RemoveSelf(_)
+            | effects::ResEff::RemoveAny(_, _)
+            | effects::ResEff::PhaseUpgrade => false,
+        })
     }
     fn saute_step(steps: &[effects::ResStep]) -> bool {
         steps.iter().any(|s| match s {
@@ -241,11 +256,12 @@ impl ProjectCard {
 ///
 /// `effect` est `Some` pour les 12 corporations de la boîte de base — la table
 /// `effects::CORPS` les couvre toutes, et le chargement le vérifie. Il est
-/// `None` pour les corporations de Découverte (chantier boites-1) : leurs
-/// pouvoirs reposent sur l'amélioration des cartes Phase, mécanisme que le
-/// moteur ne modélise pas. Elles sont alors comptées dans
-/// `cards_effects_unhandled` à chaque partie où elles sont jouées, jamais
-/// appliquées en silence.
+/// `None` pour les corporations de Découverte (chantier boites-1) : elles
+/// restent à encoder. Leurs pouvoirs reposent sur l'amélioration des cartes
+/// Phase — le mécanisme existe depuis le chantier `decouverte-phases`, l'appel
+/// depuis `install_corporation` reste à écrire (hors périmètre de ce chantier).
+/// Elles sont donc comptées dans `cards_effects_unhandled` à chaque partie où
+/// elles sont jouées, jamais appliquées en silence.
 #[derive(Debug, Clone)]
 pub struct Corporation {
     pub name: String,

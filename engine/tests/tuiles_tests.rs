@@ -15,6 +15,7 @@
 //! Le fichier épingle AUSSI les neuf autres seuils, pour que le prochain qui
 //! touche à cette table trouve un contrôle en face de chaque chiffre.
 
+use engine::boites::BoiteSet;
 use engine::cards::{CardsDb, Tag};
 use engine::flow::{assign_milestones, award_points, setup_game};
 use engine::policy::RandomPolicy;
@@ -251,23 +252,69 @@ fn collectionneur_bouge_reellement_dans_des_parties_entieres() {
 }
 
 #[test]
-fn les_sept_tuiles_de_recompense_ne_sont_que_six_dans_le_moteur() {
-    // Dette ASSUMÉE et épinglée, pas oubliée : la septième tuile imprimée,
-    // VISIONNAIRE (« le plus de cartes Phase améliorées »), n'a pas de variante
-    // dans `AwardKind`. Elle ne peut pas en avoir tant que les améliorations de
-    // phase ne sont pas implantées — `PlayerState::phase_upgrades` est un
-    // champ que rien ne lit.
-    //
-    // Ce test tombera le jour où quelqu'un ajoutera la variante : il faudra
-    // alors le retourner, pas le supprimer.
+fn les_sept_tuiles_de_recompense_sont_sept_dans_le_moteur() {
+    // TÉMOIN RETOURNÉ par le chantier `decouverte-phases`, et non supprimé
+    // (NEVER 6). Il épinglait une dette assumée : la septième tuile imprimée,
+    // VISIONNAIRE (« le plus de cartes Phase améliorées »), n'avait pas de
+    // variante dans `AwardKind` parce que `PlayerState::phase_upgrades` était
+    // un champ que rien ne lisait. Le mécanisme existe : la dette est payée,
+    // l'assertion porte désormais sur SEPT.
     assert_eq!(
         AWARD_POOL.len(),
-        6,
-        "six récompenses dans le moteur pour SEPT tuiles imprimées : \
-         VISIONNAIRE attend le chantier des améliorations de phase"
+        7,
+        "sept tuiles imprimées, sept récompenses dans le moteur"
     );
     assert!(
-        !AWARD_POOL.iter().any(|a| format!("{a:?}").contains("Vision")),
-        "si VISIONNAIRE existe désormais, ce test doit être retourné"
+        AWARD_POOL.iter().any(|a| format!("{a:?}").contains("Vision")),
+        "VISIONNAIRE doit figurer dans la réserve, sinon elle ne sortirait jamais"
     );
+    // Et elle n'y figure pas seulement : elle est réellement DISTRIBUÉE quand
+    // la boîte qui l'apporte est là — et jamais sans elle.
+    let db_base = CardsDb::load_boites(CARDS, BoiteSet::parse("base").unwrap()).unwrap();
+    let db_dec =
+        CardsDb::load_boites(CARDS, BoiteSet::parse("base,decouverte").unwrap()).unwrap();
+    let pool_base = engine::flow::award_pool(&db_base);
+    let pool_dec = engine::flow::award_pool(&db_dec);
+    assert_eq!(pool_base.len(), 6, "la boîte de base ne connaît pas VISIONNAIRE");
+    assert!(!pool_base.contains(&AwardKind::Visionary));
+    assert_eq!(pool_dec.len(), 7, "Découverte apporte la septième tuile");
+    assert!(pool_dec.contains(&AwardKind::Visionary));
+}
+
+#[test]
+fn visionnaire_departage_dans_les_deux_sens() {
+    // La récompense doit RÉELLEMENT départager : elle compte les cartes Phase
+    // améliorées de chaque joueur, et le classement s'inverse quand les
+    // améliorations s'inversent. Sans les deux sens, une fonction qui rendrait
+    // le numéro du joueur passerait.
+    let db = db();
+    let mut pol = RandomPolicy;
+    let mut g = setup_game(&db, 4242, &mut pol);
+    g.awards = [AwardKind::Visionary; 3];
+
+    // Personne n'a amélioré : égalité à zéro, 4 PV chacun.
+    let nuls = award_points(&g);
+    assert_eq!(nuls, [12, 12], "égalité à zéro : 4 PV par tuile, aucun départage");
+
+    // p0 a deux cartes Phase améliorées, p1 une seule.
+    g.players[0].upgrade_phase(1, PhaseUpgrade::VariantA);
+    g.players[0].upgrade_phase(4, PhaseUpgrade::VariantB);
+    g.players[1].upgrade_phase(2, PhaseUpgrade::VariantA);
+    assert_eq!(g.players[0].phase_upgrades_count(), 2);
+    assert_eq!(g.players[1].phase_upgrades_count(), 1);
+    let pts = award_points(&g);
+    assert!(pts[0] > pts[1], "le joueur qui en a le plus gagne : {pts:?}");
+    assert_eq!(pts, [15, 6], "5/2 par tuile, trois tuiles");
+
+    // Sens inverse : p1 en prend trois, p0 en garde deux.
+    g.players[1].upgrade_phase(3, PhaseUpgrade::VariantB);
+    g.players[1].upgrade_phase(5, PhaseUpgrade::VariantA);
+    let pts = award_points(&g);
+    assert!(pts[1] > pts[0], "le classement s'inverse avec les améliorations : {pts:?}");
+
+    // Et une bascule A ↔ B ne CRÉE pas de carte : le compte ne bouge pas.
+    let avant = g.players[1].phase_upgrades_count();
+    let deja = g.players[1].upgrade_phase(3, PhaseUpgrade::VariantA);
+    assert!(deja, "la phase III était déjà améliorée");
+    assert_eq!(g.players[1].phase_upgrades_count(), avant, "A ↔ B ne compte pas double");
 }

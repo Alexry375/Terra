@@ -496,8 +496,10 @@ pub enum ResEff {
     /// Retire n ressources d'une carte AU CHOIX du joueur, parmi les porteuses
     /// des types donnés (Decomposing Fungus : 1 animal OU 1 microbe).
     RemoveAny(&'static [ResKind], u32),
-    /// « Améliore une carte Phase » : mécanisme d'un lot ultérieur. L'effet est
-    /// SAUTÉ et compté dans `phase_upgrades_skipped` — aucune compensation.
+    /// « Améliorez une carte Phase » : le joueur remplace l'une de ses cinq
+    /// cartes Phase par l'une des dix améliorées (`flow::apply_phase_upgrade`).
+    /// L'effet était SAUTÉ et compté dans `phase_upgrades_skipped` jusqu'au
+    /// chantier `decouverte-phases` ; il est appliqué depuis.
     PhaseUpgrade,
 }
 
@@ -2387,3 +2389,402 @@ pub static CORPS: &[(&str, CorpEffects)] = &[
 pub fn corp_lookup(name: &str) -> Option<&'static CorpEffects> {
     CORPS.iter().find(|(n, _)| *n == name).map(|(_, e)| e)
 }
+
+// =============================================================================
+// (Découverte) LES CARTES PHASE — de base et AMÉLIORÉES
+//
+// Le BONUS DU SÉLECTIONNEUR de chaque phase est une DONNÉE, jamais une
+// constante lue dans le flux de jeu. Une carte Phase améliorée REMPLACE la
+// carte Phase correspondante dans la main du joueur (livret l. 64) : le moteur
+// le rend littéral en ne lisant JAMAIS deux entrées de cette table pour une
+// même phase. Le cumul du bonus de base et du bonus amélioré n'est pas
+// « absent », il est impossible à écrire (NEVER 1).
+//
+// Lecture unique : `flow::selector_bonus`. Les cinq phases y passent.
+// =============================================================================
+
+/// (Découverte) Une branche de bonus de sélectionneur. **Plusieurs branches =
+/// un « ou » du texte imprimé**, tranché par `Policy` — jamais par le moteur
+/// (NEVER 4).
+#[derive(Debug, Clone, Copy)]
+pub struct SelectorGrant {
+    /// MC de moins sur la carte jouée pendant cette phase (phase I).
+    pub mc_discount: i64,
+    /// MC gagnés (phase IV ; branche « OU gagnez 6 MC » de II-B).
+    pub mc: i64,
+    /// Cartes piochées (phase II).
+    pub draw: u8,
+    /// Activations d'action supplémentaires (phase III).
+    pub extra_activations: u8,
+    /// Permissions de pose supplémentaires (I-B, II-A, II-B). C'est le
+    /// mécanisme du lot cartes-8, emprunté tel quel : aucune seconde file
+    /// (NEVER 2).
+    pub builds: &'static [BuildGrant],
+    /// Cartes piochées / conservées EN PLUS de la compétence imprimée
+    /// (phase V, « tous les joueurs piochent 2 et en conservent 1 »).
+    pub research_draw: usize,
+    pub research_keep: usize,
+    /// Révélation du dessus de la pioche (III-A) — brique du lot 6.
+    pub reveal: Option<Reveal>,
+    /// Rejouer la production d'une carte verte du joueur (IV-A).
+    pub replay_green_prod: bool,
+}
+
+/// Aucun bonus : la valeur d'un joueur qui n'est pas le sélectionneur.
+pub const SELECTOR_NONE: SelectorGrant = SelectorGrant {
+    mc_discount: 0,
+    mc: 0,
+    draw: 0,
+    extra_activations: 0,
+    builds: &[],
+    research_draw: 0,
+    research_keep: 0,
+    reveal: None,
+    replay_green_prod: false,
+};
+
+/// (Découverte) Une carte Phase — de base ou améliorée : son nom imprimé et son
+/// bonus de sélectionneur. La COMPÉTENCE n'y figure pas : elle est identique
+/// mot pour mot sur la carte de base et sur ses deux améliorations (ASK 2), et
+/// elle vit déjà dans le flux de chaque phase.
+#[derive(Debug, Clone, Copy)]
+pub struct SelectorSpec {
+    /// Nom imprimé de la carte (les noms vivent dans les données, NEVER 5).
+    pub name: &'static str,
+    /// Les branches du bonus, DANS L'ORDRE DU TEXTE IMPRIMÉ. Une seule branche
+    /// = pas d'alternative.
+    pub branches: &'static [SelectorGrant],
+}
+
+/// Le « bonus » d'un joueur qui n'a pas choisi la phase — une seule branche,
+/// vide. Existe pour que le flux puisse toujours lire `branches[0]`.
+pub static SELECTOR_SPEC_NONE: SelectorSpec = SelectorSpec {
+    name: "",
+    branches: &[SELECTOR_NONE],
+};
+
+/// Permission de la carte Phase améliorée I-B : « Vous pouvez jouer une seconde
+/// carte verte lors de cette phase dont le coût IMPRIMÉ est de 12 MC ou moins. »
+const SECOND_GREEN_UNDER_12: BuildGrant = BuildGrant {
+    colors: &[Color::Green],
+    max_printed_cost: Some(12),
+    free: false,
+};
+
+/// Permission des cartes Phase améliorées II-A et II-B : « une seconde carte
+/// bleue ou rouge lors de cette phase ». C'est exactement la pose ordinaire de
+/// la phase II — la même donnée, pas une copie (`flow::GRANT_CONSTRUCTION`).
+const SECOND_BLUE_OR_RED: &[BuildGrant] = &[crate::flow::GRANT_CONSTRUCTION];
+
+/// (III-A) « Révélez les 3 premières cartes de la pioche. Ajoutez à votre main
+/// une carte bleue ou rouge ainsi révélée. Défaussez les autres cartes. »
+/// « bleue ou rouge » = toute carte qui n'est pas verte : le moteur n'a que
+/// trois couleurs, `ColorIsNot(Green)` est le filtre exact, pas une
+/// approximation.
+const REVEAL_BLUE_OR_RED: Reveal = Reveal {
+    n: 3,
+    keep: RevealFilter::ColorIsNot(Color::Green),
+    take: 1,
+    mc_per_discarded: 0,
+};
+
+/// **Les cinq cartes Phase de la boîte de base** (livret p.11-15). Les valeurs
+/// sont celles que le moteur employait en dur avant ce chantier ; les deux
+/// constantes historiques restent la source (`state::DEV_SELECTOR_DISCOUNT`,
+/// `state::PRODUCTION_SELECTOR_MC`).
+///
+/// Phase V : la compétence imprimée donne 2 piochées / 1 conservée À TOUS les
+/// joueurs ; le bonus du sélectionneur vaut donc **+3 piochées / +1 conservée**
+/// (5/2 au total), et non 5/2.
+pub static PHASE_BASE: [SelectorSpec; 5] = [
+    // I — DÉVELOPPEMENT : « Le coût de la carte que vous jouez lors de cette
+    // phase est réduit de 3 MC. »
+    SelectorSpec {
+        name: "Development",
+        branches: &[SelectorGrant {
+            mc_discount: crate::state::DEV_SELECTOR_DISCOUNT,
+            mc: 0,
+            draw: 0,
+            extra_activations: 0,
+            builds: &[],
+            research_draw: 0,
+            research_keep: 0,
+            reveal: None,
+            replay_green_prod: false,
+        }],
+    },
+    // II — CONSTRUCTION : « Piochez une carte avant ou après avoir joué une
+    // carte lors de cette phase OU jouez une carte bleue ou rouge
+    // supplémentaire. » Deux branches, plus le MOMENT de la pioche : ce dernier
+    // reste tranché par `Policy::construction_bonus` (C2 du lot 3), qui EST le
+    // choix de branche de cette carte-ci.
+    SelectorSpec {
+        name: "Construction",
+        branches: &[
+            SelectorGrant {
+                mc_discount: 0,
+                mc: 0,
+                draw: 1,
+                extra_activations: 0,
+                builds: &[],
+                research_draw: 0,
+                research_keep: 0,
+                reveal: None,
+                replay_green_prod: false,
+            },
+            SelectorGrant {
+                mc_discount: 0,
+                mc: 0,
+                draw: 0,
+                extra_activations: 0,
+                builds: SECOND_BLUE_OR_RED,
+                research_draw: 0,
+                research_keep: 0,
+                reveal: None,
+                replay_green_prod: false,
+            },
+        ],
+    },
+    // III — ACTION : « Vous pouvez activer une "Action :" une fois de plus. »
+    SelectorSpec {
+        name: "Action",
+        branches: &[SelectorGrant {
+            mc_discount: 0,
+            mc: 0,
+            draw: 0,
+            extra_activations: 1,
+            builds: &[],
+            research_draw: 0,
+            research_keep: 0,
+            reveal: None,
+            replay_green_prod: false,
+        }],
+    },
+    // IV — PRODUCTION : « Gagnez 4 MC. »
+    SelectorSpec {
+        name: "Production",
+        branches: &[SelectorGrant {
+            mc_discount: 0,
+            mc: crate::state::PRODUCTION_SELECTOR_MC,
+            draw: 0,
+            extra_activations: 0,
+            builds: &[],
+            research_draw: 0,
+            research_keep: 0,
+            reveal: None,
+            replay_green_prod: false,
+        }],
+    },
+    // V — RECHERCHE : le sélectionneur pioche 5 et en garde 2, dont 2/1 de
+    // compétence : le BONUS vaut +3 / +1.
+    SelectorSpec {
+        name: "Research",
+        branches: &[SelectorGrant {
+            mc_discount: 0,
+            mc: 0,
+            draw: 0,
+            extra_activations: 0,
+            builds: &[],
+            research_draw: 3,
+            research_keep: 1,
+            reveal: None,
+            replay_green_prod: false,
+        }],
+    },
+];
+
+/// **Les dix cartes Phase améliorées** (extension Découverte, transcription
+/// `inputs/refs/phases-ameliorees.json`), indexées `[phase - 1][variante]`
+/// (variante 0 = A, 1 = B).
+///
+/// Chaque entrée donne le bonus COMPLET de la carte améliorée : il REMPLACE
+/// celui de la carte de base, il ne s'y ajoute pas (livret l. 64).
+pub static PHASE_UPGRADED: [[SelectorSpec; 2]; 5] = [
+    [
+        // I-A — « Le coût de la carte que vous jouez lors de cette phase est
+        // réduit de 6 MC. » (le double de la carte de base, pas 3 + 6).
+        SelectorSpec {
+            name: "Development (phase améliorée A)",
+            branches: &[SelectorGrant {
+                mc_discount: 6,
+                mc: 0,
+                draw: 0,
+                extra_activations: 0,
+                builds: &[],
+                research_draw: 0,
+                research_keep: 0,
+                reveal: None,
+                replay_green_prod: false,
+            }],
+        },
+        // I-B — « Le coût de la PREMIÈRE carte que vous jouez lors de cette
+        // phase est réduit de 3 MC. Vous pouvez jouer une seconde carte verte
+        // lors de cette phase dont le coût imprimé est de 12 MC ou moins. »
+        SelectorSpec {
+            name: "Development (phase améliorée B)",
+            branches: &[SelectorGrant {
+                mc_discount: 3,
+                mc: 0,
+                draw: 0,
+                extra_activations: 0,
+                builds: &[SECOND_GREEN_UNDER_12],
+                research_draw: 0,
+                research_keep: 0,
+                reveal: None,
+                replay_green_prod: false,
+            }],
+        },
+    ],
+    [
+        // II-A — « Piochez une carte. Vous pouvez jouer une seconde carte bleue
+        // ou rouge lors de cette phase. » LES DEUX : une seule branche.
+        SelectorSpec {
+            name: "Construction (phase améliorée A)",
+            branches: &[SelectorGrant {
+                mc_discount: 0,
+                mc: 0,
+                draw: 1,
+                extra_activations: 0,
+                builds: SECOND_BLUE_OR_RED,
+                research_draw: 0,
+                research_keep: 0,
+                reveal: None,
+                replay_green_prod: false,
+            }],
+        },
+        // II-B — « Jouez une carte bleue ou une carte rouge supplémentaire lors
+        // de cette phase. OU Gagnez 6 MC. » Un vrai « ou » : deux branches,
+        // dans l'ordre du texte imprimé.
+        SelectorSpec {
+            name: "Construction (phase améliorée B)",
+            branches: &[
+                SelectorGrant {
+                    mc_discount: 0,
+                    mc: 0,
+                    draw: 0,
+                    extra_activations: 0,
+                    builds: SECOND_BLUE_OR_RED,
+                    research_draw: 0,
+                    research_keep: 0,
+                    reveal: None,
+                    replay_green_prod: false,
+                },
+                SelectorGrant {
+                    mc_discount: 0,
+                    mc: 6,
+                    draw: 0,
+                    extra_activations: 0,
+                    builds: &[],
+                    research_draw: 0,
+                    research_keep: 0,
+                    reveal: None,
+                    replay_green_prod: false,
+                },
+            ],
+        },
+    ],
+    [
+        // III-A — « Vous pouvez activer un de vos effets "Action :" une fois de
+        // plus. Révélez les 3 premières cartes de la pioche. Ajoutez à votre
+        // main une carte bleue ou rouge ainsi révélée. Défaussez les autres. »
+        SelectorSpec {
+            name: "Action (phase améliorée A)",
+            branches: &[SelectorGrant {
+                mc_discount: 0,
+                mc: 0,
+                draw: 0,
+                extra_activations: 1,
+                builds: &[],
+                research_draw: 0,
+                research_keep: 0,
+                reveal: Some(REVEAL_BLUE_OR_RED),
+                replay_green_prod: false,
+            }],
+        },
+        // III-B — « Vous pouvez activer deux de vos effets "Action :" une fois
+        // de plus. »
+        SelectorSpec {
+            name: "Action (phase améliorée B)",
+            branches: &[SelectorGrant {
+                mc_discount: 0,
+                mc: 0,
+                draw: 0,
+                extra_activations: 2,
+                builds: &[],
+                research_draw: 0,
+                research_keep: 0,
+                reveal: None,
+                replay_green_prod: false,
+            }],
+        },
+    ],
+    [
+        // IV-A — « Gagnez 1 MC. Activez l'effet de production de l'une de vos
+        // cartes vertes une fois de plus lors de cette phase. »
+        SelectorSpec {
+            name: "Production (phase améliorée A)",
+            branches: &[SelectorGrant {
+                mc_discount: 0,
+                mc: 1,
+                draw: 0,
+                extra_activations: 0,
+                builds: &[],
+                research_draw: 0,
+                research_keep: 0,
+                reveal: None,
+                replay_green_prod: true,
+            }],
+        },
+        // IV-B — « Gagnez 7 MC. »
+        SelectorSpec {
+            name: "Production (phase améliorée B)",
+            branches: &[SelectorGrant {
+                mc_discount: 0,
+                mc: 7,
+                draw: 0,
+                extra_activations: 0,
+                builds: &[],
+                research_draw: 0,
+                research_keep: 0,
+                reveal: None,
+                replay_green_prod: false,
+            }],
+        },
+    ],
+    [
+        // V-A — « Piochez 2 cartes supplémentaires et conservez-en 2
+        // supplémentaires. » Sur la compétence 2/1 : 4 piochées, 3 conservées.
+        // MOINS de cartes vues que la carte de base (5), PLUS de cartes gardées
+        // (3 contre 2) : c'est l'arbitrage imprimé, pas une coquille.
+        SelectorSpec {
+            name: "Research (phase améliorée A)",
+            branches: &[SelectorGrant {
+                mc_discount: 0,
+                mc: 0,
+                draw: 0,
+                extra_activations: 0,
+                builds: &[],
+                research_draw: 2,
+                research_keep: 2,
+                reveal: None,
+                replay_green_prod: false,
+            }],
+        },
+        // V-B — « Piochez 6 cartes supplémentaires et conservez-en 1
+        // supplémentaire. » Sur la compétence 2/1 : 8 piochées, 2 conservées.
+        SelectorSpec {
+            name: "Research (phase améliorée B)",
+            branches: &[SelectorGrant {
+                mc_discount: 0,
+                mc: 0,
+                draw: 0,
+                extra_activations: 0,
+                builds: &[],
+                research_draw: 6,
+                research_keep: 1,
+                reveal: None,
+                replay_green_prod: false,
+            }],
+        },
+    ],
+];

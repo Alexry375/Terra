@@ -1,3 +1,6 @@
+//! (Découverte) La ligne JSON de bilan compte désormais plus de 60 clés :
+//! `serde_json::json!` est une macro récursive, il lui faut la marge.
+#![recursion_limit = "512"]
 //! Binaire `simulate` : joue N parties aléatoires et écrit UNE ligne JSON
 //! finale sur stdout ; mode sonde : joue UNE carte depuis l'état fixe d'audit.
 //!
@@ -60,6 +63,29 @@ fn corp_json(c: &ProbeCorp) -> serde_json::Value {
             "heat": c.start_prod.1,
             "plants": c.start_prod.2,
         },
+    })
+}
+
+/// (Découverte) Sérialise l'objet `selector_bonus` — TOUJOURS émis, y compris
+/// sans `--probe-phase` (il décrit alors la phase 0, tout à zéro). Les valeurs
+/// sont celles que `flow::selector_bonus` rend : rien n'est recalculé ici.
+fn selector_bonus_json(b: &engine::flow::SelectorBonus) -> serde_json::Value {
+    serde_json::json!({
+        "phase": b.phase,
+        "upgraded": b.upgraded.map(|v| v.label()),
+        "mc_discount": b.mc_discount,
+        "mc": b.mc,
+        "draw": b.draw,
+        "extra_activations": b.extra_activations,
+        "extra_builds": b.extra_builds,
+        "research_draw": b.research_draw,
+        "research_keep": b.research_keep,
+        // Le bonus est-il un « ou » du texte imprimé (carte Phase II de base,
+        // II-B) ? Les champs ci-dessus annoncent alors ce que le bonus PEUT
+        // donner ; c'est `Policy` qui tranche en partie réelle.
+        "alternative": b.alternative,
+        // Nom imprimé de la carte Phase lue (vide hors sélectionneur).
+        "card": b.spec.name,
     })
 }
 
@@ -157,6 +183,22 @@ fn main() {
                     die("--probe-phase hors bornes (1..5)");
                 }
                 probe_opts.phase = n;
+                i += 2;
+            }
+            // (Découverte) `--probe-upgrade <phase><variante>` : installe une
+            // carte Phase améliorée chez le joueur sondé AVANT la séquence.
+            // Répétable et cumulable (`--probe-upgrade 1B --probe-upgrade 5A`) ;
+            // deux fois la même phase = la seconde REMPLACE la première, comme
+            // en partie réelle. Un argument mal formé est REFUSÉ, jamais ignoré.
+            "--probe-upgrade" => {
+                let arg = value(i);
+                let Some((phase, variant)) = engine::state::parse_phase_upgrade(arg) else {
+                    die(&format!(
+                        "--probe-upgrade invalide: « {arg} » \
+                         (attendu <phase 1..5><variante A|B>, par exemple 1B)"
+                    ));
+                };
+                probe_opts.upgrades[phase as usize - 1] = Some(variant);
                 i += 2;
             }
             // (lot cartes-7) Plantes de départ du joueur sondé, sur le modèle
@@ -315,6 +357,10 @@ fn main() {
                 "draw": r.research.0,
                 "keep": r.research.1,
             },
+            // (Découverte) Les cartes Phase améliorées installées, et le bonus
+            // du sélectionneur tel que le point de calcul unique le rend.
+            "upgrades": r.upgrades,
+            "selector_bonus": selector_bonus_json(&r.selector_bonus),
         });
         if let Some(c) = &r.corp {
             line["corp"] = corp_json(c);
@@ -391,6 +437,12 @@ fn main() {
         "res_removed": s.res_removed,
         "res_targets_missing": s.res_targets_missing,
         "phase_upgrades_skipped": s.phase_upgrades_skipped,
+        // (Découverte) le mécanisme des cartes Phase améliorées en partie réelle.
+        "phase_upgrades_granted": s.phase_upgrades_granted,
+        "phase_upgrades_reupgraded": s.phase_upgrades_reupgraded,
+        "upgraded_bonus_applied": s.upgraded_bonus_applied,
+        "upgraded_extra_builds": s.upgraded_extra_builds,
+        "visionary_award_points": s.visionary_award_points,
         // (boites-1) I4 : cartes à effet non géré réellement JOUÉES.
         "cards_effects_unhandled": s.cards_effects_unhandled,
         "vp_from_resources": s.vp_from_resources,

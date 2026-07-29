@@ -329,11 +329,16 @@ fn decouverte_n_est_pas_declaree_geree_en_bloc() {
     let non_geres = d.iter().filter(|c| !c.effets_geres).count();
     // 42 cartes, dont 7 projets partagent un nom déjà encodé dans `LOT1`
     // (encodage hérité du portage, hors périmètre de ce lot) : 35 sans aucun
-    // encodage. S'y ajoutent `Fibrous Composite Material` et
+    // encodage. S'y ajoutaient `Fibrous Composite Material` et
     // `Cryogenic Shipment` : encodées, mais portant une amélioration de carte
-    // Phase que le moteur SAUTE (`phase_upgrades_skipped`) — donc pas
+    // Phase que le moteur SAUTAIT (`phase_upgrades_skipped`) — donc pas
     // intégralement gérées. Total 37.
-    assert_eq!(non_geres, 37);
+    //
+    // TÉMOIN RETOURNÉ par le chantier `decouverte-phases` (37 → 35) : le
+    // mécanisme des cartes Phase améliorées existe, l'amélioration n'est plus
+    // sautée, ces deux cartes-là sont intégralement gérées. Les 35 autres
+    // n'ont toujours aucun encodage — aucune carte n'a été encodée.
+    assert_eq!(non_geres, 35);
 }
 
 // ------------------------------------------------- le compteur I4 compte
@@ -416,28 +421,28 @@ fn changer_de_boites_change_reellement_les_parties() {
 }
 
 #[test]
-fn une_carte_encodee_mais_dont_un_effet_est_saute_n_est_pas_declaree_geree() {
-    // Le moteur reconnaît lui-même sauter les améliorations de carte Phase :
-    // `flow::apply_res_eff` les compte dans `phase_upgrades_skipped` au lieu de
-    // les appliquer. Une carte qui en porte une est encodée, mais son texte
-    // imprimé n'est PAS intégralement appliqué : `effets_geres` doit dire faux,
-    // sinon le recensement affirmerait l'inverse de ce que le moteur mesure
-    // (critère I4 du contrat).
+fn plus_aucune_carte_encodee_ne_voit_un_de_ses_effets_saute() {
+    // TÉMOIN RETOURNÉ par le chantier `decouverte-phases`. Il disait :
+    // « une carte encodée mais dont un effet est SAUTÉ n'est pas déclarée
+    // gérée » — le moteur sautait les améliorations de carte Phase et les
+    // comptait dans `phase_upgrades_skipped`, et deux cartes de Découverte en
+    // portaient une. Le mécanisme existe désormais : plus AUCUN effet encodé
+    // n'est sauté, et le critère I4 se vérifie dans l'autre sens.
     let db = db_de("base,decouverte");
-    let mut trouvees = 0;
-    for (i, c) in db.projects.iter().enumerate() {
+    for c in db.projects.iter() {
         let Some(e) = c.effect else { continue };
-        if engine::cards::encodage_integral(e) {
-            continue;
-        }
-        trouvees += 1;
-        assert!(!c.effets_geres(), "{} : encodage partiel déclaré géré", c.name);
-        let _ = i;
+        assert!(
+            engine::cards::encodage_integral(e),
+            "{} : un effet encodé est encore sauté par le moteur",
+            c.name
+        );
+        assert!(c.effets_geres(), "{} : encodage intégral déclaré non géré", c.name);
     }
-    assert!(trouvees >= 2, "au moins deux cartes portent une amélioration de phase");
-    // Et le compteur d'audit les voit : sur des parties réelles avec Découverte,
-    // les améliorations sautées sont non nulles.
+    // Et le compteur d'audit le dit sur des parties RÉELLES : plus rien n'est
+    // sauté, PARCE QUE les améliorations sont réellement accordées (la garde
+    // anti-débranchement : `skipped == 0` ET `granted > 0`).
     let mut pol = RandomPolicy;
     let s = engine::sim::run_simulation(&db, 300, 2024, &mut pol);
-    assert!(s.phase_upgrades_skipped > 0, "des améliorations de phase sont sautées");
+    assert_eq!(s.phase_upgrades_skipped, 0, "plus aucune amélioration n'est sautée");
+    assert!(s.phase_upgrades_granted > 0, "des améliorations sont réellement accordées");
 }

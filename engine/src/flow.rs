@@ -8,11 +8,12 @@
 //! `PickPhaseProcessor`, `TerraformingService`, `MarsGame.assignMilestones`).
 
 use crate::cards::{CardsDb, Color, Tag, VpKind};
+use crate::boites::Boite;
 use crate::effects::{
     self, Action, ActionCost, ActionEff, ActionRes, BuildGrant, Capacity, CorpEffects, Eff,
     GlobalTrigger,
     PhaseBonus, ProdCount, ProdRes, Reduction, Req, ResAmount, ResEff, ResKind, ResPut, ResStep,
-    ResTarget, Reveal, RevealFilter, TrigGain,
+    ResTarget, Reveal, RevealFilter, SelectorGrant, SelectorSpec, TrigGain,
 };
 use crate::policy::{ActionOpt, ConstructionBonus, Policy};
 use crate::state::*;
@@ -108,6 +109,10 @@ pub fn setup_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameState
         res_removed: 0,
         res_targets_missing: 0,
         phase_upgrades_skipped: 0,
+        phase_upgrades_granted: 0,
+        phase_upgrades_reupgraded: 0,
+        upgraded_bonus_applied: 0,
+        upgraded_extra_builds: 0,
         cards_effects_unhandled: 0,
         derived_mc: 0,
         derived_heat: 0,
@@ -140,7 +145,7 @@ pub fn setup_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameState
             achieved_by: [false; NUM_PLAYERS],
         };
     }
-    let mut apool = AWARD_POOL;
+    let mut apool = award_pool(db);
     shuffle(&mut apool, &mut game.rng);
     for i in 0..3 {
         game.awards[i] = apool[i];
@@ -726,6 +731,38 @@ fn branch_playable(
     })
 }
 
+/// (Découverte) **« Améliorez une carte Phase »** — le SEUL chemin d'octroi
+/// d'une amélioration dans tout le moteur.
+///
+/// Le joueur choisit l'une des dix cartes Phase améliorées mises de côté et en
+/// remplace la carte Phase correspondante (livret l. 64). Améliorer une phase
+/// DÉJÀ améliorée est permis, à condition de basculer sur l'autre variante
+/// (l. 66) : la variante en place est donc retirée des candidates, ce qui
+/// interdit le gaspillage sans jamais interdire le geste. Il reste toujours au
+/// moins cinq candidates : l'effet n'est jamais sauté, et
+/// `phase_upgrades_skipped` ne peut plus bouger.
+///
+/// Le CHOIX appartient à `Policy` (NEVER 4) ; les candidates sont énumérées
+/// dans un ordre totalement déterministe (phase croissante, puis A avant B).
+fn apply_phase_upgrade(game: &mut GameState, p: usize, policy: &mut dyn Policy) {
+    let mut cands: Vec<(u8, PhaseUpgrade)> = Vec::with_capacity(10);
+    for phase in 1u8..=5 {
+        for v in PhaseUpgrade::ALL {
+            if game.players[p].phase_upgrade(phase) != Some(v) {
+                cands.push((phase, v));
+            }
+        }
+    }
+    debug_assert!(!cands.is_empty(), "aucune amélioration possible : impossible");
+    let i = policy.choose_option(&mut game.rng, p, cands.len());
+    let (phase, variant) = cands[i.min(cands.len() - 1)];
+    let deja = game.players[p].upgrade_phase(phase, variant);
+    game.phase_upgrades_granted += 1;
+    if deja {
+        game.phase_upgrades_reupgraded += 1;
+    }
+}
+
 /// Applique UN effet à ressources. `self_card` = carte qui porte l'effet (celle
 /// qu'on pose, ou la source du déclencheur, ou la carte dont on active
 /// l'action).
@@ -739,9 +776,9 @@ fn apply_res_eff(
 ) {
     match e {
         ResEff::Gain(eff) => apply_eff(game, db, p, *eff, policy),
-        // Amélioration de carte Phase : mécanisme d'un lot ultérieur. L'effet
-        // est perdu, SANS compensation d'aucune sorte, et compté.
-        ResEff::PhaseUpgrade => game.phase_upgrades_skipped += 1,
+        // « Améliorez une carte Phase » : le mécanisme existe depuis le
+        // chantier `decouverte-phases` — plus rien n'est sauté.
+        ResEff::PhaseUpgrade => apply_phase_upgrade(game, p, policy),
         ResEff::Put(put) => {
             let cands = put_targets(game, db, p, self_card, put);
             if cands.is_empty() {
@@ -1580,27 +1617,41 @@ pub fn derived_production(db: &CardsDb, pl: &PlayerState) -> (i64, i64, i64) {
     }
     let (mut mc, mut heat, mut plants) = (0i64, 0i64, 0i64);
     for &c in &pl.played {
-        let Some(spec) = db.projects[c as usize].effect else {
-            continue;
-        };
-        let Some(prod) = spec.prod else {
-            continue;
-        };
-        if prod.per == 0 {
-            continue;
-        }
-        let counted = match prod.count {
-            ProdCount::Tag(t) => t.index().map_or(0, |i| pl.tag_counts[i] as i64),
-            ProdCount::Forests => pl.forests,
-        };
-        let gained = counted / prod.per as i64;
-        match prod.res {
-            ProdRes::Mc => mc += gained,
-            ProdRes::Heat => heat += gained,
-            ProdRes::Plants => plants += gained,
-        }
+        let (m, h, pl_) = card_derived_production(db, pl, c);
+        mc += m;
+        heat += h;
+        plants += pl_;
     }
     (mc, heat, plants)
+}
+
+/// (lot 4, isolé au chantier `decouverte-phases`) La production DÉRIVÉE d'UNE
+/// carte en jeu. `derived_production` en est la somme sur les cartes du joueur ;
+/// le bonus de la carte Phase IV-A en rejoue exactement une. Une seule
+/// implémentation de la division entière, comme avant (NEVER 2).
+pub fn card_derived_production(db: &CardsDb, pl: &PlayerState, card_id: u16) -> (i64, i64, i64) {
+    if !db.effects_on {
+        return (0, 0, 0);
+    }
+    let Some(spec) = db.projects[card_id as usize].effect else {
+        return (0, 0, 0);
+    };
+    let Some(prod) = spec.prod else {
+        return (0, 0, 0);
+    };
+    if prod.per == 0 {
+        return (0, 0, 0);
+    }
+    let counted = match prod.count {
+        ProdCount::Tag(t) => t.index().map_or(0, |i| pl.tag_counts[i] as i64),
+        ProdCount::Forests => pl.forests,
+    };
+    let gained = counted / prod.per as i64;
+    match prod.res {
+        ProdRes::Mc => (gained, 0, 0),
+        ProdRes::Heat => (0, gained, 0),
+        ProdRes::Plants => (0, 0, gained),
+    }
 }
 
 /// (lot 4) **Bonus permanent de phase Recherche** d'un joueur :
@@ -1633,14 +1684,17 @@ pub fn research_extra(db: &CardsDb, pl: &PlayerState) -> (usize, usize) {
     (draw, keep)
 }
 
-/// (lot 4) Base du livret pour la phase V (p.15) : 2 cartes piochées / 1 gardée ;
-/// sélectionneur de la phase 5 : 5 piochées / 2 gardées.
-pub fn research_base(pl: &PlayerState) -> (usize, usize) {
-    if pl.chosen_phase == 5 {
-        (5, 2)
-    } else {
-        (2, 1)
-    }
+/// (lot 4) Base du livret pour la phase V (p.15) : la COMPÉTENCE imprimée
+/// — « tous les joueurs piochent 2 cartes et en conservent 1 » — plus le BONUS
+/// du sélectionneur, lu au point de calcul unique.
+///
+/// La compétence est la même sur la carte de base et sur les deux améliorées
+/// (ASK 2) : seul le bonus change. Carte de base : +3 / +1, soit les 5/2
+/// historiques. V-A : +2 / +2 → 4 piochées, 3 conservées. V-B : +6 / +1 →
+/// 8 piochées, 2 conservées.
+pub fn research_base(db: &CardsDb, pl: &PlayerState) -> (usize, usize) {
+    let b = selector_bonus(db, pl, 5);
+    (2 + b.research_draw, 1 + b.research_keep)
 }
 
 /// (lot 4) Cartes piochées / gardées en phase V par un joueur : base du livret
@@ -1648,7 +1702,7 @@ pub fn research_base(pl: &PlayerState) -> (usize, usize) {
 /// Joueur ordinaire 2/1 → 3/2 ; sélectionneur 5/2 → 6/3. Chemin unique,
 /// consommé par `phase_research`.
 pub fn research_draw_keep(db: &CardsDb, pl: &PlayerState) -> (usize, usize) {
-    let (base_n, base_keep) = research_base(pl);
+    let (base_n, base_keep) = research_base(db, pl);
     let (extra_n, extra_keep) = research_extra(db, pl);
     (base_n + extra_n, base_keep + extra_keep)
 }
@@ -2777,24 +2831,179 @@ pub fn apply_blue_action(
     applied
 }
 
+// =============================================================================
+// (Découverte) LE BONUS DU SÉLECTIONNEUR — POINT DE CALCUL UNIQUE
+//
+// Les cinq phases lisent leur bonus ICI, et nulle part ailleurs. La valeur ne
+// vient jamais d'une constante écrite dans le flux de jeu : elle vient de la
+// table `effects::PHASE_BASE` ou, si le joueur a amélioré cette carte Phase, de
+// `effects::PHASE_UPGRADED`. **Une entrée, jamais deux** : c'est ce qui rend le
+// cumul du bonus de base et du bonus amélioré impossible à écrire (NEVER 1).
+// =============================================================================
+
+/// (Découverte) Le bonus du sélectionneur d'une phase, tel que le joueur y a
+/// droit : la carte Phase de base, ou son amélioration si elle est installée.
+///
+/// Les champs scalaires sont l'UNION des branches (un « ou » du texte imprimé
+/// annonce ce qu'il peut donner ; `alternative` dit qu'il faudra choisir).
+/// C'est cet objet que la sonde rend tel quel — elle ne le recalcule pas.
+#[derive(Debug, Clone, Copy)]
+pub struct SelectorBonus {
+    /// Phase décrite (0 = aucune phase demandée).
+    pub phase: u8,
+    /// Le joueur a-t-il choisi cette phase ? Faux = aucun bonus.
+    pub is_selector: bool,
+    /// Variante installée sur cette carte Phase, `None` = carte normale.
+    pub upgraded: Option<PhaseUpgrade>,
+    /// La carte Phase lue (nom imprimé, branches).
+    pub spec: &'static SelectorSpec,
+    pub mc_discount: i64,
+    pub mc: i64,
+    pub draw: u8,
+    pub extra_activations: u8,
+    /// Nombre de poses supplémentaires que le bonus peut accorder.
+    pub extra_builds: u8,
+    pub research_draw: usize,
+    pub research_keep: usize,
+    /// Le bonus est un « ou » : une seule de ses branches sera appliquée.
+    pub alternative: bool,
+}
+
+impl SelectorBonus {
+    /// Bonus vide (joueur non sélectionneur, ou phase 0).
+    fn none(phase: u8) -> SelectorBonus {
+        SelectorBonus {
+            phase,
+            is_selector: false,
+            upgraded: None,
+            spec: &effects::SELECTOR_SPEC_NONE,
+            mc_discount: 0,
+            mc: 0,
+            draw: 0,
+            extra_activations: 0,
+            extra_builds: 0,
+            research_draw: 0,
+            research_keep: 0,
+            alternative: false,
+        }
+    }
+}
+
+/// (Découverte) **Le point de calcul unique.** Bonus du sélectionneur de la
+/// phase `phase` (1..=5) pour le joueur `pl`.
+///
+/// - `phase == 0` ou joueur qui n'a pas choisi cette phase → tout à zéro ;
+/// - `--effects off` → les améliorations installées sont ignorées, les cinq
+///   bonus retombent bit à bit sur la carte Phase de base (ALWAYS 2) ;
+/// - sinon → la carte Phase du joueur pour cette phase, améliorée ou non.
+///
+/// Fonction PURE : elle ne touche aucun compteur (c'est
+/// `selector_bonus_applied` qui compte, et le flux de jeu seul l'appelle).
+pub fn selector_bonus(db: &CardsDb, pl: &PlayerState, phase: u8) -> SelectorBonus {
+    if !(1..=5).contains(&phase) || pl.chosen_phase != phase {
+        return SelectorBonus::none(phase);
+    }
+    // La couche d'effets coupée : le joueur garde ses cartes améliorées en
+    // main, mais aucun de leurs bonus ne s'applique — comme tout effet de
+    // carte (I7).
+    let upgraded = if db.effects_on {
+        pl.phase_upgrade(phase)
+    } else {
+        None
+    };
+    let spec: &'static SelectorSpec = match upgraded {
+        Some(v) => &effects::PHASE_UPGRADED[phase as usize - 1][v.index()],
+        None => &effects::PHASE_BASE[phase as usize - 1],
+    };
+    let mut b = SelectorBonus::none(phase);
+    b.is_selector = true;
+    b.upgraded = upgraded;
+    b.spec = spec;
+    b.alternative = spec.branches.len() > 1;
+    for g in spec.branches {
+        b.mc_discount = b.mc_discount.max(g.mc_discount);
+        b.mc = b.mc.max(g.mc);
+        b.draw = b.draw.max(g.draw);
+        b.extra_activations = b.extra_activations.max(g.extra_activations);
+        b.extra_builds = b.extra_builds.max(g.builds.len() as u8);
+        b.research_draw = b.research_draw.max(g.research_draw);
+        b.research_keep = b.research_keep.max(g.research_keep);
+    }
+    b
+}
+
+/// (Découverte) Le bonus du sélectionneur tel que la PHASE RÉELLE le lit, plus
+/// le comptage du remplacement. Appelé une fois par phase et par joueur, par le
+/// flux de jeu **et par lui seul** : la sonde passe par `selector_bonus`, qui
+/// ne compte rien.
+fn selector_bonus_applied(
+    game: &mut GameState,
+    db: &CardsDb,
+    p: usize,
+    phase: u8,
+) -> SelectorBonus {
+    let b = selector_bonus(db, &game.players[p], phase);
+    if b.upgraded.is_some() {
+        game.upgraded_bonus_applied += 1;
+    }
+    b
+}
+
+/// (Découverte) La branche du bonus à appliquer. Une seule branche = rien à
+/// demander ; plusieurs = un « ou » du texte imprimé, tranché par `Policy`
+/// (NEVER 4) — jamais par le moteur.
+fn selector_branch(
+    game: &mut GameState,
+    b: &SelectorBonus,
+    p: usize,
+    policy: &mut dyn Policy,
+) -> &'static SelectorGrant {
+    let branches = b.spec.branches;
+    if branches.len() < 2 {
+        return &branches[0];
+    }
+    let i = policy.choose_option(&mut game.rng, p, branches.len());
+    &branches[i.min(branches.len() - 1)]
+}
+
+/// (Découverte) Verse dans la file du lot cartes-8 les permissions de pose
+/// accordées par une carte Phase améliorée. **Pas de seconde file, pas de
+/// second drainage** (NEVER 2) : ce sont des permissions comme celles des
+/// cartes, elles sont exercées par `drain_pending_builds`.
+fn grant_selector_builds(game: &mut GameState, p: usize, g: &SelectorGrant) {
+    for grant in g.builds {
+        game.players[p].pending_builds.push(*grant);
+        game.extra_builds_granted += 1;
+        game.upgraded_extra_builds += 1;
+    }
+}
+
 /// Phase I — Développement (livret p.11) : chacun peut jouer 1 carte verte ;
-/// sélectionneur : -3 MC. Un passage chacun, dans l'ordre du tour (C4).
+/// sélectionneur : la remise de sa carte Phase (base -3 MC, I-A -6 MC, I-B -3 MC
+/// plus une seconde verte). Un passage chacun, dans l'ordre du tour (C4).
 fn phase_development(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
     for p in game.players_in_turn_order() {
-        let discount = if game.players[p].chosen_phase == 1 {
-            DEV_SELECTOR_DISCOUNT
-        } else {
-            0
-        };
+        let bonus = selector_bonus_applied(game, db, p, 1);
+        let g = selector_branch(game, &bonus, p, policy);
+        let discount = g.mc_discount;
         let opts = affordable(game, db, p, &GRANT_DEVELOPMENT, discount);
         if let Some(idx) = policy.choose_build(&mut game.rng, p, &opts) {
             assert!(opts.contains(&idx), "choix de construction hors options");
             build_card_granted(game, db, p, idx, discount, &GRANT_DEVELOPMENT, policy);
         }
+        // (Découverte, I-B) « Vous pouvez jouer une SECONDE carte verte » : la
+        // permission est versée APRÈS la pose ordinaire — c'est bien une carte
+        // de plus, et le texte réserve la remise à « la première carte ».
+        grant_selector_builds(game, p, g);
         // (lot cartes-8) *Automated Factories* et *Tall Station* offrent ici une
         // carte verte à 9 MC ou moins. La permission ne peut naître que de la
         // pose qui précède, d'où le drainage APRÈS elle.
-        drain_pending_builds(game, db, p, discount, policy);
+        //
+        // Remise nulle : « le coût de LA CARTE que vous jouez lors de cette
+        // phase » vise la pose ordinaire, pas les poses supplémentaires (le
+        // drainage forçait déjà 0 pour les permissions offertes, les seules que
+        // la boîte de base produise en phase I : l'empreinte ne bouge pas).
+        drain_pending_builds(game, db, p, 0, policy);
     }
 }
 
@@ -2803,27 +3012,60 @@ fn phase_development(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy
 /// (C2), OU en jouer une 2e. Un passage chacun, dans l'ordre du tour (C4).
 fn phase_construction(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
     for p in game.players_in_turn_order() {
-        // Le bonus est décidé AVANT la pose : c'est la seule façon d'ouvrir
-        // le moment « pioche avant » du livret (l.336).
-        let bonus = if game.players[p].chosen_phase == 2 {
+        let sb = selector_bonus_applied(game, db, p, 2);
+        // La carte Phase II de BASE est un « ou » à trois issues (pioche avant,
+        // pioche après, seconde pose) : c'est `Policy::construction_bonus` qui
+        // en choisit la branche ET le moment, depuis le lot 3 (C2). Les cartes
+        // AMÉLIORÉES ont leur propre forme : II-A donne les deux à la fois,
+        // II-B est un « ou » à deux branches tranché par `Policy::choose_option`.
+        let bonus = if sb.is_selector && sb.upgraded.is_none() {
             Some(policy.construction_bonus(&mut game.rng, p))
+        } else {
+            None
+        };
+        // Bonus AMÉLIORÉ : la branche est arrêtée avant la pose, comme le
+        // « ou » de la carte de base.
+        let upgraded: Option<&'static SelectorGrant> = if sb.upgraded.is_some() {
+            Some(selector_branch(game, &sb, p, policy))
         } else {
             None
         };
 
         // (C2) Pioche AVANT : la carte piochée entre en main avant le calcul
-        // d'affordabilité, elle peut donc être posée dans la foulée.
-        if bonus == Some(ConstructionBonus::DrawCardBefore) {
+        // d'affordabilité, elle peut donc être posée dans la foulée. Le bonus
+        // de base tire son nombre de cartes de la table, comme le bonus
+        // amélioré : une seule donnée pour les deux (NEVER 3).
+        let draw_before = match (bonus, upgraded) {
+            (Some(ConstructionBonus::DrawCardBefore), _) => sb.spec.branches[0].draw,
+            // (II-A) « Piochez une carte. » Le texte imprimé ne donne pas de
+            // moment : la pioche précède la pose, comme sur la carte de base
+            // quand le joueur choisit « avant » — c'est le moment qui laisse le
+            // plus de jeu, et il est déjà outillé (compteur `draw_before_build`).
+            (_, Some(g)) => g.draw,
+            _ => 0,
+        };
+        for _ in 0..draw_before {
             if let Some(c) = draw_card(game) {
                 game.players[p].hand.push(c);
                 game.draw_before_build += 1;
             }
+        }
+        // (II-B, branche « OU gagnez 6 MC ») : gain immédiat du sélectionneur.
+        if let Some(g) = upgraded {
+            game.players[p].mc += g.mc;
         }
 
         let opts = affordable(game, db, p, &GRANT_CONSTRUCTION, 0);
         if let Some(idx) = policy.choose_build(&mut game.rng, p, &opts) {
             assert!(opts.contains(&idx), "choix de construction hors options");
             build_card_granted(game, db, p, idx, 0, &GRANT_CONSTRUCTION, policy);
+        }
+        // (Découverte, II-A et II-B) « Vous pouvez jouer une seconde carte bleue
+        // ou rouge lors de cette phase » : une permission comme les autres,
+        // versée dans la file du lot cartes-8 et exercée par le drainage
+        // ci-dessous — pas un second mécanisme de pose (NEVER 2).
+        if let Some(g) = upgraded {
+            grant_selector_builds(game, p, g);
         }
         // (lot cartes-8) *Asset Liquidation*, *Special Design* et *Work Crews*
         // ouvrent une pose bleue/rouge de plus. Drainé AVANT le bonus du
@@ -2832,18 +3074,24 @@ fn phase_construction(game: &mut GameState, db: &CardsDb, policy: &mut dyn Polic
         drain_pending_builds(game, db, p, 0, policy);
 
         match bonus {
-            // (C2) Pioche APRÈS la pose.
+            // (C2) Pioche APRÈS la pose — même donnée que la pioche « avant » :
+            // la branche « piochez une carte » de la carte Phase II de base.
             Some(ConstructionBonus::DrawCard) => {
-                if let Some(c) = draw_card(game) {
-                    game.players[p].hand.push(c);
-                    game.draw_after_build += 1;
+                for _ in 0..sb.spec.branches[0].draw {
+                    if let Some(c) = draw_card(game) {
+                        game.players[p].hand.push(c);
+                        game.draw_after_build += 1;
+                    }
                 }
             }
             Some(ConstructionBonus::SecondBuild) => {
-                let opts = affordable(game, db, p, &GRANT_CONSTRUCTION, 0);
+                // La permission de la SECONDE branche de la carte Phase II de
+                // base — lue dans la table, pas écrite ici (NEVER 3).
+                let grant = &sb.spec.branches[1].builds[0];
+                let opts = affordable(game, db, p, grant, 0);
                 if let Some(idx) = policy.choose_build(&mut game.rng, p, &opts) {
                     assert!(opts.contains(&idx), "choix de construction hors options");
-                    build_card_granted(game, db, p, idx, 0, &GRANT_CONSTRUCTION, policy);
+                    build_card_granted(game, db, p, idx, 0, grant, policy);
                 }
                 // (lot cartes-8) La 2e pose du sélectionneur peut elle aussi
                 // poser une carte qui en accorde une 3e.
@@ -2864,7 +3112,6 @@ fn phase_action(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
 
     // Chaque carte bleue jouée offre son action une fois par phase.
     let mut remaining_blue: [Vec<u16>; NUM_PLAYERS] = Default::default();
-    let mut extra = [0u8; NUM_PLAYERS];
     let mut passed = [false; NUM_PLAYERS];
     for p in 0..NUM_PLAYERS {
         remaining_blue[p] = game.players[p]
@@ -2873,11 +3120,32 @@ fn phase_action(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
             .copied()
             .filter(|&c| db.projects[c as usize].color == Color::Blue)
             .collect();
-        extra[p] = if game.players[p].chosen_phase == 3 {
-            game.players[p].extra_blue_activations
-        } else {
-            0
-        };
+    }
+
+    // (Découverte) Bonus du sélectionneur de la phase III, lu au DÉBUT de la
+    // phase — donc après les phases I et II de la même manche : une amélioration
+    // gagnée en phase I vaut dès cette manche-ci (livret l. 64, ASK 1).
+    // Parcours dans l'ordre du tour : la révélation de III-A pioche, et l'ordre
+    // de pioche est celui du tour.
+    for p in order {
+        let sb = selector_bonus_applied(game, db, p, 3);
+        let g = selector_branch(game, &sb, p, policy);
+        // Activations supplémentaires : la valeur vient de la table (base +1,
+        // III-A +1, III-B +2) et c'est l'ÉTAT DU JOUEUR qui la porte pendant
+        // toute la phase — la boucle d'actions ci-dessous la lit et la
+        // décrémente à chaque répétition accordée. Il n'existe pas de second
+        // budget à côté du champ.
+        game.players[p].extra_blue_activations = g.extra_activations;
+        // (III-A) « Révélez les 3 premières cartes de la pioche. Ajoutez à votre
+        // main une carte bleue ou rouge ainsi révélée. Défaussez les autres. »
+        // Le texte imprimé ne donne aucun moment (ASK 3) : la révélation a lieu
+        // AU DÉBUT de la phase, avant la première action — la carte gagnée fait
+        // alors partie de la main pendant toute la phase (elle peut être vendue
+        // par l'action standard, et elle compte à la limite de main de fin de
+        // manche). Le chemin est celui du lot 6 (`reveal_top`), pas un second.
+        if let Some(r) = g.reveal {
+            reveal_top(game, db, p, r, policy);
+        }
     }
 
     // (C4, règle maison) Alternance ACTION PAR ACTION : chaque joueur fait UNE
@@ -2908,9 +3176,10 @@ fn phase_action(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
                     if let Some(pos) = remaining_blue[p].iter().position(|&c| c == card) {
                         remaining_blue[p].remove(pos);
                     }
-                    // Bonus du sélectionneur : une activation supplémentaire.
-                    if extra[p] > 0 {
-                        extra[p] -= 1;
+                    // Bonus du sélectionneur : une activation supplémentaire,
+                    // prise sur le budget que porte l'état du joueur.
+                    if game.players[p].extra_blue_activations > 0 {
+                        game.players[p].extra_blue_activations -= 1;
                         remaining_blue[p].push(card);
                     }
                 }
@@ -2972,13 +3241,11 @@ fn phase_action(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
 /// Phase IV — Production (livret p.15, `CollectIncomeTurnProcessor` Java) :
 /// MC = production MC + TR (+4 sélectionneur) ; chaleur, plantes, cartes
 /// selon production.
-pub(crate) fn phase_production(game: &mut GameState, db: &CardsDb, _policy: &mut dyn Policy) {
+pub(crate) fn phase_production(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
     for p in 0..NUM_PLAYERS {
-        let bonus = if game.players[p].chosen_phase == 4 {
-            PRODUCTION_SELECTOR_MC
-        } else {
-            0
-        };
+        let sb = selector_bonus_applied(game, db, p, 4);
+        let g = selector_branch(game, &sb, p, policy);
+        let bonus = g.mc;
         // (lot 4) Production DÉRIVÉE : recalculée ICI, à chaque phase, à partir
         // des cartes en jeu et des badges du moment — jamais figée à la pose,
         // jamais inscrite sur les pistes `*_prod` (celles-ci restent réservées
@@ -2999,7 +3266,102 @@ pub(crate) fn phase_production(game: &mut GameState, db: &CardsDb, _policy: &mut
                 game.players[p].hand.push(c);
             }
         }
+        // (Découverte, IV-A) « Activez l'effet de production de l'une de vos
+        // cartes vertes une fois de plus lors de cette phase. » APRÈS la
+        // production ordinaire : c'est une production DE PLUS, pas une autre.
+        if g.replay_green_prod {
+            replay_green_production(game, db, p, policy);
+        }
     }
+}
+
+/// (Découverte, IV-A) **Rejoue la production d'UNE carte verte du joueur**,
+/// choisie par la politique (NEVER 4 : le moteur ne choisit pas).
+///
+/// Le texte imprimé ne distingue pas les productions FIXES (« +2 de production
+/// de chaleur », inscrite sur les pistes à la pose) des productions DÉRIVÉES
+/// (« 1 MC par badge Terre », recalculée à chaque phase IV) : les deux sont
+/// « l'effet de production » de la carte, les deux sont donc candidates
+/// (ASK 4). Une carte verte SANS production ne l'est pas — il n'y aurait rien à
+/// rejouer.
+///
+/// Ce que la carte produit est lu par le service unique `card_production` ;
+/// les compteurs `derived_*` ne bougent pas : ils mesurent la passe de
+/// production ORDINAIRE (c'est cette variation-là que `--probe-produce`
+/// rapporte), pas le bonus d'une carte Phase.
+fn replay_green_production(
+    game: &mut GameState,
+    db: &CardsDb,
+    p: usize,
+    policy: &mut dyn Policy,
+) {
+    let cands: Vec<u16> = game.players[p]
+        .played
+        .iter()
+        .copied()
+        .filter(|&c| {
+            db.projects[c as usize].color == Color::Green
+                && card_production(db, &game.players[p], c) != (0, 0, 0, 0)
+        })
+        .collect();
+    if cands.is_empty() {
+        return;
+    }
+    // Une seule carte candidate : rien à demander (convention du lot 3 pour les
+    // alternatives — on ne consulte la politique qu'à partir de deux options).
+    let i = if cands.len() == 1 {
+        0
+    } else {
+        policy.choose_option(&mut game.rng, p, cands.len())
+    };
+    if i >= cands.len() {
+        return;
+    }
+    let (mc, heat, plants, cards) = card_production(db, &game.players[p], cands[i]);
+    let pl = &mut game.players[p];
+    pl.mc += mc;
+    pl.heat += heat;
+    pl.plants += plants;
+    for _ in 0..cards {
+        if let Some(c) = draw_card(game) {
+            game.players[p].hand.push(c);
+        }
+    }
+}
+
+/// (Découverte, IV-A) **Ce qu'UNE carte en jeu produit lors d'une phase IV** :
+/// `(MC, chaleur, plantes, cartes)`.
+///
+/// Somme de sa production FIXE imprimée (les `Eff::*Prod` de son encodage, ceux
+/// mêmes qui ont haussé les pistes du joueur à la pose) et de sa production
+/// DÉRIVÉE (`card_derived_production`, recalculée sur les badges du moment).
+/// Service unique : `derived_production` en est l'agrégat, et le bonus de la
+/// carte Phase IV-A le seul autre lecteur. `(0,0,0,0)` si les effets sont
+/// coupés.
+///
+/// Les deux seuls endroits où l'encodage d'une carte porte une production sont
+/// lus : `CardEffects::effects` (production fixe, celle qui hausse les pistes à
+/// la pose) et `CardEffects::prod` (production dérivée). Aucune carte n'exprime
+/// de production ailleurs — vérifié : aucun `ResEff::Gain(Eff::*Prod)` dans la
+/// table.
+pub fn card_production(db: &CardsDb, pl: &PlayerState, card_id: u16) -> (i64, i64, i64, i64) {
+    if !db.effects_on {
+        return (0, 0, 0, 0);
+    }
+    let (mut mc, mut heat, mut plants, mut cards) = (0i64, 0i64, 0i64, 0i64);
+    if let Some(spec) = db.projects[card_id as usize].effect {
+        for e in spec.effects {
+            match *e {
+                Eff::McProd(n) => mc += n,
+                Eff::HeatProd(n) => heat += n,
+                Eff::PlantProd(n) => plants += n,
+                Eff::CardProd(n) => cards += n,
+                _ => {}
+            }
+        }
+    }
+    let (d_mc, d_heat, d_plants) = card_derived_production(db, pl, card_id);
+    (mc + d_mc, heat + d_heat, plants + d_plants, cards)
 }
 
 /// Phase V — Recherche (livret p.15) : 2 piochées / 1 gardée ;
@@ -3008,7 +3370,11 @@ fn phase_research(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
     let mut drawn = Vec::with_capacity(8);
     // Un passage chacun, dans l'ordre du tour (C4).
     for p in game.players_in_turn_order() {
-        let (base_n, _) = research_base(&game.players[p]);
+        // Le bonus du sélectionneur de la phase V passe par le point de calcul
+        // unique (`research_base` le lit) ; l'appel ci-dessous ne sert qu'au
+        // comptage du remplacement, une fois par joueur et par phase.
+        selector_bonus_applied(game, db, p, 5);
+        let (base_n, _) = research_base(db, &game.players[p]);
         // (lot 4) Base du livret + bonus PERMANENT des cartes en jeu, cumulés
         // par le service unique (2/1 → 3/2 ; sélectionneur 5/2 → 6/3).
         let (n, keep) = research_draw_keep(db, &game.players[p]);
@@ -3087,6 +3453,27 @@ pub fn assign_milestones(game: &mut GameState) {
     }
 }
 
+/// **La réserve de tuiles Récompense réellement disponibles** pour la
+/// configuration de boîtes courante (« Mélangez les tuiles Récompense, révélez-en
+/// 3 », Discovery p.2).
+///
+/// VISIONNAIRE (« le plus de cartes Phase améliorées ») n'entre dans la réserve
+/// que là où le mécanisme des cartes Phase améliorées peut jouer : la boîte
+/// Découverte l'apporte, la couche d'effets le fait vivre. Sans l'une ou sans
+/// l'autre, aucune carte du jeu ne peut améliorer une carte Phase — la tuile
+/// serait une ÉGALITÉ À ZÉRO dans toutes les parties, distribuant 4 PV à chacun
+/// sans rien départager. C'est exactement le défaut que COLLECTIONNEUR a traîné
+/// jusqu'au 28-07, et la raison pour laquelle `--effects off` doit rester neutre
+/// jusque dans les compteurs (ALWAYS 2).
+pub fn award_pool(db: &CardsDb) -> Vec<AwardKind> {
+    let visionnaire_jouable = db.effects_on && db.boites.contains(Boite::Decouverte);
+    AWARD_POOL
+        .iter()
+        .copied()
+        .filter(|&a| a != AwardKind::Visionary || visionnaire_jouable)
+        .collect()
+}
+
 fn award_value(kind: AwardKind, pl: &PlayerState) -> i64 {
     match kind {
         AwardKind::Celebrity => pl.mc_prod,
@@ -3103,29 +3490,39 @@ fn award_value(kind: AwardKind, pl: &PlayerState) -> i64 {
         AwardKind::Industrialist => pl.steel_capacity + pl.titanium_capacity,
         AwardKind::ProjectManager => pl.played.len() as i64,
         AwardKind::Researcher => pl.tag_counts[Tag::Science.index().unwrap()] as i64,
+        // (Découverte) « Le plus de cartes Phase améliorées » — les cartes que
+        // le joueur possède, pas celles qu'il a jouées ce tour.
+        AwardKind::Visionary => pl.phase_upgrades_count(),
     }
 }
 
 /// Points d'awards par joueur : 1er = 5 VP, 2e = 2 VP ; égalité au 1er rang :
 /// 4 VP chacun et pas de 2e (Discovery p.3). À 2 joueurs, pas d'égalité
 /// possible au 2e rang.
-pub fn award_points(game: &GameState) -> [i64; NUM_PLAYERS] {
+/// Points d'awards par joueur, ET la part venant de la seule tuile VISIONNAIRE
+/// (les deux joueurs cumulés). Même parcours, même barème : le compteur de
+/// bilan `visionary_award_points` ne recalcule rien — il lit la part que ce
+/// parcours-ci a réellement distribuée.
+pub fn award_points_split(game: &GameState) -> ([i64; NUM_PLAYERS], i64) {
     let mut pts = [0i64; NUM_PLAYERS];
+    let mut visionary = 0i64;
     for &award in &game.awards {
         let v0 = award_value(award, &game.players[0]);
         let v1 = award_value(award, &game.players[1]);
-        if v0 == v1 {
-            pts[0] += 4;
-            pts[1] += 4;
+        let (a, b) = if v0 == v1 {
+            (4, 4)
         } else if v0 > v1 {
-            pts[0] += 5;
-            pts[1] += 2;
+            (5, 2)
         } else {
-            pts[0] += 2;
-            pts[1] += 5;
+            (2, 5)
+        };
+        pts[0] += a;
+        pts[1] += b;
+        if award == AwardKind::Visionary {
+            visionary += a + b;
         }
     }
-    pts
+    (pts, visionary)
 }
 
 /// VP d'une carte jouée : VP fixes + VP dynamiques (JUPITER = tags Jupiter,
@@ -3175,13 +3572,21 @@ pub fn score(game: &GameState, db: &CardsDb) -> [i64; NUM_PLAYERS] {
     score_parts(game, db).0
 }
 
-/// Score final + total des points de victoire venant des RESSOURCES posées sur
-/// les cartes, tous joueurs confondus (compteur d'audit `vp_from_resources`).
-/// Les deux sortent du même parcours et du même calcul par carte
-/// (`card_points`) : la valeur rapportée est celle qui compte réellement
-/// au score, pas un recalcul parallèle.
-pub fn score_parts(game: &GameState, db: &CardsDb) -> ([i64; NUM_PLAYERS], i64) {
-    let awards = award_points(game);
+/// Points d'awards par joueur, sans le détail — façade historique.
+pub fn award_points(game: &GameState) -> [i64; NUM_PLAYERS] {
+    award_points_split(game).0
+}
+
+/// Score final + deux compteurs d'audit tirés du MÊME parcours : les points de
+/// victoire venant des RESSOURCES posées sur les cartes (`vp_from_resources`)
+/// et ceux distribués par la tuile VISIONNAIRE (`visionary_award_points`),
+/// tous joueurs confondus.
+///
+/// Les trois sortent du même passage et des mêmes calculs (`card_points`,
+/// `award_points_split`) : les valeurs rapportées sont celles qui comptent
+/// réellement au score, jamais un second parcours ni un barème parallèle.
+pub fn score_parts(game: &GameState, db: &CardsDb) -> ([i64; NUM_PLAYERS], i64, i64) {
+    let (awards, visionary) = award_points_split(game);
     let mut out = [0i64; NUM_PLAYERS];
     let mut vp_from_resources = 0i64;
     for p in 0..NUM_PLAYERS {
@@ -3202,7 +3607,7 @@ pub fn score_parts(game: &GameState, db: &CardsDb) -> ([i64; NUM_PLAYERS], i64) 
         s += awards[p];
         out[p] = s;
     }
-    (out, vp_from_resources)
+    (out, vp_from_resources, visionary)
 }
 
 /// Joue une ronde complète. Fin de partie testée après chaque phase : quand
@@ -3230,8 +3635,12 @@ pub fn play_round(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
         );
         game.players[p].chosen_phase = phase;
         game.players[p].previous_phase = Some(phase);
-        // Bonus du sélectionneur de la phase action (`PickPhaseProcessor` Java).
-        game.players[p].extra_blue_activations = if phase == 3 { 1 } else { 0 };
+        // Le bonus du sélectionneur de la phase action n'est plus écrit ici :
+        // il est relevé AU DÉBUT de la phase III depuis le point de calcul
+        // unique. Une amélioration gagnée en phase I ou II vaut dès cette
+        // manche-ci (livret l. 64, ASK 1) — ce qu'une valeur figée à la
+        // planification aurait rendu impossible.
+        game.players[p].extra_blue_activations = 0;
         picked[phase as usize] = true;
     }
 

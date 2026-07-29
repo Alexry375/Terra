@@ -38,7 +38,82 @@ prérequis (2), divers (4). Liste nominative :
 **Ne JAMAIS citer le « 7 » de `docs/cartes/moteur-vs-imprime.md` comme une
 couverture de la boîte de base** : ce rapport n'échantillonne que 66 cartes.
 
-## EN COURS (28-07 nuit) — `decouverte-phases`, contrat scellé et lancé
+## LE VERROU DE DÉCOUVERTE A SAUTÉ (28-07) — `decouverte-phases`, audité OK et promu
+
+**Le mécanisme des cartes Phase améliorées existe et agit en partie réelle.**
+Mesuré sur 1000 parties `base,decouverte` (graine 2024) [VÉRIFIÉ 28-07 par ma
+main] : **497 améliorations accordées**, 23 bascules A↔B, 2065 bonus améliorés
+appliqués, 558 poses supplémentaires, 3378 points distribués par VISIONNAIRE — et
+surtout **`phase_upgrades_skipped` passe de 510 à 0**. Plus un seul « améliorez
+une carte Phase » n'est sauté. Les 26 cartes projet de Découverte qui en
+dépendaient sont maintenant encodables.
+
+**716 tests verts** (640 avant), aucun désactivé. 1000/1000 dans les deux boîtes,
+invariants 0. Tous les compteurs neufs **nuls en `--effects off`**. **Empreinte de
+la boîte de base INCHANGÉE** (`cee020cda9db283b`) : rien de la base n'a bougé.
+
+### La conception livrée — et pourquoi le cumul est désormais impossible
+
+Trois pièces : les onze cartes Phase sont une **table de données**
+(`effects::PHASE_BASE` / `PHASE_UPGRADED`) ; un **point de calcul unique**
+(`flow::selector_bonus`, `flow.rs:2902`) que les cinq phases consomment ; les
+poses supplémentaires de I-B, II-A et II-B empruntent le `BuildGrant` et la file
+`pending_builds` du lot cartes-8 — **aucun second mécanisme**.
+
+Le non-cumul n'est pas « absent », il est **inexprimable** : `selector_bonus` lit
+**une seule** entrée de table, `PHASE_UPGRADED[phase][variante]` **ou**
+`PHASE_BASE[phase]` (`flow.rs:2914-2917`). Les deux constantes de bonus
+`DEV_SELECTOR_DISCOUNT` et `PRODUCTION_SELECTOR_MC` ne sont plus lues **nulle
+part** dans `flow.rs`. [VÉRIFIÉ 28-07]
+
+### QUATRE contrôles rouges, QUATRE erreurs de ma part [VÉRIFIÉ 28-07]
+
+Le pire score de mes contrôles sur ce projet. Chacune vérifiée à la source avant
+de conclure, comme la règle l'exige — et à chaque fois l'agent avait raison.
+
+1. **Mon check 01 §5 contredisait mon propre done-when 05.** J'exigeais 33
+   projets Découverte muets ET `skipped = 0`. Or *Cryogenic Shipment*
+   (`effects.rs:1704`) et *Fibrous Composite Material* (`:1508`) étaient **déjà
+   encodées** ; elles n'étaient déclarées non gérées que parce que leur
+   `ResEff::PhaseUpgrade` comptait comme un effet sauté. Faire tomber `skipped`
+   à 0 les rend mécaniquement gérées. **Les deux exigences ne peuvent pas être
+   vraies ensemble.** Périmètre vérifié autrement : diff des tables d'encodage,
+   **217 cartes avant, 217 après, aucune ajoutée ni retirée.**
+2. **Je lisais un objet d'ANNONCE comme un objet d'APPLICATION.**
+   `selector_bonus` agrège les branches par maximum (`flow.rs:2923-2931`) et
+   porte un champ `alternative` ; la partie réelle n'en applique **qu'une**,
+   tranchée par la politique (`flow::selector_branch`, `flow.rs:2955`). Le « ou »
+   de II-B est correct, mon témoin y voyait un « et ».
+3. **Mon témoin de IV-A tombait sur la seule carte où l'effet est invisible.**
+   *Tall Station* : le bonus MC descend de 4 à 1 (−3) et sa production rejouée
+   vaut exactement +3. Contre-mesuré sur deux autres cartes : *Power Supply
+   Consortium* 11 → 10, *Mine* 9 → 6. La production est bien rejouée.
+4. **Mon motif de recherche attrapait des COMPTEURS**, pas des grandeurs :
+   `upgrad\w*\s*\+=` correspond à `phase_upgrades_granted += 1`. **Troisième
+   fois** que je confonds un compteur avec ce qu'il compte (lot acier-titane,
+   lot cartes-8, ici).
+
+### Ce que l'agent a trouvé de son côté
+
+Sa relecture adversariale a corrigé **deux vrais défauts** : le budget
+d'activations de la phase III était copié dans une variable locale, laissant le
+champ `extra_blue_activations` en **état mort** — une mutation qui jetait la
+seconde activation de III-B passait les 714 tests ; et `visionary_award_points`
+était recalculé par un second parcours au lieu de sortir du parcours de score.
+
+Et un effet de bord que mon contrat n'avait pas vu : passer la réserve de
+récompenses de 6 à 7 entrées **changeait l'empreinte de la boîte de base** (un
+tableau de 7 consomme un tirage de mélange de plus). VISIONNAIRE n'entre donc
+dans la réserve que là où le mécanisme peut jouer — Découverte **et** effets
+actifs (`flow::award_pool`, `flow.rs:3468`). Le raisonnement tient : sans le
+mécanisme, la tuile serait une égalité à zéro dans toutes les parties, le défaut
+exact que COLLECTIONNEUR a traîné jusqu'à ce matin.
+
+**Dette notée** : le livret fait des Récompenses **et** des Objectifs des modules
+de Découverte ; le moteur les applique aussi en boîte de base. Approximation
+antérieure à ce chantier, à trancher un jour.
+
+## ~~EN COURS (28-07 nuit)~~ — `decouverte-phases`, contrat scellé et lancé
 
 **Le verrou de l'extension Découverte.** 26 des 38 cartes projet de Découverte
 reposent sur l'amélioration de carte Phase, mécanisme qui n'existe pas du tout :
@@ -348,8 +423,8 @@ Mesuré par `--dump-deck` et lecture du code, pas de mémoire. [VÉRIFIÉ 28-07]
 | Projets en configuration cible `base,decouverte` | **213 / 246** (33 muettes, **toutes de Découverte**) |
 | Corporations Découverte | 0 / 4 (écartées, table `effects::CORPS`) |
 | Objectifs (tuiles) | **11 / 11 encodés, 11 seuils vérifiés à la tuile** |
-| Récompenses (tuiles) | **6 / 7** fonctionnelles (*Collectionneur* ressuscitée le 28-07 ; *Visionnaire* attend les améliorations de phase) |
-| Cartes Phase améliorées | **transcrites (10), jamais appliquées** — `state.rs:181` `phase_upgrades` n'est lu nulle part dans `flow.rs` |
+| Récompenses (tuiles) | **7 / 7** fonctionnelles |
+| Cartes Phase améliorées | **10 / 10 appliquées** (chantier `decouverte-phases`, 28-07) |
 | Badges jokers de Découverte | non implantés |
 | Interface de jeu | rien |
 | IA | rien |

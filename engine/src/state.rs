@@ -63,11 +63,60 @@ pub const OCEAN_TILES: [OceanTile; 9] = [
     OceanTile { cards: 0, mc: 0, plants: 2 },
 ];
 
-/// Améliorations de phase (Discovery) — STRUCTURE seulement, effets neutres v1 (D14).
+/// (Découverte) **Améliorations de carte Phase.** Chaque phase dispose de deux
+/// options d'amélioration, A et B (livret l. 52) ; chaque joueur possède ses
+/// dix cartes, à son dos de couleur — d'où un tableau dans `PlayerState` et
+/// jamais dans `GameState` (NEVER 7).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PhaseUpgrade {
     VariantA,
     VariantB,
+}
+
+impl PhaseUpgrade {
+    /// Les deux variantes dans l'ordre imprimé (A puis B).
+    pub const ALL: [PhaseUpgrade; 2] = [PhaseUpgrade::VariantA, PhaseUpgrade::VariantB];
+
+    /// Indice de variante : A = 0, B = 1 (indexe `effects::PHASE_UPGRADED`).
+    pub fn index(self) -> usize {
+        match self {
+            PhaseUpgrade::VariantA => 0,
+            PhaseUpgrade::VariantB => 1,
+        }
+    }
+
+    /// Étiquette imprimée de la variante.
+    pub fn label(self) -> &'static str {
+        match self {
+            PhaseUpgrade::VariantA => "A",
+            PhaseUpgrade::VariantB => "B",
+        }
+    }
+
+    /// Lecture d'une étiquette de variante (« A » / « B »). Tout le reste est
+    /// refusé : `--probe-upgrade 1C` n'existe pas.
+    pub fn from_label(s: &str) -> Option<PhaseUpgrade> {
+        match s {
+            "A" => Some(PhaseUpgrade::VariantA),
+            "B" => Some(PhaseUpgrade::VariantB),
+            _ => None,
+        }
+    }
+}
+
+/// (Découverte) Lecture d'une désignation d'amélioration `<phase><variante>`,
+/// forme `"1B"` — le format de `--probe-upgrade` et des tests. Renvoie
+/// `(phase 1..=5, variante)`. Toute autre forme est refusée : c'est ce refus
+/// qui empêche un argument mal formé d'être ignoré en silence.
+pub fn parse_phase_upgrade(s: &str) -> Option<(u8, PhaseUpgrade)> {
+    if s.len() != 2 || !s.is_ascii() {
+        return None;
+    }
+    let phase = s[0..1].parse::<u8>().ok()?;
+    if !(1..=5).contains(&phase) {
+        return None;
+    }
+    Some((phase, PhaseUpgrade::from_label(&s[1..2])?))
 }
 
 /// Milestones (pool du moteur Java, base + Discovery). 3 en jeu par partie.
@@ -87,7 +136,8 @@ pub enum MilestoneKind {
     Magnate,
     /// 12 cartes jouées.
     Planner,
-    /// 7 tags espace.
+    /// 6 tags espace. (28-07 : le commentaire disait 7, la tuile imprimée dit
+    /// 6 — corrigé en même temps que le seuil de `flow::milestone_goal`.)
     SpaceBaron,
     /// TR >= 15.
     Terraformer,
@@ -111,13 +161,17 @@ pub const MILESTONE_POOL: [MilestoneKind; 11] = [
     MilestoneKind::Gardener,
 ];
 
-/// Awards (pool du moteur Java ; le livret Discovery annonce 7 tuiles mais le
-/// moteur de référence n'en implémente que 6 — conflit noté, D8).
+/// Awards — **sept tuiles imprimées, sept variantes** depuis le chantier
+/// `decouverte-phases`. La septième, VISIONNAIRE, attendait le mécanisme des
+/// cartes Phase améliorées : sans lui, sa valeur aurait été nulle pour tout le
+/// monde dans toutes les parties.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AwardKind {
     /// Production de MC.
     Celebrity,
-    /// Ressources posées sur cartes (toujours 0 en v1 — stub).
+    /// Ressources posées sur cartes. (28-07 : le commentaire disait « toujours
+    /// 0 en v1 — stub », ce n'est plus vrai — `flow::award_value` en fait la
+    /// somme réelle depuis la réparation de la récompense.)
     Collector,
     /// Production de chaleur.
     Generator,
@@ -131,15 +185,19 @@ pub enum AwardKind {
     ProjectManager,
     /// Tags science.
     Researcher,
+    /// (Découverte) VISIONNAIRE — « le plus de cartes Phase améliorées ».
+    /// Valeur : `PlayerState::phase_upgrades_count`.
+    Visionary,
 }
 
-pub const AWARD_POOL: [AwardKind; 6] = [
+pub const AWARD_POOL: [AwardKind; 7] = [
     AwardKind::Celebrity,
     AwardKind::Collector,
     AwardKind::Generator,
     AwardKind::Industrialist,
     AwardKind::ProjectManager,
     AwardKind::Researcher,
+    AwardKind::Visionary,
 ];
 
 /// Un milestone en jeu + qui l'a revendiqué (revendication simplifiée D8).
@@ -191,9 +249,18 @@ pub struct PlayerState {
     pub chosen_phase: u8,
     /// Phase choisie à la ronde précédente (interdite cette ronde).
     pub previous_phase: Option<u8>,
-    /// Activations bonus de la phase action (sélectionneur : +1).
+    /// Activations bonus de la phase action, RELEVÉES AU DÉBUT DE LA PHASE III
+    /// depuis le point de calcul unique `flow::selector_bonus` (base : +1 ;
+    /// III-A : +1 ; III-B : +2).
+    ///
+    /// Écrit au début de la phase, et non à la planification : une amélioration
+    /// gagnée en phase I ou II vaut dès cette manche-ci (livret l. 64, ASK 1).
     pub extra_blue_activations: u8,
-    /// Améliorations de phase Discovery — structure stub, toujours None (D14).
+    /// (Découverte) **Les cartes Phase améliorées de CE joueur**, une case par
+    /// phase (indice = phase - 1), `None` = carte Phase normale. Améliorer une
+    /// phase déjà améliorée écrase la case : A ↔ B, jamais deux à la fois
+    /// (livret l. 66). Chaque joueur a les siennes : rien n'est partagé
+    /// (NEVER 7, ASK 5).
     pub phase_upgrades: [Option<PhaseUpgrade>; 5],
     /// (corpo-1) Le NT de ce joueur a-t-il déjà été haussé pendant la phase en
     /// cours ? Remis à `false` au début de chaque phase réellement exécutée
@@ -295,6 +362,40 @@ impl PlayerState {
         self.tag_counts.iter().filter(|&&c| c > 0).count() as u32
     }
 
+    /// (Découverte) L'amélioration installée sur la carte Phase `phase`
+    /// (1..=5), `None` hors bornes ou si la carte n'est pas améliorée.
+    pub fn phase_upgrade(&self, phase: u8) -> Option<PhaseUpgrade> {
+        if (1..=5).contains(&phase) {
+            self.phase_upgrades[phase as usize - 1]
+        } else {
+            None
+        }
+    }
+
+    /// (Découverte) Installe une amélioration sur la carte Phase `phase` et dit
+    /// si la phase était DÉJÀ améliorée (bascule A ↔ B). Écriture unique du
+    /// tableau : c'est ici, et nulle part ailleurs, qu'une carte Phase change.
+    pub fn upgrade_phase(&mut self, phase: u8, v: PhaseUpgrade) -> bool {
+        assert!((1..=5).contains(&phase), "phase à améliorer hors bornes");
+        let was = self.phase_upgrades[phase as usize - 1];
+        self.phase_upgrades[phase as usize - 1] = Some(v);
+        was.is_some()
+    }
+
+    /// (Découverte) Nombre de cartes Phase améliorées possédées — la valeur de
+    /// la récompense VISIONNAIRE.
+    pub fn phase_upgrades_count(&self) -> i64 {
+        self.phase_upgrades.iter().filter(|u| u.is_some()).count() as i64
+    }
+
+    /// (Découverte) Étiquettes des améliorations installées, triées :
+    /// `["1B", "5A"]`. Rendu par la sonde (`upgrades`).
+    pub fn phase_upgrade_labels(&self) -> Vec<String> {
+        (1u8..=5)
+            .filter_map(|ph| self.phase_upgrade(ph).map(|v| format!("{ph}{}", v.label())))
+            .collect()
+    }
+
     /// Incrémente le TR (comptabilisé pour l'invariant de cohérence).
     pub fn gain_tr(&mut self) {
         self.tr += 1;
@@ -388,11 +489,36 @@ pub struct GameState {
     /// perdu, sans compensation d'aucune sorte). Incrémenté dans
     /// `flow::apply_res_*`, à l'endroit où la cible manque.
     pub res_targets_missing: u64,
-    /// Améliorations de carte Phase demandées par une carte du lot et NON
-    /// gérées (mécanisme d'un lot ultérieur) — Cryogenic Shipment à la pose,
-    /// action de Fibrous Composite Material. Incrémenté au moment où l'effet
-    /// est atteint. Peut légitimement valoir 0 sur un échantillon de parties.
+    /// Améliorations de carte Phase demandées par une carte et NON gérées.
+    ///
+    /// **Vaut 0 depuis le chantier `decouverte-phases`** : `flow::apply_res_eff`
+    /// applique désormais `ResEff::PhaseUpgrade` par `flow::apply_phase_upgrade`,
+    /// qui ne renonce JAMAIS (il reste toujours au moins cinq améliorations
+    /// possibles, la bascule A ↔ B comprise). Le compteur reste en place — c'est
+    /// lui qui prouve que plus rien n'est sauté, et le jour où un texte
+    /// imprimé introduirait une amélioration impossible à accorder, il le dirait.
     pub phase_upgrades_skipped: u64,
+    // ------------------------------------------- (Découverte) cartes Phase
+    // Quatre compteurs qui rendent le mécanisme des cartes Phase améliorées
+    // observable EN PARTIE RÉELLE, et pas seulement sous la sonde. Chacun est
+    // incrémenté à l'endroit EXACT du mécanisme, jamais dans une fonction de
+    // résumé, jamais depuis la sonde. Tous nuls en `--effects off` : une
+    // amélioration naît d'un effet de carte, et aucun bonus amélioré n'est lu
+    // quand la couche d'effets est coupée.
+    /// Améliorations de carte Phase RÉELLEMENT accordées
+    /// (`flow::apply_phase_upgrade`).
+    pub phase_upgrades_granted: u64,
+    /// Parmi elles, celles qui portaient sur une phase DÉJÀ améliorée —
+    /// bascules A ↔ B (livret l. 66).
+    pub phase_upgrades_reupgraded: u64,
+    /// Fois où le bonus du sélectionneur lu était celui d'une carte Phase
+    /// AMÉLIORÉE, et remplaçait donc celui de la carte de base
+    /// (`flow::selector_bonus_applied`). Une par phase et par joueur concerné.
+    pub upgraded_bonus_applied: u64,
+    /// Permissions de pose supplémentaire accordées par une carte Phase
+    /// améliorée (I-B, II-A, II-B) — versées dans la file `pending_builds` du
+    /// lot cartes-8, jamais dans une seconde file (NEVER 2).
+    pub upgraded_extra_builds: u64,
     /// (boites-1) Nombre de fois qu'une carte SANS ENCODAGE est entrée en jeu
     /// au cours de la partie : projet construit dont `effect` est `None`, ou
     /// corporation installée dont `effect` est `None`. Incrémenté à l'endroit

@@ -915,10 +915,28 @@ fn only_discovery_cards_remain_unhandled() {
     // (42 → 37) : les 5 dernières cartes encodées sont toutes de la boîte de
     // base, Découverte n'a pas bougé. Il ne reste donc QUE Découverte —
     // 33 projets + 4 corporations = 37, et plus une seule carte de base.
+    //
+    // TÉMOIN RETOURNÉ par le chantier `decouverte-phases` (37 → 35), sans
+    // qu'une seule carte ait été encodée : *Cryogenic Shipment* et *Fibrous
+    // Composite Material* étaient comptées muettes parce que leur encodage
+    // portait un `ResEff::PhaseUpgrade` que le moteur reconnaissait SAUTER
+    // (`cards::encodage_integral`). Le mécanisme existe désormais, l'effet
+    // n'est plus sauté : leur texte imprimé est appliqué en entier, elles ne
+    // sont plus muettes. Reste 31 projets + 4 corporations = 35.
     let db = CardsDb::load_boites(CARDS, BoiteSet::parse("base,decouverte").unwrap())
         .expect("base,decouverte");
     let n = db.recensement().into_iter().filter(|c| !c.effets_geres).count();
-    assert_eq!(n, 37, "muettes en base + Découverte");
+    assert_eq!(n, 35, "muettes en base + Découverte");
+    // Et la raison exacte : les deux cartes à « améliorez une carte Phase »
+    // sont désormais intégralement gérées.
+    for nom in ["Cryogenic Shipment", "Fibrous Composite Material"] {
+        let c = db
+            .recensement()
+            .into_iter()
+            .find(|c| c.name == nom)
+            .unwrap_or_else(|| panic!("{nom} absente du recensement"));
+        assert!(c.effets_geres, "{nom} : son amélioration de phase est appliquée");
+    }
 }
 
 #[test]

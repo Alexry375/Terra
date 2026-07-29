@@ -250,8 +250,20 @@ pub struct GameOutcome {
     pub res_removed: u64,
     /// Poses de ressources sautées faute de cible valide.
     pub res_targets_missing: u64,
-    /// Améliorations de carte Phase demandées et non gérées.
+    /// Améliorations de carte Phase demandées et non gérées (0 depuis le
+    /// chantier `decouverte-phases`).
     pub phase_upgrades_skipped: u64,
+    /// (Découverte) Améliorations de carte Phase accordées, dont bascules A ↔ B.
+    pub phase_upgrades_granted: u64,
+    pub phase_upgrades_reupgraded: u64,
+    /// (Découverte) Bonus de sélectionneur AMÉLIORÉS réellement lus, et
+    /// permissions de pose qu'ils ont versées.
+    pub upgraded_bonus_applied: u64,
+    pub upgraded_extra_builds: u64,
+    /// (Découverte) Points distribués par la seule tuile VISIONNAIRE, les deux
+    /// joueurs cumulés — lus sur `flow::award_points_split`, le parcours qui
+    /// les a réellement distribués.
+    pub visionary_award_points: i64,
     /// (boites-1) Cartes sans encodage entrées en jeu.
     pub cards_effects_unhandled: u64,
     /// Points de victoire venant des ressources posées, les deux joueurs.
@@ -303,7 +315,10 @@ pub fn play_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameOutcom
         }
     }
 
-    let (scores, vp_from_resources) = score_parts(&game, db);
+    // Le score et ses deux compteurs d'audit sortent d'un SEUL parcours : la
+    // part de VISIONNAIRE rapportée ici est celle que ce parcours-là a
+    // réellement distribuée, pas un second calcul.
+    let (scores, vp_from_resources, visionary_award_points) = score_parts(&game, db);
     GameOutcome {
         completed: game.game_over,
         generations: game.generation,
@@ -323,6 +338,11 @@ pub fn play_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameOutcom
         res_removed: game.res_removed,
         res_targets_missing: game.res_targets_missing,
         phase_upgrades_skipped: game.phase_upgrades_skipped,
+        phase_upgrades_granted: game.phase_upgrades_granted,
+        phase_upgrades_reupgraded: game.phase_upgrades_reupgraded,
+        upgraded_bonus_applied: game.upgraded_bonus_applied,
+        upgraded_extra_builds: game.upgraded_extra_builds,
+        visionary_award_points,
         cards_effects_unhandled: game.cards_effects_unhandled,
         vp_from_resources,
         derived_mc: game.derived_mc,
@@ -383,6 +403,14 @@ pub struct SimSummary {
     pub res_removed: u64,
     pub res_targets_missing: u64,
     pub phase_upgrades_skipped: u64,
+    /// (Découverte) Totaux du mécanisme des cartes Phase améliorées, agrégés
+    /// depuis `GameOutcome` — donc depuis les compteurs incrémentés à l'endroit
+    /// exact du mécanisme, jamais recalculés ici.
+    pub phase_upgrades_granted: u64,
+    pub phase_upgrades_reupgraded: u64,
+    pub upgraded_bonus_applied: u64,
+    pub upgraded_extra_builds: u64,
+    pub visionary_award_points: i64,
     /// (boites-1) Cartes sans encodage entrées en jeu, toutes parties cumulées.
     pub cards_effects_unhandled: u64,
     pub vp_from_resources: i64,
@@ -447,6 +475,11 @@ pub fn run_simulation(
     let mut res_removed = 0u64;
     let mut res_targets_missing = 0u64;
     let mut phase_upgrades_skipped = 0u64;
+    let mut phase_upgrades_granted = 0u64;
+    let mut phase_upgrades_reupgraded = 0u64;
+    let mut upgraded_bonus_applied = 0u64;
+    let mut upgraded_extra_builds = 0u64;
+    let mut visionary_award_points = 0i64;
     let mut cards_effects_unhandled = 0u64;
     let mut vp_from_resources = 0i64;
     let mut derived_mc = 0u64;
@@ -496,6 +529,11 @@ pub fn run_simulation(
         res_removed += out.res_removed;
         res_targets_missing += out.res_targets_missing;
         phase_upgrades_skipped += out.phase_upgrades_skipped;
+        phase_upgrades_granted += out.phase_upgrades_granted;
+        phase_upgrades_reupgraded += out.phase_upgrades_reupgraded;
+        upgraded_bonus_applied += out.upgraded_bonus_applied;
+        upgraded_extra_builds += out.upgraded_extra_builds;
+        visionary_award_points += out.visionary_award_points;
         cards_effects_unhandled += out.cards_effects_unhandled;
         vp_from_resources += out.vp_from_resources;
         derived_mc += out.derived_mc;
@@ -546,6 +584,11 @@ pub fn run_simulation(
         res_removed,
         res_targets_missing,
         phase_upgrades_skipped,
+        phase_upgrades_granted,
+        phase_upgrades_reupgraded,
+        upgraded_bonus_applied,
+        upgraded_extra_builds,
+        visionary_award_points,
         cards_effects_unhandled,
         vp_from_resources,
         derived_mc,

@@ -28,7 +28,7 @@ use crate::flow::{
     next_card_discount,
     heat_reserved_by, install_corporation, payable, phase_production, plant_discount,
     plants_reserved_by, player_capacities, requirements_met, requirements_met_now,
-    research_extra, spendable_mc_reserving,
+    research_extra, selector_bonus, spendable_mc_reserving, SelectorBonus,
 };
 use crate::policy::{ActionOpt, ConstructionBonus, Policy, RandomPolicy};
 use crate::state::*;
@@ -119,6 +119,16 @@ pub struct ProbeResult {
     /// nulle part de l'extérieur (le contrat le mesure : `--probe
     /// "Interplanetary Relations"` rendait un delta entièrement nul).
     pub research: (usize, usize),
+    /// **(Découverte) Les cartes Phase améliorées installées chez le joueur
+    /// sondé**, étiquettes triées : `["1B", "5A"]`. Vide par défaut — sans
+    /// `--probe-upgrade`, la sortie de la sonde est celle des lots précédents,
+    /// à ce champ près.
+    pub upgrades: Vec<String>,
+    /// **(Découverte) Le bonus du sélectionneur de la phase `--probe-phase`**,
+    /// rendu par le point de calcul UNIQUE (`flow::selector_bonus`) — la sonde
+    /// ne le recalcule pas, elle le lit. Sans `--probe-phase`, il décrit la
+    /// phase 0 : tout est à zéro.
+    pub selector_bonus: SelectorBonus,
 }
 
 /// (corpo-1) Corporation imposée à la sonde par `--probe-corp` : ce que le
@@ -180,11 +190,28 @@ pub struct ProbeOptions {
     /// (bonus d'action du lot 6, et — avec `--probe-produce` — le bonus du
     /// sélectionneur de la phase IV).
     pub phase: u8,
+    /// (Découverte) **Les cartes Phase améliorées installées chez le joueur
+    /// sondé** (`--probe-upgrade <phase><variante>`, répétable et cumulable),
+    /// écrites dans l'état de départ AVANT la séquence — là même où
+    /// `flow::apply_phase_upgrade` les écrit en partie réelle.
+    ///
+    /// `[None; 5]` = aucune amélioration, c'est-à-dire l'état des lots
+    /// précédents à l'identique. Une seconde installation sur la même phase
+    /// REMPLACE la première : un joueur n'a jamais deux cartes Phase pour une
+    /// même phase.
+    pub upgrades: [Option<PhaseUpgrade>; 5],
 }
 
 impl Default for ProbeOptions {
     fn default() -> ProbeOptions {
-        ProbeOptions { mc: 100, filler: 0, strict: false, phase: 0, plants: 20 }
+        ProbeOptions {
+            mc: 100,
+            filler: 0,
+            strict: false,
+            phase: 0,
+            plants: 20,
+            upgrades: [None; 5],
+        }
     }
 }
 
@@ -452,6 +479,10 @@ fn probe_state_base(db: &CardsDb, ids: &[u16], opts: ProbeOptions) -> GameState 
     // là où la planification l'écrit en partie réelle. Le joueur 1 n'en reçoit
     // aucune (0) — le bonus ne doit jamais dépendre de la phase de l'adversaire.
     players[0].chosen_phase = opts.phase;
+    // (Découverte) Les cartes Phase améliorées du joueur sondé, écrites là où la
+    // partie réelle les écrit. Le joueur 1 n'en reçoit aucune : rien n'est
+    // partagé entre les deux joueurs (NEVER 7).
+    players[0].phase_upgrades = opts.upgrades;
     players[0].heat = 20;
     players[0].plants = opts.plants;
     players[0].hand.extend_from_slice(ids);
@@ -498,6 +529,10 @@ fn probe_state_base(db: &CardsDb, ids: &[u16], opts: ProbeOptions) -> GameState 
         res_removed: 0,
         res_targets_missing: 0,
         phase_upgrades_skipped: 0,
+        phase_upgrades_granted: 0,
+        phase_upgrades_reupgraded: 0,
+        upgraded_bonus_applied: 0,
+        upgraded_extra_builds: 0,
         cards_effects_unhandled: 0,
         derived_mc: 0,
         derived_heat: 0,
@@ -681,6 +716,10 @@ pub fn run_probe_seq_corp(
                     // (lot cartes-7) La corporation est en place : son bonus de
                     // recherche compte déjà (Tharsis Republic).
                     research: research_extra(db, &g.players[0]),
+                    // (Découverte) L'état de départ porte déjà les améliorations
+                    // demandées, carte trouvée ou non.
+                    upgrades: g.players[0].phase_upgrade_labels(),
+                    selector_bonus: selector_bonus(db, &g.players[0], opts.phase),
                 };
             }
         }
@@ -849,6 +888,10 @@ pub fn run_probe_seq_corp(
         // pose — celui-là même que consomme la phase V. La sonde ne fait que le
         // lire (clause anti-shortcut n° 1).
         research: research_extra(db, &game.players[0]),
+        upgrades: game.players[0].phase_upgrade_labels(),
+        // Le point de calcul unique appliqué au joueur sondé : c'est LA valeur
+        // que la phase réelle lirait pour lui (clause anti-shortcut n° 1).
+        selector_bonus: selector_bonus(db, &game.players[0], opts.phase),
     }
 }
 

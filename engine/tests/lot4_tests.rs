@@ -271,7 +271,7 @@ fn interplanetary_relations_grants_one_extra_draw_and_keep() {
     assert_eq!(research_draw_keep(&db, &pl), (3, 2));
     // Sélectionneur de la phase 5 : 5/2 → 6/3.
     pl.chosen_phase = 5;
-    assert_eq!(research_base(&pl), (5, 2));
+    assert_eq!(research_base(&db, &pl), (5, 2));
     assert_eq!(research_draw_keep(&db, &pl), (6, 3));
 }
 

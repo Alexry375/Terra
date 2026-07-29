@@ -338,7 +338,7 @@ fn the_probe_reports_exactly_what_the_research_phase_consumes() {
     let pl = &g.players[0];
     let extra = research_extra(&db, pl);
     assert_eq!(extra, (2, 1));
-    let (base_n, base_k) = research_base(pl);
+    let (base_n, base_k) = research_base(&db, pl);
     assert_eq!(
         research_draw_keep(&db, pl),
         (base_n + extra.0, base_k + extra.1),
