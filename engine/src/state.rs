@@ -10,6 +10,7 @@
 //!   MAX_HAND_SIZE_LAST_ROUND) + livret (avslutningssteget p.16).
 
 use crate::cards::{CardsDb, Color, TAG_COUNT};
+use crate::effects::{BuildGrant, NextCardMod};
 use rand::rngs::StdRng;
 use std::collections::BTreeMap;
 
@@ -217,6 +218,22 @@ pub struct PlayerState {
     /// (`CardEffects::holds`), à sa pose et à 0 (`Player.initResources` du
     /// moteur Java) : une carte non porteuse n'est jamais un réceptacle.
     pub card_resources: BTreeMap<u16, u32>,
+    /// (lot cartes-8) **Permissions de pose supplémentaire en attente**, gagnées
+    /// pendant la phase en cours et pas encore exercées. Une carte posée peut en
+    /// ajouter : la file se vide donc en boucle, jusqu'à ce que le joueur
+    /// renonce ou qu'il n'ait plus rien de posable
+    /// (`flow::drain_pending_builds`).
+    ///
+    /// **Transitoire.** Vidée au début de chaque phase par `flow::play_round`,
+    /// à côté de `tr_raised_this_phase` : « this phase » du texte imprimé ne
+    /// franchit jamais une frontière de phase, même si le joueur n'a pas pu
+    /// s'en servir.
+    pub pending_builds: Vec<BuildGrant>,
+    /// (lot cartes-8) **Modificateur armé pour la prochaine carte** posée par ce
+    /// joueur dans la phase en cours. Cumulé à la pose de *Work Crews* ou de
+    /// *Special Design*, consommé par la pose suivante, effacé en début de
+    /// phase — mêmes règles de vie que `pending_builds`.
+    pub next_card_mod: NextCardMod,
 }
 
 impl PlayerState {
@@ -246,6 +263,8 @@ impl PlayerState {
             tr_increments: 0,
             tr_decrements: 0,
             card_resources: BTreeMap::new(),
+            pending_builds: Vec::new(),
+            next_card_mod: NextCardMod::default(),
         }
     }
 
@@ -401,6 +420,27 @@ pub struct GameState {
     /// grâce au bonus permanent (Interplanetary Relations). Incrémenté dans
     /// `flow::phase_research`, au site de pioche. 0 en `--effects off`.
     pub research_extra_draws: u64,
+    // ---------------------------------------- lot cartes-8 (poses de plus)
+    // Cinq compteurs qui rendent les poses supplémentaires observables EN
+    // PARTIE RÉELLE. Chacun est incrémenté à l'endroit exact du mécanisme.
+    // Tous nuls en `--effects off` : la permission naît d'un effet de carte.
+    /// Permissions de pose supplémentaire ACCORDÉES (`flow::grant_from_card`).
+    pub extra_builds_granted: u64,
+    /// Permissions RÉELLEMENT exercées, c'est-à-dire poses supplémentaires
+    /// effectuées (`flow::drain_pending_builds`). Toujours ≤ `granted` : le
+    /// texte imprimé dit « you MAY », et la politique peut y renoncer, ou
+    /// n'avoir aucune carte posable.
+    pub extra_builds_used: u64,
+    /// Cartes posées SANS payer leur prix (`flow::build_card_granted`,
+    /// permission `free`) — *Automated Factories*, *Tall Station*.
+    pub free_builds: u64,
+    /// Modificateurs « prochaine carte de la phase » ARMÉS
+    /// (*Work Crews*, *Special Design*).
+    pub next_card_mods_armed: u64,
+    /// Modificateurs réellement CONSOMMÉS par une pose suivante. Peut être
+    /// inférieur à `armed` : un modificateur meurt avec la phase s'il n'a
+    /// trouvé aucune carte à modifier.
+    pub next_card_mods_used: u64,
     // -------------------------------------------------- lot corporations
     // Quatre compteurs qui rendent les effets de corporation observables EN
     // PARTIE RÉELLE (et pas seulement en sonde). Chacun est incrémenté à

@@ -400,6 +400,11 @@ fn main() {
         "derived_plants": s.derived_plants,
         "tr_from_tags": s.tr_from_tags,
         "research_extra_draws": s.research_extra_draws,
+        "extra_builds_granted": s.extra_builds_granted,
+        "extra_builds_used": s.extra_builds_used,
+        "free_builds": s.free_builds,
+        "next_card_mods_armed": s.next_card_mods_armed,
+        "next_card_mods_used": s.next_card_mods_used,
         // (lot corporations) effets de corporation observés en partie réelle.
         "corp_heat_as_mc": s.corp_heat_as_mc,
         "corp_forest_rebates": s.corp_forest_rebates,

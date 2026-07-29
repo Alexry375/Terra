@@ -224,10 +224,26 @@ fn les_cartes_declarees_non_gerees_le_sont_reellement() {
     // réel (`flow::build_card_with`) et rend l'état obtenu. Une carte déclarée
     // non gérée doit ne RIEN changer d'autre que le paiement — sinon le
     // recensement calomnierait une carte qui marche.
-    let db = db_de("base");
+    // (lot cartes-8) La boîte de base n'a PLUS de carte muette : la boucle y
+    // n'aurait plus de sujet. Elle est donc portée sur `base,decouverte`, où
+    // 33 projets restent sans encodage — l'oracle disjoint continue de tourner
+    // sur des cartes réelles, et le fait que la base soit vide est épinglé
+    // séparément juste après.
+    let db = db_de("base,decouverte");
     let mut n = 0;
     for c in db.recensement() {
         if c.effets_geres || c.kind != Kind::Project {
+            continue;
+        }
+        // (lot cartes-8) « Non gérée » recouvre DEUX cas : aucun encodage du
+        // tout, ou un encodage dont un effet est sauté (*Fibrous Composite
+        // Material*, dont l'amélioration de phase n'existe pas). Seul le
+        // premier peut être tenu de ne RIEN changer à l'état — le second a des
+        // effets bien réels, c'est même tout son objet. Le test d'à côté
+        // (`une_carte_encodee_mais_dont_un_effet_est_saute_n_est_pas_declaree_geree`)
+        // couvre le second cas.
+        let id = db.resolve_card(c.name).expect("carte du recensement");
+        if db.projects[id as usize].effect.is_some() {
             continue;
         }
         n += 1;
@@ -273,20 +289,30 @@ fn les_cartes_declarees_non_gerees_le_sont_reellement() {
     // PERMANENTS — phase de recherche, taux de défausse, prix des actions
     // standard, réduction payée en plantes, souplesse de prérequis,
     // déclencheur d'action de carte, déclencheur de badge science), il en reste
-    // **5**. Le canari est déplacé, jamais désactivé : la boucle ci-dessus
-    // vérifie toujours, carte par carte et par la sonde, que chaque muette
-    // déclarée ne change RIEN à l'état.
-    assert_eq!(n, 5, "cartes muettes de la boîte de base");
-    // (lot cartes-7) Les trois témoins nommés étaient *Extended Resources*,
-    // *Interns* et *United Planetary Alliance* : elles sont encodées depuis ce
-    // lot. Remplacées par trois des cinq cartes hors périmètre, qui restent
-    // déclarées ABSENT par `moteur-vs-imprime.md`.
-    for muette in ["Asset Liquidation", "Special Design", "Work Crews"] {
+    // **5**.
+    // 28-07, lot cartes-8 : les 5 dernières sont encodées (les poses
+    // supplémentaires — « jouer une carte de plus dans cette phase »), il en
+    // reste **0**. La boîte de base est intégralement encodée ; le canari passe
+    // donc sur `base,decouverte`, où 33 projets restent muets. Il est déplacé,
+    // jamais désactivé : la boucle ci-dessus vérifie toujours, carte par carte
+    // et par la sonde, que chaque muette déclarée ne change RIEN à l'état.
+    assert_eq!(n, 31, "projets SANS AUCUN encodage en base + Découverte");
+    assert!(
+        db_de("base")
+            .recensement()
+            .into_iter()
+            .all(|c| c.effets_geres || c.kind != Kind::Project),
+        "la boîte de base doit rester intégralement encodée"
+    );
+    // (lot cartes-8) Les trois témoins nommés — *Asset Liquidation*,
+    // *Special Design*, *Work Crews* — sont encodés depuis ce lot. Remplacés
+    // par trois cartes de Découverte, toujours déclarées ABSENT.
+    for muette in ["Ore Leaching", "Warehouses", "Metallurgy"] {
         let c = db
             .recensement()
             .into_iter()
             .find(|r| r.name == muette)
-            .expect("carte de la boîte de base");
+            .expect("carte de Découverte");
         assert!(!c.effets_geres, "{muette} est déclarée ABSENT par moteur-vs-imprime.md");
     }
 }
@@ -314,20 +340,18 @@ fn decouverte_n_est_pas_declaree_geree_en_bloc() {
 
 #[test]
 fn le_compteur_s_incremente_carte_par_carte_a_la_pose() {
-    let db = db_de("base");
+    let db = db_de("base,decouverte");
     let mut pol = RandomPolicy;
     let mut game = setup_game(&db, 77, &mut pol);
 
     // Une carte encodée puis une carte muette, posées par le chemin réel : le
     // compteur ne bouge que pour la seconde.
     let encodee = db.resolve_card("Comet").expect("Comet");
-    // Carte témoin muette : `Power Plant` jusqu'au lot 5, qui l'a encodée ;
-    // `Interns` jusqu'au lot cartes-7, qui l'a encodée à son tour.
-    // `Work Crews` la remplace — elle est hors périmètre du lot cartes-7 (elle
-    // partage avec les quatre autres le mécanisme « jouer une carte de plus
-    // dans cette phase », toujours absent du moteur) et fait partie des
-    // 5 muettes restantes.
-    let muette = db.resolve_card("Work Crews").expect("Work Crews");
+    // Carte témoin muette : `Power Plant` jusqu'au lot 5, `Interns` jusqu'au
+    // lot cartes-7, `Work Crews` jusqu'au lot cartes-8 — chacune encodée par
+    // le lot suivant. La boîte de base n'en offre plus AUCUNE : le témoin vient
+    // désormais de Découverte, dont aucun pouvoir n'est encore encodé.
+    let muette = db.resolve_card("Ore Leaching").expect("Ore Leaching");
     assert!(db.projects[encodee as usize].effect.is_some());
     assert!(db.projects[muette as usize].effect.is_none());
 
@@ -355,14 +379,21 @@ fn le_compteur_s_incremente_carte_par_carte_a_la_pose() {
 #[test]
 fn le_compteur_grossit_quand_la_pioche_s_elargit() {
     // Propriété attendue du contrat : ajouter Découverte, dont aucun pouvoir
-    // n'est implémenté, augmente le nombre de pouvoirs sautés. (Le contrat
-    // attendait un facteur 3 ; la mesure donne ~1,36 parce que la boîte de base
-    // compte déjà 62 cartes muettes et non 7 — voir blocked.md.)
+    // n'est implémenté, augmente le nombre de pouvoirs sautés.
+    //
+    // (lot cartes-8) L'assertion de départ était « la base a des cartes
+    // muettes ». Elle est RETOURNÉE et devient bien plus exigeante : en boîte
+    // de base, 200 parties entières ne sautent plus **aucun** pouvoir. C'est le
+    // résultat du lot, mesuré en partie réelle et non sur le recensement — deux
+    // oracles disjoints qui doivent s'accorder.
     let mut pol = RandomPolicy;
     let base = engine::sim::run_simulation(&db_de("base"), 200, 2024, &mut pol);
     let mut pol = RandomPolicy;
     let disc = engine::sim::run_simulation(&db_de("base,decouverte"), 200, 2024, &mut pol);
-    assert!(base.cards_effects_unhandled > 0, "la base a des cartes muettes");
+    assert_eq!(
+        base.cards_effects_unhandled, 0,
+        "boîte de base : plus un seul pouvoir sauté en partie réelle"
+    );
     assert!(
         disc.cards_effects_unhandled > base.cards_effects_unhandled,
         "Découverte ajoute des pouvoirs sautés : {} vs {}",

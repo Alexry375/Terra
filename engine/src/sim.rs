@@ -266,6 +266,11 @@ pub struct GameOutcome {
     /// Cartes supplémentaires piochées en phase Recherche grâce au bonus
     /// permanent (`flow::phase_research`).
     pub research_extra_draws: u64,
+    pub extra_builds_granted: u64,
+    pub extra_builds_used: u64,
+    pub free_builds: u64,
+    pub next_card_mods_armed: u64,
+    pub next_card_mods_used: u64,
     /// (corpo-1) Chaleur convertie en MC par Helion.
     pub corp_heat_as_mc: u64,
     /// (corpo-1) Forêts payées à prix réduit par Ecoline.
@@ -325,6 +330,11 @@ pub fn play_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameOutcom
         derived_plants: game.derived_plants,
         tr_from_tags: game.tr_from_tags,
         research_extra_draws: game.research_extra_draws,
+        extra_builds_granted: game.extra_builds_granted,
+        extra_builds_used: game.extra_builds_used,
+        free_builds: game.free_builds,
+        next_card_mods_armed: game.next_card_mods_armed,
+        next_card_mods_used: game.next_card_mods_used,
         corp_heat_as_mc: game.corp_heat_as_mc,
         corp_forest_rebates: game.corp_forest_rebates,
         corp_tr_boosts: game.corp_tr_boosts,
@@ -386,6 +396,11 @@ pub struct SimSummary {
     /// Cartes supplémentaires piochées en phase Recherche grâce au bonus
     /// permanent (`flow::phase_research`).
     pub research_extra_draws: u64,
+    pub extra_builds_granted: u64,
+    pub extra_builds_used: u64,
+    pub free_builds: u64,
+    pub next_card_mods_armed: u64,
+    pub next_card_mods_used: u64,
     /// (corpo-1) Chaleur convertie en MC par Helion.
     pub corp_heat_as_mc: u64,
     /// (corpo-1) Forêts payées à prix réduit par Ecoline.
@@ -439,6 +454,11 @@ pub fn run_simulation(
     let mut derived_plants = 0u64;
     let mut tr_from_tags = 0u64;
     let mut research_extra_draws = 0u64;
+    let mut extra_builds_granted = 0u64;
+    let mut extra_builds_used = 0u64;
+    let mut free_builds = 0u64;
+    let mut next_card_mods_armed = 0u64;
+    let mut next_card_mods_used = 0u64;
     let mut corp_heat_as_mc = 0u64;
     let mut corp_forest_rebates = 0u64;
     let mut corp_tr_boosts = 0u64;
@@ -483,6 +503,11 @@ pub fn run_simulation(
         derived_plants += out.derived_plants;
         tr_from_tags += out.tr_from_tags;
         research_extra_draws += out.research_extra_draws;
+        extra_builds_granted += out.extra_builds_granted;
+        extra_builds_used += out.extra_builds_used;
+        free_builds += out.free_builds;
+        next_card_mods_armed += out.next_card_mods_armed;
+        next_card_mods_used += out.next_card_mods_used;
         corp_heat_as_mc += out.corp_heat_as_mc;
         corp_forest_rebates += out.corp_forest_rebates;
         corp_tr_boosts += out.corp_tr_boosts;
@@ -528,6 +553,11 @@ pub fn run_simulation(
         derived_plants,
         tr_from_tags,
         research_extra_draws,
+        extra_builds_granted,
+        extra_builds_used,
+        free_builds,
+        next_card_mods_armed,
+        next_card_mods_used,
         corp_heat_as_mc,
         corp_forest_rebates,
         corp_tr_boosts,

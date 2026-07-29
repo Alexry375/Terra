@@ -9,7 +9,8 @@
 
 use crate::cards::{CardsDb, Color, Tag, VpKind};
 use crate::effects::{
-    self, Action, ActionCost, ActionEff, ActionRes, Capacity, CorpEffects, Eff, GlobalTrigger,
+    self, Action, ActionCost, ActionEff, ActionRes, BuildGrant, Capacity, CorpEffects, Eff,
+    GlobalTrigger,
     PhaseBonus, ProdCount, ProdRes, Reduction, Req, ResAmount, ResEff, ResKind, ResPut, ResStep,
     ResTarget, Reveal, RevealFilter, TrigGain,
 };
@@ -113,6 +114,11 @@ pub fn setup_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameState
         derived_plants: 0,
         tr_from_tags: 0,
         research_extra_draws: 0,
+        extra_builds_granted: 0,
+        extra_builds_used: 0,
+        free_builds: 0,
+        next_card_mods_armed: 0,
+        next_card_mods_used: 0,
         corp_heat_as_mc: 0,
         corp_forest_rebates: 0,
         corp_tr_boosts: 0,
@@ -1006,8 +1012,14 @@ fn reqs_satisfied(
             Req::TempMin(_) | Req::TempMax(_) | Req::OxyMin(_) | Req::OxyMax(_)
         )
     });
+    //
+    // (lot cartes-8) *Special Design* alimente ENCORE le même booléen, mais par
+    // un chemin de durée différente : un modificateur armé pour la prochaine
+    // carte de la phase (`next_card_mod.color_flex`), et non un permanent. La
+    // règle du non-cumul vaut pareil — c'est toujours un `||`.
     let flex = palier
-        && (corp_effects(db, pl).map_or(false, |s| s.req_color_flex)
+        && (pl.next_card_mod.color_flex
+            || corp_effects(db, pl).map_or(false, |s| s.req_color_flex)
             || pl.played.iter().any(|&c| {
                 db.projects[c as usize]
                     .effect
@@ -1181,14 +1193,130 @@ pub fn payable(mc: i64, hand_len: usize, cost: i64, rate: i64) -> bool {
 ///
 /// Prend `&mut GameState` pour alimenter le compteur d'audit
 /// `prereq_snapshot_blocks` à l'endroit EXACT où l'exclusion a lieu.
+// =============================================================================
+// (lot cartes-8) LES POSES SUPPLÉMENTAIRES
+//
+// Cinq cartes accordent le droit de poser une carte de plus dans la phase en
+// cours. Plutôt qu'un chemin de pose par carte, le moteur décrit CHAQUE pose —
+// y compris les poses ordinaires des phases I et II — par un `BuildGrant`, et
+// n'a qu'un seul chemin pour l'exercer (I1). Ajouter demain « jouez une carte
+// rouge de plus » ne demandera pas une ligne de flux de jeu, seulement une
+// entrée de données.
+// =============================================================================
+
+/// Pose ORDINAIRE de la phase I — Développement : une carte verte, sans plafond
+/// de prix, payante.
+pub const GRANT_DEVELOPMENT: BuildGrant = BuildGrant {
+    colors: &[Color::Green],
+    max_printed_cost: None,
+    free: false,
+};
+
+/// Pose ORDINAIRE de la phase II — Construction : une carte bleue ou rouge,
+/// sans plafond de prix, payante. C'est aussi la permission du sélectionneur de
+/// phase (« ou en jouer une 2e ») : le livret en fait une pose de plus, à
+/// l'identique.
+pub const GRANT_CONSTRUCTION: BuildGrant = BuildGrant {
+    colors: &[Color::Blue, Color::Red],
+    max_printed_cost: None,
+    free: false,
+};
+
+/// Garde-fou : nombre maximal de poses supplémentaires exercées par un joueur
+/// dans une même phase. Aucune carte de la boîte de base n'en accorde plus de
+/// deux d'affilée ; cette borne n'existe que pour qu'un encodage fautif
+/// (une carte qui s'accorderait une permission à elle-même) s'arrête net au
+/// lieu de faire tourner la partie sans fin. Un dépassement casse la partie
+/// plutôt que de la fausser en silence (NEVER 3).
+const MAX_EXTRA_BUILDS_PER_PHASE: usize = 8;
+
+/// (lot cartes-8) Réduction armée pour la prochaine carte de la phase —
+/// service unique, lu par `affordable`, par `build_card_granted` ET par la
+/// sonde (I2). Publique pour cette dernière raison : `probe.rs` recalcule le
+/// prix pour son compte, et doit voir exactement ce que voit le paiement.
+pub fn next_card_discount(pl: &PlayerState) -> i64 {
+    pl.next_card_mod.discount
+}
+
+/// (lot cartes-8) Enregistre ce que la carte qui vient d'entrer en jeu accorde :
+/// des permissions de pose, et/ou un modificateur pour la carte suivante.
+///
+/// Appelé depuis `build_card_granted` APRÈS que la carte a réellement été mise
+/// en jeu et ses effets appliqués — une carte qui n'a pas été posée n'accorde
+/// rien. Sans effet quand la couche d'effets est coupée (`--effects off`), comme
+/// tout le reste de cette couche (I7).
+fn grant_from_card(game: &mut GameState, db: &CardsDb, p: usize, card_id: u16) {
+    if !db.effects_on {
+        return;
+    }
+    let Some(spec) = db.projects[card_id as usize].effect else {
+        return;
+    };
+    for g in spec.grants {
+        game.players[p].pending_builds.push(*g);
+        game.extra_builds_granted += 1;
+    }
+    if let Some(m) = spec.next_card {
+        // Cumul et non remplacement pour la réduction (deux *Work Crews* dans
+        // la même phase se suivent) ; « ou » pour la souplesse, qui reste
+        // binaire par construction (I3).
+        game.players[p].next_card_mod.discount += m.discount;
+        game.players[p].next_card_mod.color_flex |= m.color_flex;
+        game.next_card_mods_armed += 1;
+    }
+}
+
+/// (lot cartes-8) Exerce les permissions de pose en attente, tant qu'il en reste
+/// et que le joueur veut bien s'en servir.
+///
+/// La boucle est nécessaire, pas décorative : une carte posée sous permission
+/// peut elle-même en accorder une nouvelle (*Special Design* posée grâce à
+/// *Work Crews*, par exemple). Elle s'arrête quand la file est vide, quand la
+/// politique renonce, ou quand plus rien n'est posable.
+fn drain_pending_builds(
+    game: &mut GameState,
+    db: &CardsDb,
+    p: usize,
+    discount: i64,
+    policy: &mut dyn Policy,
+) {
+    let mut exercised = 0usize;
+    while let Some(grant) = game.players[p].pending_builds.pop() {
+        assert!(
+            exercised < MAX_EXTRA_BUILDS_PER_PHASE,
+            "plus de {MAX_EXTRA_BUILDS_PER_PHASE} poses supplémentaires dans une \
+             même phase : encodage fautif (une carte s'accorde une permission \
+             qui se régénère)"
+        );
+        exercised += 1;
+        // La remise de phase du sélectionneur ne s'applique QU'À la pose
+        // ordinaire : le livret l'attache au choix de la phase, pas à la carte.
+        // Une permission offerte ne reçoit évidemment aucune remise non plus.
+        let disc = if grant.free { 0 } else { discount };
+        let opts = affordable(game, db, p, &grant, disc);
+        // « You MAY play an additional card » : renoncer est une option, et
+        // c'est `Policy` qui tranche — jamais le moteur (I4).
+        let Some(idx) = policy.choose_build(&mut game.rng, p, &opts) else {
+            continue;
+        };
+        assert!(opts.contains(&idx), "choix de construction hors options");
+        build_card_granted(game, db, p, idx, disc, &grant, policy);
+        game.extra_builds_used += 1;
+    }
+}
+
 fn affordable(
     game: &mut GameState,
     db: &CardsDb,
     p: usize,
-    colors: &[Color],
+    grant: &BuildGrant,
     discount: i64,
 ) -> Vec<usize> {
     let hand_len = game.players[p].hand.len();
+    // (lot cartes-8) Réduction armée pour la prochaine carte de la phase
+    // (*Work Crews*). Elle entre dans l'affordabilité exactement comme dans le
+    // paiement — sinon une carte devenue payable serait jugée hors budget (I2).
+    let discount = discount + next_card_discount(&game.players[p]);
     let mut out = Vec::new();
     let mut blocked = 0u64;
     // (lot 3) Réduction payable en microbes : elle compte dans l'affordabilité,
@@ -1206,7 +1334,21 @@ fn affordable(
     for i in 0..hand_len {
         let c = game.players[p].hand[i];
         let card = &db.projects[c as usize];
-        if !colors.contains(&card.color) {
+        // (lot cartes-8) Couleur ET plafond de prix IMPRIMÉ : les deux critères
+        // de la permission, jugés ensemble par le service unique
+        // `BuildGrant::admits`, le même que celui du paiement (I2).
+        if !grant.admits(card.color, card.price) {
+            continue;
+        }
+        // (lot cartes-8) Permission OFFERTE (« without paying its MC cost ») :
+        // aucun budget à vérifier. Seuls les prérequis de la carte restent
+        // opposables — ils ne sont pas son prix.
+        if grant.free {
+            if requirements_met(game, db, p, c) {
+                out.push(i);
+            } else if requirements_met_now(game, db, p, c) {
+                blocked += 1;
+            }
             continue;
         }
         // (lot cartes-7) Réduction payable en plantes : elle compte dans
@@ -1545,12 +1687,55 @@ pub fn build_card_with(
     discount: i64,
     policy: &mut dyn Policy,
 ) -> usize {
+    // (lot cartes-8) Une pose ordinaire est une pose sous permission ordinaire :
+    // il n'existe qu'UN chemin de pose dans le moteur (I1). La permission choisie
+    // ici n'impose aucune couleur — `build_card_with` est aussi le chemin de la
+    // sonde et des tests, qui posent la carte qu'on leur nomme.
+    const GRANT_ANY: BuildGrant = BuildGrant {
+        colors: &[Color::Green, Color::Blue, Color::Red],
+        max_printed_cost: None,
+        free: false,
+    };
+    build_card_granted(game, db, p, idx, discount, &GRANT_ANY, policy)
+}
+
+/// (lot cartes-8) Le chemin de pose complet, permission comprise. Seule
+/// différence avec `build_card_with` : la permission peut rendre la carte
+/// GRATUITE (« without paying its MC cost »).
+pub fn build_card_granted(
+    game: &mut GameState,
+    db: &CardsDb,
+    p: usize,
+    idx: usize,
+    discount: i64,
+    grant: &BuildGrant,
+    policy: &mut dyn Policy,
+) -> usize {
     let hand_len_before = game.players[p].hand.len();
     let card_id = game.players[p].hand.remove(idx);
+    // (lot cartes-8) Le modificateur armé pour la prochaine carte de la phase
+    // (*Work Crews*, *Special Design*) est consommé PAR CETTE POSE : lu ici,
+    // effacé aussitôt. Il vaut pour la carte qu'on est en train de poser, pas
+    // pour la suivante — d'où la lecture avant tout calcul de prix, et
+    // l'effacement avant que la carte n'entre en jeu (si elle arme à son tour
+    // un modificateur, celui-ci vise bien la pose SUIVANTE).
+    let armed = std::mem::take(&mut game.players[p].next_card_mod);
+    if !armed.is_empty() {
+        game.next_card_mods_used += 1;
+    }
     // Réduction totale = remise de phase (sélectionneur) + réductions des cartes
-    // en jeu (service unique `card_discount`, calculé AVANT la mise en jeu).
-    let fixed_discount = discount + card_discount(game, db, p, card_id);
-    let price = db.projects[card_id as usize].price;
+    // en jeu (service unique `card_discount`, calculé AVANT la mise en jeu)
+    // + réduction armée pour cette carte-ci.
+    let fixed_discount = discount + card_discount(game, db, p, card_id) + armed.discount;
+    // (lot cartes-8) Permission OFFERTE : le prix devient nul. C'est le prix qui
+    // tombe, pas une réduction de plus — « without paying its MC cost » ne
+    // rembourse rien et ne se cumule à rien.
+    let price = if grant.free {
+        game.free_builds += 1;
+        0
+    } else {
+        db.projects[card_id as usize].price
+    };
 
     // (lot 3) Réduction payée en microbes (Anaerobic Microorganisms) : c'est un
     // CHOIX du joueur, pas un automatisme. La branche « y renoncer » n'est
@@ -1709,6 +1894,12 @@ pub fn build_card_with(
         apply_card_effects(game, db, p, card_id, policy);
         fire_play_triggers(game, db, p, card_id, policy);
     }
+    // (lot cartes-8) La carte est en jeu et ses effets sont passés : elle peut
+    // maintenant accorder une pose supplémentaire ou armer un modificateur pour
+    // la suivante. APRÈS `fire_play_triggers`, donc : ce qu'elle accorde ne
+    // dépend pas de l'ordre des déclencheurs, et le modificateur qu'elle arme
+    // survit à l'effacement fait plus haut pour son propre compte.
+    grant_from_card(game, db, p, card_id);
     discarded
 }
 
@@ -2337,7 +2528,11 @@ fn reveal_matches(card: &crate::cards::ProjectCard, f: RevealFilter) -> bool {
 /// où le compteur `blue_actions` est incrémenté. Renvoie `false` si la carte n'a
 /// pas d'action, si le coût fixe n'est pas payable, ou si une action variable
 /// tire un montant nul. Les montants « up to X » sont tirés par la politique.
-pub(crate) fn apply_blue_action(
+// (lot cartes-8) Rendue publique : c'est le point d'entrée UNIQUE d'une action
+// de carte bleue, déjà emprunté par la sonde. Les tests du lot 8 doivent
+// pouvoir observer un coût qui n'est PAS payable — un état que la sonde, qui
+// part toujours d'un joueur à 5 de note de terraformation, ne sait pas produire.
+pub fn apply_blue_action(
     game: &mut GameState,
     db: &CardsDb,
     p: usize,
@@ -2382,6 +2577,9 @@ pub(crate) fn apply_blue_action(
                     ActionCost::Plants(n) => game.players[p].plants >= n,
                     // (lot 6) Le coût se paie en CARTES : il faut les avoir.
                     ActionCost::DiscardCard(n) => game.players[p].hand.len() >= n as usize,
+                    // (lot cartes-8) Coût en note de terraformation : il faut
+                    // les points, et ils ne se convertissent depuis rien.
+                    ActionCost::Tr(n) => game.players[p].tr >= n as i64,
                     // (lot acier-titane) Coût en MC diminué par les savoir-faire.
                     ActionCost::McPerCapacity { .. } => {
                         spendable_mc(db, &game.players[p])
@@ -2407,6 +2605,10 @@ pub(crate) fn apply_blue_action(
                         game.players[p].mc -= n;
                     }
                     ActionCost::Plants(n) => game.players[p].plants -= n,
+                    // (lot cartes-8) Même retrait que `Req::SpendTr` : service
+                    // unique `PlayerState::spend_tr`, qui tient le compteur
+                    // d'audit du NT (invariant `tr == 5 + gains - dépenses`).
+                    ActionCost::Tr(n) => game.players[p].spend_tr(n as i64),
                     // (lot 6, brique 3) Défausse-coût : QUELLES cartes est une
                     // décision du joueur, prise par la politique existante.
                     ActionCost::DiscardCard(n) => {
@@ -2584,11 +2786,15 @@ fn phase_development(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy
         } else {
             0
         };
-        let opts = affordable(game, db, p, &[Color::Green], discount);
+        let opts = affordable(game, db, p, &GRANT_DEVELOPMENT, discount);
         if let Some(idx) = policy.choose_build(&mut game.rng, p, &opts) {
             assert!(opts.contains(&idx), "choix de construction hors options");
-            build_card_with(game, db, p, idx, discount, policy);
+            build_card_granted(game, db, p, idx, discount, &GRANT_DEVELOPMENT, policy);
         }
+        // (lot cartes-8) *Automated Factories* et *Tall Station* offrent ici une
+        // carte verte à 9 MC ou moins. La permission ne peut naître que de la
+        // pose qui précède, d'où le drainage APRÈS elle.
+        drain_pending_builds(game, db, p, discount, policy);
     }
 }
 
@@ -2596,7 +2802,6 @@ fn phase_development(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy
 /// bleue/rouge ; sélectionneur : piocher 1 carte AVANT ou APRÈS avoir joué
 /// (C2), OU en jouer une 2e. Un passage chacun, dans l'ordre du tour (C4).
 fn phase_construction(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
-    const BR: [Color; 2] = [Color::Blue, Color::Red];
     for p in game.players_in_turn_order() {
         // Le bonus est décidé AVANT la pose : c'est la seule façon d'ouvrir
         // le moment « pioche avant » du livret (l.336).
@@ -2615,11 +2820,16 @@ fn phase_construction(game: &mut GameState, db: &CardsDb, policy: &mut dyn Polic
             }
         }
 
-        let opts = affordable(game, db, p, &BR, 0);
+        let opts = affordable(game, db, p, &GRANT_CONSTRUCTION, 0);
         if let Some(idx) = policy.choose_build(&mut game.rng, p, &opts) {
             assert!(opts.contains(&idx), "choix de construction hors options");
-            build_card_with(game, db, p, idx, 0, policy);
+            build_card_granted(game, db, p, idx, 0, &GRANT_CONSTRUCTION, policy);
         }
+        // (lot cartes-8) *Asset Liquidation*, *Special Design* et *Work Crews*
+        // ouvrent une pose bleue/rouge de plus. Drainé AVANT le bonus du
+        // sélectionneur : ce sont deux droits distincts, et celui-ci naît de la
+        // carte qu'on vient de poser.
+        drain_pending_builds(game, db, p, 0, policy);
 
         match bonus {
             // (C2) Pioche APRÈS la pose.
@@ -2630,11 +2840,14 @@ fn phase_construction(game: &mut GameState, db: &CardsDb, policy: &mut dyn Polic
                 }
             }
             Some(ConstructionBonus::SecondBuild) => {
-                let opts = affordable(game, db, p, &BR, 0);
+                let opts = affordable(game, db, p, &GRANT_CONSTRUCTION, 0);
                 if let Some(idx) = policy.choose_build(&mut game.rng, p, &opts) {
                     assert!(opts.contains(&idx), "choix de construction hors options");
-                    build_card_with(game, db, p, idx, 0, policy);
+                    build_card_granted(game, db, p, idx, 0, &GRANT_CONSTRUCTION, policy);
                 }
+                // (lot cartes-8) La 2e pose du sélectionneur peut elle aussi
+                // poser une carte qui en accorde une 3e.
+                drain_pending_builds(game, db, p, 0, policy);
             }
             // Déjà résolu avant la pose, ou pas de bonus.
             Some(ConstructionBonus::DrawCardBefore) | None => {}
@@ -3021,6 +3234,11 @@ pub fn play_round(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
         // planétaire — c'est le seul marqueur de début de phase du moteur.
         for pl in game.players.iter_mut() {
             pl.tr_raised_this_phase = false;
+            // (lot cartes-8) « …this phase » ne franchit jamais une frontière de
+            // phase : une permission non exercée et un modificateur non
+            // consommé meurent ici, même si le joueur n'a rien pu en faire.
+            pl.pending_builds.clear();
+            pl.next_card_mod = Default::default();
         }
         match phase {
             1 => phase_development(game, db, policy),

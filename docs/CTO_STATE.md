@@ -38,6 +38,76 @@ prérequis (2), divers (4). Liste nominative :
 **Ne JAMAIS citer le « 7 » de `docs/cartes/moteur-vs-imprime.md` comme une
 couverture de la boîte de base** : ce rapport n'échantillonne que 66 cartes.
 
+## 🏁 LA BOÎTE DE BASE EST TERMINÉE (28-07) — `cartes-8`, fait EN DIRECT par le CTO
+
+**Les 208 projets de la boîte de base sont encodés. Zéro carte muette.**
+Mesuré deux fois, par deux chemins indépendants [VÉRIFIÉ 28-07] :
+`--dump-deck --boites base` ne rend plus une seule carte à `effets_geres: false`,
+et 1000 parties réelles donnent `cards_effects_unhandled = 0` — plus un seul
+pouvoir imprimé n'est sauté en cours de partie.
+
+**Décision d'Alexis** : ce lot a été fait **en direct, sans chantier séparé**,
+sur sa demande explicite après que je lui aie recommandé l'inverse. Le compromis
+est inscrit ici : correction évidente et localisée → en direct ; ajout qui touche
+au déroulement d'une partie → chantier séparé. Ce lot tombait du second côté ;
+Alexis a tranché autrement en connaissance de cause.
+
+### Les cinq cartes et les deux mécanismes qu'elles ont imposés
+
+*Asset Liquidation*, *Special Design*, *Work Crews* (phase II) ·
+*Automated Factories*, *Tall Station* (phase I).
+
+1. **La pose supplémentaire.** Le tour de jeu ne savait pas se rouvrir : chaque
+   phase proposait une pose, une seule, et le seul cas de « deuxième pose » était
+   écrit en dur pour le sélectionneur de phase. Généralisé par
+   `effects::BuildGrant` (`effects.rs:846`) — couleurs autorisées, plafond de
+   prix **imprimé**, gratuité — exercé par le seul `flow::drain_pending_builds`
+   (`flow.rs:1246`). **Les poses ordinaires des phases I et II sont elles-mêmes
+   des permissions** (`GRANT_DEVELOPMENT`, `GRANT_CONSTRUCTION`) : il n'existe
+   plus qu'un seul chemin de pose dans tout le moteur (I1).
+2. **L'effet à DURÉE.** Le moteur n'avait que du permanent et de l'instantané.
+   *Work Crews* (« 11 MC de moins pour la **prochaine** carte de cette phase »)
+   et *Special Design* (souplesse d'un palier, même portée) ont imposé un
+   troisième genre : `effects::NextCardMod`, armé à la pose, consommé par la
+   pose suivante, effacé en début de phase même s'il n'a jamais servi.
+
+**Ajout de vocabulaire** : `ActionCost::Tr(n)`, premier coût en note de
+terraformation du moteur (*Asset Liquidation* : « Spend 1 TR to draw three
+cards »). Il emprunte le service unique `PlayerState::spend_tr`, donc il est
+compté par l'invariant du NT.
+
+### Un défaut de la sonde, trouvé et corrigé au passage [VÉRIFIÉ 28-07]
+
+`probe.rs` recalculait le prix payé pour son compte, à partir des seules
+réductions permanentes — dette connue depuis le lot corporations. La réduction
+armée par *Work Crews* lui échappait donc : `paid` mentait, et son garde-fou de
+payabilité aurait refusé une carte que la partie réelle propose. Corrigé
+(`probe.rs:735`) : la sonde lit le même service que le paiement (I2).
+
+### Les chiffres, mesurés
+
+- **634 tests verts** (599 avant), aucun désactivé — dont **35 neufs**
+  (`tests/lot8_tests.rs`), chaque mécanisme vérifié dans les DEUX sens.
+- **203 cartes hors lot sondées avant/après : aucune n'a bougé** (comparaison au
+  binaire du lot 7, champ par champ).
+- 1000 parties menées à terme dans les deux boîtes, `invariant_violations = 0`,
+  `truncated = 0`. Empreinte base : `13dd0cfeb7532dde` → `1edd85ff035a8767`
+  (le déroulement a bien changé), déterministe au rejeu.
+- Compteurs neufs en 1000 parties (boîte de base) : 1042 permissions accordées,
+  **432 exercées**, 94 cartes posées sans payer, 462 modificateurs armés dont
+  **250 consommés**. Tous **nuls en `--effects off`** (I7).
+- ~8 850 parties/s : aucune dégradation.
+
+### Onze attentes de tests retournées, aucune affaiblie
+
+Le succès du lot a rendu faux tous les témoins qui disaient « il reste des cartes
+muettes en boîte de base ». Chacun a été **retourné et rendu plus exigeant**,
+jamais neutralisé — par exemple `le_compteur_grossit_quand_la_pioche_s_elargit`
+(`lot_boites_tests.rs`) affirmait « la base a des cartes muettes » ; il affirme
+désormais « la base n'en a **aucune** », ce qui est strictement plus fort. Deux
+témoins nommant des cartes de base devenues encodées ont été reportés sur des
+cartes de Découverte, toujours muettes.
+
 ## NEUF CARTES DE PLUS (28-07) — `moteur-cartes-7`, audité OK et promu
 
 **Résultat mesuré après promotion** [VÉRIFIÉ 28-07] : muettes **14 → 5** en boîte
@@ -185,9 +255,9 @@ Mesuré par `--dump-deck` et lecture du code, pas de mémoire. [VÉRIFIÉ 28-07]
 | Brique | État |
 |---|---|
 | Déroulement d'une partie (phases I-V, production, score, fin) | fait |
-| Projets boîte de base | **203 / 208** encodés (5 muettes) |
+| Projets boîte de base | **208 / 208** encodés — **BOÎTE DE BASE TERMINÉE** |
 | Corporations boîte de base | 12 / 12 |
-| Projets en configuration cible `base,decouverte` | **208 / 246** (38 muettes) |
+| Projets en configuration cible `base,decouverte` | **213 / 246** (33 muettes, **toutes de Découverte**) |
 | Corporations Découverte | 0 / 4 (écartées, table `effects::CORPS`) |
 | Objectifs (tuiles) | 11 / 11 encodés — **1 seuil faux** |
 | Récompenses (tuiles) | **5 / 7** fonctionnelles (*Industrialist* ressuscitée le 28-07) |

@@ -1457,22 +1457,31 @@ fn the_nine_cards_carry_no_requirement_and_no_immediate_effect() {
 }
 
 #[test]
-fn the_five_out_of_scope_cards_stay_unencoded() {
-    // Débordement : encoder l'une des cinq serait une faute, pas un bonus.
+fn the_five_out_of_scope_cards_are_now_encoded_by_the_next_lot() {
+    // (lot cartes-8) Ce test interdisait au lot 7 d'encoder les cinq cartes
+    // « une carte de plus » — un garde-fou de PÉRIMÈTRE, respecté à l'époque.
+    // Le lot suivant les a encodées, comme prévu : le témoin est donc RETOURNÉ,
+    // et il devient l'épinglage inverse. Il n'est pas supprimé, parce qu'il
+    // continue de prouver que ces cinq cartes-là sont bien celles qui ont
+    // changé de camp, et qu'aucune n'a été oubliée en route.
     let db = db();
     for nom in HORS {
         let id = db
             .resolve_card(nom)
             .unwrap_or_else(|| panic!("« {nom} » non résolue"));
         assert!(
-            db.projects[id as usize].effect.is_none(),
-            "« {nom} » est HORS PÉRIMÈTRE et ne doit pas être encodée"
+            db.projects[id as usize].effect.is_some(),
+            "« {nom} » doit être encodée depuis le lot cartes-8"
         );
     }
 }
 
 #[test]
-fn exactly_five_cards_remain_unhandled_in_the_base_box() {
+fn no_card_remains_unhandled_in_the_base_box() {
+    // (lot cartes-8) L'attente passe de « exactement ces cinq-là » à
+    // « plus aucune » : la boîte de base est intégralement encodée. C'est
+    // l'assertion la plus forte que ce test puisse porter, et la moindre
+    // régression la fait échouer EN NOMMANT la carte fautive.
     let db = CardsDb::load_boites(CARDS, BoiteSet::parse("base").unwrap()).expect("base");
     let muettes: std::collections::BTreeSet<&str> = db
         .recensement()
@@ -1480,23 +1489,20 @@ fn exactly_five_cards_remain_unhandled_in_the_base_box() {
         .filter(|c| !c.effets_geres)
         .map(|c| c.name)
         .collect();
-    let attendues: std::collections::BTreeSet<&str> = HORS.into_iter().collect();
-    assert_eq!(muettes, attendues, "égalité ENSEMBLISTE, pas seulement le compte");
+    assert!(muettes.is_empty(), "encore muettes en boîte de base : {muettes:?}");
 }
 
 #[test]
-fn the_five_out_of_scope_cards_stay_neutral_stubs() {
-    // Elles restent jouables et ne changent RIEN à l'état : la sonde le mesure.
+fn the_five_cards_of_the_next_lot_are_live_and_keep_no_research_bonus() {
+    // (lot cartes-8) Elles ne sont plus des coquilles vides : elles sont dans
+    // le lot. Ce que le test continue d'affirmer sans rien perdre : elles
+    // restent JOUABLES (aucune ne casse la pose), et aucune n'a hérité au
+    // passage d'un bonus de phase Recherche qu'elle n'a jamais eu.
     let db = db();
     for nom in HORS {
         let r = seq(&db, &[nom], opts(400));
         assert!(r.played, "« {nom} » doit rester jouable");
-        assert!(!r.in_lot, "« {nom} » n'est pas encodée");
-        assert_eq!(
-            r.delta,
-            engine::probe::ProbeDelta::default(),
-            "« {nom} » ne doit rien changer"
-        );
+        assert!(r.in_lot, "« {nom} » est encodée depuis le lot cartes-8");
         assert_eq!(r.research, (0, 0), "« {nom} » n'a pas de bonus de recherche");
     }
 }

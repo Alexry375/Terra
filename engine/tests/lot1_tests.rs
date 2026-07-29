@@ -438,15 +438,38 @@ fn effects_off_makes_probe_neutral() {
 /// affaiblie** : elle est rendue indépendante d'un nom de carte, en cherchant
 /// dans la pioche réelle la première carte que le moteur n'encode pas. Elle
 /// restera vraie au lot suivant, quelle que soit la carte encodée.
+///
+/// (lot cartes-8) Le lot précédent le rendait indépendant d'un nom de carte ;
+/// celui-ci lui retire son dernier sujet en boîte de BASE — les 208 projets y
+/// sont désormais encodés, il n'existe plus une seule carte à observer. Le test
+/// est donc **retourné et rendu plus exigeant**, jamais neutralisé :
+///
+/// 1. il ÉPINGLE le fait que la boîte de base est intégralement encodée — une
+///    régression qui rendrait une carte muette le ferait échouer ;
+/// 2. il continue de vérifier le comportement de stub neutre, sur la
+///    configuration `base,decouverte` où 33 cartes restent sans encodage.
+///
+/// Le jour où Découverte sera encodée à son tour, la seconde partie n'aura plus
+/// de sujet non plus : elle deviendra alors le même épinglage que la première.
 #[test]
 fn out_of_lot_card_stays_neutral_stub() {
     let db = db();
+    assert!(
+        !db.projects.iter().any(|c| c.in_deck && c.effect.is_none()),
+        "la boîte de base doit rester intégralement encodée"
+    );
+
+    let db = CardsDb::load_boites(
+        "../data/cards.json",
+        engine::boites::BoiteSet::parse("base,decouverte").expect("configuration valide"),
+    )
+    .expect("cards.json doit se charger");
     let nom = db
         .projects
         .iter()
         .find(|c| c.in_deck && c.effect.is_none())
         .map(|c| c.name.clone())
-        .expect("au moins une carte de la pioche reste sans encodage");
+        .expect("au moins une carte de Découverte reste sans encodage");
     let r = run_probe(&db, &nom);
     assert!(r.found && r.played, "carte témoin : {nom}");
     assert!(!r.in_lot, "carte témoin : {nom}");

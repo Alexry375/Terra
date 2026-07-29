@@ -25,6 +25,7 @@
 use crate::cards::CardsDb;
 use crate::flow::{
     apply_blue_action, build_card_with, card_discount, card_points, discard_mc_rate,
+    next_card_discount,
     heat_reserved_by, install_corporation, payable, phase_production, plant_discount,
     plants_reserved_by, player_capacities, requirements_met, requirements_met_now,
     research_extra, spendable_mc_reserving,
@@ -503,6 +504,11 @@ fn probe_state_base(db: &CardsDb, ids: &[u16], opts: ProbeOptions) -> GameState 
         derived_plants: 0,
         tr_from_tags: 0,
         research_extra_draws: 0,
+        extra_builds_granted: 0,
+        extra_builds_used: 0,
+        free_builds: 0,
+        next_card_mods_armed: 0,
+        next_card_mods_used: 0,
         corp_heat_as_mc: 0,
         corp_forest_rebates: 0,
         corp_tr_boosts: 0,
@@ -733,7 +739,13 @@ pub fn run_probe_seq_corp(
         // lot-ci) : celles-ci dépendent d'une décision du joueur, et les
         // rabattre ici ferait mentir `paid` dans l'autre sens dès que le joueur
         // y renonce. Le témoin de ces réductions reste `delta`.
-        let disc = card_discount(&game, db, 0, id);
+        // (lot cartes-8) La réduction ARMÉE pour la prochaine carte de la phase
+        // (*Work Crews*) entre ici comme une réduction fixe : elle ne dépend
+        // d'aucune décision du joueur — elle est déjà acquise et sera consommée
+        // par cette pose-ci, que le joueur le veuille ou non. La sonde doit donc
+        // la voir, sans quoi `paid` mentirait et le garde-fou de payabilité
+        // refuserait une carte que la partie réelle propose (I2).
+        let disc = card_discount(&game, db, 0, id) + next_card_discount(&game.players[0]);
         let cost = (price - disc).max(0);
         // (lot cartes-7) Prix jugé par le GARDE-FOU de payabilité : celui-ci
         // doit voir ce que `flow::affordable` voit, réduction payable comprise,

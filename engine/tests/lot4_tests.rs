@@ -678,7 +678,7 @@ fn the_seventeen_cards_are_encoded_and_resolve_to_the_v1_deck() {
     // ATTENTE MISE À JOUR par le lot 5 (155 → 188), le lot 6 (188 → 199), le
     // lot acier-titane (199 → 203) puis le lot cartes-7 (203 → 212) : taille
     // EXACTE toujours épinglée, aucun test supprimé ni assoupli.
-    assert_eq!(engine::effects::LOT1.len(), 212);
+    assert_eq!(engine::effects::LOT1.len(), 217);
 }
 
 #[test]

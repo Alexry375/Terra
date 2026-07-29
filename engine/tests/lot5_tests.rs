@@ -748,7 +748,7 @@ fn the_thirty_three_cards_resolve_to_the_base_box_deck() {
     // + 4 (lot acier-titane) + 9 (lot cartes-7) = 212. ATTENTE MISE À JOUR par
     // le lot 6, le lot acier-titane puis le lot cartes-7 : taille EXACTE
     // toujours épinglée.
-    assert_eq!(engine::effects::LOT1.len(), 212);
+    assert_eq!(engine::effects::LOT1.len(), 217);
 }
 
 #[test]
@@ -797,7 +797,7 @@ fn effects_off_leaves_the_thirty_three_completely_inert() {
 }
 
 #[test]
-fn exactly_eighteen_base_cards_remain_unhandled_and_they_are_the_right_ones() {
+fn no_base_card_remains_unhandled() {
     // D2 vu du moteur : le champ `effets_geres` est DÉRIVÉ de l'encodage. Les
     // restantes sont celles qui réclament des mécanismes absents.
     //
@@ -811,19 +811,18 @@ fn exactly_eighteen_base_cards_remain_unhandled_and_they_are_the_right_ones() {
         .filter(|c| !c.effets_geres)
         .map(|c| c.name)
         .collect();
-    // ATTENTE MISE À JOUR par le lot acier-titane (18 → 14) puis par le lot
-    // cartes-7 (14 → 5) : les neuf modificateurs permanents sont encodés, ils
-    // quittent donc cette liste. La liste reste NOMMÉE, carte par carte : le
-    // test continue d'interdire qu'une muette hors périmètre disparaisse — et
-    // les cinq qui restent sont exactement les cinq hors périmètre du lot 7.
-    let attendues: std::collections::BTreeSet<&str> = [
-        "Asset Liquidation", "Automated Factories",
-        "Special Design", "Tall Station", "Work Crews",
-    ]
-    .into_iter()
-    .collect();
-    assert_eq!(muettes.len(), 5, "cartes muettes restantes");
-    assert_eq!(muettes, attendues, "ce sont exactement les cartes hors périmètre");
+    // ATTENTE MISE À JOUR par le lot acier-titane (18 → 14), par le lot
+    // cartes-7 (14 → 5), puis par le lot cartes-8 (5 → 0) : les cinq dernières
+    // — les poses supplémentaires — sont encodées. **La boîte de base est
+    // intégralement encodée.**
+    //
+    // Le test n'est pas vidé de sa substance : l'assertion « exactement zéro »
+    // est la plus forte qu'il puisse porter, et la MOINDRE régression qui
+    // rendrait une carte muette la fait échouer en la nommant.
+    assert!(
+        muettes.is_empty(),
+        "la boîte de base doit être intégralement encodée ; encore muettes : {muettes:?}"
+    );
     // Et aucune des 33 n'y figure.
     for name in LOT5 {
         assert!(!muettes.contains(name), "{name} ne doit plus être muette");
@@ -906,19 +905,20 @@ fn the_lot_did_not_touch_the_boxes_composition() {
 }
 
 #[test]
-fn base_plus_discovery_leaves_fifty_five_unhandled() {
-    // 14 (base) + 37 (Découverte, inchangé par ce lot) = 51. Le décompte porte
+fn only_discovery_cards_remain_unhandled() {
+    // Le décompte porte
     // sur le RECENSEMENT complet : les 37 de Découverte sont 33 projets plus
     // 4 corporations sans encodage — d'où l'écart avec le contrôle
     // `02-les-14-restantes.sh`, qui ne compte que les projets (47).
     // ATTENTE MISE À JOUR par le lot 6 (66 → 55), par le lot acier-titane
-    // (55 → 51) puis par le lot cartes-7 (51 → 42) : les 9 cartes encodées sont
-    // toutes de la boîte de base, Découverte n'a pas bougé (5 projets de base
-    // + 33 projets + 4 corporations de Découverte = 42).
+    // (55 → 51), par le lot cartes-7 (51 → 42) puis par le lot cartes-8
+    // (42 → 37) : les 5 dernières cartes encodées sont toutes de la boîte de
+    // base, Découverte n'a pas bougé. Il ne reste donc QUE Découverte —
+    // 33 projets + 4 corporations = 37, et plus une seule carte de base.
     let db = CardsDb::load_boites(CARDS, BoiteSet::parse("base,decouverte").unwrap())
         .expect("base,decouverte");
     let n = db.recensement().into_iter().filter(|c| !c.effets_geres).count();
-    assert_eq!(n, 42, "muettes en base + Découverte");
+    assert_eq!(n, 37, "muettes en base + Découverte");
 }
 
 #[test]

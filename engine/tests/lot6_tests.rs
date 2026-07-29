@@ -877,7 +877,7 @@ fn the_eleven_prices_match_the_printed_cost() {
 }
 
 #[test]
-fn exactly_eighteen_base_cards_remain_unhandled() {
+fn no_base_card_remains_unhandled() {
     let db = CardsDb::load_boites(CARDS, BoiteSet::parse("base").unwrap()).expect("base");
     let muettes: Vec<&str> = db
         .recensement()
@@ -885,23 +885,24 @@ fn exactly_eighteen_base_cards_remain_unhandled() {
         .filter(|c| !c.effets_geres)
         .map(|c| c.name)
         .collect();
-    // ATTENTE MISE À JOUR par le lot acier-titane (18 → 14) puis par le lot
-    // cartes-7 (14 → 5) : les neuf modificateurs permanents sont encodés.
-    assert_eq!(muettes.len(), 5, "{muettes:?}");
+    // ATTENTE MISE À JOUR par le lot acier-titane (18 → 14), le lot cartes-7
+    // (14 → 5) puis le lot cartes-8 (5 → 0) : la boîte de base est
+    // intégralement encodée.
+    assert!(muettes.is_empty(), "{muettes:?}");
     for name in LOT6 {
         assert!(!muettes.contains(&name), "{name} ne doit plus être muette");
     }
 }
 
 #[test]
-fn base_plus_discovery_leaves_fifty_five_unhandled() {
+fn only_discovery_cards_remain_unhandled() {
     let db = CardsDb::load_boites(CARDS, BoiteSet::parse("base,decouverte").unwrap())
         .expect("base,decouverte");
     let n = db.recensement().into_iter().filter(|c| !c.effets_geres).count();
-    // ATTENTE MISE À JOUR par le lot acier-titane (55 → 51) puis par le lot
-    // cartes-7 (51 → 42) : 5 muettes en base + 37 de Découverte (33 projets +
-    // 4 corporations sans encodage).
-    assert_eq!(n, 42);
+    // ATTENTE MISE À JOUR par le lot acier-titane (55 → 51), le lot cartes-7
+    // (51 → 42) puis le lot cartes-8 (42 → 37) : plus une seule muette en base,
+    // il ne reste que Découverte (33 projets + 4 corporations).
+    assert_eq!(n, 37);
 }
 
 #[test]
@@ -1114,12 +1115,12 @@ fn the_table_has_one_entry_per_card_of_this_lot() {
         let n = LOT1.iter().filter(|(x, _)| *x == name).count();
         assert_eq!(n, 1, "{name} : une entrée et une seule");
     }
-    // ATTENTE MISE À JOUR par le lot acier-titane (199 → 203) puis par le lot
-    // cartes-7 (203 → 212).
+    // ATTENTE MISE À JOUR par le lot acier-titane (199 → 203), le lot cartes-7
+    // (203 → 212) puis le lot cartes-8 (212 → 217).
     assert_eq!(
         LOT1.len(),
-        212,
-        "188 + 11 (lot 6) + 4 (lot acier-titane) + 9 (lot cartes-7)"
+        217,
+        "188 + 11 (lot 6) + 4 (acier-titane) + 9 (cartes-7) + 5 (cartes-8)"
     );
 }
 

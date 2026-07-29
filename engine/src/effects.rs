@@ -655,6 +655,16 @@ pub enum ActionCost {
     /// (point de décision existant) et rejoignent la défausse commune : la
     /// conservation des cartes reste vraie (I6, invariant 4).
     DiscardCard(u8),
+    /// (lot cartes-8) **Dépenser `n` points de note de terraformation** comme
+    /// coût de l'action — *Asset Liquidation*, « Action: Spend 1 TR to draw
+    /// three cards. »
+    ///
+    /// La note de terraformation est à la fois une ressource et la moitié du
+    /// score final : la dépenser est un vrai sacrifice. Le moteur sait déjà la
+    /// dépenser en PRÉREQUIS (`Req::SpendTr`, *Water Import from Europa*) ;
+    /// c'est le même retrait, au même compteur d'audit (`tr_decrements`), à
+    /// l'endroit d'une action.
+    Tr(u8),
     /// (lot acier-titane) **Coût en MC réduit par un savoir-faire** : `base` MC,
     /// moins `per` MC par unité de `cap` que le joueur possède, jamais négatif.
     ///
@@ -841,6 +851,88 @@ pub enum Action {
     Res(&'static [&'static [ResEff]]),
 }
 
+// =============================================================================
+// (lot cartes-8) POSES SUPPLÉMENTAIRES ET MODIFICATEURS DE LA PROCHAINE CARTE
+//
+// Cinq cartes — les cinq dernières muettes de la boîte de base — accordent le
+// droit de poser une carte DE PLUS dans la phase en cours :
+//
+//   « You may play an additional blue or red card this phase. »
+//        — Asset Liquidation, Special Design, Work Crews (posées en phase II)
+//   « You may play a green card from your hand that has a printed cost of
+//     9 MC or less without paying its MC cost. »
+//        — Automated Factories, Tall Station (posées en phase I)
+//
+// Ces deux textes ne sont PAS deux mécanismes : c'est le même, avec des
+// paramètres différents (couleurs autorisées, plafond de prix imprimé,
+// gratuité). D'où une seule structure, [`BuildGrant`], et un seul chemin de
+// pose supplémentaire dans le flux de jeu (I1). La pose ORDINAIRE d'une phase
+// est elle-même décrite par un `BuildGrant` : il n'existe donc qu'UNE façon de
+// poser une carte dans tout le moteur.
+// =============================================================================
+
+/// (lot cartes-8) **Permission de poser une carte.** Décrit ce qu'une pose
+/// autorise : quelles couleurs, jusqu'à quel prix imprimé, et à quel titre
+/// (payante ou offerte).
+///
+/// Les poses ordinaires des phases I et II sont des permissions comme les
+/// autres — voir `flow::GRANT_DEVELOPMENT` et `flow::GRANT_CONSTRUCTION`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BuildGrant {
+    /// Couleurs posables sous cette permission.
+    pub colors: &'static [Color],
+    /// Plafond sur le **prix imprimé** de la carte (`None` = aucun plafond).
+    ///
+    /// C'est bien le prix IMPRIMÉ, celui du carton, et non le prix effectivement
+    /// payé : « a printed cost of 9 MC or less ». Une carte à 12 MC ramenée à
+    /// 8 MC par un savoir-faire reste hors de portée d'une permission plafonnée
+    /// à 9 ; une carte à 9 MC y entre même si aucune réduction ne s'applique.
+    pub max_printed_cost: Option<i64>,
+    /// La carte est-elle **offerte** ? `true` = « without paying its MC cost » :
+    /// aucun MC n'est dû, aucune défausse n'est demandée, aucune chaleur n'est
+    /// convertie. Les dépenses de PRÉREQUIS de la carte posée (« Requires you
+    /// to spend 2 plants ») restent dues : elles ne sont pas son prix.
+    pub free: bool,
+}
+
+impl BuildGrant {
+    /// La carte `price` / `color` entre-t-elle dans cette permission ?
+    pub fn admits(&self, color: Color, printed_price: i64) -> bool {
+        self.colors.contains(&color)
+            && self.max_printed_cost.is_none_or(|max| printed_price <= max)
+    }
+}
+
+/// (lot cartes-8) **Modificateur de la PROCHAINE carte posée dans la phase.**
+/// Un effet à durée : il s'arme à la pose de la carte qui le porte, s'applique
+/// à la pose suivante du même joueur dans la même phase, puis disparaît —
+/// qu'il ait servi ou non (fin de phase).
+///
+/// C'est le troisième genre d'effet du moteur : il y avait le PERMANENT (une
+/// réduction tant que la carte est en jeu) et l'INSTANTANÉ (appliqué à la pose,
+/// terminé) ; celui-ci attend un événement, une seule fois.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct NextCardMod {
+    /// MC de moins sur la prochaine carte — *Work Crews*, « You pay 11 MC less
+    /// for the next card you play this phase. »
+    pub discount: i64,
+    /// Souplesse d'un palier sur l'oxygène ou la température pour la prochaine
+    /// carte — *Special Design*, « For the next card you play this phase, you
+    /// may consider the oxygen or temperature one color higher or lower. »
+    ///
+    /// **Binaire, comme `req_color_flex`** (I3) : deux sources de souplesse ne
+    /// s'additionnent jamais en ±2 paliers. `flow::reqs_satisfied` en fait un
+    /// « ou », jamais une somme.
+    pub color_flex: bool,
+}
+
+impl NextCardMod {
+    /// Rien d'armé ? Sert à savoir s'il y a quelque chose à consommer.
+    pub fn is_empty(&self) -> bool {
+        self.discount == 0 && !self.color_flex
+    }
+}
+
 /// Encodage complet d'une carte du lot.
 #[derive(Debug)]
 pub struct CardEffects {
@@ -910,6 +1002,21 @@ pub struct CardEffects {
     /// par là : elles ne déclenchent rien, comme le veut le texte (« on one of
     /// **your cards** »).
     pub action_trigger: &'static [ActionEff],
+    // ======================================================== lot cartes-8
+    /// (lot cartes-8) Permissions de pose SUPPLÉMENTAIRE accordées au moment
+    /// où cette carte entre en jeu, dans la phase en cours. Consommées par
+    /// `flow::drain_pending_builds`, qui est le seul endroit du moteur où une
+    /// permission supplémentaire s'exerce (I1).
+    ///
+    /// Un « may » du texte imprimé : la permission est OFFERTE, jamais imposée.
+    /// C'est `Policy::choose_build` qui décide de s'en servir ou non — le même
+    /// chemin de choix que la pose ordinaire (I4).
+    pub grants: &'static [BuildGrant],
+    /// (lot cartes-8) Modificateur armé pour la PROCHAINE carte que ce joueur
+    /// posera dans la phase en cours. Cumulé par `flow::arm_next_card_mod`,
+    /// consommé par `flow::build_card_granted`, effacé en début de phase par
+    /// `flow::play_round`.
+    pub next_card: Option<NextCardMod>,
 }
 
 /// Cherche l'encodage d'une carte par nom exact. None = carte hors lot (stub).
@@ -927,6 +1034,7 @@ macro_rules! card {
             phase_bonus: None,
             discard_bonus: 0, standard_discount: 0,
             req_color_flex: false, action_trigger: &[],
+            grants: &[], next_card: None,
         })
     };
     // Forme lot 4a : production DÉRIVÉE (recalculée à chaque phase IV).
@@ -938,6 +1046,7 @@ macro_rules! card {
             phase_bonus: None,
             discard_bonus: 0, standard_discount: 0,
             req_color_flex: false, action_trigger: &[],
+            grants: &[], next_card: None,
         })
     };
     // Forme lot 4b : bonus permanent de phase Recherche.
@@ -949,6 +1058,7 @@ macro_rules! card {
             phase_bonus: None,
             discard_bonus: 0, standard_discount: 0,
             req_color_flex: false, action_trigger: &[],
+            grants: &[], next_card: None,
         })
     };
     // Forme lot 2 : réductions / déclencheurs / action.
@@ -963,6 +1073,7 @@ macro_rules! card {
             phase_bonus: None,
             discard_bonus: 0, standard_discount: 0,
             req_color_flex: false, action_trigger: &[],
+            grants: &[], next_card: None,
         })
     };
     // Forme lot 6 : action + bonus conditionné à la phase choisie (brique 2).
@@ -976,6 +1087,7 @@ macro_rules! card {
             phase_bonus: $pb,
             discard_bonus: 0, standard_discount: 0,
             req_color_flex: false, action_trigger: &[],
+            grants: &[], next_card: None,
         })
     };
     // Forme lot 7 : MODIFICATEURS PERMANENTS. Aucune de ces cartes n'a de
@@ -993,6 +1105,24 @@ macro_rules! card {
             phase_bonus: None,
             discard_bonus: $dbn, standard_discount: $sd,
             req_color_flex: $fx, action_trigger: &[$($at),*],
+            grants: &[], next_card: None,
+        })
+    };
+    // Forme lot 8 : POSES SUPPLÉMENTAIRES. Les cinq dernières muettes de la
+    // boîte de base accordent une pose de plus et/ou arment un modificateur pour
+    // la carte suivante ; deux d'entre elles ont aussi une production fixe et
+    // une une action bleue. D'où ces quatre champs, et rien d'autre.
+    ($name:literal, effects: [$($e:expr),*], grants: [$($g:expr),*],
+     next: $nc:expr, action: $act:expr) => {
+        ($name, CardEffects {
+            reqs: &[], effects: &[$($e),*],
+            reductions: &[], play_triggers: &[], global_triggers: &[],
+            action: $act,
+            holds: None, on_build: &[], prod: None, research: None,
+            phase_bonus: None,
+            discard_bonus: 0, standard_discount: 0,
+            req_color_flex: false, action_trigger: &[],
+            grants: &[$($g),*], next_card: $nc,
         })
     };
     // Forme lot 3 : tous les champs explicites (ressources posées comprises).
@@ -1007,6 +1137,7 @@ macro_rules! card {
             phase_bonus: None,
             discard_bonus: 0, standard_discount: 0,
             req_color_flex: false, action_trigger: &[],
+            grants: &[], next_card: None,
         })
     };
 }
@@ -1050,6 +1181,22 @@ const fn put_another(kinds: &'static [ResKind], n: u32) -> ResEff {
 /// `LOT1` conservé (référencé par les tests et le garde-fou de chargement).
 /// Correspondances carte → classe Java → conflits : `outputs/lot1.md` (lot 1)
 /// et `outputs/lot2.md` (lot 2).
+/// Permission des trois cartes de phase II : une bleue ou une rouge de plus,
+/// sans plafond de prix, payante.
+const ONE_MORE_BLUE_OR_RED: BuildGrant = BuildGrant {
+    colors: &[Color::Blue, Color::Red],
+    max_printed_cost: None,
+    free: false,
+};
+/// Permission des deux cartes de phase I : une verte à 9 MC imprimés ou
+/// moins, offerte.
+const ONE_FREE_CHEAP_GREEN: BuildGrant = BuildGrant {
+    colors: &[Color::Green],
+    max_printed_cost: Some(9),
+    free: true,
+};
+
+
 pub static LOT1: &[(&str, CardEffects)] = &[
     // ------------------------------------------------- les 10 cartes imposées
     card!("Comet", reqs: [], effects: [Temperature(1), Ocean(1)]),
@@ -1979,6 +2126,46 @@ pub static LOT1: &[(&str, CardEffects)] = &[
                               draw_if: 2, draw_else: 1 }],
                     scale_by_matched_tags: true, include_self: true }],
           research: None, discard: 0, standard: 0, flex: false, atrig: []),
+
+    // ================================================== lot cartes-8
+    // LES CINQ DERNIÈRES MUETTES DE LA BOÎTE DE BASE — « une carte de plus ».
+    //
+    // Trois d'entre elles s'expriment mot pour mot pareil (« You may play an
+    // additional blue or red card this phase ») et deux autres mot pour mot
+    // pareil (« You may play a green card … 9 MC or less … without paying its
+    // MC cost ») : d'où DEUX permissions nommées, écrites une fois.
+
+    // « [effect] You may play an additional blue or red card this phase.
+    //   Action: Spend 1 TR to draw three cards. » — la seule des cinq à porter
+    //   aussi une action, et le premier coût en NT du moteur.
+    card!("Asset Liquidation", effects: [],
+          grants: [ONE_MORE_BLUE_OR_RED], next: None,
+          action: Some(Action::Fixed { cost: &[ActionCost::Tr(1)],
+                                       effect: &[ActionEff::Draw(3)] })),
+    // « [effect] You may play an additional blue or red card this phase.
+    //   [effect] For the next card you play this phase, you may consider the
+    //   oxygen or temperature one color higher or lower. » — deux effets
+    //   distincts sur la même carte : une permission ET un modificateur armé.
+    card!("Special Design", effects: [],
+          grants: [ONE_MORE_BLUE_OR_RED],
+          next: Some(NextCardMod { discount: 0, color_flex: true }),
+          action: None),
+    // « [effect] You may play an additional blue or red card this phase.
+    //   [effect] You pay 11 MC less for the next card you play this phase. »
+    card!("Work Crews", effects: [],
+          grants: [ONE_MORE_BLUE_OR_RED],
+          next: Some(NextCardMod { discount: 11, color_flex: false }),
+          action: None),
+    // « You may play a green card from your hand that has a printed cost of
+    //   9 MC or less without paying its MC cost. During the production phase,
+    //   draw a card. » — la production de cartes est une production FIXE, du
+    //   même genre que celle d'*Acquired Company*.
+    card!("Automated Factories", effects: [CardProd(1)],
+          grants: [ONE_FREE_CHEAP_GREEN], next: None, action: None),
+    // « …without paying its MC cost. During the production phase, this
+    //   produces 3 MC. »
+    card!("Tall Station", effects: [McProd(3)],
+          grants: [ONE_FREE_CHEAP_GREEN], next: None, action: None),
 ];
 
 // ======================================== LOT CORPORATIONS (chantier corpo-1)

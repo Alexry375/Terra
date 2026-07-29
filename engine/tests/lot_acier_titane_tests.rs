@@ -249,6 +249,9 @@ fn la_couleur_fait_partie_du_critere() {
         standard_discount: 0,
         req_color_flex: false,
         action_trigger: &[],
+        // (lot cartes-8) Deux champs de plus, neutres ici pour la même raison.
+        grants: &[],
+        next_card: None,
     };
     let mut db = db();
     let verte = db
@@ -897,9 +900,10 @@ fn la_table_a_une_entree_et_une_seule_par_carte_du_lot() {
 
 #[test]
 // (lot cartes-7) ATTENTE MISE À JOUR (14 → 5) : les neuf modificateurs
-// permanents sont encodés. Le nom de la fonction est conservé — le renommer
-// toucherait le lot acier-titane sans rien prouver de plus.
-fn quatorze_cartes_restent_muettes_en_boite_de_base() {
+// permanents sont encodés.
+// (lot cartes-8) ATTENTE MISE À JOUR (5 → 0) : les cinq poses supplémentaires
+// aussi. Plus une seule muette en boîte de base.
+fn plus_aucune_carte_muette_en_boite_de_base() {
     let db = CardsDb::load_boites(CARDS, BoiteSet::parse("base").unwrap()).expect("base");
     let muettes: Vec<&str> = db
         .recensement()
@@ -907,7 +911,7 @@ fn quatorze_cartes_restent_muettes_en_boite_de_base() {
         .filter(|c| !c.effets_geres)
         .map(|c| c.name)
         .collect();
-    assert_eq!(muettes.len(), 5, "{muettes:?}");
+    assert!(muettes.is_empty(), "{muettes:?}");
     for nom in LOT {
         assert!(!muettes.contains(&nom), "{nom} ne doit plus être muette");
     }
