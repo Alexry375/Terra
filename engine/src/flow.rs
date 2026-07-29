@@ -112,6 +112,11 @@ pub fn setup_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameState
         phase_upgrades_granted: 0,
         phase_upgrades_reupgraded: 0,
         upgraded_bonus_applied: 0,
+        phase_upgrades_targeted: 0,
+        phase_upgrades_by_action: 0,
+        upgraded_reveal_bonuses: 0,
+        objective_condition_hits: 0,
+        draw_then_discard_uses: 0,
         upgraded_extra_builds: 0,
         cards_effects_unhandled: 0,
         derived_mc: 0,
@@ -225,7 +230,15 @@ pub fn install_corporation(game: &mut GameState, db: &CardsDb, p: usize, corp_id
     game.players[p].mc = starting_mc;
     // (boites-1) I4 — corporation sans encodage (les 4 de Découverte) : son
     // pouvoir imprimé ne sera jamais appliqué de la partie, on le compte.
-    if spec.is_none() {
+    //
+    // (decouverte-projets) …mais SEULEMENT quand la couche d'effets est active.
+    // En `--effects off` le moteur est un squelette intégral : AUCUN pouvoir
+    // imprimé n'est appliqué, ni celui des cartes encodées ni celui des autres.
+    // Compter les seules cartes sans encodage y désignerait sept coupables dans
+    // une partie où les 388 sont muettes — un compteur qui ne compte pas la
+    // grandeur qu'il annonce (ALWAYS 4). Voir `result.md`, § Où je vous
+    // contredis : le commentaire d'origine affirmait l'inverse.
+    if spec.is_none() && db.effects_on {
         game.cards_effects_unhandled += 1;
     }
     for t in &tags {
@@ -724,7 +737,7 @@ fn branch_playable(
     branch: &[ResEff],
 ) -> bool {
     branch.iter().all(|e| match e {
-        ResEff::Gain(_) | ResEff::PhaseUpgrade => true,
+        ResEff::Gain(_) | ResEff::PhaseUpgrade(_) => true,
         ResEff::Put(put) => !put_targets(game, db, p, self_card, put).is_empty(),
         ResEff::RemoveSelf(n) => game.players[p].resources_on(self_card) >= *n,
         ResEff::RemoveAny(kinds, n) => !res_sources(game, db, p, kinds, *n).is_empty(),
@@ -744,22 +757,126 @@ fn branch_playable(
 ///
 /// Le CHOIX appartient à `Policy` (NEVER 4) ; les candidates sont énumérées
 /// dans un ordre totalement déterministe (phase croissante, puis A avant B).
-fn apply_phase_upgrade(game: &mut GameState, p: usize, policy: &mut dyn Policy) {
+/// (decouverte-projets) **D'où vient l'amélioration.** Ce n'est pas du
+/// vocabulaire de carte : c'est un paramètre de service, qui n'existe que pour
+/// que `phase_upgrades_by_action` compte la GRANDEUR qu'il annonce (ALWAYS 4) et
+/// non la forme de l'encodage. *Fibrous Composite Material*, qui améliorait déjà
+/// depuis une action avant ce chantier, y est donc comptée elle aussi.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UpgradeSource {
+    /// Effet appliqué à la POSE de la carte (`ResEff::PhaseUpgrade` en
+    /// `on_build`, ou branche d'une alternative de pose).
+    Build,
+    /// Effet appliqué depuis l'ACTIVATION d'une action de carte bleue.
+    Action,
+}
+
+fn apply_phase_upgrade(
+    game: &mut GameState,
+    p: usize,
+    policy: &mut dyn Policy,
+    // (decouverte-projets) Phase IMPOSÉE par le carton, `None` = au choix du
+    // joueur. C'est le seul ajout au corps de la règle : les candidates sont
+    // filtrées, rien d'autre ne change. Les trois cartes à phase imposée n'ont
+    // donc PAS de chemin d'octroi à elles (clause anti-shortcut n° 3).
+    target: Option<u8>,
+    src: UpgradeSource,
+) {
     let mut cands: Vec<(u8, PhaseUpgrade)> = Vec::with_capacity(10);
     for phase in 1u8..=5 {
+        if target.is_some_and(|t| t != phase) {
+            continue;
+        }
         for v in PhaseUpgrade::ALL {
             if game.players[p].phase_upgrade(phase) != Some(v) {
                 cands.push((phase, v));
             }
         }
     }
+    // Phase libre : au moins 5 candidates. Phase imposée : 2 si la carte Phase
+    // est encore normale, 1 si elle est déjà améliorée (la variante en place est
+    // retirée, la bascule A ↔ B reste offerte — livret l. 66). Jamais zéro :
+    // l'effet ne peut pas être sauté, et `phase_upgrades_skipped` reste à 0.
     debug_assert!(!cands.is_empty(), "aucune amélioration possible : impossible");
-    let i = policy.choose_option(&mut game.rng, p, cands.len());
+    if cands.is_empty() {
+        return;
+    }
+    // Une seule candidate = plus de choix à faire (convention du lot 3 pour les
+    // alternatives) : on n'interroge la politique qu'à partir de deux.
+    let i = if cands.len() == 1 {
+        0
+    } else {
+        policy.choose_option(&mut game.rng, p, cands.len())
+    };
     let (phase, variant) = cands[i.min(cands.len() - 1)];
     let deja = game.players[p].upgrade_phase(phase, variant);
     game.phase_upgrades_granted += 1;
     if deja {
         game.phase_upgrades_reupgraded += 1;
+    }
+    if target.is_some() {
+        game.phase_upgrades_targeted += 1;
+    }
+    if src == UpgradeSource::Action {
+        game.phase_upgrades_by_action += 1;
+    }
+}
+
+/// (decouverte-projets) **« Avez-vous un Objectif ? »** — prédicat UNIQUE du
+/// moteur, lu par `Req::HasObjective` (D19) et par `Eff::IfObjective` (D35).
+///
+/// « Objectif » est la tuile MILESTONE du jeu (`state::MilestoneKind`, dont
+/// *Terraformer*) ; « Récompense » est `AwardKind`. Le joueur « a un Objectif »
+/// dès qu'il en a revendiqué au moins un des trois en jeu — c'est exactement ce
+/// que `flow::assign_milestones` écrit, et rien d'autre n'est consulté.
+pub fn has_objective(game: &GameState, p: usize) -> bool {
+    game.milestones.iter().any(|s| s.achieved_by[p])
+}
+
+/// (decouverte-projets) **« Effet : lorsque vous révélez une carte Phase
+/// améliorée, gagnez … »** (D05) — levé pour LE SEUL joueur `p`, au moment où
+/// il révèle sa carte Phase (planification de `play_round`).
+///
+/// Il ne lit que `p` : ni la carte Phase de l'adversaire, ni un compteur global
+/// des cartes Phase améliorées révélées par les deux joueurs (clause
+/// anti-shortcut n° 4). Un joueur ne révèle qu'UNE carte Phase par manche, donc
+/// le gain tombe au plus une fois par manche et par carte porteuse (ASK 4).
+// Publique comme `apply_blue_action` : c'est le point d'entrée UNIQUE de ce
+// mécanisme, celui-là même que `play_round` emprunte. Les tests l'appellent
+// directement pour observer une révélation isolée — ils n'ont pas de chemin à
+// eux, ils prennent le vrai.
+pub fn fire_upgraded_reveal(
+    game: &mut GameState,
+    db: &CardsDb,
+    p: usize,
+    policy: &mut dyn Policy,
+) {
+    if !db.effects_on {
+        return;
+    }
+    let phase = game.players[p].chosen_phase;
+    if game.players[p].phase_upgrade(phase).is_none() {
+        return;
+    }
+    // Les cartes porteuses EN JEU de ce joueur, dans l'ordre de pose.
+    let sources: Vec<u16> = game.players[p]
+        .played
+        .iter()
+        .copied()
+        .filter(|&c| {
+            db.projects[c as usize]
+                .effect
+                .is_some_and(|e| !e.reveal_bonus.is_empty())
+        })
+        .collect();
+    for c in sources {
+        let effs = db.projects[c as usize].effect.unwrap().reveal_bonus;
+        for e in effs {
+            apply_eff(game, db, p, *e, policy);
+        }
+        // Compteur d'audit, au site EXACT du versement : le gain et le compteur
+        // ne peuvent pas diverger.
+        game.upgraded_reveal_bonuses += 1;
     }
 }
 
@@ -773,12 +890,19 @@ fn apply_res_eff(
     self_card: u16,
     e: &ResEff,
     policy: &mut dyn Policy,
+    // (decouverte-projets) D'où vient l'effet : POSE ou ACTION. Traversé sans
+    // être lu, sauf par `ResEff::PhaseUpgrade`.
+    src: UpgradeSource,
 ) {
     match e {
         ResEff::Gain(eff) => apply_eff(game, db, p, *eff, policy),
         // « Améliorez une carte Phase » : le mécanisme existe depuis le
         // chantier `decouverte-phases` — plus rien n'est sauté.
-        ResEff::PhaseUpgrade => apply_phase_upgrade(game, p, policy),
+        // (decouverte-projets) `t` = phase imposée par le carton, `None` = au
+        // choix du joueur. `src` dit d'où vient l'appel : `apply_res_eff` est
+        // emprunté par la POSE et par `Action::Res`, et le compteur
+        // `phase_upgrades_by_action` doit distinguer les deux.
+        ResEff::PhaseUpgrade(t) => apply_phase_upgrade(game, p, policy, *t, src),
         ResEff::Put(put) => {
             let cands = put_targets(game, db, p, self_card, put);
             if cands.is_empty() {
@@ -838,6 +962,7 @@ fn apply_choice(
     self_card: u16,
     branches: &'static [&'static [ResEff]],
     policy: &mut dyn Policy,
+    src: UpgradeSource,
 ) {
     let playable: Vec<usize> = (0..branches.len())
         .filter(|&i| branch_playable(game, db, p, self_card, branches[i]))
@@ -864,7 +989,7 @@ fn apply_choice(
         c
     };
     for e in branches[playable[k]] {
-        apply_res_eff(game, db, p, self_card, e, policy);
+        apply_res_eff(game, db, p, self_card, e, policy, src);
     }
 }
 
@@ -877,12 +1002,13 @@ fn apply_res_steps(
     self_card: u16,
     steps: &'static [ResStep],
     policy: &mut dyn Policy,
+    src: UpgradeSource,
 ) {
     for step in steps {
         match step {
-            ResStep::Do(e) => apply_res_eff(game, db, p, self_card, e, policy),
+            ResStep::Do(e) => apply_res_eff(game, db, p, self_card, e, policy, src),
             ResStep::Choose(branches) => {
-                apply_choice(game, db, p, self_card, branches, policy)
+                apply_choice(game, db, p, self_card, branches, policy, src)
             }
         }
     }
@@ -1089,6 +1215,11 @@ fn reqs_satisfied(
         // début de phase — celui-ci ne porte que sur les océans, l'oxygène et la
         // température (livret p.13 l.352). `param` n'entre donc pas ici.
         Req::TrMin(n) => pl.tr >= n,
+        // (decouverte-projets) « Requiert un Objectif » (*Private Investor
+        // Beach*). Prérequis de JOUEUR — les Objectifs revendiqués sont un état
+        // du joueur, pas un paramètre planétaire : il se juge à l'état COURANT,
+        // comme `Tags`, `TrMin` et les `Spend*`. `param` n'entre donc pas ici.
+        Req::HasObjective => has_objective(game, p),
     })
 }
 
@@ -1342,7 +1473,12 @@ fn drain_pending_builds(
     }
 }
 
-fn affordable(
+// (decouverte-projets) Rendue PUBLIQUE, comme `apply_blue_action` avant elle :
+// c'est le point d'entrée UNIQUE de l'affordabilité, et l'invariant I2
+// (« affordabilité et paiement ne divergent jamais ») ne peut se démontrer
+// qu'en interrogeant CETTE fonction-là, celle que la phase de jeu emprunte —
+// pas une copie, pas le garde-fou de la sonde.
+pub fn affordable(
     game: &mut GameState,
     db: &CardsDb,
     p: usize,
@@ -1449,7 +1585,7 @@ fn apply_card_effects(
     for eff in spec.effects {
         apply_eff(game, db, p, *eff, policy);
     }
-    apply_res_steps(game, db, p, card_id, spec.on_build, policy);
+    apply_res_steps(game, db, p, card_id, spec.on_build, policy, UpgradeSource::Build);
 }
 
 /// Applique UN effet du vocabulaire lot 1. Extrait de `apply_card_effects` pour
@@ -1576,6 +1712,23 @@ fn apply_eff(game: &mut GameState, db: &CardsDb, p: usize, eff: Eff, policy: &mu
                 if discard_from_hand(game, p, cands[i]) {
                     game.draw_discard_discards += 1;
                 }
+            }
+        }
+        // (decouverte-projets) « Si vous avez un Objectif, gagnez … »
+        // La condition est jugée ICI,
+        // donc à l'instant de la pose (ASK 3) : le moteur n'a aucun mécanisme
+        // de rappel, un Objectif revendiqué plus tard ne rétro-paie rien.
+        //
+        // Le compteur est incrémenté au MÊME endroit que le versement : il ne
+        // peut pas bouger sans que le gain soit versé, ni l'inverse (clause
+        // anti-shortcut n° 5).
+        Eff::IfObjective(effs) => {
+            if !has_objective(game, p) {
+                return;
+            }
+            game.objective_condition_hits += 1;
+            for e in effs {
+                apply_eff(game, db, p, *e, policy);
             }
         }
     }
@@ -1932,10 +2085,13 @@ pub fn build_card_granted(
     // (boites-1) I4 — aucun pouvoir sauté en silence. Une carte dont le texte
     // imprimé n'est pas intégralement appliqué vient d'entrer en jeu : soit
     // elle n'a aucun encodage, soit son encodage porte un effet que le moteur
-    // saute (amélioration de phase). Compté ici, à l'endroit de la pose. Le
-    // compteur ne dépend pas de `--effects` : c'est une propriété de la carte
-    // posée, pas du réglage.
-    if !db.projects[card_id as usize].effets_geres() {
+    // saute (amélioration de phase). Compté ici, à l'endroit de la pose.
+    //
+    // (decouverte-projets) Il ne compte QUE si la couche d'effets est active —
+    // voir `install_corporation` pour la raison. Le commentaire d'origine
+    // disait « le compteur ne dépend pas de --effects » ; c'était vrai, et
+    // c'était le défaut.
+    if !db.projects[card_id as usize].effets_geres() && db.effects_on {
         game.cards_effects_unhandled += 1;
     }
     if db.effects_on {
@@ -2072,7 +2228,7 @@ fn apply_trig_gain(
         TrigGain::Choose(branches) => {
             let src = src.expect("Choose sans carte source (déclencheur de corporation)");
             for _ in 0..mult.max(0) {
-                apply_choice(game, db, p, src, branches, policy);
+                apply_choice(game, db, p, src, branches, policy, UpgradeSource::Build);
             }
         }
         // (lot cartes-7) *Mars University* : « you MAY discard a card. If that
@@ -2476,6 +2632,40 @@ fn apply_action_eff(
                 gain_forest(game, db, p, policy);
             }
         }
+        // (decouverte-projets) « Action : … améliorer une carte Phase »
+        // (les deux cartes de la famille C, nommées dans `effects.rs` et
+        // nulle part ailleurs). Même chemin d'octroi que la pose —
+        // `apply_phase_upgrade` — avec la source
+        // ACTION, qui est ce qui alimente `phase_upgrades_by_action`. Aucune
+        // action du jeu n'impose la phase : le paramètre vaut `None`.
+        ActionEff::PhaseUpgrade => {
+            apply_phase_upgrade(game, p, policy, None, UpgradeSource::Action)
+        }
+        // (decouverte-projets) « Action : Piochez deux cartes. Puis, défaussez
+        // deux cartes. » Le corps de la règle est
+        // celui du lot 6, appelé tel quel : il n'existe pas deux façons de
+        // piocher puis défausser dans ce moteur.
+        ActionEff::DrawDiscard {
+            draw,
+            discard,
+            from_drawn,
+        } => {
+            apply_eff(
+                game,
+                db,
+                p,
+                Eff::DrawDiscard {
+                    draw,
+                    discard,
+                    from_drawn,
+                },
+                policy,
+            );
+            // Compteur d'audit au site de l'activation : il compte les
+            // ACTIVATIONS de l'action, quand `draw_discard_discards` compte les
+            // cartes défaussées. Deux grandeurs, deux compteurs (ALWAYS 4).
+            game.draw_then_discard_uses += 1;
+        }
     }
 }
 
@@ -2603,9 +2793,16 @@ pub fn apply_blue_action(
     // il ne dépend que de la phase choisie par le joueur QUI ACTIVE l'action
     // (NEVER 8), lue à l'instant de l'activation sur l'état réel du joueur —
     // celui-là même que la phase de planification a écrit.
-    let bonus: Option<PhaseBonus> = spec
-        .phase_bonus
-        .filter(|b| game.players[p].chosen_phase == b.phase);
+    // (decouverte-projets) La condition a deux moitiés, toutes deux lues sur le
+    // joueur QUI ACTIVE : la phase qu'il a choisie (`b.phase`, 0 = aucune phase
+    // exigée) et, pour D06, le fait que la carte Phase qu'il a RÉVÉLÉE cette
+    // manche soit AMÉLIORÉE (`b.require_upgraded`). Jamais celle de
+    // l'adversaire, jamais un compteur global (clause anti-shortcut n° 4).
+    let bonus: Option<PhaseBonus> = spec.phase_bonus.filter(|b| {
+        let pl = &game.players[p];
+        (b.phase == 0 || pl.chosen_phase == b.phase)
+            && (!b.require_upgraded || pl.phase_upgrade(pl.chosen_phase).is_some())
+    });
     // (lot cartes-7) Le résultat est capturé : une activation qui a réellement
     // produit un effet lève « When you use an "Action:" effect on one of your
     // cards » (*Assembly Lines*). Les arms qui sortent par `return false` —
@@ -2700,6 +2897,12 @@ pub fn apply_blue_action(
                 }
                 // Compteur d'audit, au site EXACT du mécanisme.
                 game.action_phase_bonuses += 1;
+                // (decouverte-projets) Le supplément de D06 est un gain lié à
+                // une carte Phase AMÉLIORÉE révélée : il est compté comme tel,
+                // au même endroit que son versement.
+                if b.require_upgraded {
+                    game.upgraded_reveal_bonuses += 1;
+                }
             }
             true
         }
@@ -2820,7 +3023,7 @@ pub fn apply_blue_action(
                 c
             };
             for e in branches[playable[k]] {
-                apply_res_eff(game, db, p, card_id, e, policy);
+                apply_res_eff(game, db, p, card_id, e, policy, UpgradeSource::Action);
             }
             true
         }
@@ -3641,6 +3844,12 @@ pub fn play_round(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
         // manche-ci (livret l. 64, ASK 1) — ce qu'une valeur figée à la
         // planification aurait rendu impossible.
         game.players[p].extra_blue_activations = 0;
+        // (decouverte-projets) La carte Phase vient d'être RÉVÉLÉE par ce
+        // joueur : si elle est améliorée, les cartes en jeu qui portent
+        // « Effet : lorsque vous révélez une carte Phase améliorée, … »
+        // versent leur gain, ici et pour ce
+        // joueur seul.
+        fire_upgraded_reveal(game, db, p, policy);
         picked[phase as usize] = true;
     }
 

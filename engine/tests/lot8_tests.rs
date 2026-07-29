@@ -833,5 +833,14 @@ fn le_cout_en_note_ne_touche_aucune_action_existante() {
         })
         .map(|(n, _)| *n)
         .collect();
-    assert_eq!(porteuses, vec!["Asset Liquidation"], "une seule carte paie en note");
+    // TÉMOIN RETOURNÉ par `decouverte-projets` : *Experimental Technology*
+    // (D07, « Action : Dépensez 1 NT pour améliorer une carte Phase ») est la
+    // SECONDE carte du jeu à payer une action en note de terraformation. Le
+    // garde-fou n'est pas supprimé : il continue de porter sur la TABLE
+    // ENTIÈRE et d'épingler la liste EXACTE de ses porteuses.
+    assert_eq!(
+        porteuses,
+        vec!["Asset Liquidation", "Experimental Technology"],
+        "deux cartes paient en note, et ce sont celles-là"
+    );
 }

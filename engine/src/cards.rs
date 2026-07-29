@@ -102,6 +102,23 @@ impl Color {
             Color::Red => 2,
         }
     }
+
+    /// (decouverte-projets) Nom FRANÇAIS de la couleur, tel que `--dump-deck`
+    /// le rend dans son champ `couleur`.
+    ///
+    /// La couleur n'est pas cosmétique : elle décide de la phase où la carte se
+    /// pose (verte en I, bleue et rouge en II), du fait qu'elle reste en jeu ou
+    /// parte à la défausse (une rouge est un événement à usage unique), et du
+    /// décompte des Objectifs et Récompenses qui comptent les cartes par
+    /// couleur. La rendre observable de l'extérieur est ce qui permet de
+    /// vérifier la donnée sans lire le code.
+    pub fn nom_fr(self) -> &'static str {
+        match self {
+            Color::Green => "verte",
+            Color::Blue => "bleue",
+            Color::Red => "rouge",
+        }
+    }
 }
 
 /// Type de VP dynamiques (décompte du score). Depuis le lot 3, les types
@@ -215,7 +232,7 @@ pub fn encodage_integral(e: &CardEffects) -> bool {
             | effects::ResEff::Put(_)
             | effects::ResEff::RemoveSelf(_)
             | effects::ResEff::RemoveAny(_, _)
-            | effects::ResEff::PhaseUpgrade => false,
+            | effects::ResEff::PhaseUpgrade(_) => false,
         })
     }
     fn saute_step(steps: &[effects::ResStep]) -> bool {
@@ -284,6 +301,11 @@ pub struct CarteRetenue<'a> {
     pub kind: Kind,
     pub boite: Boite,
     pub planche: Option<&'static str>,
+    /// (decouverte-projets) Couleur de la carte, pour un PROJET seulement
+    /// (`None` pour une corporation, qui n'en a pas). Lue sur
+    /// `ProjectCard::color`, c'est-à-dire sur le champ `category` de
+    /// `cards.json` — la donnée elle-même, jamais une table de rattrapage.
+    pub couleur: Option<&'static str>,
     /// Le moteur applique-t-il l'effet imprimé de cette carte ?
     ///
     /// `true` signifie exactement : **un encodage existe** pour cette carte
@@ -581,6 +603,7 @@ impl CardsDb {
                 kind: Kind::Project,
                 boite: c.boite.expect("carte en pioche sans boîte"),
                 planche: c.planche,
+                couleur: Some(c.color.nom_fr()),
                 effets_geres: c.effets_geres(),
             });
         }
@@ -590,6 +613,7 @@ impl CardsDb {
                 kind: Kind::Corporation,
                 boite: c.boite,
                 planche: c.planche,
+                couleur: None,
                 effets_geres: c.effect.is_some(),
             });
         }

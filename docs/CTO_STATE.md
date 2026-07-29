@@ -20,7 +20,28 @@ Dernière mise à jour : 2026-07-28 (soir)
   221 cartes transcrites de `textes-cartes` n'existent que sur le disque local
   tant qu'elles ne sont pas auditées et promues. [VÉRIFIÉ 26-07]
 
-## ⚠️ LE CHIFFRE QUI COMPTE (28-07 soir) — 194 cartes sur 208 sont encodées
+## ⚠️ LE CHIFFRE QUI COMPTE (29-07) — 243 cartes sur 246 sont encodées
+
+**Il ne reste que 3 cartes projet muettes sur les 246** de la configuration
+cible `base,decouverte`, et ce sont les trois cartes à **badge joker** (*Local
+Market* D26, *Political Influence* D39, *Topographic Mapping* D20), qui
+réclament un mécanisme à part. [VÉRIFIÉ 29-07 par ma main après promotion,
+`simulate --dump-deck --boites base,decouverte`]
+
+Trajectoire : 62 muettes le 27-07 → 29 → 18 → 14 → **0 en boîte de base**
+(28-07) → 31 en `base,decouverte` → **3** (29-07, `decouverte-projets`).
+
+**Et plus aucun prérequis imprimé ne manque**, ni en base ni dans les 38 cartes
+de Découverte. [VÉRIFIÉ 29-07]
+
+### Ce qui reste, nominativement
+
+| Reste | Nombre |
+|---|---|
+| Cartes projet à badge joker | 3 (D20, D26, D39) |
+| Corporations de Découverte | 4 (Apollo Industries, Exocorp, Hyperion Systems, Sultira) |
+
+## L'HISTORIQUE (28-07 soir) — 194 cartes sur 208
 
 **14 des 208 cartes projets de la boîte de base n'ont aucun encodage** (62 le
 27-07, 29 après `moteur-cartes-5`, 18 après `moteur-cartes-6`, 14 après
@@ -37,6 +58,63 @@ prérequis (2), divers (4). Liste nominative :
 
 **Ne JAMAIS citer le « 7 » de `docs/cartes/moteur-vs-imprime.md` comme une
 couverture de la boîte de base** : ce rapport n'échantillonne que 66 cartes.
+
+## LES 28 DERNIERS PROJETS DE DÉCOUVERTE (29-07) — `decouverte-projets`, audité OK et promu
+
+**Il ne reste plus que 3 cartes projet muettes sur 246** : les trois badges
+jokers. Les 28 autres agissent. [VÉRIFIÉ 29-07 par ma main, `--dump-deck`]
+
+**765 tests verts** (716 avant), aucun désactivé. Empreinte de la boîte de base
+**inchangée** (`cee020cda9db283b`), 0 violation d'invariant sur 1000 parties,
+tous les compteurs neufs nuls en `--effects off`.
+
+**Sept couleurs fausses corrigées.** J'ai trouvé, avant de sceller le contrat,
+que `cards.json` classait **vertes** six cartes rouges (événements) et une
+bleue : D05, D14, D16, D17, D18, D19, D20. La couleur décide de la phase de
+pose, du fait que la carte reste en jeu ou parte à la défausse, et du décompte
+des Récompenses. Corrigé dans la donnée elle-même. [VÉRIFIÉ 29-07]
+
+### Modélisation : zéro catégorie d'effet neuve
+
+19 catégories avant, **19 après**, pour 28 cartes de plus. La phase imposée est
+un **paramètre** — `ResEff::PhaseUpgrade(Option<u8>)`, `None` = au choix,
+`Some(phase)` = imposée (`effects.rs:548`) — et non trois cas particuliers dans
+le flux. Un seul chemin d'octroi subsiste.
+
+### Les quatre contradictions de l'agent — les quatre étaient justes [VÉRIFIÉ 29-07]
+
+1. **Trois prérequis imprimés manquaient à mon contrat** : D12 « 3 badges
+   science » (+ 1 PV), D17 « température jaune ou plus chaud », D19 « un
+   Objectif ». **Mon erreur** : mon extraction des textes imprimés omettait le
+   champ `reqs_fr` du fichier de transcription. Encodés et câblés dans
+   `requirements_met` (`flow.rs:1222`).
+2. **`cards_effects_unhandled` comptait faux en `--effects off`** : il valait
+   750 alors qu'en squelette intégral AUCUN pouvoir n'est appliqué, pour les
+   388 cartes — y désigner sept coupables, c'était compter « cartes sans entrée
+   de table » en prétendant compter « pouvoirs sautés ». Corrigé. Remesuré par
+   ma main : 565 en effets actifs (3 jokers + 4 corporations), **0** en
+   `--effects off`.
+3. **Un message d'échec de mon contrôle 08 disait « 29 catégories »** alors que
+   le contrat et la mesure disent 19. Sans conséquence, mais trompeur.
+4. **D23, D29 et D34 créent des savoir-faire** acier et titane, donc entrent
+   dans la Récompense INDUSTRIEL. Vérifié : c'est la dérivation du lot
+   acier-titane (`flow::capacities`, `flow.rs:362`) — toute réduction par badge
+   portée par une carte **verte** dérive un savoir-faire. Cohérent avec les
+   annotations du carton (D25 −4 bâtiment = acier ×2, donc −2 = acier ×1).
+
+**Mes sept couleurs étaient justes** : première fois en sept chantiers qu'aucune
+de mes mesures n'est prise en défaut. La seule erreur de ma part est l'omission
+du champ `reqs_fr` — dont la leçon : le fichier de transcription porte aussi un
+champ `name_en`, que j'aurais dû utiliser pour la correspondance des noms au
+lieu de l'établir à la main.
+
+### Ce que la relecture adversariale de l'agent a trouvé
+
+Son sous-agent a relevé que l'invariant I2 (« affordabilité et paiement ne
+divergent jamais ») n'était prouvé que du côté **paiement** : toutes les sondes
+tournaient à 400 MC, donc `flow::affordable` n'était jamais mis en cause. Un
+test à budget décisif (prix imprimé − 1 MC) a été ajouté, qui éprouve les quatre
+réductions dans les deux sens.
 
 ## LE VERROU DE DÉCOUVERTE A SAUTÉ (28-07) — `decouverte-phases`, audité OK et promu
 
@@ -420,12 +498,12 @@ Mesuré par `--dump-deck` et lecture du code, pas de mémoire. [VÉRIFIÉ 28-07]
 | Déroulement d'une partie (phases I-V, production, score, fin) | fait |
 | Projets boîte de base | **208 / 208** encodés — **BOÎTE DE BASE TERMINÉE** |
 | Corporations boîte de base | 12 / 12 |
-| Projets en configuration cible `base,decouverte` | **213 / 246** (33 muettes, **toutes de Découverte**) |
+| Projets en configuration cible `base,decouverte` | **243 / 246** (3 muettes, les trois badges jokers) [VÉRIFIÉ 29-07] |
 | Corporations Découverte | 0 / 4 (écartées, table `effects::CORPS`) |
 | Objectifs (tuiles) | **11 / 11 encodés, 11 seuils vérifiés à la tuile** |
 | Récompenses (tuiles) | **7 / 7** fonctionnelles |
 | Cartes Phase améliorées | **10 / 10 appliquées** (chantier `decouverte-phases`, 28-07) |
-| Badges jokers de Découverte | non implantés |
+| Badges jokers de Découverte | non implantés — **prochain chantier** |
 | Interface de jeu | rien |
 | IA | rien |
 

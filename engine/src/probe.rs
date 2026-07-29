@@ -200,6 +200,19 @@ pub struct ProbeOptions {
     /// REMPLACE la première : un joueur n'a jamais deux cartes Phase pour une
     /// même phase.
     pub upgrades: [Option<PhaseUpgrade>; 5],
+    /// (decouverte-projets) **Objectif REVENDIQUÉ par le joueur sondé**
+    /// (`--probe-objectif <nom>`), écrit dans l'état de départ AVANT la
+    /// séquence — dans le slot `milestones[0]`, là même où
+    /// `flow::assign_milestones` l'écrit en partie réelle, et avec le même
+    /// drapeau `achieved_by[0]`.
+    ///
+    /// `None` = aucun Objectif, c'est-à-dire l'état des lots précédents à
+    /// l'identique (les trois slots sont `Builder`, non revendiqués).
+    /// L'adversaire n'en reçoit jamais : rien n'est partagé (NEVER 7).
+    ///
+    /// Sans cette option, le gain conditionnel et le prérequis « Objectif » de
+    /// la boîte Découverte ne sont observables que dans un seul sens.
+    pub objectif: Option<MilestoneKind>,
 }
 
 impl Default for ProbeOptions {
@@ -211,6 +224,7 @@ impl Default for ProbeOptions {
             phase: 0,
             plants: 20,
             upgrades: [None; 5],
+            objectif: None,
         }
     }
 }
@@ -231,6 +245,14 @@ pub struct ProbeActionResult {
     pub target_error: Option<String>,
     /// (corpo-1) Voir `ProbeResult::corp`.
     pub corp: Option<ProbeCorp>,
+    /// (decouverte-projets) Les cartes Phase améliorées du joueur sondé APRÈS
+    /// la pose ET l'activation, étiquettes triées (`["3A"]`). Même source que
+    /// `ProbeResult::upgrades` — `PlayerState::phase_upgrade_labels()`, lue et
+    /// jamais recalculée.
+    ///
+    /// Sans ce champ, une action qui améliore une carte Phase ne serait
+    /// observable nulle part : `delta` ne porte que des ressources.
+    pub upgrades: Vec<String>,
 }
 
 // ============================================================ script de sonde
@@ -508,10 +530,22 @@ fn probe_state_base(db: &CardsDb, ids: &[u16], opts: ProbeOptions) -> GameState 
         infrastructure: 0,
         players,
         generation: 1,
-        milestones: [MilestoneSlot {
-            kind: MilestoneKind::Builder,
-            achieved_by: [false; NUM_PLAYERS],
-        }; 3],
+        // (decouverte-projets) `--probe-objectif` : l'Objectif demandé est
+        // posé dans le premier slot et marqué revendiqué PAR LE JOUEUR SONDÉ —
+        // exactement l'écriture que `flow::assign_milestones` produit en partie
+        // réelle quand le joueur atteint le seuil. Sans l'option, les trois
+        // slots sont ceux des lots précédents, bit à bit.
+        milestones: {
+            let mut m = [MilestoneSlot {
+                kind: MilestoneKind::Builder,
+                achieved_by: [false; NUM_PLAYERS],
+            }; 3];
+            if let Some(k) = opts.objectif {
+                m[0].kind = k;
+                m[0].achieved_by[0] = true;
+            }
+            m
+        },
         awards: [AwardKind::Celebrity; 3],
         game_over: false,
         blue_actions: 0,
@@ -532,6 +566,11 @@ fn probe_state_base(db: &CardsDb, ids: &[u16], opts: ProbeOptions) -> GameState 
         phase_upgrades_granted: 0,
         phase_upgrades_reupgraded: 0,
         upgraded_bonus_applied: 0,
+        phase_upgrades_targeted: 0,
+        phase_upgrades_by_action: 0,
+        upgraded_reveal_bonuses: 0,
+        objective_condition_hits: 0,
+        draw_then_discard_uses: 0,
         upgraded_extra_builds: 0,
         cards_effects_unhandled: 0,
         derived_mc: 0,
@@ -975,6 +1014,7 @@ pub fn run_probe_action_seq(
             resources: Vec::new(),
             target_error: None,
             corp,
+            upgrades: Vec::new(),
         };
     };
 
@@ -1051,5 +1091,8 @@ pub fn run_probe_action_seq(
         resources: probe_resources(&game, db),
         target_error: pol.error.clone(),
         corp,
+        // Lu sur l'état du joueur sondé après l'activation — la sonde ne
+        // recalcule rien (clause anti-shortcut n° 1).
+        upgrades: game.players[0].phase_upgrade_labels(),
     }
 }

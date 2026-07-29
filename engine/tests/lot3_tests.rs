@@ -680,7 +680,7 @@ fn probe_reports_discarded_cards_and_surplus() {
     let r = run_probe_seq_opts(
         &db,
         &["Comet"],
-        ProbeOptions { mc: 0, filler: 9, strict: false, phase: 0, plants: 20, upgrades: [None; 5] },
+        ProbeOptions { mc: 0, filler: 9, strict: false, phase: 0, plants: 20, upgrades: [None; 5], objectif: None },
     );
     assert!(r.played);
     assert_eq!(r.paid, vec![25]);
@@ -695,7 +695,7 @@ fn probe_does_not_discard_when_mc_are_enough() {
     let r = run_probe_seq_opts(
         &db,
         &["Lichen"],
-        ProbeOptions { mc: 5, filler: 5, strict: false, phase: 0, plants: 20, upgrades: [None; 5] },
+        ProbeOptions { mc: 5, filler: 5, strict: false, phase: 0, plants: 20, upgrades: [None; 5], objectif: None },
     );
     assert!(r.played);
     assert_eq!(r.paid, vec![5]);
@@ -749,10 +749,10 @@ fn probe_strict_applies_the_real_rule_card_by_card() {
 fn probe_strict_refuses_an_unpayable_card() {
     // Payabilité réelle (MC + défausse), pas une règle réécrite pour la sonde.
     let db = db();
-    let poor = ProbeOptions { mc: 0, filler: 0, strict: true, phase: 0, plants: 20, upgrades: [None; 5] };
+    let poor = ProbeOptions { mc: 0, filler: 0, strict: true, phase: 0, plants: 20, upgrades: [None; 5], objectif: None };
     let r = run_probe_seq_opts(&db, &["Comet"], poor);
     assert!(!r.played, "0 MC, aucune monnaie de défausse : Comet est impayable");
-    let rich = ProbeOptions { mc: 0, filler: 9, strict: true, phase: 0, plants: 20, upgrades: [None; 5] };
+    let rich = ProbeOptions { mc: 0, filler: 9, strict: true, phase: 0, plants: 20, upgrades: [None; 5], objectif: None };
     assert!(run_probe_seq_opts(&db, &["Comet"], rich).played);
 }
 

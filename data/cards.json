@@ -3109,7 +3109,7 @@
   {
     "name": "Biomedical Imports",
     "java_class": "src/main/java/com/terraforming/ares/cards/green/BiomedicalImports.java",
-    "category": "green",
+    "category": "red",
     "expansion": "discovery",
     "tags": [
       "SCIENCE",
@@ -3439,7 +3439,7 @@
   {
     "name": "Communications Streamlining",
     "java_class": "src/main/java/com/terraforming/ares/cards/green/CommunicationsStreamlining.java",
-    "category": "green",
+    "category": "blue",
     "expansion": "discovery",
     "tags": [
       "SCIENCE",
@@ -3659,7 +3659,7 @@
   {
     "name": "Exosuits",
     "java_class": "src/main/java/com/terraforming/ares/cards/green/Exosuits.java",
-    "category": "green",
+    "category": "red",
     "expansion": "discovery",
     "tags": [
       "SPACE",
@@ -4117,7 +4117,7 @@
   {
     "name": "Imported Construction Crews",
     "java_class": "src/main/java/com/terraforming/ares/cards/green/ImportedConstructionCrews.java",
-    "category": "green",
+    "category": "red",
     "expansion": "discovery",
     "tags": [
       "EVENT"
@@ -4970,7 +4970,7 @@
   {
     "name": "Ore Leaching",
     "java_class": "src/main/java/com/terraforming/ares/cards/green/OreLeaching.java",
-    "category": "green",
+    "category": "red",
     "expansion": "discovery",
     "tags": [
       "SPACE",
@@ -5129,7 +5129,7 @@
   {
     "name": "Private Investor Beach",
     "java_class": "src/main/java/com/terraforming/ares/cards/green/PrivateInvestorBeach.java",
-    "category": "green",
+    "category": "red",
     "expansion": "discovery",
     "tags": [
       "EVENT"
@@ -5575,7 +5575,7 @@
   {
     "name": "Topographic Mapping",
     "java_class": "src/main/java/com/terraforming/ares/cards/green/TopographicMapping.java",
-    "category": "green",
+    "category": "red",
     "expansion": "discovery",
     "tags": [
       "DYNAMIC",

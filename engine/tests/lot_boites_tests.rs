@@ -296,7 +296,13 @@ fn les_cartes_declarees_non_gerees_le_sont_reellement() {
     // donc sur `base,decouverte`, où 33 projets restent muets. Il est déplacé,
     // jamais désactivé : la boucle ci-dessus vérifie toujours, carte par carte
     // et par la sonde, que chaque muette déclarée ne change RIEN à l'état.
-    assert_eq!(n, 31, "projets SANS AUCUN encodage en base + Découverte");
+    // 29-07, `decouverte-projets` : les 28 derniers projets muets de
+    // l'extension sont encodés. Il en reste **3**, et ce sont les trois à badge
+    // JOKER (*Local Market*, *Political Influence*, *Topographic Mapping*),
+    // explicitement hors périmètre. Le canari est déplacé, jamais désactivé :
+    // la boucle ci-dessus vérifie toujours, carte par carte et par la sonde,
+    // que chaque muette déclarée ne change RIEN à l'état.
+    assert_eq!(n, 3, "projets SANS AUCUN encodage en base + Découverte");
     assert!(
         db_de("base")
             .recensement()
@@ -307,7 +313,12 @@ fn les_cartes_declarees_non_gerees_le_sont_reellement() {
     // (lot cartes-8) Les trois témoins nommés — *Asset Liquidation*,
     // *Special Design*, *Work Crews* — sont encodés depuis ce lot. Remplacés
     // par trois cartes de Découverte, toujours déclarées ABSENT.
-    for muette in ["Ore Leaching", "Warehouses", "Metallurgy"] {
+    //
+    // TÉMOINS RETOURNÉS par `decouverte-projets` : *Ore Leaching*,
+    // *Warehouses* et *Metallurgy* sont trois des 28 cartes de ce chantier —
+    // elles agissent désormais. Les trois seuls témoins de muettes qui restent
+    // dans tout le moteur sont les cartes à badge JOKER, hors périmètre.
+    for muette in ["Local Market", "Political Influence", "Topographic Mapping"] {
         let c = db
             .recensement()
             .into_iter()
@@ -338,7 +349,12 @@ fn decouverte_n_est_pas_declaree_geree_en_bloc() {
     // mécanisme des cartes Phase améliorées existe, l'amélioration n'est plus
     // sautée, ces deux cartes-là sont intégralement gérées. Les 35 autres
     // n'ont toujours aucun encodage — aucune carte n'a été encodée.
-    assert_eq!(non_geres, 35);
+    //
+    // TÉMOIN RETOURNÉ par `decouverte-projets` (35 → 7) : 28 projets encodés,
+    // il reste les 3 projets à badge JOKER et les 4 corporations de Découverte.
+    // Le test dit toujours ce qu'il disait — Découverte n'est PAS déclarée
+    // gérée en bloc — mais sur un nombre exact, et bien plus petit.
+    assert_eq!(non_geres, 7);
 }
 
 // ------------------------------------------------- le compteur I4 compte
@@ -353,10 +369,11 @@ fn le_compteur_s_incremente_carte_par_carte_a_la_pose() {
     // compteur ne bouge que pour la seconde.
     let encodee = db.resolve_card("Comet").expect("Comet");
     // Carte témoin muette : `Power Plant` jusqu'au lot 5, `Interns` jusqu'au
-    // lot cartes-7, `Work Crews` jusqu'au lot cartes-8 — chacune encodée par
-    // le lot suivant. La boîte de base n'en offre plus AUCUNE : le témoin vient
-    // désormais de Découverte, dont aucun pouvoir n'est encore encodé.
-    let muette = db.resolve_card("Ore Leaching").expect("Ore Leaching");
+    // lot cartes-7, `Work Crews` jusqu'au lot cartes-8, `Ore Leaching` jusqu'à
+    // `decouverte-projets` — chacune encodée par le lot suivant. Le témoin est
+    // désormais une carte à badge JOKER, seule catégorie encore muette, et
+    // explicitement hors périmètre de ce chantier (NEVER 5).
+    let muette = db.resolve_card("Local Market").expect("Local Market");
     assert!(db.projects[encodee as usize].effect.is_some());
     assert!(db.projects[muette as usize].effect.is_none());
 

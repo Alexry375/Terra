@@ -79,6 +79,21 @@ pub enum Req {
     /// le vocabulaire existant suffisait aux groupes A et B. Il manquait cette
     /// variante — `SpendTr` dépense le NT, elle ne teste pas un seuil.
     TrMin(i64),
+    /// (decouverte-projets) **« Requiert un Objectif »** — *Private Investor
+    /// Beach* (D19), seule carte du jeu à le porter.
+    ///
+    /// Prérequis de JOUEUR, pas de paramètre planétaire : il est donc évalué à
+    /// l'ÉTAT COURANT dans `flow::reqs_satisfied`, avec `Tags`, `TrMin` et les
+    /// `Spend*`, et jamais sur l'instantané de début de phase (livret p.13
+    /// l.352, qui ne parle que des océans, de l'oxygène et de la température).
+    ///
+    /// Même prédicat que `Eff::IfObjective` (`flow::has_objective`) : il n'y a
+    /// qu'une définition d'« avoir un Objectif » dans le moteur.
+    ///
+    /// **Ce prérequis ne figure pas dans le tableau du contrat** ; il figure
+    /// dans `inputs/refs/projets-decouverte.json`, qui fait foi (`reqs_fr` :
+    /// « Requiert un Objectif. »). Voir `result.md`, § Où je vous contredis.
+    HasObjective,
 }
 
 /// Effets appliqués à la pose. Les hausses de paramètres réutilisent les
@@ -171,6 +186,24 @@ pub enum Eff {
         /// piochées (*Invention Contest*).
         from_drawn: bool,
     },
+    /// (decouverte-projets) **Gain conditionné à la possession d'un Objectif** —
+    /// *Award Winning Reflector Material* (D35), « Si vous avez un Objectif,
+    /// gagnez 4 chaleurs. »
+    ///
+    /// « Objectif » = tuile MILESTONE du moteur (`state::MilestoneKind`) ;
+    /// « Récompense » = `AwardKind`. Le prédicat est
+    /// `flow::has_objective(game, p)` : au moins l'un des trois Objectifs en jeu
+    /// est revendiqué par CE joueur.
+    ///
+    /// La condition se juge **au moment de la pose**, comme tout effet immédiat
+    /// (ASK 3) : un Objectif revendiqué plus tard ne rétro-paie rien. Quand elle
+    /// est vraie, `flow::apply_eff` verse les effets imbriqués ET incrémente
+    /// `objective_condition_hits` — le compteur et le gain sont indissociables.
+    ///
+    /// La forme est GÉNÉRIQUE (une liste d'effets) plutôt que
+    /// « HeatIfObjective(n) » : c'est la condition qui est la brique, pas la
+    /// chaleur.
+    IfObjective(&'static [Eff]),
 }
 
 // ================================================== lot 4 : production dérivée
@@ -500,7 +533,19 @@ pub enum ResEff {
     /// cartes Phase par l'une des dix améliorées (`flow::apply_phase_upgrade`).
     /// L'effet était SAUTÉ et compté dans `phase_upgrades_skipped` jusqu'au
     /// chantier `decouverte-phases` ; il est appliqué depuis.
-    PhaseUpgrade,
+    ///
+    /// **(decouverte-projets) Le paramètre est la PHASE IMPOSÉE** :
+    /// - `None` — « Améliorez **une** carte Phase », le joueur choisit laquelle
+    ///   (comportement d'avant ce chantier, bit à bit) ;
+    /// - `Some(n)` — « Améliorez **votre carte Phase n** » : D05 (III), D37 (I),
+    ///   D40 (IV). Seule la PHASE est imposée ; la VARIANTE (A ou B) reste un
+    ///   choix du joueur, tranché par `Policy::choose_option` comme d'habitude
+    ///   (NEVER 7).
+    ///
+    /// C'est un paramètre de l'effet, pas trois exceptions dans le flux : il
+    /// n'existe toujours qu'un seul chemin d'octroi, `apply_phase_upgrade`
+    /// (NEVER 1, clause anti-shortcut n° 3).
+    PhaseUpgrade(Option<u8>),
 }
 
 /// Étape d'un effet à ressources : soit un effet direct, soit une alternative.
@@ -727,6 +772,34 @@ pub enum ActionEff {
     /// décrit ce que la forêt produit, ce n'est pas un second effet — l'oxygène
     /// ne monte jamais deux fois (règle R1, lot 5).
     Forest(u8),
+    /// (decouverte-projets) **« Action : … améliorer une carte Phase »** —
+    /// *Experimental Technology* (D07, « Dépensez 1 NT pour améliorer une carte
+    /// Phase ») et *Virtual Employee Development* (D12, sans coût).
+    ///
+    /// Emprunte `flow::apply_phase_upgrade`, le chemin d'octroi UNIQUE du
+    /// moteur, avec `UpgradeSource::Action` — c'est ce qui alimente
+    /// `phase_upgrades_by_action`. Le coût, lui, n'est pas ici : il est déclaré
+    /// dans `ActionCost` (`Tr(1)` pour D07, brique du lot cartes-8).
+    ///
+    /// La phase n'est jamais imposée par une action : aucun carton ne le
+    /// demande. Le paramètre de `ResEff::PhaseUpgrade` n'est donc pas dupliqué
+    /// ici (diff minimal) ; le jour où un carton l'exigerait, il s'ajouterait
+    /// de la même façon.
+    PhaseUpgrade,
+    /// (decouverte-projets) **« Action : piochez deux cartes. Puis, défaussez
+    /// deux cartes. »** — *Software Streamlining* (D11).
+    ///
+    /// La règle existe depuis le lot 6 sous la forme `Eff::DrawDiscard`, côté
+    /// POSE ; cette variante la demande côté ACTION et **délègue au même corps
+    /// de règle** (`flow::apply_eff`) — il n'y a pas deux façons de piocher puis
+    /// défausser. `from_drawn: false` : « Puis, défaussez deux cartes » porte
+    /// sur la main ENTIÈRE d'après la pioche (les cartes piochées sont
+    /// défaussables), et la défausse est obligatoire (ASK 6).
+    DrawDiscard {
+        draw: u8,
+        discard: u8,
+        from_drawn: bool,
+    },
 }
 
 /// (lot 6) Ressource d'un coût ou d'un gain VARIABLE (brique 4).
@@ -787,7 +860,23 @@ pub enum RevealFilter {
 pub struct PhaseBonus {
     /// Phase que le joueur doit avoir choisie ce tour (3 = phase Action pour les
     /// trois cartes concernées ; la valeur reste une donnée de la table).
+    ///
+    /// **(decouverte-projets) `0` = aucune phase exigée** — la condition ne
+    /// porte alors que sur `require_upgraded`. *Drone Assisted Construction*
+    /// (D06) dit « si vous jouez une carte Phase améliorée lors de cette
+    /// manche », sans nommer de phase.
     pub phase: u8,
+    /// (decouverte-projets) **La carte Phase que le joueur a révélée cette
+    /// manche doit être AMÉLIORÉE** — *Drone Assisted Construction* (D06),
+    /// « *Si vous jouez une carte Phase améliorée lors de cette manche, gagnez
+    /// 2 MC supplémentaires. »
+    ///
+    /// Lue sur `PlayerState::phase_upgrade(chosen_phase)` du joueur QUI ACTIVE
+    /// — jamais celle de l'adversaire, exactement comme `phase`. Même lecture
+    /// que `CardEffects::reveal_bonus` (D05), exprimée à l'endroit d'une action
+    /// (ASK 5). Quand elle est vraie, `flow::apply_blue_action` incrémente
+    /// `upgraded_reveal_bonuses` au site du versement.
+    pub require_upgraded: bool,
     /// Coût qui REMPLACE celui de l'action quand la condition est remplie.
     /// `None` = coût inchangé.
     pub cost: Option<&'static [ActionCost]>,
@@ -1019,6 +1108,22 @@ pub struct CardEffects {
     /// consommé par `flow::build_card_granted`, effacé en début de phase par
     /// `flow::play_round`.
     pub next_card: Option<NextCardMod>,
+    // ==================================================== decouverte-projets
+    /// **(decouverte-projets) « Effet : lorsque vous révélez une carte Phase
+    /// AMÉLIORÉE, gagnez … »** — *Communications Streamlining* (D05), seule
+    /// carte du jeu à le porter.
+    ///
+    /// C'est le troisième genre d'effet à durée du moteur, après la réduction
+    /// permanente et le modificateur de la prochaine carte : un effet levé par
+    /// un ÉVÉNEMENT de la boucle de jeu, la révélation d'une carte Phase.
+    ///
+    /// Levé par `flow::fire_upgraded_reveal`, appelé dans la planification de
+    /// `play_round` juste après que le joueur a choisi — c'est-à-dire révélé —
+    /// sa carte Phase, **et pour ce joueur seul** : le texte dit « **vous** »
+    /// (clause anti-shortcut n° 4). Un joueur ne révèle qu'une carte Phase par
+    /// manche : le gain tombe donc au plus une fois par manche et par carte
+    /// porteuse en jeu (ASK 4).
+    pub reveal_bonus: &'static [Eff],
 }
 
 /// Cherche l'encodage d'une carte par nom exact. None = carte hors lot (stub).
@@ -1036,7 +1141,7 @@ macro_rules! card {
             phase_bonus: None,
             discard_bonus: 0, standard_discount: 0,
             req_color_flex: false, action_trigger: &[],
-            grants: &[], next_card: None,
+            grants: &[], next_card: None, reveal_bonus: &[],
         })
     };
     // Forme lot 4a : production DÉRIVÉE (recalculée à chaque phase IV).
@@ -1048,7 +1153,7 @@ macro_rules! card {
             phase_bonus: None,
             discard_bonus: 0, standard_discount: 0,
             req_color_flex: false, action_trigger: &[],
-            grants: &[], next_card: None,
+            grants: &[], next_card: None, reveal_bonus: &[],
         })
     };
     // Forme lot 4b : bonus permanent de phase Recherche.
@@ -1060,7 +1165,7 @@ macro_rules! card {
             phase_bonus: None,
             discard_bonus: 0, standard_discount: 0,
             req_color_flex: false, action_trigger: &[],
-            grants: &[], next_card: None,
+            grants: &[], next_card: None, reveal_bonus: &[],
         })
     };
     // Forme lot 2 : réductions / déclencheurs / action.
@@ -1075,7 +1180,7 @@ macro_rules! card {
             phase_bonus: None,
             discard_bonus: 0, standard_discount: 0,
             req_color_flex: false, action_trigger: &[],
-            grants: &[], next_card: None,
+            grants: &[], next_card: None, reveal_bonus: &[],
         })
     };
     // Forme lot 6 : action + bonus conditionné à la phase choisie (brique 2).
@@ -1089,7 +1194,7 @@ macro_rules! card {
             phase_bonus: $pb,
             discard_bonus: 0, standard_discount: 0,
             req_color_flex: false, action_trigger: &[],
-            grants: &[], next_card: None,
+            grants: &[], next_card: None, reveal_bonus: &[],
         })
     };
     // Forme lot 7 : MODIFICATEURS PERMANENTS. Aucune de ces cartes n'a de
@@ -1107,7 +1212,7 @@ macro_rules! card {
             phase_bonus: None,
             discard_bonus: $dbn, standard_discount: $sd,
             req_color_flex: $fx, action_trigger: &[$($at),*],
-            grants: &[], next_card: None,
+            grants: &[], next_card: None, reveal_bonus: &[],
         })
     };
     // Forme lot 8 : POSES SUPPLÉMENTAIRES. Les cinq dernières muettes de la
@@ -1124,7 +1229,7 @@ macro_rules! card {
             phase_bonus: None,
             discard_bonus: 0, standard_discount: 0,
             req_color_flex: false, action_trigger: &[],
-            grants: &[$($g),*], next_card: $nc,
+            grants: &[$($g),*], next_card: $nc, reveal_bonus: &[],
         })
     };
     // Forme lot 3 : tous les champs explicites (ressources posées comprises).
@@ -1139,7 +1244,30 @@ macro_rules! card {
             phase_bonus: None,
             discard_bonus: 0, standard_discount: 0,
             req_color_flex: false, action_trigger: &[],
-            grants: &[], next_card: None,
+            grants: &[], next_card: None, reveal_bonus: &[],
+        })
+    };
+    // Forme decouverte-projets : les 28 projets muets de l'extension. Cinq
+    // champs suffisent à les décrire toutes — effets immédiats et productions
+    // fixes (`effects`), réduction permanente (`red`), action de carte bleue
+    // (`action`, avec son éventuel bonus conditionné `phase`), améliorations de
+    // carte Phase et alternatives à la pose (`on_build`), et le gain levé par la
+    // révélation d'une carte Phase améliorée (`reveal`).
+    //
+    // Aucun de ces champs n'est neuf sauf le dernier : ce lot ajoute des
+    // VARIANTES à des énumérations existantes, pas des énumérations (ALWAYS 6).
+    ($name:literal, reqs: [$($r:expr),*], effects: [$($e:expr),*],
+     red: [$($rd:expr),*], action: $act:expr, phase: $pb:expr,
+     on_build: [$($ob:expr),*], reveal: [$($rv:expr),*]) => {
+        ($name, CardEffects {
+            reqs: &[$($r),*], effects: &[$($e),*],
+            reductions: &[$($rd),*], play_triggers: &[], global_triggers: &[],
+            action: $act,
+            holds: None, on_build: &[$($ob),*], prod: None, research: None,
+            phase_bonus: $pb,
+            discard_bonus: 0, standard_discount: 0,
+            req_color_flex: false, action_trigger: &[],
+            grants: &[], next_card: None, reveal_bonus: &[$($rv),*],
         })
     };
 }
@@ -1166,6 +1294,17 @@ const fn put_self(n: u32) -> ResEff {
         kinds: K_ANY,
         amount: ResAmount::Fixed(n),
     })
+}
+
+/// (decouverte-projets) « Améliorez **une** carte Phase » — la phase est au
+/// choix du joueur. Raccourci de lecture de la table : les quinze cartes de la
+/// famille A et trois autres l'emploient mot pour mot.
+const UPGRADE_ANY: ResStep = ResStep::Do(ResEff::PhaseUpgrade(None));
+
+/// (decouverte-projets) « Améliorez **votre carte Phase n** » — D05 (III),
+/// D37 (I), D40 (IV). La phase vient du carton, la variante reste au joueur.
+const fn upgrade_of(phase: u8) -> ResStep {
+    ResStep::Do(ResEff::PhaseUpgrade(Some(phase)))
 }
 
 /// Pose de `n` ressources sur une AUTRE carte portant l'un de `kinds`.
@@ -1509,7 +1648,7 @@ pub static LOT1: &[(&str, CardEffects)] = &[
           red: [], ptrig: [], gtrig: [],
           action: Some(Action::Res(&[
               &[put_self(1)],
-              &[ResEff::RemoveSelf(3), ResEff::PhaseUpgrade],
+              &[ResEff::RemoveSelf(3), ResEff::PhaseUpgrade(None)],
           ])),
           holds: Some(ResKind::Science), on_build: [ResStep::Do(put_self(3))]),
     // « Place 2 microbes on this card. Action: Remove 1 animal or 1 microbe from
@@ -1703,7 +1842,7 @@ pub static LOT1: &[(&str, CardEffects)] = &[
     //  compensation — D8.)
     card!("Cryogenic Shipment", reqs: [], effects: [],
           red: [], ptrig: [], gtrig: [], action: None, holds: None,
-          on_build: [ResStep::Do(ResEff::PhaseUpgrade),
+          on_build: [ResStep::Do(ResEff::PhaseUpgrade(None)),
                      ResStep::Do(ResEff::Put(ResPut { target: ResTarget::Another,
                          kinds: K_MICROBE_ANIMAL,
                          amount: ResAmount::ByKind { microbe: 3, other: 2 } }))]),
@@ -1928,7 +2067,7 @@ pub static LOT1: &[(&str, CardEffects)] = &[
     //   1 plant. » — le bonus AJOUTE un effet, le coût (nul) ne change pas.
     card!("Community Gardens", reqs: [], effects: [],
           action: Some(Action::Fixed { cost: &[], effect: &[ActionEff::Mc(2)] }),
-          phase: Some(PhaseBonus { phase: 3, cost: None,
+          phase: Some(PhaseBonus { phase: 3, require_upgraded: false, cost: None,
                     extra: &[ActionEff::Plants(1)] })),
     // « Action: Spend 1 MC to gain 2 heat. *If you chose the action phase this
     //   round, gain 1 additional heat. » — « additional » : 2 + 1 = 3 chaleurs,
@@ -1936,7 +2075,7 @@ pub static LOT1: &[(&str, CardEffects)] = &[
     card!("Hydro-Electric Energy", reqs: [], effects: [],
           action: Some(Action::Fixed { cost: &[ActionCost::Mc(1)],
                     effect: &[ActionEff::Heat(2)] }),
-          phase: Some(PhaseBonus { phase: 3, cost: None,
+          phase: Some(PhaseBonus { phase: 3, require_upgraded: false, cost: None,
                     extra: &[ActionEff::Heat(1)] })),
 
     // ---- Groupe B : actions à coût particulier (3) --------------------------
@@ -1952,7 +2091,7 @@ pub static LOT1: &[(&str, CardEffects)] = &[
     card!("Wood Burning Stoves", reqs: [], effects: [Plants(4)],
           action: Some(Action::Fixed { cost: &[ActionCost::Plants(4)],
                     effect: &[ActionEff::Temperature(1)] }),
-          phase: Some(PhaseBonus { phase: 3,
+          phase: Some(PhaseBonus { phase: 3, require_upgraded: false,
                     cost: Some(&[ActionCost::Plants(3)]), extra: &[] })),
     // « Requires yellow temperature or warmer. Action: Spend up to 4 heat to
     //   gain that amount of plants. » — prérequis imprimé jusqu'ici NON appliqué
@@ -2168,6 +2307,187 @@ pub static LOT1: &[(&str, CardEffects)] = &[
     //   produces 3 MC. »
     card!("Tall Station", effects: [McProd(3)],
           grants: [ONE_FREE_CHEAP_GREEN], next: None, action: None),
+
+    // =========================================================================
+    // (decouverte-projets) LES 28 DERNIERS PROJETS MUETS DE L'EXTENSION
+    //
+    // Source du texte : `inputs/refs/projets-decouverte.json`, transcription à
+    // l'image des cartons — jamais le champ `description` de `cards.json`. Le
+    // code `Dnn` est celui du carton. Quand le carton et `cards.json` divergent,
+    // le carton gagne, et la divergence est déclarée dans `result.md`.
+    //
+    // Trois conventions de lecture, appliquées partout :
+    //
+    // 1. L'ORDRE du texte imprimé est celui de `on_build` — c'est à cela que
+    //    sert `ResEff::Gain`. « Améliorez une carte Phase. Piochez une carte. »
+    //    n'est pas « Piochez une carte. Améliorez une carte Phase. » : la
+    //    seconde pioche aurait lieu avant que le joueur ait vu son amélioration.
+    // 2. Une PRODUCTION (encart « Lors de la phase de production… ») n'est pas
+    //    un effet immédiat : elle va dans `effects`, sur les pistes fixes que la
+    //    phase IV encaisse à chaque génération.
+    // 3. Les PRÉREQUIS imprimés sont encodés même quand le contrat ne les cite
+    //    pas (D12, D17, D19) : une carte à moitié encodée serait un stub
+    //    étiqueté.
+    // =========================================================================
+
+    // ---- A. Amélioration au CHOIX + un effet déjà connu (15) ----------------
+    // « Améliorez une carte Phase. Effet : lorsque vous jouez une carte, le coût
+    //   associé est réduit de 1 MC. » (D09, bleue)
+    card!("Hohmann Transfer Shipping", reqs: [], effects: [],
+          red: [Reduction::AnyCard(1)], action: None, phase: None,
+          on_build: [UPGRADE_ANY], reveal: []),
+    // « Améliorez une carte Phase. Piochez une carte. » (D16, rouge)
+    card!("Exosuits", reqs: [], effects: [],
+          red: [], action: None, phase: None,
+          on_build: [UPGRADE_ANY, ResStep::Do(ResEff::Gain(Draw(1)))], reveal: []),
+    // « Améliorez DEUX cartes Phase. » + « Requiert un niveau de température
+    //   jaune ou plus chaud. » (D17, rouge) — SEULE carte de l'extension à
+    //   accorder deux améliorations d'un coup. Deux étapes distinctes : deux
+    //   décisions du joueur, chacune libre (ASK 1).
+    card!("Imported Construction Crews", reqs: [TempMin(TEMP_Y_MIN)], effects: [],
+          red: [], action: None, phase: None,
+          on_build: [UPGRADE_ANY, UPGRADE_ANY], reveal: []),
+    // « Augmentez la température de 2 niveaux. Piochez deux cartes. Améliorez
+    //   une carte Phase. » (D18, rouge)
+    card!("Ore Leaching", reqs: [], effects: [],
+          red: [], action: None, phase: None,
+          on_build: [ResStep::Do(ResEff::Gain(Temperature(2))),
+                     ResStep::Do(ResEff::Gain(Draw(2))),
+                     UPGRADE_ANY],
+          reveal: []),
+    // « Améliorez une carte Phase. » + production : 2 plantes. (D22, verte)
+    card!("Biofoundries", reqs: [], effects: [PlantProd(2)],
+          red: [], action: None, phase: None, on_build: [UPGRADE_ANY], reveal: []),
+    // « Améliorez une carte Phase. Lorsque vous jouez un badge bâtiment, le coût
+    //   associé est réduit de 2 MC. » (D23, verte — savoir-faire acier ×1)
+    card!("Blast Furnaces", reqs: [], effects: [],
+          red: [Reduction::Tag(Tag::Building, 2)], action: None, phase: None,
+          on_build: [UPGRADE_ANY], reveal: []),
+    // « Améliorez une carte Phase. » + production : 2 MC et 1 chaleur. (D27)
+    card!("Manufacturing Hub", reqs: [], effects: [McProd(2), HeatProd(1)],
+          red: [], action: None, phase: None, on_build: [UPGRADE_ANY], reveal: []),
+    // « Améliorez une carte Phase. » + production : 1 chaleur. (D28)
+    card!("Heat Reflective Glass", reqs: [], effects: [HeatProd(1)],
+          red: [], action: None, phase: None, on_build: [UPGRADE_ANY], reveal: []),
+    // « Améliorez UNE carte Phase. » + production : 3 MC et 1 plante. (D30)
+    // ASK 2 : l'exemplaire physique d'Alexis porte un « 2 » écrit à la main
+    // par-dessus le mot « une ». Décision du 27-07 : on suit le TEXTE D'ORIGINE
+    // — UNE seule amélioration. Cette carte n'est donc PAS un second D17.
+    card!("Hydroponic Gardens", reqs: [], effects: [McProd(3), PlantProd(1)],
+          red: [], action: None, phase: None, on_build: [UPGRADE_ANY], reveal: []),
+    // « Améliorez une carte Phase. » + production : 4 chaleurs. (D32)
+    card!("Industrial Complex", reqs: [], effects: [HeatProd(4)],
+          red: [], action: None, phase: None, on_build: [UPGRADE_ANY], reveal: []),
+    // « Améliorez une carte Phase. » + production : 1 MC. (D33)
+    card!("Martian Museum", reqs: [], effects: [McProd(1)],
+          red: [], action: None, phase: None, on_build: [UPGRADE_ANY], reveal: []),
+    // « Améliorez une carte Phase. Lorsque vous jouez un badge espace, le coût
+    //   associé est réduit de 3 MC. » (D34, verte — savoir-faire titane ×1)
+    card!("Metallurgy", reqs: [], effects: [],
+          red: [Reduction::Tag(Tag::Space, 3)], action: None, phase: None,
+          on_build: [UPGRADE_ANY], reveal: []),
+    // « Améliorez une carte Phase. » + production : 2 chaleurs. (D36)
+    card!("Oxidation Byproducts", reqs: [], effects: [HeatProd(2)],
+          red: [], action: None, phase: None, on_build: [UPGRADE_ANY], reveal: []),
+    // « Améliorez une carte Phase. » + production : 1 plante. (D38)
+    card!("Magnetic Field Generator", reqs: [], effects: [PlantProd(1)],
+          red: [], action: None, phase: None, on_build: [UPGRADE_ANY], reveal: []),
+    // « Améliorez une carte Phase. » + production : 2 MC. (D42)
+    card!("Warehouses", reqs: [], effects: [McProd(2)],
+          red: [], action: None, phase: None, on_build: [UPGRADE_ANY], reveal: []),
+
+    // ---- B. Amélioration d'une phase IMPOSÉE (3) ----------------------------
+    // La phase est imposée par le carton, la VARIANTE reste au joueur : c'est
+    // le paramètre de `ResEff::PhaseUpgrade`, pas trois cas dans le flux.
+    //
+    // « Améliorez votre carte Phase III. Effet : lorsque vous révélez une carte
+    //   Phase améliorée, gagnez 1 MC. » (D05, BLEUE — sa couleur est l'une des
+    //   sept corrigées par ce chantier ; il lui faut rester en jeu pour que son
+    //   « Effet : » permanent existe.)
+    card!("Communications Streamlining", reqs: [], effects: [],
+          red: [], action: None, phase: None,
+          on_build: [upgrade_of(3)], reveal: [Mc(1)]),
+    // « Améliorez votre carte Phase I. » + production : 1 chaleur. (D37)
+    card!("Perfluorocarbon Production", reqs: [], effects: [HeatProd(1)],
+          red: [], action: None, phase: None,
+          on_build: [upgrade_of(1)], reveal: []),
+    // « Améliorez votre carte Phase IV. » + production : 1 plante. (D40)
+    card!("Biological Factories", reqs: [], effects: [PlantProd(1)],
+          red: [], action: None, phase: None,
+          on_build: [upgrade_of(4)], reveal: []),
+
+    // ---- C. Amélioration par une ACTION de carte bleue (2) ------------------
+    // « Action : Dépensez 1 NT pour améliorer une carte Phase. » (D07)
+    // Le coût existait (`ActionCost::Tr(1)`, lot cartes-8) ; l'effet est neuf.
+    card!("Experimental Technology", reqs: [], effects: [],
+          red: [],
+          action: Some(Action::Fixed { cost: &[ActionCost::Tr(1)],
+                                       effect: &[ActionEff::PhaseUpgrade] }),
+          phase: None, on_build: [], reveal: []),
+    // « Action : Améliorez une carte Phase. » + « Requiert 3 badges science. »
+    //   (D12 — le prérequis est imprimé, le contrat ne le cite pas.)
+    card!("Virtual Employee Development", reqs: [Tags(Tag::Science, 3)], effects: [],
+          red: [],
+          action: Some(Action::Fixed { cost: &[],
+                                       effect: &[ActionEff::PhaseUpgrade] }),
+          phase: None, on_build: [], reveal: []),
+
+    // ---- D. Bonus lié aux cartes Phase améliorées (2, dont D05 ci-dessus) ---
+    // « Action : Gagnez 2 MC. *Si vous jouez une carte Phase améliorée lors de
+    //   cette manche, gagnez 2 MC supplémentaires. » (D06)
+    // Le supplément est un bonus d'action conditionné : la brique existe
+    // (`PhaseBonus`), sa condition est neuve (`require_upgraded`). `phase: 0` =
+    // le carton ne nomme aucune phase.
+    card!("Drone Assisted Construction", reqs: [], effects: [],
+          red: [],
+          action: Some(Action::Fixed { cost: &[], effect: &[ActionEff::Mc(2)] }),
+          phase: Some(PhaseBonus { phase: 0, require_upgraded: true,
+                                   cost: None, extra: &[ActionEff::Mc(2)] }),
+          on_build: [], reveal: []),
+
+    // ---- E. Réduction de coût par badge (1) --------------------------------
+    // « Lorsque vous jouez un badge bâtiment, le coût associé est réduit de
+    //   2 MC. » + production : piochez deux cartes. (D29 — savoir-faire acier ×1)
+    card!("Hematite Mining", reqs: [], effects: [CardProd(2)],
+          red: [Reduction::Tag(Tag::Building, 2)], action: None, phase: None,
+          on_build: [], reveal: []),
+
+    // ---- F. Conditions et effets isolés (6) --------------------------------
+    // « Améliorez une carte Phase. Action : Piochez deux cartes. Puis,
+    //   défaussez deux cartes. » (D11)
+    card!("Software Streamlining", reqs: [], effects: [],
+          red: [],
+          action: Some(Action::Fixed {
+              cost: &[],
+              effect: &[ActionEff::DrawDiscard { draw: 2, discard: 2,
+                                                 from_drawn: false }] }),
+          phase: None, on_build: [UPGRADE_ANY], reveal: []),
+    // « Augmentez l'oxygène de 1 niveau OU améliorez une carte Phase. » (D14,
+    //   rouge) — alternative du texte imprimé, branches dans l'ordre du carton,
+    //   tranchées par `Policy::choose_option` (NEVER 7).
+    card!("Biomedical Imports", reqs: [], effects: [],
+          red: [], action: None, phase: None,
+          on_build: [ResStep::Choose(&[
+              &[ResEff::Gain(Oxygen(1))],
+              &[ResEff::PhaseUpgrade(None)],
+          ])],
+          reveal: []),
+    // « Révélez une tuile Océan. » + « Requiert un Objectif. » (D19, rouge —
+    //   le prérequis est imprimé, le contrat ne le cite pas.)
+    card!("Private Investor Beach", reqs: [HasObjective], effects: [Ocean(1)],
+          red: [], action: None, phase: None, on_build: [], reveal: []),
+    // Production : 4 MC. (D21)
+    card!("3D Printing", reqs: [], effects: [McProd(4)],
+          red: [], action: None, phase: None, on_build: [], reveal: []),
+    // « Si vous avez un Objectif, gagnez 4 chaleurs. » + production :
+    //   3 chaleurs. (D35) — le gain conditionnel est IMMÉDIAT (réserve de
+    //   chaleur), la production est une piste fixe : deux grandeurs distinctes.
+    card!("Award Winning Reflector Material", reqs: [],
+          effects: [IfObjective(&[Heat(4)]), HeatProd(3)],
+          red: [], action: None, phase: None, on_build: [], reveal: []),
+    // Production : 3 chaleurs. (D41)
+    card!("Nuclear Detonation Site", reqs: [], effects: [HeatProd(3)],
+          red: [], action: None, phase: None, on_build: [], reveal: []),
 ];
 
 // ======================================== LOT CORPORATIONS (chantier corpo-1)

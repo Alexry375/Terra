@@ -908,7 +908,12 @@ fn only_discovery_cards_remain_unhandled() {
     // `ResEff::PhaseUpgrade`, donc *Cryogenic Shipment* et *Fibrous Composite
     // Material* sont désormais intégralement gérées. Aucune carte n'a été
     // encodée par ce chantier — 31 projets + 4 corporations restent muets.
-    assert_eq!(n, 35);
+    //
+    // TÉMOIN RETOURNÉ par `decouverte-projets` (35 → 7) : les 28 derniers
+    // projets muets de l'extension sont encodés. Ne restent que les 3 projets à
+    // badge JOKER et les 4 corporations de Découverte, tous deux hors périmètre
+    // de ce chantier-là.
+    assert_eq!(n, 7);
 }
 
 #[test]
@@ -953,9 +958,21 @@ fn every_phase_bonus_belongs_to_a_fixed_action() {
         .filter(|(_, s)| s.phase_bonus.is_some())
         .map(|(n, _)| *n)
         .collect();
+    // TÉMOIN RETOURNÉ par `decouverte-projets` : *Drone Assisted Construction*
+    // (D06) porte le quatrième bonus de phase du moteur — le premier dont la
+    // condition n'est pas la phase choisie mais le fait que la carte Phase
+    // révélée soit AMÉLIORÉE (`require_upgraded`, `phase: 0`). Le garde-fou
+    // STRUCTUREL est intact : la liste reste exacte, et l'exigence
+    // « tout bonus de phase vit sur une Action::Fixed » est vérifiée ci-dessous
+    // pour les quatre.
     assert_eq!(
         porteuses,
-        vec!["Community Gardens", "Hydro-Electric Energy", "Wood Burning Stoves"]
+        vec![
+            "Community Gardens",
+            "Hydro-Electric Energy",
+            "Wood Burning Stoves",
+            "Drone Assisted Construction"
+        ]
     );
     for (nom, spec) in LOT1 {
         if spec.phase_bonus.is_some() {
@@ -963,11 +980,27 @@ fn every_phase_bonus_belongs_to_a_fixed_action() {
                 matches!(spec.action, Some(Action::Fixed { .. })),
                 "{nom} : un bonus de phase n'a de sens que sur une action à coût fixe"
             );
-            assert_eq!(
-                spec.phase_bonus.map(|b| b.phase),
-                Some(3),
-                "{nom} : le texte imprimé dit « the action phase »"
-            );
+            // TÉMOIN RETOURNÉ par `decouverte-projets` : l'exigence « phase 3 »
+            // n'était vraie que parce que les TROIS cartes d'alors disaient
+            // « the action phase ». *Drone Assisted Construction* ne nomme
+            // aucune phase (« si vous jouez une carte Phase améliorée lors de
+            // cette manche ») : elle porte `phase: 0`. L'assertion n'est pas
+            // supprimée, elle est RENDUE EXACTE — un bonus de phase nomme la
+            // phase Action, ou bien il ne nomme aucune phase et conditionne
+            // alors sur l'amélioration.
+            let b = spec.phase_bonus.expect("phase_bonus présent");
+            if b.phase == 0 {
+                assert!(
+                    b.require_upgraded,
+                    "{nom} : un bonus sans phase doit porter une autre condition, \
+                     sinon il serait inconditionnel"
+                );
+            } else {
+                assert_eq!(
+                    b.phase, 3,
+                    "{nom} : le texte imprimé dit « the action phase »"
+                );
+            }
         }
     }
 }
@@ -1122,11 +1155,13 @@ fn the_table_has_one_entry_per_card_of_this_lot() {
         assert_eq!(n, 1, "{name} : une entrée et une seule");
     }
     // ATTENTE MISE À JOUR par le lot acier-titane (199 → 203), le lot cartes-7
-    // (203 → 212) puis le lot cartes-8 (212 → 217).
+    // (203 → 212), le lot cartes-8 (212 → 217) puis `decouverte-projets`
+    // (217 → 245).
     assert_eq!(
         LOT1.len(),
-        217,
-        "188 + 11 (lot 6) + 4 (acier-titane) + 9 (cartes-7) + 5 (cartes-8)"
+        245,
+        "188 + 11 (lot 6) + 4 (acier-titane) + 9 (cartes-7) + 5 (cartes-8) \
+         + 28 (decouverte-projets)"
     );
 }
 

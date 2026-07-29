@@ -745,10 +745,11 @@ fn the_thirty_three_cards_resolve_to_the_base_box_deck() {
         assert!(card.effets_geres(), "{name} doit être déclarée gérée");
     }
     // 110 (lots 1-2) + 28 (ressources) + 17 (lot 4) + 33 (lot 5) + 11 (lot 6)
-    // + 4 (lot acier-titane) + 9 (lot cartes-7) = 212. ATTENTE MISE À JOUR par
-    // le lot 6, le lot acier-titane puis le lot cartes-7 : taille EXACTE
-    // toujours épinglée.
-    assert_eq!(engine::effects::LOT1.len(), 217);
+    // + 4 (lot acier-titane) + 9 (lot cartes-7) + 5 (lot cartes-8)
+    // + 28 (decouverte-projets) = 245. ATTENTE MISE À JOUR par le lot 6, le lot
+    // acier-titane, le lot cartes-7, le lot cartes-8 puis
+    // `decouverte-projets` : taille EXACTE toujours épinglée.
+    assert_eq!(engine::effects::LOT1.len(), 245);
 }
 
 #[test]
@@ -923,10 +924,26 @@ fn only_discovery_cards_remain_unhandled() {
     // (`cards::encodage_integral`). Le mécanisme existe désormais, l'effet
     // n'est plus sauté : leur texte imprimé est appliqué en entier, elles ne
     // sont plus muettes. Reste 31 projets + 4 corporations = 35.
+    //
+    // TÉMOIN RETOURNÉ une seconde fois par `decouverte-projets` (35 → 7) : les
+    // 28 derniers projets muets de l'extension sont encodés. Il ne reste que
+    // les 3 projets à badge JOKER (*Local Market*, *Political Influence*,
+    // *Topographic Mapping*, hors périmètre) et les 4 corporations de
+    // Découverte (hors périmètre) — 3 + 4 = 7. Le test n'est ni supprimé ni
+    // assoupli : il épingle un nombre EXACT, et il nomme les sept.
     let db = CardsDb::load_boites(CARDS, BoiteSet::parse("base,decouverte").unwrap())
         .expect("base,decouverte");
     let n = db.recensement().into_iter().filter(|c| !c.effets_geres).count();
-    assert_eq!(n, 35, "muettes en base + Découverte");
+    assert_eq!(n, 7, "muettes en base + Découverte");
+    let muettes: Vec<&str> = db
+        .recensement()
+        .into_iter()
+        .filter(|c| !c.effets_geres)
+        .map(|c| c.name)
+        .collect();
+    for nom in ["Local Market", "Political Influence", "Topographic Mapping"] {
+        assert!(muettes.contains(&nom), "{nom} (badge JOKER) doit rester muette");
+    }
     // Et la raison exacte : les deux cartes à « améliorez une carte Phase »
     // sont désormais intégralement gérées.
     for nom in ["Cryogenic Shipment", "Fibrous Composite Material"] {

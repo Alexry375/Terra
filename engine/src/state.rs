@@ -147,6 +147,36 @@ pub enum MilestoneKind {
     Gardener,
 }
 
+impl MilestoneKind {
+    /// (decouverte-projets) Nom de la tuile Objectif, tel que `--probe-objectif`
+    /// l'accepte et que les messages d'erreur l'affichent. Ce sont les noms du
+    /// moteur (pool Java), pas des étiquettes inventées ici.
+    pub fn name(self) -> &'static str {
+        match self {
+            MilestoneKind::Builder => "Builder",
+            MilestoneKind::Diversifier => "Diversifier",
+            MilestoneKind::Energizer => "Energizer",
+            MilestoneKind::Farmer => "Farmer",
+            MilestoneKind::Legend => "Legend",
+            MilestoneKind::Magnate => "Magnate",
+            MilestoneKind::Planner => "Planner",
+            MilestoneKind::SpaceBaron => "SpaceBaron",
+            MilestoneKind::Terraformer => "Terraformer",
+            MilestoneKind::Tycoon => "Tycoon",
+            MilestoneKind::Gardener => "Gardener",
+        }
+    }
+
+    /// (decouverte-projets) Lecture d'un nom d'Objectif. L'inverse EXACT de
+    /// [`MilestoneKind::name`] : la comparaison se fait sur le pool, il n'y a
+    /// pas de seconde liste à tenir à jour. Tout nom absent du pool est REFUSÉ
+    /// (`None`) — c'est ce refus qui empêche `--probe-objectif` d'ignorer un
+    /// argument mal formé en silence.
+    pub fn from_name(s: &str) -> Option<MilestoneKind> {
+        MILESTONE_POOL.iter().copied().find(|k| k.name() == s)
+    }
+}
+
 pub const MILESTONE_POOL: [MilestoneKind; 11] = [
     MilestoneKind::Builder,
     MilestoneKind::Diversifier,
@@ -519,6 +549,34 @@ pub struct GameState {
     /// améliorée (I-B, II-A, II-B) — versées dans la file `pending_builds` du
     /// lot cartes-8, jamais dans une seconde file (NEVER 2).
     pub upgraded_extra_builds: u64,
+    // ------------------------------------- (decouverte-projets) cinq de plus
+    // Mêmes règles que les précédents : incrémentés au SITE EXACT du mécanisme,
+    // jamais dans un résumé, jamais depuis la sonde ; tous nuls en
+    // `--effects off` et en boîte de base seule (aucune des cartes qui les
+    // alimentent n'appartient à la boîte de base).
+    /// Améliorations portant sur une phase IMPOSÉE par le carton — D05
+    /// (phase III), D37 (phase I), D40 (phase IV). Sous-ensemble strict de
+    /// `phase_upgrades_granted` : `flow::apply_phase_upgrade` les compte au
+    /// même endroit, quand son paramètre de phase vaut `Some(_)`.
+    pub phase_upgrades_targeted: u64,
+    /// Améliorations venues d'une ACTION de carte bleue — D07, D12, et
+    /// *Fibrous Composite Material* qui le faisait déjà avant ce chantier.
+    /// Sous-ensemble strict de `phase_upgrades_granted`, compté par la SOURCE
+    /// de l'appel (`flow::UpgradeSource::Action`), jamais par la forme de
+    /// l'encodage.
+    pub phase_upgrades_by_action: u64,
+    /// Gains liés aux cartes Phase AMÉLIORÉES révélées par leur porteur :
+    /// D05 (« lorsque vous révélez une carte Phase améliorée, gagnez 1 MC »,
+    /// levé par `flow::fire_upgraded_reveal`) et D06 (le supplément de son
+    /// action, `PhaseBonus::require_upgraded`).
+    pub upgraded_reveal_bonuses: u64,
+    /// Fois où la condition « Si vous avez un Objectif » (D35) était VRAIE au
+    /// moment de la pose, donc fois où les 4 chaleurs ont été versées
+    /// (`flow::apply_eff`, `Eff::IfObjective`).
+    pub objective_condition_hits: u64,
+    /// Activations de l'action « piochez deux cartes, puis défaussez-en deux »
+    /// (D11) qui ont réellement eu lieu (`flow::apply_action_eff`).
+    pub draw_then_discard_uses: u64,
     /// (boites-1) Nombre de fois qu'une carte SANS ENCODAGE est entrée en jeu
     /// au cours de la partie : projet construit dont `effect` est `None`, ou
     /// corporation installée dont `effect` est `None`. Incrémenté à l'endroit

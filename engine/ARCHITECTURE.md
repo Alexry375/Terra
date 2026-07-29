@@ -506,6 +506,95 @@ sélectionneur** meilleur ; sa COMPÉTENCE est identique mot pour mot.
   `upgraded_extra_builds`, `visionary_award_points`. Tous nuls en
   `--effects off` et en boîte de base seule.
 
+## Les 28 derniers projets de Découverte (chantier `decouverte-projets`)
+
+Les 28 cartes Projet de l'extension qui restaient MUETTES sans porter de badge
+joker sont encodées. Le recensement `--dump-deck --boites base,decouverte` passe
+de **31 projets muets à 3** — *Local Market*, *Political Influence*,
+*Topographic Mapping*, les trois cartes à badge JOKER, hors périmètre. La table
+`LOT1` passe de 217 à **245** entrées. Source du texte :
+`inputs/refs/projets-decouverte.json`, transcription à l'image des cartons ;
+jamais le champ `description` de `cards.json`.
+
+**Zéro catégorie d'effet neuve.** `src/effects.rs` compte toujours **19**
+énumérations (`grep -cE '^pub enum '`). Les 28 cartes sont décrites par des
+VARIANTES ajoutées à des énumérations existantes et par deux champs de
+structure :
+
+- **`ResEff::PhaseUpgrade(Option<u8>)`** — la variante existait, elle gagne un
+  PARAMÈTRE : `None` = « améliorez une carte Phase » (au choix du joueur,
+  comportement d'avant bit à bit), `Some(n)` = « améliorez **votre carte Phase
+  n** » (D05 → III, D37 → I, D40 → IV). Seule la phase est imposée : la variante
+  A/B reste tranchée par `Policy::choose_option`. `flow::apply_phase_upgrade`
+  filtre ses candidates sur ce paramètre — il n'existe toujours qu'UN chemin
+  d'octroi dans tout le moteur, et aucun cas particulier par carte.
+- **`ActionEff::PhaseUpgrade`** — la même amélioration demandée depuis une ACTION
+  de carte bleue (D07 « dépensez 1 NT pour… », D12 sans coût). Elle appelle la
+  MÊME `apply_phase_upgrade`, avec `UpgradeSource::Action`. Le coût vit dans
+  `ActionCost::Tr(1)`, brique du lot cartes-8.
+- **`ActionEff::DrawDiscard { draw, discard, from_drawn }`** — « piochez deux
+  cartes, puis défaussez-en deux » (D11) demandé côté ACTION. Il DÉLÈGUE à
+  `Eff::DrawDiscard` du lot 6 : un seul corps de règle.
+- **`Eff::IfObjective(&[Eff])`** — « Si vous avez un Objectif, gagnez … » (D35).
+  La condition est la brique, pas la chaleur. Jugée à la POSE, sans rétro-effet.
+- **`Req::HasObjective`** — « Requiert un Objectif » (D19). Prérequis de JOUEUR,
+  donc évalué à l'état COURANT comme `Tags` et `TrMin`, jamais sur l'instantané.
+- **`PhaseBonus { phase, require_upgraded, … }`** — la structure du lot 6 gagne
+  un champ et accepte `phase: 0` (« aucune phase exigée »). D06 : « gagnez 2 MC ;
+  si vous jouez une carte Phase améliorée cette manche, gagnez 2 MC de plus ».
+- **`CardEffects::reveal_bonus: &'static [Eff]`** — « Effet : lorsque vous
+  révélez une carte Phase améliorée, gagnez 1 MC » (D05). Troisième genre d'effet
+  à durée du moteur : levé par un ÉVÉNEMENT de la boucle de jeu.
+
+**Deux services neufs, chacun unique :**
+
+- `flow::has_objective(game, p)` — « avoir un Objectif » = avoir revendiqué au
+  moins l'un des trois Objectifs (`MilestoneKind`) en jeu. Lu par
+  `Req::HasObjective` ET par `Eff::IfObjective` : une seule définition.
+- `flow::fire_upgraded_reveal(game, db, p, policy)` — appelé dans la
+  planification de `play_round`, juste après que le joueur `p` a choisi (donc
+  révélé) sa carte Phase, **et pour ce joueur seul**. Il ne lit ni la carte Phase
+  de l'adversaire ni aucun compteur global : le texte dit « vous ».
+
+**Les sept couleurs.** `cards.json` donnait pour VERTES sept cartes que le carton
+donne autrement : D05 bleue, D14/D16/D17/D18/D19/D20 rouges. La correction est
+faite dans la DONNÉE (`data/cards.json`, champ `category`), jamais dans une table
+de rattrapage : il n'y a toujours qu'une source de vérité. `--dump-deck` gagne un
+champ **`couleur`** (`"verte"`/`"bleue"`/`"rouge"`, `null` pour une corporation)
+pour que la donnée soit observable de l'extérieur.
+
+**Observabilité** — `--probe-objectif <nom>` (option neuve : donne au joueur
+sondé un Objectif REVENDIQUÉ avant la séquence, dans le slot que
+`assign_milestones` écrit ; argument mal formé REFUSÉ), le champ `upgrades`
+ajouté au bilan de `--probe-action`, et **cinq compteurs** dans la ligne JSON,
+tous incrémentés au site exact du mécanisme et tous nuls en `--effects off`
+comme en boîte de base seule :
+
+| Champ JSON | Sens | Incrémenté dans |
+|---|---|---|
+| `phase_upgrades_targeted` | améliorations sur une phase IMPOSÉE | `flow::apply_phase_upgrade` |
+| `phase_upgrades_by_action` | améliorations venues d'une ACTION | `flow::apply_phase_upgrade` |
+| `upgraded_reveal_bonuses` | gains liés à une carte Phase améliorée révélée (D05, D06) | `flow::fire_upgraded_reveal`, `flow::apply_blue_action` |
+| `objective_condition_hits` | fois où « Si vous avez un Objectif » était vraie | `flow::apply_eff` |
+| `draw_then_discard_uses` | activations de l'action « piochez 2 puis défaussez 2 » | `flow::apply_action_eff` |
+
+**Correction d'un compteur préexistant** : `cards_effects_unhandled` ne
+s'incrémente plus en `--effects off`. En squelette intégral aucun pouvoir
+imprimé n'est appliqué, pour les 388 cartes : y désigner les seules cartes sans
+encodage comptait autre chose que ce que le nom annonce.
+
+`tests/lot_decouverte_projets_tests.rs` — 49 tests, chaque mécanisme dans les
+DEUX sens : les 28 cartes nommées et sondées, les 3 jokers vérifiés INERTES, les
+sept couleurs et les 31 autres inchangées, la répartition de la boîte de base,
+la phase imposée (et la variante laissée au joueur, et la bascule A↔B), D17 à
+deux améliorations contre D30 à une, l'amélioration par action avec et sans NT
+payable, les deux bonus de révélation (dont le témoin « c'est l'adversaire qui
+révèle »), la condition d'Objectif sur les onze tuiles et le témoin « l'Objectif
+de l'adversaire ne compte pas », les deux branches de l'alternative de D14, les
+cinq compteurs en partie réelle / effets coupés / boîte de base, l'empreinte
+`cee020cda9db283b`, les invariants sur 1000 parties, le déterminisme, et deux
+contrôles STRUCTURELS (aucun nom de carte du lot dans `src/` hors table
+d'effets ; 19 énumérations avant comme après).
 
 ## Représentation de l'état
 

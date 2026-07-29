@@ -204,6 +204,28 @@ fn main() {
             // (lot cartes-7) Plantes de départ du joueur sondé, sur le modèle
             // exact de `--probe-mc`. Sans elle, la dépense d'une plante de
             // *Restructured Resources* n'est pas observable de l'extérieur.
+            // (decouverte-projets) `--probe-objectif <nom>` : donne au joueur
+            // sondé un Objectif REVENDIQUÉ avant la séquence — le seul moyen
+            // d'observer la condition de *Award Winning Reflector Material*
+            // dans les deux sens. Les noms acceptés sont ceux des Objectifs du
+            // moteur (`MilestoneKind::name`) ; tout autre argument est REFUSÉ,
+            // jamais ignoré.
+            "--probe-objectif" => {
+                let arg = value(i);
+                let Some(kind) = engine::state::MilestoneKind::from_name(arg) else {
+                    let noms: Vec<&str> = engine::state::MILESTONE_POOL
+                        .iter()
+                        .map(|k| k.name())
+                        .collect();
+                    die(&format!(
+                        "--probe-objectif invalide: « {arg} » \
+                         (Objectifs du moteur : {})",
+                        noms.join(", ")
+                    ));
+                };
+                probe_opts.objectif = Some(kind);
+                i += 2;
+            }
             "--probe-plants" => {
                 probe_opts.plants = value(i)
                     .parse()
@@ -280,6 +302,10 @@ fn main() {
                 "kind": c.kind.as_str(),
                 "boite": c.boite.as_str(),
                 "planche": c.planche,
+                // (decouverte-projets) La couleur de chaque projet, pour que la
+                // correction des sept couleurs soit observable de l'extérieur.
+                // `null` pour une corporation, qui n'a pas de couleur.
+                "couleur": c.couleur,
                 "effets_geres": c.effets_geres,
             });
             println!("{line}");
@@ -387,6 +413,11 @@ fn main() {
             "in_lot": r.in_lot,
             "has_action": r.has_action,
             "action_applied": r.action_applied,
+            // (decouverte-projets) Les cartes Phase améliorées du joueur sondé
+            // APRÈS l'activation : sans ce champ, une action qui améliore une
+            // carte Phase (D07, D12) n'est observable nulle part de
+            // l'extérieur. Même source que `--probe` : `phase_upgrade_labels`.
+            "upgrades": r.upgrades,
             "delta": delta_json(&r.delta),
             "resources": resources_json(&r.resources),
             "target_error": r.target_error,
@@ -442,6 +473,12 @@ fn main() {
         "phase_upgrades_reupgraded": s.phase_upgrades_reupgraded,
         "upgraded_bonus_applied": s.upgraded_bonus_applied,
         "upgraded_extra_builds": s.upgraded_extra_builds,
+        // (decouverte-projets) les cinq mécanismes de ce lot en partie réelle.
+        "phase_upgrades_targeted": s.phase_upgrades_targeted,
+        "phase_upgrades_by_action": s.phase_upgrades_by_action,
+        "upgraded_reveal_bonuses": s.upgraded_reveal_bonuses,
+        "objective_condition_hits": s.objective_condition_hits,
+        "draw_then_discard_uses": s.draw_then_discard_uses,
         "visionary_award_points": s.visionary_award_points,
         // (boites-1) I4 : cartes à effet non géré réellement JOUÉES.
         "cards_effects_unhandled": s.cards_effects_unhandled,

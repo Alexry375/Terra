@@ -199,7 +199,14 @@ fn toutes_les_reductions_du_moteur_sont_des_multiples_exacts() {
     }
     // 23 réductions bâtiment/espace sur des cartes vertes + 4 sur des
     // corporations = 27, mesuré le 28-07 sur les tables du moteur.
-    assert_eq!(vus, 27, "réductions déclarant un savoir-faire");
+    //
+    // ATTENTE MISE À JOUR par `decouverte-projets` (27 → 30) : trois cartes
+    // VERTES de Découverte portent une réduction par badge, toutes multiples
+    // exacts du taux du livret — *Blast Furnaces* (D23, bâtiment −2 = 1 acier),
+    // *Hematite Mining* (D29, bâtiment −2 = 1 acier) et *Metallurgy* (D34,
+    // espace −3 = 1 titane). Le test n'est pas assoupli : il continue d'exiger
+    // que CHAQUE réduction soit un multiple exact, et d'épingler leur nombre.
+    assert_eq!(vus, 30, "réductions déclarant un savoir-faire");
 }
 
 #[test]
@@ -252,6 +259,9 @@ fn la_couleur_fait_partie_du_critere() {
         // (lot cartes-8) Deux champs de plus, neutres ici pour la même raison.
         grants: &[],
         next_card: None,
+        // (decouverte-projets) Un champ de plus, neutre ici : ce test ne porte
+        // que sur la couleur du porteur d'un savoir-faire.
+        reveal_bonus: &[],
     };
     let mut db = db();
     let verte = db

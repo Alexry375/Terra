@@ -259,6 +259,11 @@ pub struct GameOutcome {
     /// (Découverte) Bonus de sélectionneur AMÉLIORÉS réellement lus, et
     /// permissions de pose qu'ils ont versées.
     pub upgraded_bonus_applied: u64,
+    pub phase_upgrades_targeted: u64,
+    pub phase_upgrades_by_action: u64,
+    pub upgraded_reveal_bonuses: u64,
+    pub objective_condition_hits: u64,
+    pub draw_then_discard_uses: u64,
     pub upgraded_extra_builds: u64,
     /// (Découverte) Points distribués par la seule tuile VISIONNAIRE, les deux
     /// joueurs cumulés — lus sur `flow::award_points_split`, le parcours qui
@@ -341,6 +346,11 @@ pub fn play_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameOutcom
         phase_upgrades_granted: game.phase_upgrades_granted,
         phase_upgrades_reupgraded: game.phase_upgrades_reupgraded,
         upgraded_bonus_applied: game.upgraded_bonus_applied,
+        phase_upgrades_targeted: game.phase_upgrades_targeted,
+        phase_upgrades_by_action: game.phase_upgrades_by_action,
+        upgraded_reveal_bonuses: game.upgraded_reveal_bonuses,
+        objective_condition_hits: game.objective_condition_hits,
+        draw_then_discard_uses: game.draw_then_discard_uses,
         upgraded_extra_builds: game.upgraded_extra_builds,
         visionary_award_points,
         cards_effects_unhandled: game.cards_effects_unhandled,
@@ -409,6 +419,11 @@ pub struct SimSummary {
     pub phase_upgrades_granted: u64,
     pub phase_upgrades_reupgraded: u64,
     pub upgraded_bonus_applied: u64,
+    pub phase_upgrades_targeted: u64,
+    pub phase_upgrades_by_action: u64,
+    pub upgraded_reveal_bonuses: u64,
+    pub objective_condition_hits: u64,
+    pub draw_then_discard_uses: u64,
     pub upgraded_extra_builds: u64,
     pub visionary_award_points: i64,
     /// (boites-1) Cartes sans encodage entrées en jeu, toutes parties cumulées.
@@ -478,6 +493,11 @@ pub fn run_simulation(
     let mut phase_upgrades_granted = 0u64;
     let mut phase_upgrades_reupgraded = 0u64;
     let mut upgraded_bonus_applied = 0u64;
+    let mut phase_upgrades_targeted = 0u64;
+    let mut phase_upgrades_by_action = 0u64;
+    let mut upgraded_reveal_bonuses = 0u64;
+    let mut objective_condition_hits = 0u64;
+    let mut draw_then_discard_uses = 0u64;
     let mut upgraded_extra_builds = 0u64;
     let mut visionary_award_points = 0i64;
     let mut cards_effects_unhandled = 0u64;
@@ -532,6 +552,11 @@ pub fn run_simulation(
         phase_upgrades_granted += out.phase_upgrades_granted;
         phase_upgrades_reupgraded += out.phase_upgrades_reupgraded;
         upgraded_bonus_applied += out.upgraded_bonus_applied;
+        phase_upgrades_targeted += out.phase_upgrades_targeted;
+        phase_upgrades_by_action += out.phase_upgrades_by_action;
+        upgraded_reveal_bonuses += out.upgraded_reveal_bonuses;
+        objective_condition_hits += out.objective_condition_hits;
+        draw_then_discard_uses += out.draw_then_discard_uses;
         upgraded_extra_builds += out.upgraded_extra_builds;
         visionary_award_points += out.visionary_award_points;
         cards_effects_unhandled += out.cards_effects_unhandled;
@@ -587,6 +612,11 @@ pub fn run_simulation(
         phase_upgrades_granted,
         phase_upgrades_reupgraded,
         upgraded_bonus_applied,
+        phase_upgrades_targeted,
+        phase_upgrades_by_action,
+        upgraded_reveal_bonuses,
+        objective_condition_hits,
+        draw_then_discard_uses,
         upgraded_extra_builds,
         visionary_award_points,
         cards_effects_unhandled,
