@@ -159,6 +159,15 @@ fn main() {
                 probe_opts.phase = n;
                 i += 2;
             }
+            // (lot cartes-7) Plantes de départ du joueur sondé, sur le modèle
+            // exact de `--probe-mc`. Sans elle, la dépense d'une plante de
+            // *Restructured Resources* n'est pas observable de l'extérieur.
+            "--probe-plants" => {
+                probe_opts.plants = value(i)
+                    .parse()
+                    .unwrap_or_else(|_| die("--probe-plants invalide"));
+                i += 2;
+            }
             "--probe-filler" => {
                 probe_opts.filler = value(i)
                     .parse()
@@ -299,6 +308,13 @@ fn main() {
             // l'extérieur.
             "steel": r.steel,
             "titanium": r.titanium,
+            // (lot cartes-7) Bonus permanent de phase Recherche, rendu par le
+            // service unique `flow::research_extra`. TOUJOURS présent : sans
+            // lui, le groupe A du lot n'est prouvable nulle part.
+            "research": {
+                "draw": r.research.0,
+                "keep": r.research.1,
+            },
         });
         if let Some(c) = &r.corp {
             line["corp"] = corp_json(c);
@@ -394,6 +410,9 @@ fn main() {
         "action_discard_costs": s.action_discard_costs,
         "draw_discard_discards": s.draw_discard_discards,
         "cards_revealed": s.cards_revealed,
+        // (lot cartes-7) mécanismes du lot 7 observés en partie réelle.
+        "standard_action_discounts": s.standard_action_discounts,
+        "action_mc_bonuses": s.action_mc_bonuses,
     });
     println!("{line}");
 }

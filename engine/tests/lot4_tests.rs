@@ -674,11 +674,11 @@ fn the_seventeen_cards_are_encoded_and_resolve_to_the_v1_deck() {
         assert!(card.effect.is_some(), "{name} doit être encodée");
     }
     // 110 (lots 1-2) + 28 (ressources) + 17 (lot 4) + 33 (lot 5) + 11 (lot 6)
-    // + 4 (lot acier-titane) = 203 entrées.
-    // ATTENTE MISE À JOUR par le lot 5 (155 → 188), le lot 6 (188 → 199) puis
-    // le lot acier-titane (199 → 203) : taille EXACTE toujours épinglée, aucun
-    // test supprimé ni assoupli.
-    assert_eq!(engine::effects::LOT1.len(), 203);
+    // + 4 (lot acier-titane) + 9 (lot cartes-7) = 212 entrées.
+    // ATTENTE MISE À JOUR par le lot 5 (155 → 188), le lot 6 (188 → 199), le
+    // lot acier-titane (199 → 203) puis le lot cartes-7 (203 → 212) : taille
+    // EXACTE toujours épinglée, aucun test supprimé ni assoupli.
+    assert_eq!(engine::effects::LOT1.len(), 212);
 }
 
 #[test]
@@ -692,7 +692,11 @@ fn exactly_fourteen_cards_carry_a_derived_production() {
         .iter()
         .filter(|(_, e)| e.research.is_some())
         .count();
-    assert_eq!(r, 1, "un seul bonus permanent de recherche");
+    // (lot cartes-7) 1 (Interplanetary Relations, lot 4) + 3 (Interns, Extended
+    // Resources, United Planetary Alliance) = 4. ATTENTE MISE À JOUR, pas
+    // assouplie : le compte reste EXACT, et le lot n'ajoute aucune production
+    // dérivée — le premier assert le prouve, il n'a pas bougé.
+    assert_eq!(r, 4, "quatre bonus permanents de recherche, pas un de plus");
 }
 
 #[test]

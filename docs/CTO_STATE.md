@@ -38,7 +38,75 @@ prérequis (2), divers (4). Liste nominative :
 **Ne JAMAIS citer le « 7 » de `docs/cartes/moteur-vs-imprime.md` comme une
 couverture de la boîte de base** : ce rapport n'échantillonne que 66 cartes.
 
-## EN COURS (28-07 soir) — `moteur-cartes-7`, contrat scellé et lancé
+## NEUF CARTES DE PLUS (28-07) — `moteur-cartes-7`, audité OK et promu
+
+**Résultat mesuré après promotion** [VÉRIFIÉ 28-07] : muettes **14 → 5** en boîte
+de base (203/208 encodées), **47 → 38** en `base,decouverte`. **599 tests verts**
+(509 avant), aucun désactivé. 1000/1000 parties menées à terme,
+`invariant_violations = 0`, empreinte `13dd0cfeb7532dde` (graine 2024, base).
+Compteurs : `standard_action_discounts = 1500`, `action_mc_bonuses = 1578`,
+`research_extra_draws` 3 888 → **9 467**, `cards_effects_unhandled` 3 154 →
+**1 054**. Vitesse ~8 500 parties/s (le lot coûte ~12 %).
+
+### DEUX FAUX POSITIFS DE MES CONTRÔLES — la leçon se répète [VÉRIFIÉ 28-07]
+
+Les deux hold-outs rouges étaient **mes** erreurs, pas celles de l'agent.
+Vérification faite à la source avant de conclure, comme la règle l'exige.
+
+1. **Hold-out 01, point 4 — *Mars University*.** Mon témoin exigeait que
+   `delta.hand` bouge autrement que de −1. Le texte imprimé
+   (`textes-cartes.json`) dit : « vous **pouvez défausser une carte** ; si elle
+   portait un badge plante, **piochez-en deux**, sinon **piochez-en une** ».
+   Une défausse suivie d'une pioche fait un bilan **net nul** sur la main :
+   −1 est donc la valeur correcte, et mon témoin ne pouvait rien distinguer.
+   L'effet est réellement présent : `effects.rs:1976`
+   (`TrigGain::MayDiscardDraw`, `include_self: true`) et trois tests le prouvent
+   branche par branche (`lot7_tests.rs:1241-1300`).
+2. **Hold-out 02 — le taux de défausse.** Mon commentaire disait « deux lectures
+   au plus peuvent subsister », mon code testait « une au plus ». Les deux qui
+   restent sont **la définition du service unique lui-même**,
+   `flow::discard_mc_rate` (`flow.rs:1104-1114`), appelé aux quatre sites
+   (`flow.rs:1200, 1566, 2729, 3055`) plus la politique. I1 est respecté.
+
+### MON ASK N°4 ÉTAIT FAUX — l'agent m'a corrigé, livret en main
+
+Je supposais que la défausse de fin de manche « ne rapporte rien » et sortait
+donc du texte de *Composting Factory*. Le livret dit l'inverse, deux fois mot
+pour mot : `docs/regles/livret-base.md` **l. 437 et l. 654** — « Pour chaque
+carte ainsi défaussée, le joueur gagne 3 MC, **comme toujours** », renvoyant à
+la règle générale l. 96. Vérifié par ma main. *Composting Factory* couvre bien
+les **quatre** sites.
+
+### UN CONTRÔLE VISIBLE CREUX, SIGNALÉ PAR L'AGENT AU LIEU D'ÊTRE EXPLOITÉ
+
+Mon check scellé `08-rapport.sh:25` écrit ses deux motifs en syntaxe simple
+(`recherche\|research`) mais les passe à `grep -E`, qui y voit une barre
+verticale **littérale**. Mesuré : `printf 'la recherche\n' | grep -qiE
+"recherche\|research"` ne trouve rien. Le contrôle cherchait la chaîne
+`recherche|research`, pas les mots. **C'est le deuxième contrôle visible creux
+que j'écris** (le premier au lot acier-titane, une corporation mal orthographiée
+qui rendait `found=false`). Règle à appliquer désormais : *tout motif de
+recherche textuel doit être prouvé sur un exemple positif ET un exemple négatif
+avant scellement.*
+
+### Un changement de sémantique assumé et vérifié
+
+L'agent a déplacé le relevé de `prereq_ok` de la sonde : il se faisait sur
+**l'état de départ**, il se fait désormais **juste avant la pose de la dernière
+carte**, comme `flow::affordable` en partie réelle. Sans ce déplacement,
+l'interface que j'imposais était inatteignable. Vérifié : sur une sonde à une
+seule carte — mes 237 références de non-régression — la valeur est **inchangée**
+(check `07-non-regression.sh` vert).
+
+### Question laissée ouverte par l'agent, à arbitrer plus tard
+
+La commande littérale de mon interface n°3 rend `delta.plants = 0` pour
+*Restructured Resources*, parce que la politique aléatoire **décline** le
+« vous pouvez ». Le chemin existe et se voit avec `--probe-choice 0` (mesuré :
+`delta.plants = -1`). Ce n'est pas un défaut : câbler ce choix violerait mon
+propre interdit n°4 (les choix appartiennent à la politique, pas au moteur).
+
+## ~~EN COURS (28-07 soir)~~ — `moteur-cartes-7`, contrat scellé et lancé
 
 **Découpage décidé par moi** : les 14 muettes ne font pas un lot, elles font
 deux. Ce lot en prend **9**, celles qui modifient un chemin déjà existant
@@ -117,9 +185,9 @@ Mesuré par `--dump-deck` et lecture du code, pas de mémoire. [VÉRIFIÉ 28-07]
 | Brique | État |
 |---|---|
 | Déroulement d'une partie (phases I-V, production, score, fin) | fait |
-| Projets boîte de base | **194 / 208** encodés |
+| Projets boîte de base | **203 / 208** encodés (5 muettes) |
 | Corporations boîte de base | 12 / 12 |
-| Projets en configuration cible `base,decouverte` | **199 / 246** (47 muettes) |
+| Projets en configuration cible `base,decouverte` | **208 / 246** (38 muettes) |
 | Corporations Découverte | 0 / 4 (écartées, table `effects::CORPS`) |
 | Objectifs (tuiles) | 11 / 11 encodés — **1 seuil faux** |
 | Récompenses (tuiles) | **5 / 7** fonctionnelles (*Industrialist* ressuscitée le 28-07) |

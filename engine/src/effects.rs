@@ -333,6 +333,17 @@ pub enum Reduction {
     /// servie par `flow::microbe_discount` et consommée par `flow::affordable`
     /// (montant potentiel) puis `flow::build_card_with` (décision + retrait).
     PayResources { kind: ResKind, count: u32, amount: i64 },
+    /// (lot cartes-7) Réduction CONDITIONNELLE et PAYANTE, mais dont la monnaie
+    /// est prise sur la RÉSERVE DU JOUEUR et non sur une carte : *Restructured
+    /// Resources*, « When you play a card, you may spend **1 plant** to reduce
+    /// that card's cost by **5 MC**. »
+    ///
+    /// Décalque exact de [`Reduction::PayResources`], à la monnaie près. Comme
+    /// elle, elle vaut 0 dans [`Reduction::amount_for`] — son montant dépend
+    /// d'une DÉCISION du joueur (le « may »), jamais accordée gratuitement. Elle
+    /// est servie par `flow::plant_discount` et consommée par `flow::affordable`
+    /// (montant potentiel) puis `flow::build_card_with` (choix + dépense).
+    PayPlants { plants: i64, amount: i64 },
     /// (lot acier-titane) Réduction ADDITIONNELLE de `per` MC **par unité** du
     /// savoir-faire `cap` que le joueur possède, sur les cartes portant `tag`.
     ///
@@ -375,6 +386,9 @@ impl Reduction {
                 }
             }
             Reduction::PayResources { .. } => 0,
+            // (lot cartes-7) Dépend d'un « may » du joueur : jamais accordée
+            // gratuitement, résolue par `flow::plant_discount`.
+            Reduction::PayPlants { .. } => 0,
             // (lot acier-titane) Dépend du nombre d'aciers/titanes du joueur,
             // que cette fonction ne connaît pas : résolue par
             // `flow::card_discount`, comme `PayResources` l'est par
@@ -559,6 +573,27 @@ pub enum TrigGain {
     /// deux badges satisfaisants déclenche deux résolutions.
     /// Voir `flow::apply_trig_gain`.
     Choose(&'static [&'static [ResEff]]),
+    /// (lot cartes-7) « **You MAY discard a card.** If that card had a [tag],
+    /// draw `draw_if` cards. Otherwise, draw `draw_else`. » — *Mars University*.
+    ///
+    /// Le « may » est un vrai choix de `Policy` (I4) : branche 0 = défausser,
+    /// l'option imprimée ; branche 1 = renoncer. La branche « défausser » est
+    /// FILTRÉE avant le choix quand la main est vide — à zéro branche jouable,
+    /// aucune question n'est posée (convention du lot 3).
+    ///
+    /// *Quelle* carte est un `Policy::discard_down(hand, 1)`, le point de
+    /// décision existant : aucune source de hasard nouvelle. Le badge regardé
+    /// est celui de la carte **défaussée**, lu avant qu'elle quitte la main.
+    ///
+    /// Comme tout autre gain, elle est résolue `mult` fois (livret p.9 l.106).
+    MayDiscardDraw {
+        /// Badge cherché sur la carte défaussée.
+        if_tag: Tag,
+        /// Cartes piochées si la carte défaussée le portait.
+        draw_if: u8,
+        /// Cartes piochées sinon.
+        draw_else: u8,
+    },
 }
 
 /// (B) Déclencheur de pose : « When you play … ». Évalué à la pose d'une carte,
@@ -839,6 +874,42 @@ pub struct CardEffects {
     /// (lot 4) Bonus permanent de phase Recherche, cumulé par
     /// `flow::research_extra`.
     pub research: Option<ResearchBonus>,
+    // ======================================================== lot cartes-7
+    // Quatre modificateurs PERMANENTS de plus. Aucun ne crée de flux de jeu :
+    // chacun change une valeur qu'un service unique du moteur calcule déjà.
+    /// (lot cartes-7) MC **supplémentaires** par carte défaussée pour du MC —
+    /// *Composting Factory*, « Cards you discard for MC are worth an additional
+    /// 1 MC. » Cumulé par le service unique `flow::discard_mc_rate`, qui est le
+    /// SEUL point de calcul du taux de défausse du moteur.
+    pub discard_bonus: i64,
+    /// (lot cartes-7) MC de moins sur les actions standard qui coûtent des MC —
+    /// *Standard Technology*, « You pay 4 MC less for standard actions that cost
+    /// MC. » Cumulé par le service unique `flow::standard_action_discount` et
+    /// appliqué par `flow::standard_mc_cost`, consommé à la fois par
+    /// l'affordabilité (`flow::action_options`) et par le paiement
+    /// (`flow::phase_action`) — les deux ne peuvent pas diverger (I2).
+    ///
+    /// Ne touche NI la forêt payée en plantes, NI la température payée en
+    /// chaleur, NI la vente de carte : le texte dit « that cost MC ».
+    pub standard_discount: i64,
+    /// (lot cartes-7) « When playing a card with requirements, you may consider
+    /// the oxygen or temperature one color higher or lower. **This cannot be
+    /// modified further by other effects.** » — *Adaptation Technology*.
+    ///
+    /// Même mécanisme que `CorpEffects::req_color_flex` (*Inventrix*), et
+    /// **le même booléen** : `flow::reqs_satisfied` en fait un `||`, jamais une
+    /// somme. Adaptation Technology + Inventrix = ±1 palier, jamais ±2 (I3) —
+    /// c'est l'encodage littéral de la seconde phrase imprimée.
+    pub req_color_flex: bool,
+    /// (lot cartes-7) « When you use an "Action:" effect on one of your cards,
+    /// gain 1 MC. » — *Assembly Lines*.
+    ///
+    /// Appliqué par `flow::apply_blue_action` APRÈS une activation d'action de
+    /// carte bleue qui a réellement produit un effet, via `apply_action_eff` —
+    /// le chemin unique des effets d'action. Les actions STANDARD ne passent pas
+    /// par là : elles ne déclenchent rien, comme le veut le texte (« on one of
+    /// **your cards** »).
+    pub action_trigger: &'static [ActionEff],
 }
 
 /// Cherche l'encodage d'une carte par nom exact. None = carte hors lot (stub).
@@ -854,6 +925,8 @@ macro_rules! card {
             reductions: &[], play_triggers: &[], global_triggers: &[], action: None,
             holds: None, on_build: &[], prod: None, research: None,
             phase_bonus: None,
+            discard_bonus: 0, standard_discount: 0,
+            req_color_flex: false, action_trigger: &[],
         })
     };
     // Forme lot 4a : production DÉRIVÉE (recalculée à chaque phase IV).
@@ -863,6 +936,8 @@ macro_rules! card {
             reductions: &[], play_triggers: &[], global_triggers: &[], action: None,
             holds: None, on_build: &[], prod: Some($pd), research: None,
             phase_bonus: None,
+            discard_bonus: 0, standard_discount: 0,
+            req_color_flex: false, action_trigger: &[],
         })
     };
     // Forme lot 4b : bonus permanent de phase Recherche.
@@ -872,6 +947,8 @@ macro_rules! card {
             reductions: &[], play_triggers: &[], global_triggers: &[], action: None,
             holds: None, on_build: &[], prod: None, research: Some($rb),
             phase_bonus: None,
+            discard_bonus: 0, standard_discount: 0,
+            req_color_flex: false, action_trigger: &[],
         })
     };
     // Forme lot 2 : réductions / déclencheurs / action.
@@ -884,6 +961,8 @@ macro_rules! card {
             global_triggers: &[$($gt),*], action: $act,
             holds: None, on_build: &[], prod: None, research: None,
             phase_bonus: None,
+            discard_bonus: 0, standard_discount: 0,
+            req_color_flex: false, action_trigger: &[],
         })
     };
     // Forme lot 6 : action + bonus conditionné à la phase choisie (brique 2).
@@ -895,6 +974,25 @@ macro_rules! card {
             action: $act,
             holds: None, on_build: &[], prod: None, research: None,
             phase_bonus: $pb,
+            discard_bonus: 0, standard_discount: 0,
+            req_color_flex: false, action_trigger: &[],
+        })
+    };
+    // Forme lot 7 : MODIFICATEURS PERMANENTS. Aucune de ces cartes n'a de
+    // prérequis ni d'effet immédiat — elles ne font que changer une valeur
+    // qu'un service unique du moteur calcule déjà. Les cinq champs sont donc
+    // tous exposés, et rien d'autre.
+    ($name:literal, red: [$($rd:expr),*], ptrig: [$($pt:expr),*],
+     research: $rs:expr, discard: $dbn:expr, standard: $sd:expr,
+     flex: $fx:literal, atrig: [$($at:expr),*]) => {
+        ($name, CardEffects {
+            reqs: &[], effects: &[],
+            reductions: &[$($rd),*], play_triggers: &[$($pt),*],
+            global_triggers: &[], action: None,
+            holds: None, on_build: &[], prod: None, research: $rs,
+            phase_bonus: None,
+            discard_bonus: $dbn, standard_discount: $sd,
+            req_color_flex: $fx, action_trigger: &[$($at),*],
         })
     };
     // Forme lot 3 : tous les champs explicites (ressources posées comprises).
@@ -907,6 +1005,8 @@ macro_rules! card {
             global_triggers: &[$($gt),*], action: $act,
             holds: $h, on_build: &[$($ob),*], prod: None, research: None,
             phase_bonus: None,
+            discard_bonus: 0, standard_discount: 0,
+            req_color_flex: false, action_trigger: &[],
         })
     };
 }
@@ -1806,6 +1906,79 @@ pub static LOT1: &[(&str, CardEffects)] = &[
           action: Some(Action::Fixed {
               cost: &[ActionCost::McPerCapacity { base: 12, cap: Capacity::Titanium, per: 1 }],
               effect: &[ActionEff::Ocean(1)] })),
+
+    // ================================================= LOT 7 (chantier cartes-7)
+    // Les 9 dernières cartes muettes de la boîte de base qui soient des
+    // MODIFICATEURS PERMANENTS : aucune ne crée de flux de jeu, chacune change
+    // une valeur qu'un service unique du moteur calcule déjà. Source du texte :
+    // `inputs/textes-cartes.json` champ `text` — jamais le champ `description`
+    // de `cards.json`. Traces de sonde : `outputs/cartes-7.md`.
+
+    // ---- Groupe A : la phase de recherche (3) -------------------------------
+    // Trois LIGNES DE TABLE, pas trois mécanismes : `ResearchBonus` existe
+    // depuis le lot 4, il est servi par le service unique `flow::research_extra`
+    // et déjà porté par *Interplanetary Relations* et *Tharsis Republic*.
+
+    // « Effect: When you draw cards during the research phase, draw TWO
+    //   additional cards. » — pioche seule, aucune carte gardée en plus.
+    card!("Interns", red: [], ptrig: [],
+          research: Some(ResearchBonus { draw: 2, keep: 0 }),
+          discard: 0, standard: 0, flex: false, atrig: []),
+    // « Effect: When you KEEP cards during the research phase, keep ONE
+    //   additional card. » — le texte parle de garder, pas de piocher.
+    card!("Extended Resources", red: [], ptrig: [],
+          research: Some(ResearchBonus { draw: 0, keep: 1 }),
+          discard: 0, standard: 0, flex: false, atrig: []),
+    // « Effect: When you draw cards during the research phase, draw one
+    //   additional card and keep one additional card. » (texte mot pour mot
+    //   identique à *Interplanetary Relations*.)
+    card!("United Planetary Alliance", red: [], ptrig: [],
+          research: Some(ResearchBonus { draw: 1, keep: 1 }),
+          discard: 0, standard: 0, flex: false, atrig: []),
+
+    // ---- Groupe B : le prix payé (3) ----------------------------------------
+
+    // « Effect: Cards you discard for MC are worth an additional 1 MC. »
+    // Le taux de base (3 MC, livret l. 96 / 310 / 348 / 437) devient une valeur
+    // CALCULÉE par `flow::discard_mc_rate`, jamais une constante lue nue.
+    card!("Composting Factory", red: [], ptrig: [],
+          research: None, discard: 1, standard: 0, flex: false, atrig: []),
+    // « Effect: You pay 4 MC less for standard actions that cost MC. »
+    // Exactement les trois actions standard payantes en MC (forêt 20,
+    // température 14, océan 15) — ni la forêt en plantes, ni la température en
+    // chaleur, ni la vente de carte (qui rapporte). Voir `flow::standard_mc_cost`.
+    card!("Standard Technology", red: [], ptrig: [],
+          research: None, discard: 0, standard: 4, flex: false, atrig: []),
+    // « Effect: When you play a card, you may spend 1 plant to reduce that
+    //   card's cost by 5 MC. » Le « may » passe par `Policy::choose_option`.
+    card!("Restructured Resources", red: [Reduction::PayPlants { plants: 1, amount: 5 }],
+          ptrig: [], research: None, discard: 0, standard: 0, flex: false, atrig: []),
+
+    // ---- Groupe C : les déclencheurs (3) ------------------------------------
+
+    // « Effect: When playing a card with requirements, you may consider the
+    //   oxygen or temperature one color higher or lower. This cannot be modified
+    //   further by other effects. » — même booléen que le `req_color_flex`
+    //   d'*Inventrix* : un `||`, donc ±1 palier même réunis (I3).
+    card!("Adaptation Technology", red: [], ptrig: [],
+          research: None, discard: 0, standard: 0, flex: true, atrig: []),
+    // « Effect: When you use an "Action:" effect on one of your cards, gain
+    //   1 MC. » — l'action d'une carte bleue en phase III, jamais une action
+    //   standard.
+    card!("Assembly Lines", red: [], ptrig: [],
+          research: None, discard: 0, standard: 0, flex: false,
+          atrig: [ActionEff::Mc(1)]),
+    // « Effect: When you play a [science], INCLUDING THIS, you may discard a
+    //   card. If that card had a [plant], draw two cards. Otherwise, draw a
+    //   card. » — même forme qu'*Olympus Conference* (« When you play a
+    //   [science], including this, … ») : `include_self` et une résolution par
+    //   badge science satisfaisant (livret p.9 l.106).
+    card!("Mars University", red: [],
+          ptrig: [PlayTrigger { cond: TrigCond::Tag(Tag::Science),
+                    gains: &[TrigGain::MayDiscardDraw { if_tag: Tag::Plant,
+                              draw_if: 2, draw_else: 1 }],
+                    scale_by_matched_tags: true, include_self: true }],
+          research: None, discard: 0, standard: 0, flex: false, atrig: []),
 ];
 
 // ======================================== LOT CORPORATIONS (chantier corpo-1)

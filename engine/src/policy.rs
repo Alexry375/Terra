@@ -2,7 +2,6 @@
 //! choix ; TOUT l'aléatoire passe par le RNG de la partie (D11), fourni en
 //! paramètre — la politique elle-même ne possède pas de RNG.
 
-use crate::state::SELL_CARD_MC;
 use rand::rngs::StdRng;
 use rand::Rng;
 
@@ -94,8 +93,13 @@ pub trait Policy {
     /// `mc` = MC disponibles, `cost` = coût effectif (réductions appliquées),
     /// `hand` = main APRÈS retrait de la carte posée (elle ne peut donc jamais
     /// se payer elle-même). Méthode par DÉFAUT : le MINIMUM de cartes, c'est-à-
-    /// dire qu'on paie d'abord avec les MC, puis `ceil((cost - mc) / 3)` cartes.
-    /// Aucune politique du moteur ne la surcharge dans ce lot.
+    /// dire qu'on paie d'abord avec les MC, puis `ceil((cost - mc) / rate)`
+    /// cartes. Aucune politique du moteur ne la surcharge dans ce lot.
+    ///
+    /// (lot cartes-7) `rate` est le taux RÉEL du joueur, rendu par le service
+    /// unique `flow::discard_mc_rate` (3 MC du livret, plus le supplément de
+    /// *Composting Factory*). Sans lui, la politique diviserait par 3 alors que
+    /// chaque carte rapporte 4 : elle en défausserait trop.
     fn discard_payment_count(
         &mut self,
         _rng: &mut StdRng,
@@ -103,13 +107,17 @@ pub trait Policy {
         mc: i64,
         cost: i64,
         hand: &[u16],
+        rate: i64,
     ) -> usize {
         let missing = cost - mc;
         if missing <= 0 {
             return 0;
         }
-        // Arrondi supérieur : 3 MC par carte, le surplus est rendu.
-        (((missing + SELL_CARD_MC - 1) / SELL_CARD_MC) as usize).min(hand.len())
+        // Un taux nul n'existe pas dans le moteur (`SELL_CARD_MC` en est le
+        // plancher) ; la garde supprime la classe de bug, pas seulement le cas.
+        let rate = rate.max(1);
+        // Arrondi supérieur : `rate` MC par carte, le surplus est rendu.
+        (((missing + rate - 1) / rate) as usize).min(hand.len())
     }
 
     // ------------------------------------- lot 3 : ressources sur les cartes

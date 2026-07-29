@@ -24,9 +24,10 @@
 
 use crate::cards::CardsDb;
 use crate::flow::{
-    apply_blue_action, build_card_with, card_discount, card_points, install_corporation, payable,
-    heat_reserved_by, phase_production, player_capacities, requirements_met, requirements_met_now,
-    spendable_mc_reserving,
+    apply_blue_action, build_card_with, card_discount, card_points, discard_mc_rate,
+    heat_reserved_by, install_corporation, payable, phase_production, plant_discount,
+    plants_reserved_by, player_capacities, requirements_met, requirements_met_now,
+    research_extra, spendable_mc_reserving,
 };
 use crate::policy::{ActionOpt, ConstructionBonus, Policy, RandomPolicy};
 use crate::state::*;
@@ -108,6 +109,15 @@ pub struct ProbeResult {
     pub steel: i64,
     /// (lot acier-titane) Idem pour les titanes.
     pub titanium: i64,
+    /// **(lot cartes-7) Bonus PERMANENT de phase Recherche du joueur sondé après
+    /// la séquence** : `(cartes piochées en plus, cartes gardées en plus)`.
+    ///
+    /// C'est le résultat du service unique `flow::research_extra` — celui-là
+    /// même que la phase V consomme (`flow::research_draw_keep`). La sonde ne
+    /// recalcule rien : sans ce champ, le bonus de recherche n'était observable
+    /// nulle part de l'extérieur (le contrat le mesure : `--probe
+    /// "Interplanetary Relations"` rendait un delta entièrement nul).
+    pub research: (usize, usize),
 }
 
 /// (corpo-1) Corporation imposée à la sonde par `--probe-corp` : ce que le
@@ -144,6 +154,15 @@ pub struct ProbeOptions {
     /// Cartes supplémentaires en main, prises en tête de pioche, servant
     /// uniquement de monnaie de défausse (défaut 0).
     pub filler: usize,
+    /// **(lot cartes-7) Plantes de départ du joueur sondé** (`--probe-plants
+    /// <n>`), sur le modèle exact de `--probe-mc`. Défaut 20 : la valeur que
+    /// l'état de départ de la sonde portait en dur jusqu'ici, donc le
+    /// comportement des lots précédents, bit à bit.
+    ///
+    /// Sans elle, *Restructured Resources* est improuvable de l'extérieur : la
+    /// dépense d'une plante ne se voit que dans `delta.plants`, et il faut
+    /// pouvoir faire varier la réserve pour la distinguer d'un effet de carte.
+    pub plants: i64,
     /// La sonde cesse de forcer la pose : chaque carte n'est posée que si ses
     /// prérequis sont remplis SELON LA RÈGLE (C1 : paramètres sur l'instantané
     /// = l'état de départ pour la sonde ; tags et dépenses à l'état courant) ET
@@ -164,7 +183,7 @@ pub struct ProbeOptions {
 
 impl Default for ProbeOptions {
     fn default() -> ProbeOptions {
-        ProbeOptions { mc: 100, filler: 0, strict: false, phase: 0 }
+        ProbeOptions { mc: 100, filler: 0, strict: false, phase: 0, plants: 20 }
     }
 }
 
@@ -433,7 +452,7 @@ fn probe_state_base(db: &CardsDb, ids: &[u16], opts: ProbeOptions) -> GameState 
     // aucune (0) — le bonus ne doit jamais dépendre de la phase de l'adversaire.
     players[0].chosen_phase = opts.phase;
     players[0].heat = 20;
-    players[0].plants = 20;
+    players[0].plants = opts.plants;
     players[0].hand.extend_from_slice(ids);
     // Monnaie de défausse : le dessus de la pioche (= fin du Vec, comme
     // `flow::draw_card`).
@@ -492,6 +511,8 @@ fn probe_state_base(db: &CardsDb, ids: &[u16], opts: ProbeOptions) -> GameState 
         action_discard_costs: 0,
         draw_discard_discards: 0,
         cards_revealed: 0,
+        standard_action_discounts: 0,
+        action_mc_bonuses: 0,
     };
     game.snapshot_planet();
     game
@@ -651,6 +672,9 @@ pub fn run_probe_seq_corp(
                     // introuvable : son savoir-faire compte déjà.
                     steel: caps.steel,
                     titanium: caps.titanium,
+                    // (lot cartes-7) La corporation est en place : son bonus de
+                    // recherche compte déjà (Tharsis Republic).
+                    research: research_extra(db, &g.players[0]),
                 };
             }
         }
@@ -660,9 +684,22 @@ pub fn run_probe_seq_corp(
     let ids: Vec<u16> = names.iter().filter_map(|n| resolve(db, n)).collect();
 
     let (mut game, corp, hand_before_corp) = probe_state_corp(db, &ids, opts, corp_name);
-    // prérequis de la DERNIÈRE carte, dans l'état de départ (comme lot 1) —
-    // corporation comprise, puisqu'elle est déjà en place.
-    let prereq_ok = last_id.map_or(false, |id| requirements_met(&game, db, 0, id));
+    // (lot cartes-7, journal D2) Prérequis de la DERNIÈRE carte, relevés JUSTE
+    // AVANT SA POSE — c'est-à-dire une fois les cartes qui la précèdent dans la
+    // séquence entrées en jeu. Sans cela, un assouplissement porté par une
+    // CARTE (*Adaptation Technology*) serait structurellement invisible : celui
+    // d'*Inventrix* ne se voyait que parce qu'une corporation, elle, est
+    // installée avant l'instantané.
+    //
+    // La différence de fond avec `prereq_ok_now` est conservée : les prérequis
+    // de PARAMÈTRES restent jugés sur l'INSTANTANÉ (`requirements_met`), les
+    // autres à l'état courant. Sur une sonde à UNE SEULE carte — le cas de
+    // toutes les références de non-régression — l'état est rigoureusement celui
+    // du départ : la valeur ne change pas d'un bit.
+    //
+    // Valeur de repli si la séquence s'arrête avant d'atteindre la dernière
+    // carte : l'état de départ, comme aux lots précédents.
+    let mut prereq_ok = last_id.map_or(false, |id| requirements_met(&game, db, 0, id));
     // Évalué juste avant la pose de la dernière carte ; valeur de départ si la
     // séquence s'arrête avant d'y arriver.
     let mut prereq_ok_now = last_id.map_or(false, |id| requirements_met_now(&game, db, 0, id));
@@ -690,9 +727,25 @@ pub fn run_probe_seq_corp(
     let mut discarded = Vec::with_capacity(n);
     for (k, &id) in ids.iter().enumerate() {
         let price = db.projects[id as usize].price;
+        // Prix RAPPORTÉ dans `paid` : prix imprimé moins les réductions FIXES,
+        // convention des lots précédents, conservée bit à bit. Il ne tient pas
+        // compte des réductions PAYANTES (microbes du lot 3, plantes de ce
+        // lot-ci) : celles-ci dépendent d'une décision du joueur, et les
+        // rabattre ici ferait mentir `paid` dans l'autre sens dès que le joueur
+        // y renonce. Le témoin de ces réductions reste `delta`.
         let disc = card_discount(&game, db, 0, id);
         let cost = (price - disc).max(0);
+        // (lot cartes-7) Prix jugé par le GARDE-FOU de payabilité : celui-ci
+        // doit voir ce que `flow::affordable` voit, réduction payable comprise,
+        // sinon la sonde refuserait de poser une carte que la partie réelle
+        // propose — et la dépense de plante serait indémontrable au budget
+        // serré. Rien n'est accordé gratuitement : si la carte n'est payable
+        // qu'avec la réduction, `build_card_with` la rend obligatoire (la
+        // branche « renoncer » n'y est alors pas jouable).
+        let cost_min =
+            (cost - plant_discount(&game, db, 0, id).map_or(0, |(_, a)| a)).max(0);
         if k + 1 == n {
+            prereq_ok = requirements_met(&game, db, 0, id);
             prereq_ok_now = requirements_met_now(&game, db, 0, id);
         }
         // Prérequis : vérifiés seulement en mode strict (sinon la pose est
@@ -708,8 +761,21 @@ pub fn run_probe_seq_corp(
         if !payable(
             spendable_mc_reserving(db, &game.players[0], heat_reserved_by(db, id)),
             game.players[0].hand.len(),
-            cost,
+            cost_min,
+            discard_mc_rate(db, &game.players[0]),
         ) {
+            break;
+        }
+        // (lot cartes-7) Une dépense de POSE en plantes (« Requires you to spend
+        // N plants ») est un PAIEMENT, pas un prérequis de paramètre : la sonde
+        // ne la force donc jamais, exactement comme elle ne force pas le
+        // paiement en MC. Sans cette garde, `--probe-plants 0` sur une carte à
+        // dépense de plantes ferait sauter l'assertion d'`apply_card_effects` —
+        // un plantage, pas un résultat lisible.
+        //
+        // Aucun effet sur les lots précédents : la réserve de départ valait 20
+        // en dur, et aucune carte n'exige plus de 2 plantes.
+        if game.players[0].plants < plants_reserved_by(db, id) {
             break;
         }
         paid.push(cost);
@@ -767,6 +833,10 @@ pub fn run_probe_seq_corp(
         // celui-là même que `flow::card_discount` lit pour fixer les prix.
         steel: player_capacities(&game.players[0]).steel,
         titanium: player_capacities(&game.players[0]).titanium,
+        // (lot cartes-7) Le SERVICE UNIQUE appliqué au joueur sondé après la
+        // pose — celui-là même que consomme la phase V. La sonde ne fait que le
+        // lire (clause anti-shortcut n° 1).
+        research: research_extra(db, &game.players[0]),
     }
 }
 
@@ -870,12 +940,30 @@ pub fn run_probe_action_seq(
         // (`--probe-mc` bas) au lieu de rendre un résultat lisible. Une
         // séquence interrompue laisse la dernière carte hors jeu : son action
         // n'est alors pas appliquée (voir plus bas).
-        let cost = (db.projects[id as usize].price - card_discount(&game, db, 0, id)).max(0);
+        // Même garde-fou que `run_probe_seq_corp` : le prix MINIMUM que le
+        // joueur peut avoir à payer, réduction payable en plantes comprise.
+        let cost_min = (db.projects[id as usize].price
+            - card_discount(&game, db, 0, id)
+            - plant_discount(&game, db, 0, id).map_or(0, |(_, a)| a))
+        .max(0);
         if !payable(
             spendable_mc_reserving(db, &game.players[0], heat_reserved_by(db, id)),
             game.players[0].hand.len(),
-            cost,
+            cost_min,
+            discard_mc_rate(db, &game.players[0]),
         ) {
+            break;
+        }
+        // (lot cartes-7) Une dépense de POSE en plantes (« Requires you to spend
+        // N plants ») est un PAIEMENT, pas un prérequis de paramètre : la sonde
+        // ne la force donc jamais, exactement comme elle ne force pas le
+        // paiement en MC. Sans cette garde, `--probe-plants 0` sur une carte à
+        // dépense de plantes ferait sauter l'assertion d'`apply_card_effects` —
+        // un plantage, pas un résultat lisible.
+        //
+        // Aucun effet sur les lots précédents : la réserve de départ valait 20
+        // en dur, et aucune carte n'exige plus de 2 plantes.
+        if game.players[0].plants < plants_reserved_by(db, id) {
             break;
         }
         build_card_with(&mut game, db, 0, 0, 0, &mut pol);

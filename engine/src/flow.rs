@@ -121,6 +121,8 @@ pub fn setup_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameState
         action_discard_costs: 0,
         draw_discard_discards: 0,
         cards_revealed: 0,
+        standard_action_discounts: 0,
+        action_mc_bonuses: 0,
     };
 
     // Milestones/awards : 3 + 3 tirés des pools (Discovery p.2 « reveal three »).
@@ -876,6 +878,91 @@ pub fn microbe_discount(game: &GameState, db: &CardsDb, p: usize) -> Option<(u16
     None
 }
 
+/// **PLANTES RÉSERVÉES** par une carte : celles que son prérequis « Requires you
+/// to spend N plants » l'engage à dépenser à la pose. Ces plantes-là ne sont pas
+/// de la monnaie : *Restructured Resources* ne peut pas les dépenser pour
+/// réduire le prix de la carte, sinon la dépense de pose serait impayable et
+/// l'assertion de `apply_card_effects` sauterait. Symétrique exact de
+/// [`heat_reserved_by`] ; lue sur la table d'effets, jamais recalculée ailleurs.
+pub fn plants_reserved_by(db: &CardsDb, card_id: u16) -> i64 {
+    if !db.effects_on {
+        return 0;
+    }
+    db.projects[card_id as usize].effect.map_or(0, |spec| {
+        spec.reqs
+            .iter()
+            .map(|r| match *r {
+                Req::SpendPlants(n) => n,
+                _ => 0,
+            })
+            .sum()
+    })
+}
+
+/// **(lot cartes-7) Réduction CONDITIONNELLE payée en PLANTES DE LA RÉSERVE** :
+/// *Restructured Resources*, « When you play a card, you may spend 1 plant to
+/// reduce that card's cost by 5 MC ». Renvoie `(plantes à dépenser, montant)` si
+/// une carte en jeu du joueur porte cette réduction ET que le joueur a les
+/// plantes, celles que la carte visée s'engage elle-même à dépenser mises de
+/// côté ([`plants_reserved_by`]).
+///
+/// Décalque de [`microbe_discount`] : elle ne passe PAS par `card_discount` (qui
+/// somme les réductions FIXES), elle est payante et soumise à une décision du
+/// joueur. Mêmes deux appelants — `affordable` (montant potentiel, pour ne pas
+/// juger la carte hors budget) et `build_card_with` (décision + dépense) : les
+/// deux ne peuvent pas diverger (I2).
+///
+/// Elle prend la carte visée en argument, ce que `microbe_discount` n'a pas
+/// besoin de faire : la monnaie et la dépense de pose sont ici la MÊME réserve.
+pub fn plant_discount(
+    game: &GameState,
+    db: &CardsDb,
+    p: usize,
+    card_id: u16,
+) -> Option<(i64, i64)> {
+    plant_discount_with(game, db, p, card_id, plant_reduction(db, &game.players[p]))
+}
+
+/// La réduction en plantes DÉCLARÉE par les cartes en jeu du joueur, sans le
+/// moindre test de disponibilité. Séparée de [`plant_discount`] pour que
+/// `affordable`, qui examine toute la main, la lise UNE fois au lieu d'une fois
+/// par carte : elle ne dépend pas de la carte visée.
+fn plant_reduction(db: &CardsDb, pl: &PlayerState) -> Option<(i64, i64)> {
+    if !db.effects_on {
+        return None;
+    }
+    for &owned in &pl.played {
+        if let Some(spec) = db.projects[owned as usize].effect {
+            for r in spec.reductions {
+                if let Reduction::PayPlants { plants, amount } = *r {
+                    return Some((plants, amount));
+                }
+            }
+        }
+    }
+    None
+}
+
+/// **Le point de décision unique** : la réduction déclarée est-elle disponible
+/// pour CETTE carte ? C'est ici, et nulle part ailleurs, que la réserve de
+/// plantes est confrontée à ce que la carte visée s'engage elle-même à dépenser.
+/// `affordable` et `build_card_with` passent tous deux par cette fonction.
+fn plant_discount_with(
+    game: &GameState,
+    db: &CardsDb,
+    p: usize,
+    card_id: u16,
+    declaree: Option<(i64, i64)>,
+) -> Option<(i64, i64)> {
+    let (plants, amount) = declaree?;
+    let available = game.players[p].plants - plants_reserved_by(db, card_id);
+    if available >= plants {
+        Some((plants, amount))
+    } else {
+        None
+    }
+}
+
 /// Prédicat commun aux deux lectures de prérequis. `param` fournit les valeurs
 /// (température, oxygène, océans) contre lesquelles les prérequis de PARAMÈTRES
 /// sont jugés ; les prérequis de tags et de dépenses sont toujours jugés à
@@ -903,7 +990,29 @@ fn reqs_satisfied(
     // les badges, ni les dépenses.
     // La souplesse s'ajoute au test exact par un OU : sans corporation Inventrix
     // le prédicat est bit à bit celui d'avant ce lot (non-régression).
-    let flex = corp_effects(db, pl).map_or(false, |s| s.req_color_flex);
+    //
+    // (lot cartes-7) *Adaptation Technology* porte le MÊME mécanisme sur une
+    // CARTE, et alimente LE MÊME BOOLÉEN. « This cannot be modified further by
+    // other effects » est donc encodé par construction : un `||` ne cumule pas.
+    // Adaptation Technology + Inventrix = ±1 palier, jamais ±2 (I3).
+    //
+    // La recherche n'a lieu que si la carte porte réellement un prérequis de
+    // PALIER : `flex` n'est lu que dans ces quatre branches, le court-circuit
+    // est donc sémantiquement neutre (et il évite de parcourir les cartes en
+    // jeu pour les cartes sans prérequis, c'est-à-dire la plupart).
+    let palier = spec.reqs.iter().any(|r| {
+        matches!(
+            r,
+            Req::TempMin(_) | Req::TempMax(_) | Req::OxyMin(_) | Req::OxyMax(_)
+        )
+    });
+    let flex = palier
+        && (corp_effects(db, pl).map_or(false, |s| s.req_color_flex)
+            || pl.played.iter().any(|&c| {
+                db.projects[c as usize]
+                    .effect
+                    .map_or(false, |s| s.req_color_flex)
+            }));
     let tc = effects::temp_color(temperature) as i16;
     let oc = effects::oxy_color(oxygen) as i16;
     spec.reqs.iter().all(|req| match *req {
@@ -963,16 +1072,107 @@ pub fn requirements_met_now(game: &GameState, db: &CardsDb, p: usize, card_id: u
     )
 }
 
+// =============================================================================
+// (lot cartes-7) LE TAUX DE DÉFAUSSE — *Composting Factory*, « Cards you discard
+// for MC are worth an additional 1 MC. »
+//
+// Le taux de base est celui du livret : 3 MC par carte, et c'est une règle
+// GÉNÉRALE, pas une règle de paiement — l. 96 « à tout moment, **vous pouvez
+// défausser une carte Projet de votre main pour gagner 3 MC** », l. 310 (même
+// phrase, rappel), l. 348 (paiement d'une carte Projet), l. 437 et 654 (étape de
+// fin de manche : « Pour chaque carte ainsi défaussée, le joueur gagne 3 MC,
+// **comme toujours** »).
+//
+// Les QUATRE sites du moteur qui lisaient `SELL_CARD_MC` sont donc tous des
+// « cards you discard for MC », la défausse de fin de manche comprise — voir
+// §D1 du journal, où cette lecture CONTREDIT celle du contrat (qui supposait
+// cette dernière non rémunérée ; le livret et le code disent l'inverse).
+//
+// Un seul point de calcul (I1), lu au moment où il sert (I6).
+// =============================================================================
+
+/// **(lot cartes-7) Point de calcul UNIQUE du taux de défausse** : ce que
+/// rapporte UNE carte défaussée pour du MC, pour ce joueur, à cet instant.
+///
+/// Aucun autre endroit du moteur ne lit `SELL_CARD_MC` pour créditer ou pour
+/// juger un paiement : les quatre sites de défausse (affordabilité, paiement
+/// d'une carte Projet, vente de carte en phase Action, étape de fin de manche)
+/// et la politique de défausse-paiement passent tous par ici.
+///
+/// `--effects off` : exactement le taux du livret, `SELL_CARD_MC`. Le taux est
+/// une RÈGLE, pas un effet ; seul le supplément est un effet de carte.
+pub fn discard_mc_rate(db: &CardsDb, pl: &PlayerState) -> i64 {
+    if !db.effects_on {
+        return SELL_CARD_MC;
+    }
+    let mut rate = SELL_CARD_MC;
+    for &c in &pl.played {
+        if let Some(spec) = db.projects[c as usize].effect {
+            rate += spec.discard_bonus;
+        }
+    }
+    rate
+}
+
+// =============================================================================
+// (lot cartes-7) LA RÉDUCTION DES ACTIONS STANDARD — *Standard Technology*,
+// « You pay 4 MC less for standard actions that cost MC. »
+//
+// Les actions standard payantes en MC sont exactement trois (livret p.14) :
+// forêt 20 MC, température 14 MC, océan 15 MC. La réduction ne touche NI la
+// forêt payée en 8 plantes, NI la température payée en 8 chaleurs — elles ne
+// coûtent pas de MC — NI la vente de carte, qui RAPPORTE des MC (NEVER 8).
+//
+// `standard_mc_cost` est le seul point de calcul : `action_options` (le prédicat
+// qui décide si l'action est PROPOSÉE) et `phase_action` (le PAIEMENT) l'appellent
+// tous deux, ils ne peuvent donc pas diverger (I2) — sans quoi le moteur
+// proposerait une action qu'il ne saurait pas payer, ou refuserait une action
+// payable.
+// =============================================================================
+
+/// (lot cartes-7) Somme des réductions d'actions standard des cartes en jeu.
+/// 0 en `--effects off`.
+pub fn standard_action_discount(db: &CardsDb, pl: &PlayerState) -> i64 {
+    if !db.effects_on {
+        return 0;
+    }
+    let mut d = 0;
+    for &c in &pl.played {
+        if let Some(spec) = db.projects[c as usize].effect {
+            d += spec.standard_discount;
+        }
+    }
+    d
+}
+
+/// **(lot cartes-7) Point de calcul UNIQUE du prix d'une action standard payée
+/// en MC** : le prix du livret moins la réduction du joueur, jamais négatif.
+pub fn standard_mc_cost(db: &CardsDb, pl: &PlayerState, base: i64) -> i64 {
+    standard_mc_cost_with(base, standard_action_discount(db, pl))
+}
+
+/// **La formule, et elle n'existe qu'ici** : prix du livret moins la réduction,
+/// jamais négatif. Séparée pour que `action_options`, qui juge les trois actions
+/// standard d'un coup et tourne dans la boucle serrée de la phase III, lise la
+/// réduction UNE fois au lieu de trois.
+fn standard_mc_cost_with(base: i64, discount: i64) -> i64 {
+    (base - discount).max(0)
+}
+
 /// (C3) Une carte de coût effectif `cost` est-elle payable par un joueur qui a
 /// `mc` MC et `hand_len` cartes en main (la carte à poser comprise) ? Livret
-/// p.13, l.348 : MC **et/ou** défausse de cartes à 3 MC/carte. La carte posée ne
-/// pouvant pas se payer elle-même, la monnaie disponible est `hand_len - 1`.
+/// p.13, l.348 : MC **et/ou** défausse de cartes à `rate` MC/carte. La carte
+/// posée ne pouvant pas se payer elle-même, la monnaie disponible est
+/// `hand_len - 1`.
 /// Prédicat UNIQUE d'affordabilité : consommé par `affordable` (énumération des
 /// options du flux réel) et par la sonde. `build_card_with` en est la
 /// contrepartie exacte — il paie de la même façon et assère le résultat — de
 /// sorte que les deux ne peuvent pas diverger.
-pub fn payable(mc: i64, hand_len: usize, cost: i64) -> bool {
-    mc + SELL_CARD_MC * (hand_len as i64 - 1).max(0) >= cost
+///
+/// (lot cartes-7) `rate` vient du service unique [`discard_mc_rate`] : aucun
+/// appelant ne fabrique ce taux lui-même.
+pub fn payable(mc: i64, hand_len: usize, cost: i64, rate: i64) -> bool {
+    mc + rate * (hand_len as i64 - 1).max(0) >= cost
 }
 
 /// Indices de main constructibles pour une couleur donnée : paiement (MC et/ou
@@ -995,21 +1195,34 @@ fn affordable(
     // sinon une carte jouable serait jugée hors budget (contrat). Calculée une
     // fois par énumération : elle ne dépend pas de la carte examinée.
     let payable_disc = microbe_discount(game, db, p).map_or(0, |(_, _, a)| a);
+    // (lot cartes-7) Même taux de défausse que le paiement (I1/I2) : il ne
+    // dépend pas de la carte examinée, il est donc lu une fois.
+    let rate = discard_mc_rate(db, &game.players[p]);
+    // (lot cartes-7) La réduction en plantes DÉCLARÉE ne dépend pas de la carte
+    // examinée : lue une fois. Sa DISPONIBILITÉ, elle, en dépend — c'est
+    // `plant_discount_with` qui la tranche, dans la boucle, exactement comme
+    // `build_card_with` le fait au paiement (I2).
+    let plant_red = plant_reduction(db, &game.players[p]);
     for i in 0..hand_len {
         let c = game.players[p].hand[i];
         let card = &db.projects[c as usize];
         if !colors.contains(&card.color) {
             continue;
         }
+        // (lot cartes-7) Réduction payable en plantes : elle compte dans
+        // l'affordabilité, sinon une carte jouable serait jugée hors budget.
+        // Elle dépend de la carte visée (ses propres plantes réservées), d'où
+        // le calcul DANS la boucle — même service que `build_card_with`.
+        let plant_disc = plant_discount_with(game, db, p, c, plant_red).map_or(0, |(_, a)| a);
         let cost = effective_cost(
             card.price,
-            discount + card_discount(game, db, p, c) + payable_disc,
+            discount + card_discount(game, db, p, c) + payable_disc + plant_disc,
         );
         // (corpo-1) Helion : la chaleur compte dans l'affordabilité, sinon une
         // carte payable serait jugée hors budget — MOINS celle que la carte
         // s'engage à dépenser à la pose. Sans Helion, vaut exactement `pl.mc`.
         let mc = spendable_mc_reserving(db, &game.players[p], heat_reserved_by(db, c));
-        if !payable(mc, hand_len, cost) {
+        if !payable(mc, hand_len, cost, rate) {
             continue;
         }
         if requirements_met(game, db, p, c) {
@@ -1348,12 +1561,16 @@ pub fn build_card_with(
     // (corpo-1) Chaleur que CETTE carte s'engage à dépenser : Helion ne peut pas
     // la convertir en MC pour en payer le prix.
     let reserved_heat = heat_reserved_by(db, card_id);
+    // (lot cartes-7) Taux de défausse du joueur À CET INSTANT, service unique —
+    // le même que celui qu'a employé `affordable` pour proposer cette carte.
+    let rate = discard_mc_rate(db, &game.players[p]);
     if let Some((src, count, amount)) = microbe_discount(game, db, p) {
-        let cost_without = effective_cost(price, fixed_discount);
+        let cost_without = effective_cost(price, total_discount);
         let can_decline = payable(
             spendable_mc_reserving(db, &game.players[p], reserved_heat),
             hand_len_before,
             cost_without,
+            rate,
         );
         // Branche 0 = utiliser la réduction (l'option imprimée) ; branche 1 = y
         // renoncer.
@@ -1364,6 +1581,32 @@ pub fn build_card_with(
         };
         if use_it {
             pay_with_resources = Some((src, count));
+            total_discount += amount;
+        }
+    }
+
+    // (lot cartes-7) Réduction payée en PLANTES (*Restructured Resources*) :
+    // même forme exactement que la précédente, monnaie mise à part. Le « may »
+    // est un choix de `Policy` (I4), et la branche « y renoncer » n'est proposée
+    // que si elle est jouable — c'est-à-dire si la carte reste payable sans la
+    // réduction. Les plantes que la carte visée s'engage elle-même à dépenser
+    // sont déjà mises de côté par `plant_discount`.
+    let mut pay_with_plants: Option<i64> = None;
+    if let Some((plants, amount)) = plant_discount(game, db, p, card_id) {
+        let cost_without = effective_cost(price, total_discount);
+        let can_decline = payable(
+            spendable_mc_reserving(db, &game.players[p], reserved_heat),
+            hand_len_before,
+            cost_without,
+            rate,
+        );
+        let use_it = if can_decline {
+            policy.choose_option(&mut game.rng, p, 2) == 0
+        } else {
+            true
+        };
+        if use_it {
+            pay_with_plants = Some(plants);
             total_discount += amount;
         }
     }
@@ -1386,7 +1629,8 @@ pub fn build_card_with(
     if heat_as_mc(db, &game.players[p]) && game.players[p].mc < cost {
         // La carte à poser est déjà retirée de la main : la monnaie de défausse
         // disponible est `hand.len()`, d'où le `+ 1` attendu par `payable`.
-        let can_decline = payable(game.players[p].mc, game.players[p].hand.len() + 1, cost);
+        let can_decline =
+            payable(game.players[p].mc, game.players[p].hand.len() + 1, cost, rate);
         let use_heat = if can_decline {
             policy.choose_option(&mut game.rng, p, 2) == 0
         } else {
@@ -1402,7 +1646,11 @@ pub fn build_card_with(
     let mut discarded = 0usize;
     if game.players[p].mc < cost {
         let hand = game.players[p].hand.clone();
-        let n = policy.discard_payment_count(&mut game.rng, p, game.players[p].mc, cost, &hand);
+        // (lot cartes-7) La politique décide COMBIEN de cartes défausser : elle
+        // reçoit donc le taux réel du joueur, sinon elle en défausserait trop
+        // (elle divise le manque par le taux).
+        let n =
+            policy.discard_payment_count(&mut game.rng, p, game.players[p].mc, cost, &hand, rate);
         assert!(n <= game.players[p].hand.len(), "défausse-paiement hors main");
         // Quelles cartes : les DERNIÈRES de la main. Le livret laisse le choix
         // libre ; prendre par la fin est déterministe, en O(1), et préserve la
@@ -1411,7 +1659,7 @@ pub fn build_card_with(
         for _ in 0..n {
             let card = game.players[p].hand.pop().expect("défausse-paiement hors main");
             game.discard.push(card);
-            game.players[p].mc += SELL_CARD_MC;
+            game.players[p].mc += rate;
         }
         discarded = n;
         game.discard_payments += n as u64;
@@ -1427,6 +1675,12 @@ pub fn build_card_with(
     // annulée. Service unique de retrait.
     if let Some((src, count)) = pay_with_resources {
         remove_resources(game, db, p, src, count);
+    }
+    // (lot cartes-7) Idem pour les plantes de *Restructured Resources* : elles
+    // ne quittent la réserve QUE maintenant, la carte étant effectivement posée.
+    if let Some(n) = pay_with_plants {
+        assert!(game.players[p].plants >= n, "dépense de plantes sans les plantes");
+        game.players[p].plants -= n;
     }
     game.players[p].put_in_play(card_id, db);
     // (lot acier-titane) La carte vient d'entrer en jeu : si elle porte un
@@ -1575,6 +1829,92 @@ fn apply_trig_gain(
             for _ in 0..mult.max(0) {
                 apply_choice(game, db, p, src, branches, policy);
             }
+        }
+        // (lot cartes-7) *Mars University* : « you MAY discard a card. If that
+        // card had a [plant], draw two cards. Otherwise, draw a card. »
+        //
+        // Résolue `mult` fois comme tout autre gain (livret p.9 l.106). À chaque
+        // résolution :
+        //   1. la branche « défausser » est FILTRÉE si la main est vide — à zéro
+        //      branche jouable, aucune question n'est posée (convention lot 3) ;
+        //   2. le « may » est un vrai choix de `Policy` (I4), branche 0 =
+        //      défausser (l'option imprimée), branche 1 = renoncer ;
+        //   3. QUELLE carte est un `Policy::discard_down(hand, 1)`, le point de
+        //      décision existant — aucune source de hasard nouvelle ;
+        //   4. le badge regardé est celui de la carte DÉFAUSSÉE, lu avant
+        //      qu'elle quitte la main, et la défausse passe par le chemin
+        //      unique `discard_from_hand`.
+        TrigGain::MayDiscardDraw {
+            if_tag,
+            draw_if,
+            draw_else,
+        } => {
+            for _ in 0..mult.max(0) {
+                if game.players[p].hand.is_empty() {
+                    break;
+                }
+                if policy.choose_option(&mut game.rng, p, 2) != 0 {
+                    continue;
+                }
+                let hand = game.players[p].hand.clone();
+                let idx = policy.discard_down(&mut game.rng, p, &hand, 1);
+                let Some(&i) = idx.first() else { continue };
+                if i >= hand.len() {
+                    continue; // renoncement explicite (convention du lot 3)
+                }
+                let card = hand[i];
+                let had = db.projects[card as usize].tags.contains(&if_tag);
+                if !discard_from_hand(game, p, card) {
+                    continue;
+                }
+                let n = if had { draw_if } else { draw_else };
+                for _ in 0..n {
+                    if let Some(c) = draw_card(game) {
+                        game.players[p].hand.push(c);
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// **(lot cartes-7) « When you use an "Action:" effect on one of your cards »** —
+/// *Assembly Lines*.
+///
+/// Levé par [`apply_blue_action`] APRÈS une activation qui a réellement produit
+/// un effet, pour toutes les cartes en jeu du joueur qui portent un
+/// `action_trigger`. Les actions STANDARD (forêt, température, océan, vente de
+/// carte) ne passent pas par `apply_blue_action` : elles ne le lèvent jamais,
+/// comme le veut le texte imprimé (« on one of **your cards** »).
+///
+/// Les effets empruntent `apply_action_eff`, le chemin unique des effets
+/// d'action — aucun second chemin de gain. Le compteur d'audit
+/// `action_mc_bonuses` est incrémenté ici, au site exact du mécanisme.
+fn fire_card_action_triggers(
+    game: &mut GameState,
+    db: &CardsDb,
+    p: usize,
+    policy: &mut dyn Policy,
+) {
+    // Cas courant : personne ne porte ce déclencheur — on sort sans allouer.
+    let any = game.players[p].played.iter().any(|&c| {
+        db.projects[c as usize]
+            .effect
+            .map_or(false, |s| !s.action_trigger.is_empty())
+    });
+    if !any {
+        return;
+    }
+    let sources = game.players[p].played.clone();
+    for src in sources {
+        let Some(spec) = db.projects[src as usize].effect else {
+            continue;
+        };
+        for e in spec.action_trigger {
+            if let ActionEff::Mc(n) = *e {
+                game.action_mc_bonuses += n.max(0) as u64;
+            }
+            apply_action_eff(game, db, p, *e, policy);
         }
     }
 }
@@ -1744,12 +2084,34 @@ fn build_forest(
             game.corp_forest_rebates += 1;
         }
     } else {
-        // (corpo-1) Helion : 20 MC payables en chaleur.
-        top_up_mc_with_heat(game, db, p, FOREST_MC_COST);
-        assert!(game.players[p].mc >= FOREST_MC_COST);
-        game.players[p].mc -= FOREST_MC_COST;
+        // (corpo-1) Helion : les MC d'une forêt sont payables en chaleur.
+        // (lot cartes-7) Le prix vient du service unique `standard_mc_cost` :
+        // le même que celui qu'a employé `action_options` pour proposer
+        // l'action (I2). La forêt payée en PLANTES, elle, n'y touche pas.
+        pay_standard_mc(game, db, p, FOREST_MC_COST);
     }
     gain_forest(game, db, p, policy);
+}
+
+/// **(lot cartes-7) Paiement d'une action standard qui coûte des MC**, par le
+/// service unique [`standard_mc_cost`] — donc au MÊME prix que celui auquel
+/// `action_options` a jugé l'action offerte (I2).
+///
+/// Le compteur d'audit `standard_action_discounts` est incrémenté ICI, à
+/// l'endroit exact où le joueur paie moins cher, et nulle part ailleurs.
+/// Comme tout coût en MC, il passe par `top_up_mc_with_heat` : Helion peut le
+/// payer en chaleur, comme partout.
+fn pay_standard_mc(game: &mut GameState, db: &CardsDb, p: usize, base: i64) {
+    let cost = standard_mc_cost(db, &game.players[p], base);
+    if cost < base {
+        game.standard_action_discounts += 1;
+    }
+    top_up_mc_with_heat(game, db, p, cost);
+    assert!(
+        game.players[p].mc >= cost,
+        "action standard sans le paiement requis"
+    );
+    game.players[p].mc -= cost;
 }
 
 fn action_options(
@@ -1771,16 +2133,24 @@ fn action_options(
     if pl.plants >= forest_plant_cost(db, pl) {
         out.push(ActionOpt::ForestWithPlants);
     }
-    if mc >= FOREST_MC_COST {
+    // (lot cartes-7) Les TROIS actions standard payantes en MC sont jugées au
+    // prix RÉDUIT du joueur (*Standard Technology*), par la même formule que le
+    // paiement : l'affordabilité et le paiement ne peuvent pas diverger (I2).
+    // La forêt en plantes et la température en chaleur ne coûtent pas de MC :
+    // elles n'y touchent pas (NEVER 8).
+    let remise = standard_action_discount(db, pl);
+    if mc >= standard_mc_cost_with(FOREST_MC_COST, remise) {
         out.push(ActionOpt::ForestWithMc);
     }
     if pl.heat >= TEMPERATURE_HEAT_COST && game.snap_temperature < TEMPERATURE_MAX {
         out.push(ActionOpt::TemperatureWithHeat);
     }
-    if mc >= TEMPERATURE_MC_COST && game.snap_temperature < TEMPERATURE_MAX {
+    if mc >= standard_mc_cost_with(TEMPERATURE_MC_COST, remise)
+        && game.snap_temperature < TEMPERATURE_MAX
+    {
         out.push(ActionOpt::TemperatureWithMc);
     }
-    if mc >= OCEAN_MC_COST && game.snap_oceans < NUM_OCEANS {
+    if mc >= standard_mc_cost_with(OCEAN_MC_COST, remise) && game.snap_oceans < NUM_OCEANS {
         out.push(ActionOpt::OceanWithMc);
     }
     if !pl.hand.is_empty() {
@@ -1987,7 +2357,12 @@ pub(crate) fn apply_blue_action(
     let bonus: Option<PhaseBonus> = spec
         .phase_bonus
         .filter(|b| game.players[p].chosen_phase == b.phase);
-    match action {
+    // (lot cartes-7) Le résultat est capturé : une activation qui a réellement
+    // produit un effet lève « When you use an "Action:" effect on one of your
+    // cards » (*Assembly Lines*). Les arms qui sortent par `return false` —
+    // coût impayable, effet impossible, montant nul — ne le lèvent pas : rien
+    // n'a été « utilisé ».
+    let applied = match action {
         Action::Fixed { cost, effect } => {
             // Le bonus peut REMPLACER le coût imprimé (« spend 3 plants
             // instead ») ; sinon le coût est celui de l'action.
@@ -2193,7 +2568,11 @@ pub(crate) fn apply_blue_action(
             }
             true
         }
+    };
+    if applied {
+        fire_card_action_triggers(game, db, p, policy);
     }
+    applied
 }
 
 /// Phase I — Développement (livret p.11) : chacun peut jouer 1 carte verte ;
@@ -2329,14 +2708,13 @@ fn phase_action(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
                     raise_temperature(game, db, p, policy);
                 }
                 ActionOpt::TemperatureWithMc => {
-                    // (corpo-1) Helion : chaleur convertie en MC si nécessaire.
-                    top_up_mc_with_heat(game, db, p, TEMPERATURE_MC_COST);
-                    game.players[p].mc -= TEMPERATURE_MC_COST;
+                    // (lot cartes-7) Prix par le service unique ; (corpo-1)
+                    // Helion : chaleur convertie en MC si nécessaire.
+                    pay_standard_mc(game, db, p, TEMPERATURE_MC_COST);
                     raise_temperature(game, db, p, policy);
                 }
                 ActionOpt::OceanWithMc => {
-                    top_up_mc_with_heat(game, db, p, OCEAN_MC_COST);
-                    game.players[p].mc -= OCEAN_MC_COST;
+                    pay_standard_mc(game, db, p, OCEAN_MC_COST);
                     reveal_ocean(game, db, p, policy);
                 }
                 ActionOpt::SellCard => {
@@ -2344,7 +2722,11 @@ fn phase_action(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
                     let i = game.rng.gen_range(0..n);
                     let card = game.players[p].hand.remove(i);
                     game.discard.push(card);
-                    game.players[p].mc += SELL_CARD_MC;
+                    // (lot cartes-7) « Cards you discard for MC » : la vente de
+                    // carte EST une défausse pour du MC, et elle ne coûte rien —
+                    // la réduction de *Standard Technology* ne s'y applique
+                    // jamais (NEVER 8), le taux de *Composting Factory* si.
+                    game.players[p].mc += discard_mc_rate(db, &game.players[p]);
                 }
             }
         }
@@ -2665,10 +3047,16 @@ pub fn play_round(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
             idx.sort_unstable();
             idx.dedup();
             assert_eq!(idx.len(), over, "défausse de fin de ronde: doublons");
+            // (lot cartes-7, journal D1) « Pour chaque carte ainsi défaussée,
+            // le joueur gagne 3 MC, **comme toujours** » (livret l. 437 et
+            // 654) : c'est bien une défausse pour du MC, donc le taux du
+            // service unique — contrairement à la lecture proposée par le
+            // contrat, que le livret et le code contredisent tous deux.
+            let rate = discard_mc_rate(db, &game.players[p]);
             for &i in idx.iter().rev() {
                 let card = game.players[p].hand.remove(i);
                 game.discard.push(card);
-                game.players[p].mc += SELL_CARD_MC;
+                game.players[p].mc += rate;
             }
         }
     }

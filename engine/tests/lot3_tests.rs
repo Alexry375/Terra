@@ -320,11 +320,15 @@ fn c3_default_policy_discards_the_minimum_number_of_cards() {
     let mut rng = <StdRng as rand::SeedableRng>::seed_from_u64(1);
     let mut pol = RandomPolicy;
     let hand = vec![0u16; 10];
-    assert_eq!(pol.discard_payment_count(&mut rng, 0, 10, 8, &hand), 0, "les MC suffisent");
-    assert_eq!(pol.discard_payment_count(&mut rng, 0, 2, 8, &hand), 2, "6 manquants → 2 cartes");
-    assert_eq!(pol.discard_payment_count(&mut rng, 0, 0, 8, &hand), 3, "8 manquants → 3 cartes");
+    // (lot cartes-7) La méthode reçoit désormais le TAUX de défausse du joueur,
+    // rendu par `flow::discard_mc_rate` : ici le taux du livret, `SELL_CARD_MC`.
+    // Les quatre attentes sont inchangées — c'est bien la même règle.
+    let r = SELL_CARD_MC;
+    assert_eq!(pol.discard_payment_count(&mut rng, 0, 10, 8, &hand, r), 0, "les MC suffisent");
+    assert_eq!(pol.discard_payment_count(&mut rng, 0, 2, 8, &hand, r), 2, "6 manquants → 2 cartes");
+    assert_eq!(pol.discard_payment_count(&mut rng, 0, 0, 8, &hand, r), 3, "8 manquants → 3 cartes");
     // Jamais plus de cartes que la main n'en contient.
-    assert_eq!(pol.discard_payment_count(&mut rng, 0, 0, 90, &hand), 10);
+    assert_eq!(pol.discard_payment_count(&mut rng, 0, 0, 90, &hand, r), 10);
 }
 
 #[test]
@@ -484,8 +488,9 @@ fn c3_policy_hook_drives_the_number_of_discarded_cards() {
             mc: i64,
             cost: i64,
             hand: &[u16],
+            rate: i64,
         ) -> usize {
-            (self.0.discard_payment_count(r, p, mc, cost, hand) + 1).min(hand.len())
+            (self.0.discard_payment_count(r, p, mc, cost, hand, rate) + 1).min(hand.len())
         }
         fn research_keep(&mut self, r: &mut StdRng, p: usize, d: &[u16], k: usize) -> Vec<usize> {
             self.0.research_keep(r, p, d, k)
@@ -675,7 +680,7 @@ fn probe_reports_discarded_cards_and_surplus() {
     let r = run_probe_seq_opts(
         &db,
         &["Comet"],
-        ProbeOptions { mc: 0, filler: 9, strict: false, phase: 0 },
+        ProbeOptions { mc: 0, filler: 9, strict: false, phase: 0, plants: 20 },
     );
     assert!(r.played);
     assert_eq!(r.paid, vec![25]);
@@ -690,7 +695,7 @@ fn probe_does_not_discard_when_mc_are_enough() {
     let r = run_probe_seq_opts(
         &db,
         &["Lichen"],
-        ProbeOptions { mc: 5, filler: 5, strict: false, phase: 0 },
+        ProbeOptions { mc: 5, filler: 5, strict: false, phase: 0, plants: 20 },
     );
     assert!(r.played);
     assert_eq!(r.paid, vec![5]);
@@ -744,10 +749,10 @@ fn probe_strict_applies_the_real_rule_card_by_card() {
 fn probe_strict_refuses_an_unpayable_card() {
     // Payabilité réelle (MC + défausse), pas une règle réécrite pour la sonde.
     let db = db();
-    let poor = ProbeOptions { mc: 0, filler: 0, strict: true, phase: 0 };
+    let poor = ProbeOptions { mc: 0, filler: 0, strict: true, phase: 0, plants: 20 };
     let r = run_probe_seq_opts(&db, &["Comet"], poor);
     assert!(!r.played, "0 MC, aucune monnaie de défausse : Comet est impayable");
-    let rich = ProbeOptions { mc: 0, filler: 9, strict: true, phase: 0 };
+    let rich = ProbeOptions { mc: 0, filler: 9, strict: true, phase: 0, plants: 20 };
     assert!(run_probe_seq_opts(&db, &["Comet"], rich).played);
 }
 

@@ -434,6 +434,18 @@ pub struct GameState {
     /// Cartes RÉELLEMENT révélées du dessus de la pioche —
     /// `flow::reveal_top`.
     pub cards_revealed: u64,
+    // ------------------------------------------------------- lot cartes-7
+    // Deux compteurs qui rendent les mécanismes du lot 7 observables EN PARTIE
+    // RÉELLE, et pas seulement sous la sonde. Chacun est incrémenté à l'endroit
+    // EXACT du mécanisme, jamais dans une fonction de résumé, jamais depuis la
+    // sonde ; tous deux nuls en `--effects off` (le service qui les porte y rend
+    // 0 de lui-même).
+    /// Actions standard payées MOINS CHER grâce à *Standard Technology* —
+    /// incrémenté dans `flow::pay_standard_mc`, une fois par action réduite.
+    pub standard_action_discounts: u64,
+    /// MC gagnés par *Assembly Lines* sur l'activation d'une action de carte —
+    /// incrémenté dans `flow::fire_card_action_triggers`, en MC.
+    pub action_mc_bonuses: u64,
 }
 
 impl GameState {

@@ -269,11 +269,19 @@ fn les_cartes_declarees_non_gerees_le_sont_reellement() {
     // déclarée ne change RIEN à l'état.
     // 28-07, lot acier-titane : 4 de plus sont encodées (les seules dont le
     // texte parlait d'un NOMBRE d'aciers ou de titanes), il en reste **14**.
-    assert_eq!(n, 14, "cartes muettes de la boîte de base");
-    // Les quatre cartes du groupe C du lot 5 (Biothermal Power, Mangrove,
-    // Plantation, Protected Valley) ont quitté cette liste : elles sont
-    // désormais encodées, et `lot5_tests.rs` les confronte à leur texte imprimé.
-    for muette in ["Extended Resources", "Interns", "United Planetary Alliance"] {
+    // 28-07, lot cartes-7 : 9 de plus sont encodées (les modificateurs
+    // PERMANENTS — phase de recherche, taux de défausse, prix des actions
+    // standard, réduction payée en plantes, souplesse de prérequis,
+    // déclencheur d'action de carte, déclencheur de badge science), il en reste
+    // **5**. Le canari est déplacé, jamais désactivé : la boucle ci-dessus
+    // vérifie toujours, carte par carte et par la sonde, que chaque muette
+    // déclarée ne change RIEN à l'état.
+    assert_eq!(n, 5, "cartes muettes de la boîte de base");
+    // (lot cartes-7) Les trois témoins nommés étaient *Extended Resources*,
+    // *Interns* et *United Planetary Alliance* : elles sont encodées depuis ce
+    // lot. Remplacées par trois des cinq cartes hors périmètre, qui restent
+    // déclarées ABSENT par `moteur-vs-imprime.md`.
+    for muette in ["Asset Liquidation", "Special Design", "Work Crews"] {
         let c = db
             .recensement()
             .into_iter()
@@ -313,11 +321,13 @@ fn le_compteur_s_incremente_carte_par_carte_a_la_pose() {
     // Une carte encodée puis une carte muette, posées par le chemin réel : le
     // compteur ne bouge que pour la seconde.
     let encodee = db.resolve_card("Comet").expect("Comet");
-    // Carte témoin muette : `Power Plant` jusqu'au lot 5, qui l'a encodée.
-    // `Interns` la remplace — elle est hors périmètre du lot 5 (elle réclame des
-    // activations d'action supplémentaires, mécanisme absent du moteur) et fait
-    // partie des 29 muettes restantes.
-    let muette = db.resolve_card("Interns").expect("Interns");
+    // Carte témoin muette : `Power Plant` jusqu'au lot 5, qui l'a encodée ;
+    // `Interns` jusqu'au lot cartes-7, qui l'a encodée à son tour.
+    // `Work Crews` la remplace — elle est hors périmètre du lot cartes-7 (elle
+    // partage avec les quatre autres le mécanisme « jouer une carte de plus
+    // dans cette phase », toujours absent du moteur) et fait partie des
+    // 5 muettes restantes.
+    let muette = db.resolve_card("Work Crews").expect("Work Crews");
     assert!(db.projects[encodee as usize].effect.is_some());
     assert!(db.projects[muette as usize].effect.is_none());
 

@@ -278,6 +278,10 @@ pub struct GameOutcome {
     pub action_discard_costs: u64,
     pub draw_discard_discards: u64,
     pub cards_revealed: u64,
+    /// (lot cartes-7) Actions standard payées moins cher (Standard Technology).
+    pub standard_action_discounts: u64,
+    /// (lot cartes-7) MC gagnés par Assembly Lines sur une action de carte.
+    pub action_mc_bonuses: u64,
 }
 
 /// Joue une partie complète (politique fournie), invariants vérifiés à chaque
@@ -329,6 +333,8 @@ pub fn play_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameOutcom
         action_discard_costs: game.action_discard_costs,
         draw_discard_discards: game.draw_discard_discards,
         cards_revealed: game.cards_revealed,
+        standard_action_discounts: game.standard_action_discounts,
+        action_mc_bonuses: game.action_mc_bonuses,
     }
 }
 
@@ -392,6 +398,10 @@ pub struct SimSummary {
     pub action_discard_costs: u64,
     pub draw_discard_discards: u64,
     pub cards_revealed: u64,
+    /// (lot cartes-7) Actions standard payées moins cher (Standard Technology).
+    pub standard_action_discounts: u64,
+    /// (lot cartes-7) MC gagnés par Assembly Lines sur une action de carte.
+    pub action_mc_bonuses: u64,
 }
 
 /// Lance `games` parties aléatoires. Graine unique : un RNG maître seedé par
@@ -437,6 +447,8 @@ pub fn run_simulation(
     let mut action_discard_costs = 0u64;
     let mut draw_discard_discards = 0u64;
     let mut cards_revealed = 0u64;
+    let mut standard_action_discounts = 0u64;
+    let mut action_mc_bonuses = 0u64;
 
     let t0 = std::time::Instant::now();
     for _ in 0..games {
@@ -479,6 +491,8 @@ pub fn run_simulation(
         action_discard_costs += out.action_discard_costs;
         draw_discard_discards += out.draw_discard_discards;
         cards_revealed += out.cards_revealed;
+        standard_action_discounts += out.standard_action_discounts;
+        action_mc_bonuses += out.action_mc_bonuses;
         turn_orders.push(out.turn_order);
         agg.write_u64(out.state_hash);
     }
@@ -522,5 +536,7 @@ pub fn run_simulation(
         action_discard_costs,
         draw_discard_discards,
         cards_revealed,
+        standard_action_discounts,
+        action_mc_bonuses,
     }
 }

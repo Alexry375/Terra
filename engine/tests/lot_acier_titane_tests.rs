@@ -243,6 +243,12 @@ fn la_couleur_fait_partie_du_critere() {
         on_build: &[],
         prod: None,
         research: None,
+        // (lot cartes-7) Quatre champs de plus dans `CardEffects`, tous neutres
+        // ici : ce test ne porte que sur la couleur du porteur d'un savoir-faire.
+        discard_bonus: 0,
+        standard_discount: 0,
+        req_color_flex: false,
+        action_trigger: &[],
     };
     let mut db = db();
     let verte = db
@@ -890,6 +896,9 @@ fn la_table_a_une_entree_et_une_seule_par_carte_du_lot() {
 }
 
 #[test]
+// (lot cartes-7) ATTENTE MISE À JOUR (14 → 5) : les neuf modificateurs
+// permanents sont encodés. Le nom de la fonction est conservé — le renommer
+// toucherait le lot acier-titane sans rien prouver de plus.
 fn quatorze_cartes_restent_muettes_en_boite_de_base() {
     let db = CardsDb::load_boites(CARDS, BoiteSet::parse("base").unwrap()).expect("base");
     let muettes: Vec<&str> = db
@@ -898,7 +907,7 @@ fn quatorze_cartes_restent_muettes_en_boite_de_base() {
         .filter(|c| !c.effets_geres)
         .map(|c| c.name)
         .collect();
-    assert_eq!(muettes.len(), 14, "{muettes:?}");
+    assert_eq!(muettes.len(), 5, "{muettes:?}");
     for nom in LOT {
         assert!(!muettes.contains(&nom), "{nom} ne doit plus être muette");
     }

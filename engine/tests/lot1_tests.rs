@@ -430,14 +430,28 @@ fn effects_off_makes_probe_neutral() {
 }
 
 /// Une carte hors lot reste un stub neutre jouable même avec les effets ON.
+///
+/// (lot cartes-7) Ce test nommait *Adaptation Technology* comme exemple de
+/// carte sans encodage. Elle est encodée depuis ce lot : le témoin était devenu
+/// faux, non par régression mais parce que le travail demandé l'a rendu faux —
+/// déclaré au journal (§D8) et dans `result.md`. **L'assertion n'est pas
+/// affaiblie** : elle est rendue indépendante d'un nom de carte, en cherchant
+/// dans la pioche réelle la première carte que le moteur n'encode pas. Elle
+/// restera vraie au lot suivant, quelle que soit la carte encodée.
 #[test]
 fn out_of_lot_card_stays_neutral_stub() {
     let db = db();
-    let r = run_probe(&db, "Adaptation Technology"); // bleue, hors lot
-    assert!(r.found && r.played);
-    assert!(!r.in_lot);
-    assert!(r.prereq_ok);
-    assert_eq!(r.delta, engine::probe::ProbeDelta::default());
+    let nom = db
+        .projects
+        .iter()
+        .find(|c| c.in_deck && c.effect.is_none())
+        .map(|c| c.name.clone())
+        .expect("au moins une carte de la pioche reste sans encodage");
+    let r = run_probe(&db, &nom);
+    assert!(r.found && r.played, "carte témoin : {nom}");
+    assert!(!r.in_lot, "carte témoin : {nom}");
+    assert!(r.prereq_ok, "carte témoin : {nom}");
+    assert_eq!(r.delta, engine::probe::ProbeDelta::default(), "témoin {nom}");
 }
 
 /// Le score compte les VP fixes des cartes jouées avec les effets ON,

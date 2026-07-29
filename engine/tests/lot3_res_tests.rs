@@ -779,13 +779,15 @@ fn every_lot3_card_is_encoded_and_resolves_to_the_v1_deck() {
     // dérivées, NT par badge, bonus de recherche) + 33 (lot 5 : les muettes de
     // la boîte de base) + 11 (lot 6 : actions bleues et manipulation de la
     // main) + 4 (lot acier-titane : Advanced Alloys, Aquifer Pumping,
-    // Solarpunk, Water Import from Europa) = 203 entrées.
+    // Solarpunk, Water Import from Europa) + 9 (lot cartes-7 : les neuf
+    // modificateurs permanents) = 212 entrées.
     //
     // ATTENTE MISE À JOUR par le lot 5 (155 → 188), par le lot 6 (188 → 199),
-    // puis par le lot acier-titane (199 → 203) : le test n'est ni supprimé ni
-    // assoupli, il continue d'épingler la taille EXACTE de la table. Les
-    // 28 cartes du lot 3 vérifiées juste au-dessus le sont à l'identique.
-    assert_eq!(engine::effects::LOT1.len(), 203);
+    // par le lot acier-titane (199 → 203), puis par le lot cartes-7
+    // (203 → 212) : le test n'est ni supprimé ni assoupli, il continue
+    // d'épingler la taille EXACTE de la table. Les 28 cartes du lot 3 vérifiées
+    // juste au-dessus le sont à l'identique.
+    assert_eq!(engine::effects::LOT1.len(), 212);
 }
 
 #[test]
