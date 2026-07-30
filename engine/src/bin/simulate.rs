@@ -14,6 +14,7 @@
 
 use engine::boites::BoiteSet;
 use engine::cards::CardsDb;
+use engine::observe::{state_view, ObservingPolicy};
 use engine::policy::RandomPolicy;
 use engine::probe::{
     run_probe_action_target, run_probe_seq_corp, ProbeCorp, ProbeDelta, ProbeOptions, ProbeRes,
@@ -119,6 +120,10 @@ fn main() {
     // (boites-1) Boîtes actives et recensement de la pioche composée.
     let mut boites = BoiteSet::default();
     let mut dump_deck = false;
+    // (moteur-observe) Observation de chaque décision, et vue de l'état de départ.
+    let mut observe = false;
+    let mut observe_full_state = false;
+    let mut dump_state = false;
 
     let args: Vec<String> = std::env::args().skip(1).collect();
     let mut i = 0;
@@ -308,6 +313,27 @@ fn main() {
                 dump_turn_order = true;
                 i += 1;
             }
+            // (moteur-observe) Une ligne JSON par DÉCISION, écrite au moment où
+            // la politique est consultée, avec l'état vivant de la partie. Le
+            // bilan de partie reste la dernière ligne.
+            "--observe" => {
+                observe = true;
+                i += 1;
+            }
+            // (moteur-observe) Joint à chaque observation la vue COMPLÈTE de
+            // l'état (`observe::state_view`), sous la clef `state`. Volumineux :
+            // c'est une option d'`--observe`, pas son défaut.
+            "--observe-state" => {
+                observe = true;
+                observe_full_state = true;
+                i += 1;
+            }
+            // (moteur-observe) La vue sérialisable de l'état de DÉPART d'une
+            // partie, après mise en place.
+            "--dump-state" => {
+                dump_state = true;
+                i += 1;
+            }
             other => die(&format!("argument inconnu: {other}")),
         }
     }
@@ -354,6 +380,22 @@ fn main() {
             });
             println!("{line}");
         }
+        return;
+    }
+
+    // (moteur-observe) La vue sérialisable de l'état de DÉPART, après mise en
+    // place. La graine employée est celle de la PREMIÈRE partie que
+    // `--games N --seed S` jouerait : `run_simulation` tire la graine de chaque
+    // partie d'un RNG maître seedé par `--seed` (D11), et l'on refait ici le
+    // même premier tirage. La vue décrit donc une partie que le simulateur joue
+    // réellement, pas une mise en place parallèle.
+    if dump_state {
+        use rand::{RngCore, SeedableRng};
+        let mut master = rand::rngs::StdRng::seed_from_u64(seed);
+        let game_seed = master.next_u64();
+        let mut policy = RandomPolicy;
+        let game = engine::flow::setup_game(&db, game_seed, &mut policy);
+        println!("{}", state_view(&game, &db));
         return;
     }
 
@@ -466,8 +508,23 @@ fn main() {
         return;
     }
 
-    let mut policy = RandomPolicy;
-    let s = run_simulation(&db, games, seed, &mut policy);
+    // (moteur-observe) `--observe` enveloppe la politique de jeu ordinaire dans
+    // `ObservingPolicy`, qui délègue TOUTES ses réponses : le déroulement est
+    // bit à bit celui de la ligne du dessous. Les observations partent au fil de
+    // l'eau sur stdout (une ligne JSON par décision) et ne sont PAS gardées en
+    // mémoire — sur des centaines de parties, elles s'y compteraient en
+    // millions ; c'est la sortie qui est le registre. En bibliothèque,
+    // `ObservingPolicy::records()` les garde (défaut), et les tests s'en servent.
+    let mut base = RandomPolicy;
+    let s = if observe {
+        let mut policy = ObservingPolicy::new(&db, RandomPolicy)
+            .emitting(true)
+            .with_full_state(observe_full_state)
+            .keeping(false);
+        run_simulation(&db, games, seed, &mut policy)
+    } else {
+        run_simulation(&db, games, seed, &mut base)
+    };
 
     // games_per_sec est informatif mais non déterministe : il irait à
     // l'encontre du critère « même graine → sortie strictement identique »

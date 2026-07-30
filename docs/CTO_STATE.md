@@ -3,7 +3,73 @@
 > Source de vérité du projet. Ancrée au code (`fichier:ligne`) dès qu'il y aura du
 > code. [VÉRIFIÉ JJ-MM] = relu à la source ce jour-là. [DÉCLARÉ] = non re-vérifié.
 
-Dernière mise à jour : 2026-07-29 (soir)
+Dernière mise à jour : 2026-07-30
+
+## 👁️ LE MOTEUR EST DEVENU OBSERVABLE (30-07) — `moteur-observe`, audité OK et promu
+
+**Jusqu'à aujourd'hui, celui qui décide dans le moteur ne voyait RIEN de la
+partie.** Le trait `Policy` — le point de passage unique de toutes les décisions
+d'un joueur — ne recevait que le tirage aléatoire et la liste des options. Ni son
+argent, ni ses badges, ni la température, ni sa main. Conséquence : une
+intelligence artificielle aurait été aveugle, et une interface n'aurait pas pu
+afficher l'état exact au moment d'une décision. [VÉRIFIÉ 30-07 aux 33 sites
+d'appel de `flow.rs`]
+
+Ce chantier ouvre la vue, **sans changer une seule décision** :
+
+- `Policy::observe(&mut self, &GameState, player)` — **corps par défaut vide**
+  (`engine/src/policy.rs:52`). Les politiques existantes l'héritent, ne
+  consomment pas le tirage aléatoire, décident exactement comme avant.
+- **33 sites de décision recensés, 33 équipés** dans `flow.rs`. Le diff est
+  **purement additif** : 33 lignes ajoutées, 0 retirée, 0 modifiée. Aucun site
+  structurellement inéquipable. Aucun `unsafe`, aucun `RefCell`.
+  [VÉRIFIÉ 30-07 par diff et par recensement automatique]
+- `engine/src/observe.rs` (neuf, 420 lignes) : `ObservingPolicy` enveloppe une
+  politique, l'observe et **délègue les 15 méthodes** du trait ; `state_view()`
+  rend `GameState` en JSON. Le score vient de `flow::score_parts`, le point de
+  calcul unique du moteur — pas de barème parallèle.
+- Exposé par `--observe` (une ligne JSON par décision) et `--dump-state`.
+  C'est ce que consommera le pont navigateur de l'interface.
+
+**Les chiffres** [VÉRIFIÉ 30-07 après promotion, dans le dépôt] :
+
+| Mesure | Valeur |
+|---|---|
+| Empreintes de référence | `cee020cda9db283b`, `981bb47e336034cc`, `c20dd5be100de393` — **les 3 inchangées** |
+| Tests | **810 verts** (793 avant + 17 neufs), 0 ignoré, aucun test existant touché |
+| Observations sur une partie | ~335 à 383 selon la graine |
+
+### Ce que mes contrôles cachés ont prouvé, et ce qu'ils ont raté
+
+Les deux contrôles cachés sont passés. Le premier **recompile le moteur d'origine**
+et compare sur trois graines écrites nulle part dans le contrat, avec et sans
+observation : identiques. Le second recoupe le flux d'observations contre le
+compteur de manches que le moteur publie lui-même : 34 manches vues / 34 jouées,
+43 / 43.
+
+**Mon erreur** : mon deuxième contrôle caché exigeait un TR strictement
+croissant. Faux — `state.rs:509` (`spend_tr`) le fait reculer légitimement, car
+des cartes exigent d'en dépenser (`flow.rs:1807`, `flow.rs:3188`). J'ai corrigé
+le contrôle, pas la livraison. [VÉRIFIÉ 30-07]
+
+**Deux défauts de mon contrat, trouvés avant scellement** : une expression de
+recherche qui ne reconnaissait pas le type écrit sous sa forme complète ; et
+surtout quatre tests du moteur qui lisent `../data/cards.json` par un chemin
+relatif inexistant dès qu'on copie le moteur — l'agent aurait vu quatre tests
+rouges avant d'écrire une ligne. Remède documenté dans le contrat.
+
+### Sabotage rejoué par ma main [VÉRIFIÉ 30-07]
+
+J'ai retiré une observation sur les 33 et relancé les tests de l'agent :
+`une_observation_avant_chaque_decision` passe au rouge (« 2 décisions prises sans
+observation préalable »). Ses tests mordent réellement.
+
+### Un test fragile, préexistant, à surveiller
+
+`tests/lot7_tests.rs:1645` exige plus de 3 000 parties/s. Sous charge machine il
+échoue par intermittence — **reproduit à l'identique sur le moteur d'origine**
+(2 572 parties/s sur la première mesure), donc ce n'est **pas** une régression du
+chantier. Machine au repos : ~6 500 à 7 000 parties/s. [VÉRIFIÉ 30-07]
 
 ## Infrastructure du dépôt
 

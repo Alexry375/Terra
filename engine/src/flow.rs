@@ -171,6 +171,7 @@ pub fn setup_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameState
 
     // 2. Mulligan corporations — règle maison n°1 (avant les cartes projets).
     for p in 0..NUM_PLAYERS {
+        policy.observe(&game, p);
         if policy.corp_mulligan(&mut game.rng, p, &corps[p]) {
             for c in corps[p].drain(..) {
                 game.corp_discard.push(c);
@@ -191,6 +192,7 @@ pub fn setup_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameState
     // 4. Mulligan projets — règle maison n°2 (les 8 ou aucune, en une fois).
     for p in 0..NUM_PLAYERS {
         let hand_snapshot = game.players[p].hand.clone();
+        policy.observe(&game, p);
         if policy.project_mulligan(&mut game.rng, p, &hand_snapshot) {
             let old: Vec<u16> = game.players[p].hand.drain(..).collect();
             game.discard.extend(old);
@@ -201,6 +203,7 @@ pub fn setup_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameState
 
     // 5. Choix final de corporation, cartes projets en main.
     for p in 0..NUM_PLAYERS {
+        policy.observe(&game, p);
         let pick = policy.pick_corporation(&mut game.rng, p, &corps[p]);
         assert!(pick < corps[p].len(), "choix de corporation hors bornes");
         let chosen = corps[p].remove(pick);
@@ -436,6 +439,7 @@ pub fn ensure_joker_tag(
         return; // le badge est DÉFINITIF : jamais réécrit.
     }
     let counts = game.players[p].tag_counts;
+    policy.observe(&game, p);
     let i = policy.pick_joker_tag(&mut game.rng, p, card_id, &counts);
     // Un indice hors bornes est un manquement au contrat de `Policy`, pas un cas
     // de jeu : le moteur le SIGNALE au lieu de le raboter en silence sur EVENT.
@@ -787,6 +791,7 @@ pub fn gain_tr(game: &mut GameState, db: &CardsDb, p: usize, policy: &mut dyn Po
         return;
     }
     // Deux branches jouables : payer (0, l'option imprimée) ou renoncer (1).
+    policy.observe(&game, p);
     if policy.choose_option(&mut game.rng, p, 2) != 0 {
         return;
     }
@@ -1000,6 +1005,7 @@ fn apply_phase_upgrade(
     let i = if cands.len() == 1 {
         0
     } else {
+        policy.observe(&game, p);
         policy.choose_option(&mut game.rng, p, cands.len())
     };
     let (phase, variant) = cands[i.min(cands.len() - 1)];
@@ -1112,6 +1118,7 @@ fn apply_res_eff(
             let target = if put.target == ResTarget::SelfCard {
                 self_card
             } else {
+                policy.observe(&game, p);
                 let i = policy.choose_res_target(&mut game.rng, p, &cands);
                 if i >= cands.len() {
                     return; // renoncement explicite (journal D4)
@@ -1142,6 +1149,7 @@ fn apply_res_eff(
             if cands.is_empty() {
                 return;
             }
+            policy.observe(&game, p);
             let i = policy.choose_res_source(&mut game.rng, p, &cands);
             if i >= cands.len() {
                 return; // renoncement explicite (journal D4)
@@ -1181,6 +1189,7 @@ fn apply_choice(
     let k = if playable.len() == 1 {
         0
     } else {
+        policy.observe(&game, p);
         let c = policy.choose_option(&mut game.rng, p, playable.len());
         if c >= playable.len() {
             return; // renoncement explicite (journal D4)
@@ -1681,6 +1690,7 @@ fn drain_pending_builds(
         let opts = affordable(game, db, p, &grant, disc);
         // « You MAY play an additional card » : renoncer est une option, et
         // c'est `Policy` qui tranche — jamais le moteur (I4).
+        policy.observe(&game, p);
         let Some(idx) = policy.choose_build(&mut game.rng, p, &opts) else {
             continue;
         };
@@ -1921,6 +1931,7 @@ fn apply_eff(game: &mut GameState, db: &CardsDb, p: usize, eff: Eff, policy: &mu
             if n == 0 {
                 return;
             }
+            policy.observe(&game, p);
             let idx = policy.discard_down(&mut game.rng, p, &cands, n);
             for &i in idx.iter().take(n) {
                 if i >= cands.len() {
@@ -2192,6 +2203,7 @@ pub fn build_card_granted(
         // Branche 0 = utiliser la réduction (l'option imprimée) ; branche 1 = y
         // renoncer.
         let use_it = if can_decline {
+            policy.observe(&game, p);
             policy.choose_option(&mut game.rng, p, 2) == 0
         } else {
             true
@@ -2218,6 +2230,7 @@ pub fn build_card_granted(
             rate,
         );
         let use_it = if can_decline {
+            policy.observe(&game, p);
             policy.choose_option(&mut game.rng, p, 2) == 0
         } else {
             true
@@ -2249,6 +2262,7 @@ pub fn build_card_granted(
         let can_decline =
             payable(game.players[p].mc, game.players[p].hand.len() + 1, cost, rate);
         let use_heat = if can_decline {
+            policy.observe(&game, p);
             policy.choose_option(&mut game.rng, p, 2) == 0
         } else {
             true
@@ -2266,6 +2280,7 @@ pub fn build_card_granted(
         // (lot cartes-7) La politique décide COMBIEN de cartes défausser : elle
         // reçoit donc le taux réel du joueur, sinon elle en défausserait trop
         // (elle divise le manque par le taux).
+        policy.observe(&game, p);
         let n =
             policy.discard_payment_count(&mut game.rng, p, game.players[p].mc, cost, &hand, rate);
         assert!(n <= game.players[p].hand.len(), "défausse-paiement hors main");
@@ -2495,10 +2510,12 @@ fn apply_trig_gain(
                 if game.players[p].hand.is_empty() {
                     break;
                 }
+                policy.observe(&game, p);
                 if policy.choose_option(&mut game.rng, p, 2) != 0 {
                     continue;
                 }
                 let hand = game.players[p].hand.clone();
+                policy.observe(&game, p);
                 let idx = policy.discard_down(&mut game.rng, p, &hand, 1);
                 let Some(&i) = idx.first() else { continue };
                 if i >= hand.len() {
@@ -2996,6 +3013,7 @@ fn reveal_top(
     // `choose_res_target`). La règle « on ne demande rien à une seule option »
     // ne vaut que pour les ALTERNATIVES du texte imprimé (`choose_option`).
     if take > 0 {
+        policy.observe(&game, p);
         let idx = policy.research_keep(&mut game.rng, p, &cands, take);
         for &i in idx.iter().take(take) {
             if i < cands.len() {
@@ -3172,6 +3190,7 @@ fn apply_action_spec(
                     // décision du joueur, prise par la politique existante.
                     ActionCost::DiscardCard(n) => {
                         let hand = game.players[p].hand.clone();
+                        policy.observe(&game, p);
                         let idx = policy.discard_down(&mut game.rng, p, &hand, n as usize);
                         let mut paid = 0u8;
                         for &i in idx.iter().take(n as usize) {
@@ -3248,6 +3267,7 @@ fn apply_action_spec(
             let k = if branches == 1 {
                 0
             } else {
+                policy.observe(&game, p);
                 let c = policy.choose_option(&mut game.rng, p, branches as usize);
                 if c >= branches as usize {
                     return false; // renoncement explicite (convention lot 3)
@@ -3263,6 +3283,7 @@ fn apply_action_spec(
         // inchangé — carte hors périmètre, I4.)
         Action::HeatToMc => {
             let max = game.players[p].heat;
+            policy.observe(&game, p);
             let amt = policy.action_amount(&mut game.rng, p, max).clamp(0, max);
             if amt <= 0 {
                 return false;
@@ -3310,6 +3331,7 @@ fn apply_action_spec(
         // « Discard up to `cap` cards, draw that many. »
         Action::DiscardDraw(cap) => {
             let max = (game.players[p].hand.len() as i64).min(cap);
+            policy.observe(&game, p);
             let amt = policy.action_amount(&mut game.rng, p, max).clamp(0, max);
             if amt <= 0 {
                 return false;
@@ -3349,6 +3371,7 @@ fn apply_action_spec(
             let k = if playable.len() == 1 {
                 0
             } else {
+                policy.observe(&game, p);
                 let c = policy.choose_option(&mut game.rng, p, playable.len());
                 if c >= playable.len() {
                     return false; // renoncement explicite (journal D4)
@@ -3498,6 +3521,7 @@ fn selector_branch(
     if branches.len() < 2 {
         return &branches[0];
     }
+    policy.observe(&game, p);
     let i = policy.choose_option(&mut game.rng, p, branches.len());
     &branches[i.min(branches.len() - 1)]
 }
@@ -3527,6 +3551,7 @@ fn phase_development(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy
         // badge réel, exactement comme le paiement le fera (I2).
         resolve_hand_jokers(game, db, p, policy);
         let opts = affordable(game, db, p, &GRANT_DEVELOPMENT, discount);
+        policy.observe(&game, p);
         if let Some(idx) = policy.choose_build(&mut game.rng, p, &opts) {
             assert!(opts.contains(&idx), "choix de construction hors options");
             build_card_granted(game, db, p, idx, discount, &GRANT_DEVELOPMENT, policy);
@@ -3559,6 +3584,7 @@ fn phase_construction(game: &mut GameState, db: &CardsDb, policy: &mut dyn Polic
         // AMÉLIORÉES ont leur propre forme : II-A donne les deux à la fois,
         // II-B est un « ou » à deux branches tranché par `Policy::choose_option`.
         let bonus = if sb.is_selector && sb.upgraded.is_none() {
+            policy.observe(&game, p);
             Some(policy.construction_bonus(&mut game.rng, p))
         } else {
             None
@@ -3600,6 +3626,7 @@ fn phase_construction(game: &mut GameState, db: &CardsDb, policy: &mut dyn Polic
         // badge réel, exactement comme le paiement le fera (I2).
         resolve_hand_jokers(game, db, p, policy);
         let opts = affordable(game, db, p, &GRANT_CONSTRUCTION, 0);
+        policy.observe(&game, p);
         if let Some(idx) = policy.choose_build(&mut game.rng, p, &opts) {
             assert!(opts.contains(&idx), "choix de construction hors options");
             build_card_granted(game, db, p, idx, 0, &GRANT_CONSTRUCTION, policy);
@@ -3637,6 +3664,7 @@ fn phase_construction(game: &mut GameState, db: &CardsDb, policy: &mut dyn Polic
                 // badge réel, exactement comme le paiement le fera (I2).
                 resolve_hand_jokers(game, db, p, policy);
                 let opts = affordable(game, db, p, grant, 0);
+                policy.observe(&game, p);
                 if let Some(idx) = policy.choose_build(&mut game.rng, p, &opts) {
                     assert!(opts.contains(&idx), "choix de construction hors options");
                     build_card_granted(game, db, p, idx, 0, grant, policy);
@@ -3718,6 +3746,7 @@ fn phase_action(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
                 corp_action_left[p],
                 &mut options,
             );
+            policy.observe(&game, p);
             let Some(choice) = policy.action_choice(&mut game.rng, p, &options) else {
                 passed[p] = true;
                 continue;
@@ -3888,6 +3917,7 @@ fn replay_green_production(
     let i = if cands.len() == 1 {
         0
     } else {
+        policy.observe(&game, p);
         policy.choose_option(&mut game.rng, p, cands.len())
     };
     if i >= cands.len() {
@@ -3959,6 +3989,7 @@ fn phase_research(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
         // pioche épuisée en donnerait moins) — relevé au site de pioche.
         game.research_extra_draws += drawn.len().saturating_sub(base_n) as u64;
         let keep = keep.min(drawn.len());
+        policy.observe(&game, p);
         let kept_idx = policy.research_keep(&mut game.rng, p, &drawn, keep);
         assert_eq!(kept_idx.len(), keep, "recherche: mauvais nombre de cartes gardées");
         let mut kept_flags = vec![false; drawn.len()];
@@ -4202,6 +4233,7 @@ pub fn play_round(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
     let mut picked = [false; 6];
     for p in 0..NUM_PLAYERS {
         let allowed = allowed_phases(&game.players[p]);
+        policy.observe(&game, p);
         let phase = policy.pick_phase(&mut game.rng, p, &allowed);
         assert!(
             allowed.contains(&phase),
@@ -4263,6 +4295,7 @@ pub fn play_round(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
         let over = game.players[p].hand.len().saturating_sub(HAND_LIMIT);
         if over > 0 {
             let hand_snapshot = game.players[p].hand.clone();
+            policy.observe(&game, p);
             let mut idx = policy.discard_down(&mut game.rng, p, &hand_snapshot, over);
             assert_eq!(idx.len(), over, "défausse de fin de ronde: mauvais nombre");
             idx.sort_unstable();

@@ -2,6 +2,7 @@
 //! choix ; TOUT l'aléatoire passe par le RNG de la partie (D11), fourni en
 //! paramètre — la politique elle-même ne possède pas de RNG.
 
+use crate::state::GameState;
 use rand::rngs::StdRng;
 use rand::Rng;
 
@@ -48,6 +49,26 @@ pub enum ActionOpt {
 /// scriptée ; `simulate` utilise `RandomPolicy`. Les deux passent par le même
 /// flux (`setup_game` / `play_round`).
 pub trait Policy {
+    /// **(moteur-observe) LA VUE DE LA PARTIE, juste avant chaque décision.**
+    ///
+    /// Appelée par `flow.rs` immédiatement avant CHAQUE appel à l'une des
+    /// méthodes de décision ci-dessous, avec l'état de la partie tel qu'il est
+    /// **à cet instant précis** — pas l'instantané de début de phase
+    /// (`GameState::snap_*`), pas une copie prise plus tôt. `player` est le
+    /// joueur à qui la décision qui suit va être demandée.
+    ///
+    /// **Corps par défaut vide, et c'est le point** : `RandomPolicy`,
+    /// `ProbePolicy` et toutes les politiques scriptées des tests l'héritent
+    /// sans une ligne de changement, ne consomment pas le RNG de la partie, et
+    /// décident donc exactement comme avant ce chantier. C'est ce qui rend les
+    /// trois empreintes de référence insensibles au câblage.
+    ///
+    /// Elle ne rend RIEN : une politique qui observe ne peut pas, par cette
+    /// méthode, infléchir le déroulement. Voir `crate::observe::ObservingPolicy`
+    /// pour l'usage, et `crate::observe::state_view` pour le rendu JSON de
+    /// l'état ainsi reçu.
+    fn observe(&mut self, _game: &GameState, _player: usize) {}
+
     /// Mulligan corporations (règle maison n°1) : remplacer SES 2 corporations
     /// par 2 nouvelles — les 2 ou aucune. Avant la donne des cartes projets.
     fn corp_mulligan(&mut self, rng: &mut StdRng, player: usize, corps: &[u16]) -> bool;

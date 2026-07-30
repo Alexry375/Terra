@@ -9,6 +9,7 @@ pub mod boites;
 pub mod cards;
 pub mod effects;
 pub mod flow;
+pub mod observe;
 pub mod policy;
 pub mod probe;
 pub mod sim;
