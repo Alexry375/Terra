@@ -5,6 +5,49 @@
 
 Dernière mise à jour : 2026-07-30
 
+## 🖼️ CHAQUE CARTE A SON IMAGE (30-07) — `harnais-images`, audité OK et promu
+
+**Les 262 cartes jouables ont chacune une image nette, découpée dans les planches
+du module Tabletop, et une entrée de catalogue qui dit d'où elle vient.** Le
+chantier 1 de l'interface est donc terminé : le moteur tourne dans le navigateur
+ET l'interface a de quoi montrer des cartes.
+
+- `web/webapp/assets/cartes/` : **262 images** (220 boîte de base + 42
+  Découverte), une par carte du deck moteur. Format WebP, 409x569 environ,
+  20 Mo au total. Noms de fichiers dérivés de la sortie exacte de `--dump-deck`.
+- `web/webapp/assets/plateau/` : **112 éléments** de table (tuiles océan,
+  compteurs forêt, jetons, astronautes, cartes Phase normales et améliorées,
+  dos de cartes, repères, récompenses), 11 Mo.
+- `web/webapp/assets/manifeste.json` : pour chaque image, la **planche, la ligne
+  et la colonne** d'origine.
+- `data/correspondance-decouverte.json` : les 42 cartes Découverte localisées sur
+  la planche, **plus les 39 cases surnuméraires** (autres extensions) consignées
+  à part pour prouver qu'aucune n'a été prise pour une carte de Découverte.
+  C'était la partie sans oracle : aucune donnée du dépôt ne disait où se trouvait
+  quelle carte de Découverte.
+
+**Ce que j'ai vérifié moi-même** [VÉRIFIÉ 30-07] :
+
+- les 262 noms du catalogue sont **exactement** le deck rendu par `--dump-deck`
+  (ni manquant, ni surnuméraire, ni doublon) ;
+- j'ai **lu de mes yeux** les 42 titres imprimés des cartes Découverte sur un
+  montage de bandeaux : 42/42 concordent avec le nom de fichier ;
+- les 42 **coûts imprimés** concordent avec `data/cards.json` — oracle
+  indépendant que ni l'agent ni moi n'avions utilisé pour construire la
+  correspondance ;
+- contrôle caché n° 1 (couleur du liseré gauche) : **246/246** cartes colorées
+  concordent avec la couleur encodée dans le moteur, 0 liseré illisible ;
+- contrôle caché n° 2 (redécoupe de la planche aux coordonnées annoncées) :
+  **44/44** après correction d'un défaut **de mon propre outil** ; éprouvé dans
+  le sens rouge, un décalage d'une seule colonne fait tomber 44/44.
+
+**Divergences déclarées par l'agent, toutes vérifiées justes** : aucune tuile
+« cité » n'existe dans les scans (le jeu de cartes n'en a pas — les 9 hexagones
+de la base sont 8 tuiles océan et 1 compteur forêt) ; la géométrie annoncée dans
+mon contrat était fausse pour trois planches sur quatre ; la planche des cartes
+Phase porte 10 faces améliorées et 5 faces normales, pas 15 améliorées — piège
+attrapé par l'agent en rouvrant ses propres découpes.
+
 ## 👁️ LE MOTEUR EST DEVENU OBSERVABLE (30-07) — `moteur-observe`, audité OK et promu
 
 **Jusqu'à aujourd'hui, celui qui décide dans le moteur ne voyait RIEN de la

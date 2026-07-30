@@ -1,0 +1,551 @@
+{
+ "planches": {
+  "DECO": {
+   "fichier": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "colonnes": 10,
+   "lignes": 7,
+   "pas_x": 409.6,
+   "pas_y": 569.0
+  },
+  "DECOCORP": {
+   "fichier": "data/scans/decouverte-tabletop/img_d80e604470e5.jpg",
+   "colonnes": 8,
+   "lignes": 3,
+   "pas_x": 512.0,
+   "pas_y": 712.0
+  }
+ },
+ "methode": "grille mesuree sur les bords de cartes, puis titre de chaque case lu a l'oeil et rattache au nom exact de --dump-deck",
+ "cartes": [
+  {
+   "nom": "3D Printing",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 1,
+   "colonne": 6,
+   "kind": "project"
+  },
+  {
+   "nom": "Apollo Industries",
+   "planche": "data/scans/decouverte-tabletop/img_d80e604470e5.jpg",
+   "ligne": 0,
+   "colonne": 0,
+   "kind": "corporation"
+  },
+  {
+   "nom": "Award Winning Reflector Material",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 3,
+   "colonne": 0,
+   "kind": "project"
+  },
+  {
+   "nom": "Biofoundries",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 1,
+   "colonne": 7,
+   "kind": "project"
+  },
+  {
+   "nom": "Biological Factories",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 3,
+   "colonne": 5,
+   "kind": "project"
+  },
+  {
+   "nom": "Biomedical Imports",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 0,
+   "colonne": 9,
+   "kind": "project"
+  },
+  {
+   "nom": "Blast Furnaces",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 1,
+   "colonne": 8,
+   "kind": "project"
+  },
+  {
+   "nom": "Communications Streamlining",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 0,
+   "colonne": 0,
+   "kind": "project"
+  },
+  {
+   "nom": "Cryogenic Shipment",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 1,
+   "colonne": 0,
+   "kind": "project"
+  },
+  {
+   "nom": "Dandelions",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 1,
+   "colonne": 9,
+   "kind": "project"
+  },
+  {
+   "nom": "Drone Assisted Construction",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 0,
+   "colonne": 1,
+   "kind": "project"
+  },
+  {
+   "nom": "Electric Arc Furnaces",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 2,
+   "colonne": 0,
+   "kind": "project"
+  },
+  {
+   "nom": "Exocorp",
+   "planche": "data/scans/decouverte-tabletop/img_d80e604470e5.jpg",
+   "ligne": 0,
+   "colonne": 1,
+   "kind": "corporation"
+  },
+  {
+   "nom": "Exosuits",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 1,
+   "colonne": 1,
+   "kind": "project"
+  },
+  {
+   "nom": "Experimental Technology",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 0,
+   "colonne": 2,
+   "kind": "project"
+  },
+  {
+   "nom": "Fibrous Composite Material",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 0,
+   "colonne": 5,
+   "kind": "project"
+  },
+  {
+   "nom": "Heat Reflective Glass",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 2,
+   "colonne": 3,
+   "kind": "project"
+  },
+  {
+   "nom": "Hematite Mining",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 2,
+   "colonne": 4,
+   "kind": "project"
+  },
+  {
+   "nom": "Hohmann Transfer Shipping",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 0,
+   "colonne": 4,
+   "kind": "project"
+  },
+  {
+   "nom": "Hydroponic Gardens",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 2,
+   "colonne": 5,
+   "kind": "project"
+  },
+  {
+   "nom": "Hyperion Systems",
+   "planche": "data/scans/decouverte-tabletop/img_d80e604470e5.jpg",
+   "ligne": 0,
+   "colonne": 2,
+   "kind": "corporation"
+  },
+  {
+   "nom": "Ilmenite Deposits",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 2,
+   "colonne": 6,
+   "kind": "project"
+  },
+  {
+   "nom": "Impact Analysis",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 0,
+   "colonne": 3,
+   "kind": "project"
+  },
+  {
+   "nom": "Imported Construction Crews",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 1,
+   "colonne": 2,
+   "kind": "project"
+  },
+  {
+   "nom": "Industrial Complex",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 2,
+   "colonne": 7,
+   "kind": "project"
+  },
+  {
+   "nom": "Local Market",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 2,
+   "colonne": 1,
+   "kind": "project"
+  },
+  {
+   "nom": "Magnetic Field Generator",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 3,
+   "colonne": 3,
+   "kind": "project"
+  },
+  {
+   "nom": "Manufacturing Hub",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 2,
+   "colonne": 2,
+   "kind": "project"
+  },
+  {
+   "nom": "Martian Museum",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 2,
+   "colonne": 8,
+   "kind": "project"
+  },
+  {
+   "nom": "Metallurgy",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 2,
+   "colonne": 9,
+   "kind": "project"
+  },
+  {
+   "nom": "Nuclear Detonation Site",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 3,
+   "colonne": 6,
+   "kind": "project"
+  },
+  {
+   "nom": "Ore Leaching",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 1,
+   "colonne": 3,
+   "kind": "project"
+  },
+  {
+   "nom": "Oxidation Byproducts",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 3,
+   "colonne": 1,
+   "kind": "project"
+  },
+  {
+   "nom": "Perfluorocarbon Production",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 3,
+   "colonne": 2,
+   "kind": "project"
+  },
+  {
+   "nom": "Political Influence",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 3,
+   "colonne": 4,
+   "kind": "project"
+  },
+  {
+   "nom": "Private Investor Beach",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 1,
+   "colonne": 4,
+   "kind": "project"
+  },
+  {
+   "nom": "Software Streamlining",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 0,
+   "colonne": 6,
+   "kind": "project"
+  },
+  {
+   "nom": "Sultira",
+   "planche": "data/scans/decouverte-tabletop/img_d80e604470e5.jpg",
+   "ligne": 0,
+   "colonne": 3,
+   "kind": "corporation"
+  },
+  {
+   "nom": "Topographic Mapping",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 1,
+   "colonne": 5,
+   "kind": "project"
+  },
+  {
+   "nom": "Virtual Employee Development",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 0,
+   "colonne": 7,
+   "kind": "project"
+  },
+  {
+   "nom": "Volcanic Soil",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 0,
+   "colonne": 8,
+   "kind": "project"
+  },
+  {
+   "nom": "Warehouses",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 3,
+   "colonne": 7,
+   "kind": "project"
+  }
+ ],
+ "hors_deck_moteur": [
+  {
+   "nom": "Assorted Enterprises",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 3,
+   "colonne": 8
+  },
+  {
+   "nom": "Commercial Imports",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 3,
+   "colonne": 9
+  },
+  {
+   "nom": "Diverse Habitats",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 4,
+   "colonne": 0
+  },
+  {
+   "nom": "Filter Feeders",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 4,
+   "colonne": 1
+  },
+  {
+   "nom": "Laboratories",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 4,
+   "colonne": 2
+  },
+  {
+   "nom": "Matter Generator",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 4,
+   "colonne": 3
+  },
+  {
+   "nom": "Processed Metals",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 4,
+   "colonne": 4
+  },
+  {
+   "nom": "Processing Plant",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 4,
+   "colonne": 5
+  },
+  {
+   "nom": "Progressive Policies",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 4,
+   "colonne": 6
+  },
+  {
+   "nom": "Synthetic Catastrophe",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 4,
+   "colonne": 7
+  },
+  {
+   "nom": "Cloned Bacteria",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 4,
+   "colonne": 8
+  },
+  {
+   "nom": "Bacterial Aggregates",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 4,
+   "colonne": 9
+  },
+  {
+   "nom": "City Council",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 5,
+   "colonne": 0
+  },
+  {
+   "nom": "Community Afforestation",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 5,
+   "colonne": 1
+  },
+  {
+   "nom": "Orbital Outpost",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 5,
+   "colonne": 2
+  },
+  {
+   "nom": "Gas-Cooled Reactors",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 5,
+   "colonne": 3
+  },
+  {
+   "nom": "Research Grant",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 5,
+   "colonne": 4
+  },
+  {
+   "nom": "Zoos",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 5,
+   "colonne": 5
+  },
+  {
+   "nom": "Innovative Technologies Award",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 5,
+   "colonne": 6
+  },
+  {
+   "nom": "Martian Studies Scholarship",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 5,
+   "colonne": 7
+  },
+  {
+   "nom": "Genetically Modified Vegetables",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 5,
+   "colonne": 8
+  },
+  {
+   "nom": "Glacial Evaporation",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 5,
+   "colonne": 9
+  },
+  {
+   "nom": "Tourism",
+   "planche": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg",
+   "ligne": 6,
+   "colonne": 0
+  },
+  {
+   "nom": "Inventrix",
+   "planche": "data/scans/decouverte-tabletop/img_d80e604470e5.jpg",
+   "ligne": 0,
+   "colonne": 4
+  },
+  {
+   "nom": "Arklight",
+   "planche": "data/scans/decouverte-tabletop/img_d80e604470e5.jpg",
+   "ligne": 0,
+   "colonne": 5
+  },
+  {
+   "nom": "Celestior",
+   "planche": "data/scans/decouverte-tabletop/img_d80e604470e5.jpg",
+   "ligne": 0,
+   "colonne": 6
+  },
+  {
+   "nom": "DevTechs",
+   "planche": "data/scans/decouverte-tabletop/img_d80e604470e5.jpg",
+   "ligne": 0,
+   "colonne": 7
+  },
+  {
+   "nom": "Launch Star Incorporated",
+   "planche": "data/scans/decouverte-tabletop/img_d80e604470e5.jpg",
+   "ligne": 1,
+   "colonne": 0
+  },
+  {
+   "nom": "Mai-Ni Productions",
+   "planche": "data/scans/decouverte-tabletop/img_d80e604470e5.jpg",
+   "ligne": 1,
+   "colonne": 1
+  },
+  {
+   "nom": "Zetasel",
+   "planche": "data/scans/decouverte-tabletop/img_d80e604470e5.jpg",
+   "ligne": 1,
+   "colonne": 2
+  },
+  {
+   "nom": "Nebu Labs",
+   "planche": "data/scans/decouverte-tabletop/img_d80e604470e5.jpg",
+   "ligne": 1,
+   "colonne": 3
+  },
+  {
+   "nom": "Modpro",
+   "planche": "data/scans/decouverte-tabletop/img_d80e604470e5.jpg",
+   "ligne": 1,
+   "colonne": 4
+  },
+  {
+   "nom": "The Next Step Initiative",
+   "planche": "data/scans/decouverte-tabletop/img_d80e604470e5.jpg",
+   "ligne": 1,
+   "colonne": 5
+  },
+  {
+   "nom": "Romirra",
+   "planche": "data/scans/decouverte-tabletop/img_d80e604470e5.jpg",
+   "ligne": 1,
+   "colonne": 6
+  },
+  {
+   "nom": "Austellar",
+   "planche": "data/scans/decouverte-tabletop/img_d80e604470e5.jpg",
+   "ligne": 1,
+   "colonne": 7
+  },
+  {
+   "nom": "Burstar",
+   "planche": "data/scans/decouverte-tabletop/img_d80e604470e5.jpg",
+   "ligne": 2,
+   "colonne": 0
+  },
+  {
+   "nom": "Magna Inc",
+   "planche": "data/scans/decouverte-tabletop/img_d80e604470e5.jpg",
+   "ligne": 2,
+   "colonne": 1
+  },
+  {
+   "nom": "Orbex United",
+   "planche": "data/scans/decouverte-tabletop/img_d80e604470e5.jpg",
+   "ligne": 2,
+   "colonne": 2
+  },
+  {
+   "nom": "Sharizen",
+   "planche": "data/scans/decouverte-tabletop/img_d80e604470e5.jpg",
+   "ligne": 2,
+   "colonne": 3
+  }
+ ]
+}

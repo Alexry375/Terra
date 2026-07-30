@@ -1,0 +1,1876 @@
+{
+ "cartes": [
+  {
+   "nom": "3D Printing",
+   "image": "cartes/3d-printing.webp",
+   "source": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg ligne 1 colonne 6"
+  },
+  {
+   "nom": "Acquired Company",
+   "image": "cartes/acquired-company.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 3 colonne 2"
+  },
+  {
+   "nom": "Adaptation Technology",
+   "image": "cartes/adaptation-technology.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 0 colonne 1"
+  },
+  {
+   "nom": "Adapted Lichen",
+   "image": "cartes/adapted-lichen.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 2 colonne 9"
+  },
+  {
+   "nom": "Advanced Alloys",
+   "image": "cartes/advanced-alloys.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 2 colonne 3"
+  },
+  {
+   "nom": "Advanced Ecosystems",
+   "image": "cartes/advanced-ecosystems.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 1 colonne 0"
+  },
+  {
+   "nom": "Advanced Screening Tech",
+   "image": "cartes/advanced-screening-tech.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 3 colonne 2"
+  },
+  {
+   "nom": "Aerated Magma",
+   "image": "cartes/aerated-magma.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 1 colonne 0"
+  },
+  {
+   "nom": "Ai Central",
+   "image": "cartes/ai-central.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 0 colonne 4"
+  },
+  {
+   "nom": "Airborne Radiation",
+   "image": "cartes/airborne-radiation.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 4 colonne 4"
+  },
+  {
+   "nom": "Algae",
+   "image": "cartes/algae.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 4 colonne 9"
+  },
+  {
+   "nom": "Anaerobic Microorganisms",
+   "image": "cartes/anaerobic-microorganisms.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 1 colonne 2"
+  },
+  {
+   "nom": "Anti-Gravity Technology",
+   "image": "cartes/anti-gravity-technology.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 2 colonne 0"
+  },
+  {
+   "nom": "Apollo Industries",
+   "image": "cartes/apollo-industries.webp",
+   "source": "data/scans/decouverte-tabletop/img_d80e604470e5.jpg ligne 0 colonne 0"
+  },
+  {
+   "nom": "Aquifer Pumping",
+   "image": "cartes/aquifer-pumping.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 0 colonne 7"
+  },
+  {
+   "nom": "Archaebacteria",
+   "image": "cartes/archaebacteria.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 2 colonne 4"
+  },
+  {
+   "nom": "Arctic Algae",
+   "image": "cartes/arctic-algae.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 0 colonne 0"
+  },
+  {
+   "nom": "Artificial Jungle",
+   "image": "cartes/artificial-jungle.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 2 colonne 7"
+  },
+  {
+   "nom": "Artificial Lake",
+   "image": "cartes/artificial-lake.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 3 colonne 7"
+  },
+  {
+   "nom": "Artificial Photosynthesis",
+   "image": "cartes/artificial-photosynthesis.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 0 colonne 1"
+  },
+  {
+   "nom": "Assembly Lines",
+   "image": "cartes/assembly-lines.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 4 colonne 8"
+  },
+  {
+   "nom": "Asset Liquidation",
+   "image": "cartes/asset-liquidation.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 0 colonne 0"
+  },
+  {
+   "nom": "Asteroid Mining",
+   "image": "cartes/asteroid-mining.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 2 colonne 4"
+  },
+  {
+   "nom": "Asteroid Mining Consortium",
+   "image": "cartes/asteroid-mining-consortium.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 1 colonne 7"
+  },
+  {
+   "nom": "Astrofarm",
+   "image": "cartes/astrofarm.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 1 colonne 1"
+  },
+  {
+   "nom": "Atmosphere Filtering",
+   "image": "cartes/atmosphere-filtering.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 2 colonne 3"
+  },
+  {
+   "nom": "Atmospheric Insulators",
+   "image": "cartes/atmospheric-insulators.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 0 colonne 6"
+  },
+  {
+   "nom": "Automated Factories",
+   "image": "cartes/automated-factories.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 1 colonne 2"
+  },
+  {
+   "nom": "Award Winning Reflector Material",
+   "image": "cartes/award-winning-reflector-material.webp",
+   "source": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg ligne 3 colonne 0"
+  },
+  {
+   "nom": "Balanced Portfolios",
+   "image": "cartes/balanced-portfolios.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 4 colonne 5"
+  },
+  {
+   "nom": "Beam from a Thorium Asteroid",
+   "image": "cartes/beam-from-a-thorium-asteroid.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 0 colonne 3"
+  },
+  {
+   "nom": "Biofoundries",
+   "image": "cartes/biofoundries.webp",
+   "source": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg ligne 1 colonne 7"
+  },
+  {
+   "nom": "Biological Factories",
+   "image": "cartes/biological-factories.webp",
+   "source": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg ligne 3 colonne 5"
+  },
+  {
+   "nom": "Biomass Combustors",
+   "image": "cartes/biomass-combustors.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 1 colonne 4"
+  },
+  {
+   "nom": "Biomedical Imports",
+   "image": "cartes/biomedical-imports.webp",
+   "source": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg ligne 0 colonne 9"
+  },
+  {
+   "nom": "Biothermal Power",
+   "image": "cartes/biothermal-power.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 3 colonne 2"
+  },
+  {
+   "nom": "Birds",
+   "image": "cartes/birds.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 0 colonne 5"
+  },
+  {
+   "nom": "Blast Furnaces",
+   "image": "cartes/blast-furnaces.webp",
+   "source": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg ligne 1 colonne 8"
+  },
+  {
+   "nom": "Blueprints",
+   "image": "cartes/blueprints.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 4 colonne 5"
+  },
+  {
+   "nom": "Brainstorming Session",
+   "image": "cartes/brainstorming-session.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 3 colonne 7"
+  },
+  {
+   "nom": "Breathing Filters",
+   "image": "cartes/breathing-filters.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 3 colonne 1"
+  },
+  {
+   "nom": "Bribed Comittee",
+   "image": "cartes/bribed-comittee.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 1 colonne 9"
+  },
+  {
+   "nom": "Building Industries",
+   "image": "cartes/building-industries.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 4 colonne 0"
+  },
+  {
+   "nom": "Bushes",
+   "image": "cartes/bushes.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 4 colonne 3"
+  },
+  {
+   "nom": "Business Contracts",
+   "image": "cartes/business-contracts.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 2 colonne 7"
+  },
+  {
+   "nom": "CEO's Favorite Project",
+   "image": "cartes/ceo-s-favorite-project.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 2 colonne 5"
+  },
+  {
+   "nom": "Callisto Penal Mines",
+   "image": "cartes/callisto-penal-mines.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 4 colonne 1"
+  },
+  {
+   "nom": "Caretaker Contract",
+   "image": "cartes/caretaker-contract.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 4 colonne 2"
+  },
+  {
+   "nom": "Cartel",
+   "image": "cartes/cartel.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 1 colonne 8"
+  },
+  {
+   "nom": "Circuit Board Factory",
+   "image": "cartes/circuit-board-factory.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 1 colonne 6"
+  },
+  {
+   "nom": "Coal Imports",
+   "image": "cartes/coal-imports.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 2 colonne 0"
+  },
+  {
+   "nom": "Colonizer Training Camp",
+   "image": "cartes/colonizer-training-camp.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 0 colonne 3"
+  },
+  {
+   "nom": "Comet",
+   "image": "cartes/comet.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 3 colonne 4"
+  },
+  {
+   "nom": "Commercial District",
+   "image": "cartes/commercial-district.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 2 colonne 8"
+  },
+  {
+   "nom": "Communications Streamlining",
+   "image": "cartes/communications-streamlining.webp",
+   "source": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg ligne 0 colonne 0"
+  },
+  {
+   "nom": "Community Gardens",
+   "image": "cartes/community-gardens.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 4 colonne 8"
+  },
+  {
+   "nom": "Composting Factory",
+   "image": "cartes/composting-factory.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 0 colonne 8"
+  },
+  {
+   "nom": "Conserved Biome",
+   "image": "cartes/conserved-biome.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 4 colonne 6"
+  },
+  {
+   "nom": "Convoy from Europa",
+   "image": "cartes/convoy-from-europa.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 2 colonne 8"
+  },
+  {
+   "nom": "Crater",
+   "image": "cartes/crater.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 1 colonne 1"
+  },
+  {
+   "nom": "Credicor",
+   "image": "cartes/credicor.webp",
+   "source": "data/scans/base/img_917b063334cb.png ligne 0 colonne 2"
+  },
+  {
+   "nom": "Cryogenic Shipment",
+   "image": "cartes/cryogenic-shipment.webp",
+   "source": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg ligne 1 colonne 0"
+  },
+  {
+   "nom": "Dandelions",
+   "image": "cartes/dandelions.webp",
+   "source": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg ligne 1 colonne 9"
+  },
+  {
+   "nom": "Decomposers",
+   "image": "cartes/decomposers.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 2 colonne 6"
+  },
+  {
+   "nom": "Decomposing Fungus",
+   "image": "cartes/decomposing-fungus.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 1 colonne 6"
+  },
+  {
+   "nom": "Deep Well Heating",
+   "image": "cartes/deep-well-heating.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 3 colonne 6"
+  },
+  {
+   "nom": "Deimos Down",
+   "image": "cartes/deimos-down.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 0 colonne 8"
+  },
+  {
+   "nom": "Designed Microorganisms",
+   "image": "cartes/designed-microorganisms.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 2 colonne 5"
+  },
+  {
+   "nom": "Developed Infrastructure",
+   "image": "cartes/developed-infrastructure.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 2 colonne 5"
+  },
+  {
+   "nom": "Development Center",
+   "image": "cartes/development-center.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 4 colonne 4"
+  },
+  {
+   "nom": "Diversified Interests",
+   "image": "cartes/diversified-interests.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 4 colonne 2"
+  },
+  {
+   "nom": "Drone Assisted Construction",
+   "image": "cartes/drone-assisted-construction.webp",
+   "source": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg ligne 0 colonne 1"
+  },
+  {
+   "nom": "Dusty Quarry",
+   "image": "cartes/dusty-quarry.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 2 colonne 3"
+  },
+  {
+   "nom": "Earth Catapult",
+   "image": "cartes/earth-catapult.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 1 colonne 4"
+  },
+  {
+   "nom": "Ecoline",
+   "image": "cartes/ecoline.webp",
+   "source": "data/scans/base/img_917b063334cb.png ligne 0 colonne 3"
+  },
+  {
+   "nom": "Ecological Zone",
+   "image": "cartes/ecological-zone.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 0 colonne 9"
+  },
+  {
+   "nom": "Economic Growth",
+   "image": "cartes/economic-growth.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 0 colonne 5"
+  },
+  {
+   "nom": "Electric Arc Furnaces",
+   "image": "cartes/electric-arc-furnaces.webp",
+   "source": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg ligne 2 colonne 0"
+  },
+  {
+   "nom": "Energy Storage",
+   "image": "cartes/energy-storage.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 2 colonne 8"
+  },
+  {
+   "nom": "Energy Subsidies",
+   "image": "cartes/energy-subsidies.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 1 colonne 9"
+  },
+  {
+   "nom": "Eos Chasma National Park",
+   "image": "cartes/eos-chasma-national-park.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 0 colonne 1"
+  },
+  {
+   "nom": "Exocorp",
+   "image": "cartes/exocorp.webp",
+   "source": "data/scans/decouverte-tabletop/img_d80e604470e5.jpg ligne 0 colonne 1"
+  },
+  {
+   "nom": "Exosuits",
+   "image": "cartes/exosuits.webp",
+   "source": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg ligne 1 colonne 1"
+  },
+  {
+   "nom": "Experimental Technology",
+   "image": "cartes/experimental-technology.webp",
+   "source": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg ligne 0 colonne 2"
+  },
+  {
+   "nom": "Extended Resources",
+   "image": "cartes/extended-resources.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 4 colonne 0"
+  },
+  {
+   "nom": "Extreme-Cold Fungus",
+   "image": "cartes/extreme-cold-fungus.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 2 colonne 1"
+  },
+  {
+   "nom": "Farmers Market",
+   "image": "cartes/farmers-market.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 0 colonne 5"
+  },
+  {
+   "nom": "Farming",
+   "image": "cartes/farming.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 4 colonne 8"
+  },
+  {
+   "nom": "Farming Co-ops",
+   "image": "cartes/farming-co-ops.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 0 colonne 5"
+  },
+  {
+   "nom": "Fibrous Composite Material",
+   "image": "cartes/fibrous-composite-material.webp",
+   "source": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg ligne 0 colonne 5"
+  },
+  {
+   "nom": "Fish",
+   "image": "cartes/fish.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 3 colonne 9"
+  },
+  {
+   "nom": "Food Factory",
+   "image": "cartes/food-factory.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 2 colonne 1"
+  },
+  {
+   "nom": "Fuel Factory",
+   "image": "cartes/fuel-factory.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 4 colonne 0"
+  },
+  {
+   "nom": "Fueled Generators",
+   "image": "cartes/fueled-generators.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 0 colonne 6"
+  },
+  {
+   "nom": "Fusion Power",
+   "image": "cartes/fusion-power.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 0 colonne 3"
+  },
+  {
+   "nom": "GHG Production Bacteria",
+   "image": "cartes/ghg-production-bacteria.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 0 colonne 9"
+  },
+  {
+   "nom": "Ganymede Shipyard",
+   "image": "cartes/ganymede-shipyard.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 5 colonne 0"
+  },
+  {
+   "nom": "Gene Repair",
+   "image": "cartes/gene-repair.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 5 colonne 1"
+  },
+  {
+   "nom": "Geothermal Power",
+   "image": "cartes/geothermal-power.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 3 colonne 9"
+  },
+  {
+   "nom": "Giant Ice Asteroid",
+   "image": "cartes/giant-ice-asteroid.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 2 colonne 9"
+  },
+  {
+   "nom": "Giant Space Mirror",
+   "image": "cartes/giant-space-mirror.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 3 colonne 1"
+  },
+  {
+   "nom": "Grass",
+   "image": "cartes/grass.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 0 colonne 8"
+  },
+  {
+   "nom": "Great Dam",
+   "image": "cartes/great-dam.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 1 colonne 9"
+  },
+  {
+   "nom": "Great Escarpment Consortium",
+   "image": "cartes/great-escarpment-consortium.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 1 colonne 9"
+  },
+  {
+   "nom": "Greenhouses",
+   "image": "cartes/greenhouses.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 2 colonne 3"
+  },
+  {
+   "nom": "Heat Reflective Glass",
+   "image": "cartes/heat-reflective-glass.webp",
+   "source": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg ligne 2 colonne 3"
+  },
+  {
+   "nom": "Heather",
+   "image": "cartes/heather.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 2 colonne 2"
+  },
+  {
+   "nom": "Helion Corporation",
+   "image": "cartes/helion-corporation.webp",
+   "source": "data/scans/base/img_917b063334cb.png ligne 0 colonne 7"
+  },
+  {
+   "nom": "Hematite Mining",
+   "image": "cartes/hematite-mining.webp",
+   "source": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg ligne 2 colonne 4"
+  },
+  {
+   "nom": "Herbivores",
+   "image": "cartes/herbivores.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 0 colonne 9"
+  },
+  {
+   "nom": "Hohmann Transfer Shipping",
+   "image": "cartes/hohmann-transfer-shipping.webp",
+   "source": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg ligne 0 colonne 4"
+  },
+  {
+   "nom": "Hydro-Electric Energy",
+   "image": "cartes/hydro-electric-energy.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 1 colonne 0"
+  },
+  {
+   "nom": "Hydroponic Gardens",
+   "image": "cartes/hydroponic-gardens.webp",
+   "source": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg ligne 2 colonne 5"
+  },
+  {
+   "nom": "Hyperion Systems",
+   "image": "cartes/hyperion-systems.webp",
+   "source": "data/scans/decouverte-tabletop/img_d80e604470e5.jpg ligne 0 colonne 2"
+  },
+  {
+   "nom": "Ice Asteroid",
+   "image": "cartes/ice-asteroid.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 3 colonne 7"
+  },
+  {
+   "nom": "Ice Cap Melting",
+   "image": "cartes/ice-cap-melting.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 4 colonne 9"
+  },
+  {
+   "nom": "Ilmenite Deposits",
+   "image": "cartes/ilmenite-deposits.webp",
+   "source": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg ligne 2 colonne 6"
+  },
+  {
+   "nom": "Immigration Shuttles",
+   "image": "cartes/immigration-shuttles.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 5 colonne 0"
+  },
+  {
+   "nom": "Impact Analysis",
+   "image": "cartes/impact-analysis.webp",
+   "source": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg ligne 0 colonne 3"
+  },
+  {
+   "nom": "Import of Advanced GHG",
+   "image": "cartes/import-of-advanced-ghg.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 0 colonne 8"
+  },
+  {
+   "nom": "Imported Construction Crews",
+   "image": "cartes/imported-construction-crews.webp",
+   "source": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg ligne 1 colonne 2"
+  },
+  {
+   "nom": "Imported GHG",
+   "image": "cartes/imported-ghg.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 0 colonne 0"
+  },
+  {
+   "nom": "Imported Hydrogen",
+   "image": "cartes/imported-hydrogen.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 0 colonne 9"
+  },
+  {
+   "nom": "Imported Nitrogen",
+   "image": "cartes/imported-nitrogen.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 0 colonne 7"
+  },
+  {
+   "nom": "Industrial Center",
+   "image": "cartes/industrial-center.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 3 colonne 7"
+  },
+  {
+   "nom": "Industrial Complex",
+   "image": "cartes/industrial-complex.webp",
+   "source": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg ligne 2 colonne 7"
+  },
+  {
+   "nom": "Industrial Farming",
+   "image": "cartes/industrial-farming.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 0 colonne 6"
+  },
+  {
+   "nom": "Industrial Microbes",
+   "image": "cartes/industrial-microbes.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 4 colonne 7"
+  },
+  {
+   "nom": "Insects",
+   "image": "cartes/insects.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 3 colonne 5"
+  },
+  {
+   "nom": "Interns",
+   "image": "cartes/interns.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 2 colonne 1"
+  },
+  {
+   "nom": "Interplanetary Cinematics",
+   "image": "cartes/interplanetary-cinematics.webp",
+   "source": "data/scans/base/img_917b063334cb.png ligne 0 colonne 5"
+  },
+  {
+   "nom": "Interplanetary Conference",
+   "image": "cartes/interplanetary-conference.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 5 colonne 0"
+  },
+  {
+   "nom": "Interplanetary Relations",
+   "image": "cartes/interplanetary-relations.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 4 colonne 3"
+  },
+  {
+   "nom": "Interstellar Colony Ship",
+   "image": "cartes/interstellar-colony-ship.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 1 colonne 1"
+  },
+  {
+   "nom": "Invention Contest",
+   "image": "cartes/invention-contest.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 4 colonne 7"
+  },
+  {
+   "nom": "Inventrix",
+   "image": "cartes/inventrix.webp",
+   "source": "data/scans/base/img_917b063334cb.png ligne 0 colonne 0"
+  },
+  {
+   "nom": "Investment Loan",
+   "image": "cartes/investment-loan.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 2 colonne 5"
+  },
+  {
+   "nom": "Io Mining Industries",
+   "image": "cartes/io-mining-industries.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 3 colonne 4"
+  },
+  {
+   "nom": "Ironworks",
+   "image": "cartes/ironworks.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 1 colonne 8"
+  },
+  {
+   "nom": "Kelp Farming",
+   "image": "cartes/kelp-farming.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 2 colonne 1"
+  },
+  {
+   "nom": "Lagrange Observatory",
+   "image": "cartes/lagrange-observatory.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 1 colonne 6"
+  },
+  {
+   "nom": "Lake Mariners",
+   "image": "cartes/lake-mariners.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 1 colonne 5"
+  },
+  {
+   "nom": "Large Convoy",
+   "image": "cartes/large-convoy.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 3 colonne 1"
+  },
+  {
+   "nom": "Lava Flows",
+   "image": "cartes/lava-flows.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 4 colonne 9"
+  },
+  {
+   "nom": "Lichen",
+   "image": "cartes/lichen.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 3 colonne 6"
+  },
+  {
+   "nom": "Lightning Harvest",
+   "image": "cartes/lightning-harvest.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 3 colonne 5"
+  },
+  {
+   "nom": "Livestock",
+   "image": "cartes/livestock.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 2 colonne 0"
+  },
+  {
+   "nom": "Local Heat Trapping",
+   "image": "cartes/local-heat-trapping.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 1 colonne 8"
+  },
+  {
+   "nom": "Local Market",
+   "image": "cartes/local-market.webp",
+   "source": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg ligne 2 colonne 1"
+  },
+  {
+   "nom": "Low-Atmo Shields",
+   "image": "cartes/low-atmo-shields.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 0 colonne 2"
+  },
+  {
+   "nom": "Lunar Beam",
+   "image": "cartes/lunar-beam.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 4 colonne 1"
+  },
+  {
+   "nom": "Magnetic Field Generator",
+   "image": "cartes/magnetic-field-generator.webp",
+   "source": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg ligne 3 colonne 3"
+  },
+  {
+   "nom": "Mangrove",
+   "image": "cartes/mangrove.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 0 colonne 2"
+  },
+  {
+   "nom": "Manufacturing Hub",
+   "image": "cartes/manufacturing-hub.webp",
+   "source": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg ligne 2 colonne 2"
+  },
+  {
+   "nom": "Mars University",
+   "image": "cartes/mars-university.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 1 colonne 5"
+  },
+  {
+   "nom": "Martian Museum",
+   "image": "cartes/martian-museum.webp",
+   "source": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg ligne 2 colonne 8"
+  },
+  {
+   "nom": "Mass Converter",
+   "image": "cartes/mass-converter.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 3 colonne 0"
+  },
+  {
+   "nom": "Matter Manufactoring",
+   "image": "cartes/matter-manufactoring.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 4 colonne 7"
+  },
+  {
+   "nom": "Media Group",
+   "image": "cartes/media-group.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 4 colonne 6"
+  },
+  {
+   "nom": "Medical Lab",
+   "image": "cartes/medical-lab.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 3 colonne 8"
+  },
+  {
+   "nom": "Metallurgy",
+   "image": "cartes/metallurgy.webp",
+   "source": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg ligne 2 colonne 9"
+  },
+  {
+   "nom": "Methane from Titan",
+   "image": "cartes/methane-from-titan.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 4 colonne 3"
+  },
+  {
+   "nom": "Micro-Mills",
+   "image": "cartes/micro-mills.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 4 colonne 4"
+  },
+  {
+   "nom": "Microprocessors",
+   "image": "cartes/microprocessors.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 3 colonne 5"
+  },
+  {
+   "nom": "Mine",
+   "image": "cartes/mine.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 1 colonne 0"
+  },
+  {
+   "nom": "Mining Guild",
+   "image": "cartes/mining-guild.webp",
+   "source": "data/scans/base/img_917b063334cb.png ligne 1 colonne 0"
+  },
+  {
+   "nom": "Miranda Resort",
+   "image": "cartes/miranda-resort.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 4 colonne 7"
+  },
+  {
+   "nom": "Mohole Area",
+   "image": "cartes/mohole-area.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 5 colonne 0"
+  },
+  {
+   "nom": "Monocultures",
+   "image": "cartes/monocultures.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 3 colonne 6"
+  },
+  {
+   "nom": "Moss",
+   "image": "cartes/moss.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 4 colonne 5"
+  },
+  {
+   "nom": "Natural Preserve",
+   "image": "cartes/natural-preserve.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 4 colonne 0"
+  },
+  {
+   "nom": "New Portfolios",
+   "image": "cartes/new-portfolios.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 3 colonne 0"
+  },
+  {
+   "nom": "Nitrite Reducting Bacteria",
+   "image": "cartes/nitrite-reducting-bacteria.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 2 colonne 2"
+  },
+  {
+   "nom": "Nitrogen-Rich Asteroid",
+   "image": "cartes/nitrogen-rich-asteroid.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 0 colonne 1"
+  },
+  {
+   "nom": "Nitropholic Moss",
+   "image": "cartes/nitropholic-moss.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 1 colonne 8"
+  },
+  {
+   "nom": "Noctis Farming",
+   "image": "cartes/noctis-farming.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 4 colonne 3"
+  },
+  {
+   "nom": "Nuclear Detonation Site",
+   "image": "cartes/nuclear-detonation-site.webp",
+   "source": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg ligne 3 colonne 6"
+  },
+  {
+   "nom": "Nuclear Plants",
+   "image": "cartes/nuclear-plants.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 2 colonne 9"
+  },
+  {
+   "nom": "Olympus Conference",
+   "image": "cartes/olympus-conference.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 1 colonne 1"
+  },
+  {
+   "nom": "Optimal Aerobraking",
+   "image": "cartes/optimal-aerobraking.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 0 colonne 2"
+  },
+  {
+   "nom": "Ore Leaching",
+   "image": "cartes/ore-leaching.webp",
+   "source": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg ligne 1 colonne 3"
+  },
+  {
+   "nom": "Oxidation Byproducts",
+   "image": "cartes/oxidation-byproducts.webp",
+   "source": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg ligne 3 colonne 1"
+  },
+  {
+   "nom": "Perfluorocarbon Production",
+   "image": "cartes/perfluorocarbon-production.webp",
+   "source": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg ligne 3 colonne 2"
+  },
+  {
+   "nom": "Permafrost Extraction",
+   "image": "cartes/permafrost-extraction.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 3 colonne 3"
+  },
+  {
+   "nom": "Phobolog",
+   "image": "cartes/phobolog.webp",
+   "source": "data/scans/base/img_917b063334cb.png ligne 0 colonne 1"
+  },
+  {
+   "nom": "Phobos Falls",
+   "image": "cartes/phobos-falls.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 1 colonne 3"
+  },
+  {
+   "nom": "Physics Complex",
+   "image": "cartes/physics-complex.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 4 colonne 9"
+  },
+  {
+   "nom": "Plantation",
+   "image": "cartes/plantation.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 2 colonne 6"
+  },
+  {
+   "nom": "Political Influence",
+   "image": "cartes/political-influence.webp",
+   "source": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg ligne 3 colonne 4"
+  },
+  {
+   "nom": "Power Grid",
+   "image": "cartes/power-grid.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 3 colonne 9"
+  },
+  {
+   "nom": "Power Infrastructure",
+   "image": "cartes/power-infrastructure.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 3 colonne 4"
+  },
+  {
+   "nom": "Power Plant",
+   "image": "cartes/power-plant.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 1 colonne 7"
+  },
+  {
+   "nom": "Power Supply Consortium",
+   "image": "cartes/power-supply-consortium.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 4 colonne 5"
+  },
+  {
+   "nom": "Private Investor Beach",
+   "image": "cartes/private-investor-beach.webp",
+   "source": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg ligne 1 colonne 4"
+  },
+  {
+   "nom": "Protected Valley",
+   "image": "cartes/protected-valley.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 4 colonne 8"
+  },
+  {
+   "nom": "Quantum Extractor",
+   "image": "cartes/quantum-extractor.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 2 colonne 4"
+  },
+  {
+   "nom": "Rad Suits",
+   "image": "cartes/rad-suits.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 2 colonne 4"
+  },
+  {
+   "nom": "Recycled Detritus",
+   "image": "cartes/recycled-detritus.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 4 colonne 1"
+  },
+  {
+   "nom": "Redrafted Contracts",
+   "image": "cartes/redrafted-contracts.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 3 colonne 3"
+  },
+  {
+   "nom": "Regolith Eaters",
+   "image": "cartes/regolith-eaters.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 0 colonne 7"
+  },
+  {
+   "nom": "Release of Inert Gases",
+   "image": "cartes/release-of-inert-gases.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 3 colonne 3"
+  },
+  {
+   "nom": "Research",
+   "image": "cartes/research.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 4 colonne 2"
+  },
+  {
+   "nom": "Research Outpost",
+   "image": "cartes/research-outpost.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 1 colonne 4"
+  },
+  {
+   "nom": "Restructured Resources",
+   "image": "cartes/restructured-resources.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 0 colonne 6"
+  },
+  {
+   "nom": "Satellites",
+   "image": "cartes/satellites.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 4 colonne 6"
+  },
+  {
+   "nom": "Sattellite Farms",
+   "image": "cartes/sattellite-farms.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 2 colonne 0"
+  },
+  {
+   "nom": "Saturn Systems",
+   "image": "cartes/saturn-systems.webp",
+   "source": "data/scans/base/img_917b063334cb.png ligne 0 colonne 6"
+  },
+  {
+   "nom": "Slash and Burn Agriculture",
+   "image": "cartes/slash-and-burn-agriculture.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 0 colonne 2"
+  },
+  {
+   "nom": "Small Animals",
+   "image": "cartes/small-animals.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 1 colonne 3"
+  },
+  {
+   "nom": "Smelting",
+   "image": "cartes/smelting.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 3 colonne 4"
+  },
+  {
+   "nom": "Software Streamlining",
+   "image": "cartes/software-streamlining.webp",
+   "source": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg ligne 0 colonne 6"
+  },
+  {
+   "nom": "Soil Warming",
+   "image": "cartes/soil-warming.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 4 colonne 1"
+  },
+  {
+   "nom": "Solar Power",
+   "image": "cartes/solar-power.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 2 colonne 2"
+  },
+  {
+   "nom": "Solar Trapping",
+   "image": "cartes/solar-trapping.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 1 colonne 4"
+  },
+  {
+   "nom": "Solarpunk",
+   "image": "cartes/solarpunk.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 3 colonne 9"
+  },
+  {
+   "nom": "Soletta",
+   "image": "cartes/soletta.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 3 colonne 8"
+  },
+  {
+   "nom": "Space Heater",
+   "image": "cartes/space-heater.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 4 colonne 2"
+  },
+  {
+   "nom": "Space Station",
+   "image": "cartes/space-station.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 3 colonne 5"
+  },
+  {
+   "nom": "Special Design",
+   "image": "cartes/special-design.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 3 colonne 8"
+  },
+  {
+   "nom": "Sponsors",
+   "image": "cartes/sponsors.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 1 colonne 7"
+  },
+  {
+   "nom": "Standard Technology",
+   "image": "cartes/standard-technology.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 0 colonne 3"
+  },
+  {
+   "nom": "Steelworks",
+   "image": "cartes/steelworks.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 0 colonne 4"
+  },
+  {
+   "nom": "Strip Mine",
+   "image": "cartes/strip-mine.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 3 colonne 0"
+  },
+  {
+   "nom": "Subterranean Reservoir",
+   "image": "cartes/subterranean-reservoir.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 3 colonne 6"
+  },
+  {
+   "nom": "Sultira",
+   "image": "cartes/sultira.webp",
+   "source": "data/scans/decouverte-tabletop/img_d80e604470e5.jpg ligne 0 colonne 3"
+  },
+  {
+   "nom": "Surface Mines",
+   "image": "cartes/surface-mines.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 1 colonne 6"
+  },
+  {
+   "nom": "Symbiotic Fungus",
+   "image": "cartes/symbiotic-fungus.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 1 colonne 5"
+  },
+  {
+   "nom": "Tall Station",
+   "image": "cartes/tall-station.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 0 colonne 0"
+  },
+  {
+   "nom": "Tardigrades",
+   "image": "cartes/tardigrades.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 3 colonne 8"
+  },
+  {
+   "nom": "Technology Demonstration",
+   "image": "cartes/technology-demonstration.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 2 colonne 2"
+  },
+  {
+   "nom": "Tectonic Stress Power",
+   "image": "cartes/tectonic-stress-power.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 0 colonne 4"
+  },
+  {
+   "nom": "Teractor Corporation",
+   "image": "cartes/teractor-corporation.webp",
+   "source": "data/scans/base/img_917b063334cb.png ligne 0 colonne 9"
+  },
+  {
+   "nom": "Terraforming Ganymede",
+   "image": "cartes/terraforming-ganymede.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 3 colonne 1"
+  },
+  {
+   "nom": "Tharsis Republic",
+   "image": "cartes/tharsis-republic.webp",
+   "source": "data/scans/base/img_917b063334cb.png ligne 0 colonne 4"
+  },
+  {
+   "nom": "Think Tank",
+   "image": "cartes/think-tank.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 5 colonne 1"
+  },
+  {
+   "nom": "Thorgate Corporation",
+   "image": "cartes/thorgate-corporation.webp",
+   "source": "data/scans/base/img_917b063334cb.png ligne 0 colonne 8"
+  },
+  {
+   "nom": "Titanium Mine",
+   "image": "cartes/titanium-mine.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 1 colonne 2"
+  },
+  {
+   "nom": "Topographic Mapping",
+   "image": "cartes/topographic-mapping.webp",
+   "source": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg ligne 1 colonne 5"
+  },
+  {
+   "nom": "Towing a Comet",
+   "image": "cartes/towing-a-comet.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 1 colonne 3"
+  },
+  {
+   "nom": "Trading Post",
+   "image": "cartes/trading-post.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 5 colonne 1"
+  },
+  {
+   "nom": "Trapped Heat",
+   "image": "cartes/trapped-heat.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 1 colonne 7"
+  },
+  {
+   "nom": "Trees",
+   "image": "cartes/trees.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 1 colonne 2"
+  },
+  {
+   "nom": "Tropical Resort",
+   "image": "cartes/tropical-resort.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 4 colonne 4"
+  },
+  {
+   "nom": "Tundra Farming",
+   "image": "cartes/tundra-farming.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 2 colonne 6"
+  },
+  {
+   "nom": "Underground City",
+   "image": "cartes/underground-city.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 2 colonne 7"
+  },
+  {
+   "nom": "Undersea Vents",
+   "image": "cartes/undersea-vents.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 2 colonne 9"
+  },
+  {
+   "nom": "United Planetary Alliance",
+   "image": "cartes/united-planetary-alliance.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 3 colonne 3"
+  },
+  {
+   "nom": "Unmi",
+   "image": "cartes/unmi.webp",
+   "source": "data/scans/base/img_917b063334cb.png ligne 1 colonne 1"
+  },
+  {
+   "nom": "Venture Capitalism",
+   "image": "cartes/venture-capitalism.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 2 colonne 6"
+  },
+  {
+   "nom": "Vesta Shipyard",
+   "image": "cartes/vesta-shipyard.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 0 colonne 4"
+  },
+  {
+   "nom": "Viral Enhancers",
+   "image": "cartes/viral-enhancers.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 3 colonne 0"
+  },
+  {
+   "nom": "Virtual Employee Development",
+   "image": "cartes/virtual-employee-development.webp",
+   "source": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg ligne 0 colonne 7"
+  },
+  {
+   "nom": "Volcanic Pools",
+   "image": "cartes/volcanic-pools.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 3 colonne 2"
+  },
+  {
+   "nom": "Volcanic Soil",
+   "image": "cartes/volcanic-soil.webp",
+   "source": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg ligne 0 colonne 8"
+  },
+  {
+   "nom": "Warehouses",
+   "image": "cartes/warehouses.webp",
+   "source": "data/scans/decouverte-tabletop/img_82e08cb04661.jpg ligne 3 colonne 7"
+  },
+  {
+   "nom": "Water Import from Europa",
+   "image": "cartes/water-import-from-europa.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 2 colonne 8"
+  },
+  {
+   "nom": "Wave Power",
+   "image": "cartes/wave-power.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 2 colonne 7"
+  },
+  {
+   "nom": "Windmills",
+   "image": "cartes/windmills.webp",
+   "source": "data/scans/base/img_6eb0336793ad.png ligne 1 colonne 5"
+  },
+  {
+   "nom": "Wood Burning Stoves",
+   "image": "cartes/wood-burning-stoves.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 5 colonne 1"
+  },
+  {
+   "nom": "Work Crews",
+   "image": "cartes/work-crews.webp",
+   "source": "data/scans/base/img_092c2f2f19d8.png ligne 1 colonne 3"
+  },
+  {
+   "nom": "Worms",
+   "image": "cartes/worms.webp",
+   "source": "data/scans/base/img_29b614b44ee9.png ligne 4 colonne 6"
+  },
+  {
+   "nom": "Zeppelins",
+   "image": "cartes/zeppelins.webp",
+   "source": "data/scans/base/img_b09c488427ab.png ligne 0 colonne 7"
+  }
+ ],
+ "plateau": [
+  {
+   "nom": "astronautes-combinaisons-blanches-decouverte",
+   "image": "plateau/astronautes-combinaisons-blanches-decouverte.webp",
+   "source": "data/scans/decouverte-tabletop/img_6e01fcc78c4d.jpg"
+  },
+  {
+   "nom": "astronautes-combinaisons-bleues",
+   "image": "plateau/astronautes-combinaisons-bleues.webp",
+   "source": "data/scans/base/img_8515732c1c71.png"
+  },
+  {
+   "nom": "astronautes-combinaisons-jaunes",
+   "image": "plateau/astronautes-combinaisons-jaunes.webp",
+   "source": "data/scans/base/img_6b737c812e78.png"
+  },
+  {
+   "nom": "astronautes-combinaisons-noires-decouverte",
+   "image": "plateau/astronautes-combinaisons-noires-decouverte.webp",
+   "source": "data/scans/decouverte-tabletop/img_9268c4215578.jpg"
+  },
+  {
+   "nom": "astronautes-combinaisons-rouges",
+   "image": "plateau/astronautes-combinaisons-rouges.webp",
+   "source": "data/scans/base/img_6f0efb903a70.png"
+  },
+  {
+   "nom": "astronautes-combinaisons-vertes",
+   "image": "plateau/astronautes-combinaisons-vertes.webp",
+   "source": "data/scans/base/img_7dbcb056fffb.png"
+  },
+  {
+   "nom": "bandeau-piste-d-oxygene-de-0-a-100-pourcent-decouverte",
+   "image": "plateau/bandeau-piste-d-oxygene-de-0-a-100-pourcent-decouverte.webp",
+   "source": "data/scans/decouverte-tabletop/img_8aa84da58c2c.png"
+  },
+  {
+   "nom": "carte-phase-1-development",
+   "image": "plateau/carte-phase-1-development.webp",
+   "source": "data/scans/base/img_ef125fd09905.png ligne 0 colonne 0"
+  },
+  {
+   "nom": "carte-phase-1-development-amelioree-a",
+   "image": "plateau/carte-phase-1-development-amelioree-a.webp",
+   "source": "data/scans/decouverte-tabletop/img_988c9278d90e.jpg ligne 1 colonne 1"
+  },
+  {
+   "nom": "carte-phase-1-development-amelioree-b",
+   "image": "plateau/carte-phase-1-development-amelioree-b.webp",
+   "source": "data/scans/decouverte-tabletop/img_988c9278d90e.jpg ligne 1 colonne 2"
+  },
+  {
+   "nom": "carte-phase-1-development-face-normale-planche-decouverte",
+   "image": "plateau/carte-phase-1-development-face-normale-planche-decouverte.webp",
+   "source": "data/scans/decouverte-tabletop/img_988c9278d90e.jpg ligne 1 colonne 3"
+  },
+  {
+   "nom": "carte-phase-2-construction",
+   "image": "plateau/carte-phase-2-construction.webp",
+   "source": "data/scans/base/img_ef125fd09905.png ligne 0 colonne 1"
+  },
+  {
+   "nom": "carte-phase-2-construction-amelioree-a",
+   "image": "plateau/carte-phase-2-construction-amelioree-a.webp",
+   "source": "data/scans/decouverte-tabletop/img_988c9278d90e.jpg ligne 0 colonne 3"
+  },
+  {
+   "nom": "carte-phase-2-construction-amelioree-b",
+   "image": "plateau/carte-phase-2-construction-amelioree-b.webp",
+   "source": "data/scans/decouverte-tabletop/img_988c9278d90e.jpg ligne 0 colonne 4"
+  },
+  {
+   "nom": "carte-phase-2-construction-face-normale-planche-decouverte",
+   "image": "plateau/carte-phase-2-construction-face-normale-planche-decouverte.webp",
+   "source": "data/scans/decouverte-tabletop/img_988c9278d90e.jpg ligne 1 colonne 0"
+  },
+  {
+   "nom": "carte-phase-3-action",
+   "image": "plateau/carte-phase-3-action.webp",
+   "source": "data/scans/base/img_ef125fd09905.png ligne 0 colonne 2"
+  },
+  {
+   "nom": "carte-phase-3-action-amelioree-a",
+   "image": "plateau/carte-phase-3-action-amelioree-a.webp",
+   "source": "data/scans/decouverte-tabletop/img_988c9278d90e.jpg ligne 0 colonne 0"
+  },
+  {
+   "nom": "carte-phase-3-action-amelioree-b",
+   "image": "plateau/carte-phase-3-action-amelioree-b.webp",
+   "source": "data/scans/decouverte-tabletop/img_988c9278d90e.jpg ligne 0 colonne 1"
+  },
+  {
+   "nom": "carte-phase-3-action-face-normale-planche-decouverte",
+   "image": "plateau/carte-phase-3-action-face-normale-planche-decouverte.webp",
+   "source": "data/scans/decouverte-tabletop/img_988c9278d90e.jpg ligne 0 colonne 2"
+  },
+  {
+   "nom": "carte-phase-4-production",
+   "image": "plateau/carte-phase-4-production.webp",
+   "source": "data/scans/base/img_ef125fd09905.png ligne 0 colonne 3"
+  },
+  {
+   "nom": "carte-phase-4-production-amelioree-a",
+   "image": "plateau/carte-phase-4-production-amelioree-a.webp",
+   "source": "data/scans/decouverte-tabletop/img_988c9278d90e.jpg ligne 1 colonne 4"
+  },
+  {
+   "nom": "carte-phase-4-production-amelioree-b",
+   "image": "plateau/carte-phase-4-production-amelioree-b.webp",
+   "source": "data/scans/decouverte-tabletop/img_988c9278d90e.jpg ligne 2 colonne 0"
+  },
+  {
+   "nom": "carte-phase-4-production-face-normale-planche-decouverte",
+   "image": "plateau/carte-phase-4-production-face-normale-planche-decouverte.webp",
+   "source": "data/scans/decouverte-tabletop/img_988c9278d90e.jpg ligne 2 colonne 1"
+  },
+  {
+   "nom": "carte-phase-5-research",
+   "image": "plateau/carte-phase-5-research.webp",
+   "source": "data/scans/base/img_ef125fd09905.png ligne 0 colonne 4"
+  },
+  {
+   "nom": "carte-phase-5-research-amelioree-a",
+   "image": "plateau/carte-phase-5-research-amelioree-a.webp",
+   "source": "data/scans/decouverte-tabletop/img_988c9278d90e.jpg ligne 2 colonne 2"
+  },
+  {
+   "nom": "carte-phase-5-research-amelioree-b",
+   "image": "plateau/carte-phase-5-research-amelioree-b.webp",
+   "source": "data/scans/decouverte-tabletop/img_988c9278d90e.jpg ligne 2 colonne 3"
+  },
+  {
+   "nom": "carte-phase-5-research-face-normale-planche-decouverte",
+   "image": "plateau/carte-phase-5-research-face-normale-planche-decouverte.webp",
+   "source": "data/scans/decouverte-tabletop/img_988c9278d90e.jpg ligne 2 colonne 4"
+  },
+  {
+   "nom": "dos-de-carte-campement-martien-et-dirigeables",
+   "image": "plateau/dos-de-carte-campement-martien-et-dirigeables.webp",
+   "source": "data/scans/base/img_c8db0760e78b.png"
+  },
+  {
+   "nom": "dos-de-carte-cite-sous-dome-et-dirigeables",
+   "image": "plateau/dos-de-carte-cite-sous-dome-et-dirigeables.webp",
+   "source": "data/scans/base/img_c17759143fb6.png"
+  },
+  {
+   "nom": "icone-animal-empreinte-de-patte",
+   "image": "plateau/icone-animal-empreinte-de-patte.webp",
+   "source": "data/scans/base/img_9b30b0705a81.png"
+  },
+  {
+   "nom": "icone-microbe",
+   "image": "plateau/icone-microbe.webp",
+   "source": "data/scans/base/img_cb8c93a941d0.png"
+  },
+  {
+   "nom": "jalon-builder-8-tags-batiment",
+   "image": "plateau/jalon-builder-8-tags-batiment.webp",
+   "source": "data/scans/decouverte-tabletop/img_9f62e54bb4e2.png"
+  },
+  {
+   "nom": "jalon-diversifier-9-tags-differents-en-jeu",
+   "image": "plateau/jalon-diversifier-9-tags-differents-en-jeu.webp",
+   "source": "data/scans/decouverte-tabletop/img_56d9e25b957a.png"
+  },
+  {
+   "nom": "jalon-energizer-10-de-production-de-chaleur",
+   "image": "plateau/jalon-energizer-10-de-production-de-chaleur.webp",
+   "source": "data/scans/decouverte-tabletop/img_1cb363a45ce8.png"
+  },
+  {
+   "nom": "jalon-farmer-5-de-production-de-plantes",
+   "image": "plateau/jalon-farmer-5-de-production-de-plantes.webp",
+   "source": "data/scans/decouverte-tabletop/img_130639cf7b91.png"
+  },
+  {
+   "nom": "jalon-gardener-3-forets",
+   "image": "plateau/jalon-gardener-3-forets.webp",
+   "source": "data/scans/decouverte-tabletop/img_3a64206185d2.png"
+  },
+  {
+   "nom": "jalon-legend-6-cartes-rouges",
+   "image": "plateau/jalon-legend-6-cartes-rouges.webp",
+   "source": "data/scans/decouverte-tabletop/img_eb3318ca441b.png"
+  },
+  {
+   "nom": "jalon-magnate-8-cartes-vertes",
+   "image": "plateau/jalon-magnate-8-cartes-vertes.webp",
+   "source": "data/scans/decouverte-tabletop/img_0495fd7c8a92.png"
+  },
+  {
+   "nom": "jalon-planner-12-cartes-projet-en-jeu",
+   "image": "plateau/jalon-planner-12-cartes-projet-en-jeu.webp",
+   "source": "data/scans/decouverte-tabletop/img_040ccad3d4f1.png"
+  },
+  {
+   "nom": "jalon-space-baron-6-tags-espace",
+   "image": "plateau/jalon-space-baron-6-tags-espace.webp",
+   "source": "data/scans/decouverte-tabletop/img_3ea09ac028b2.png"
+  },
+  {
+   "nom": "jalon-terraformer-15-de-tr",
+   "image": "plateau/jalon-terraformer-15-de-tr.webp",
+   "source": "data/scans/decouverte-tabletop/img_dc4a9e32480c.png"
+  },
+  {
+   "nom": "jalon-tycoon-6-cartes-bleues",
+   "image": "plateau/jalon-tycoon-6-cartes-bleues.webp",
+   "source": "data/scans/decouverte-tabletop/img_3dc945fc17de.png"
+  },
+  {
+   "nom": "jalon-vierge-sans-intitule",
+   "image": "plateau/jalon-vierge-sans-intitule.webp",
+   "source": "data/scans/decouverte-tabletop/img_d35872285976.png"
+  },
+  {
+   "nom": "jeton-compteur-valeur-3-decouverte",
+   "image": "plateau/jeton-compteur-valeur-3-decouverte.webp",
+   "source": "data/scans/decouverte-tabletop/img_142d65435d87.png"
+  },
+  {
+   "nom": "jeton-phase-1-development-face-nommee",
+   "image": "plateau/jeton-phase-1-development-face-nommee.webp",
+   "source": "data/scans/base/img_cf460e38f179.png"
+  },
+  {
+   "nom": "jeton-phase-1-face-chiffre-romain-i-vert",
+   "image": "plateau/jeton-phase-1-face-chiffre-romain-i-vert.webp",
+   "source": "data/scans/base/img_1862f5926633.png"
+  },
+  {
+   "nom": "jeton-phase-2-construction-face-nommee",
+   "image": "plateau/jeton-phase-2-construction-face-nommee.webp",
+   "source": "data/scans/base/img_46e6c53b943d.png"
+  },
+  {
+   "nom": "jeton-phase-2-face-chiffre-romain-ii-rouge",
+   "image": "plateau/jeton-phase-2-face-chiffre-romain-ii-rouge.webp",
+   "source": "data/scans/base/img_46f6f80df8e1.png"
+  },
+  {
+   "nom": "jeton-phase-3-action-face-nommee",
+   "image": "plateau/jeton-phase-3-action-face-nommee.webp",
+   "source": "data/scans/base/img_b7f102c7bb70.png"
+  },
+  {
+   "nom": "jeton-phase-3-face-chiffre-romain-iii-bleu",
+   "image": "plateau/jeton-phase-3-face-chiffre-romain-iii-bleu.webp",
+   "source": "data/scans/base/img_c23cc144f625.png"
+  },
+  {
+   "nom": "jeton-phase-4-face-chiffre-romain-iv-orange",
+   "image": "plateau/jeton-phase-4-face-chiffre-romain-iv-orange.webp",
+   "source": "data/scans/base/img_0256def016ba.png"
+  },
+  {
+   "nom": "jeton-phase-4-production-face-nommee",
+   "image": "plateau/jeton-phase-4-production-face-nommee.webp",
+   "source": "data/scans/base/img_5a9cec3de81c.png"
+  },
+  {
+   "nom": "jeton-phase-5-face-chiffre-romain-v-jaune",
+   "image": "plateau/jeton-phase-5-face-chiffre-romain-v-jaune.webp",
+   "source": "data/scans/base/img_05ff47e854ed.png"
+  },
+  {
+   "nom": "jeton-phase-5-research-face-nommee",
+   "image": "plateau/jeton-phase-5-research-face-nommee.webp",
+   "source": "data/scans/base/img_d799b6db899a.png"
+  },
+  {
+   "nom": "jeton-tag-animal-decouverte",
+   "image": "plateau/jeton-tag-animal-decouverte.webp",
+   "source": "data/scans/decouverte-tabletop/img_87dec0977a9d.png"
+  },
+  {
+   "nom": "jeton-tag-animal-grand-decouverte",
+   "image": "plateau/jeton-tag-animal-grand-decouverte.webp",
+   "source": "data/scans/decouverte-tabletop/img_8a43fa58b28d.png"
+  },
+  {
+   "nom": "jeton-tag-batiment-decouverte",
+   "image": "plateau/jeton-tag-batiment-decouverte.webp",
+   "source": "data/scans/decouverte-tabletop/img_31d36bb0a7fb.png"
+  },
+  {
+   "nom": "jeton-tag-batiment-grand-decouverte",
+   "image": "plateau/jeton-tag-batiment-grand-decouverte.webp",
+   "source": "data/scans/decouverte-tabletop/img_247d850a42d8.png"
+  },
+  {
+   "nom": "jeton-tag-energie-decouverte",
+   "image": "plateau/jeton-tag-energie-decouverte.webp",
+   "source": "data/scans/decouverte-tabletop/img_fe10ffa51d3c.png"
+  },
+  {
+   "nom": "jeton-tag-energie-grand-decouverte",
+   "image": "plateau/jeton-tag-energie-grand-decouverte.webp",
+   "source": "data/scans/decouverte-tabletop/img_2ef90a8639aa.png"
+  },
+  {
+   "nom": "jeton-tag-espace-soleil-decouverte",
+   "image": "plateau/jeton-tag-espace-soleil-decouverte.webp",
+   "source": "data/scans/decouverte-tabletop/img_a6277a9defcf.png"
+  },
+  {
+   "nom": "jeton-tag-espace-soleil-grand-decouverte",
+   "image": "plateau/jeton-tag-espace-soleil-grand-decouverte.webp",
+   "source": "data/scans/decouverte-tabletop/img_e3522ba8436d.png"
+  },
+  {
+   "nom": "jeton-tag-evenement-decouverte",
+   "image": "plateau/jeton-tag-evenement-decouverte.webp",
+   "source": "data/scans/decouverte-tabletop/img_bf7dac21c34d.png"
+  },
+  {
+   "nom": "jeton-tag-evenement-grand-decouverte",
+   "image": "plateau/jeton-tag-evenement-grand-decouverte.webp",
+   "source": "data/scans/decouverte-tabletop/img_991d5e90cebf.png"
+  },
+  {
+   "nom": "jeton-tag-jupiter-decouverte",
+   "image": "plateau/jeton-tag-jupiter-decouverte.webp",
+   "source": "data/scans/decouverte-tabletop/img_a5bcbb8f5a4e.png"
+  },
+  {
+   "nom": "jeton-tag-jupiter-grand-decouverte",
+   "image": "plateau/jeton-tag-jupiter-grand-decouverte.webp",
+   "source": "data/scans/decouverte-tabletop/img_e425e165521c.png"
+  },
+  {
+   "nom": "jeton-tag-microbe-decouverte",
+   "image": "plateau/jeton-tag-microbe-decouverte.webp",
+   "source": "data/scans/decouverte-tabletop/img_1fc7fc21a141.png"
+  },
+  {
+   "nom": "jeton-tag-microbe-grand-decouverte",
+   "image": "plateau/jeton-tag-microbe-grand-decouverte.webp",
+   "source": "data/scans/decouverte-tabletop/img_c8c1f65652c1.png"
+  },
+  {
+   "nom": "jeton-tag-plante-decouverte",
+   "image": "plateau/jeton-tag-plante-decouverte.webp",
+   "source": "data/scans/decouverte-tabletop/img_ee882d44964e.png"
+  },
+  {
+   "nom": "jeton-tag-plante-grand-decouverte",
+   "image": "plateau/jeton-tag-plante-grand-decouverte.webp",
+   "source": "data/scans/decouverte-tabletop/img_cdeb8e5f98b0.png"
+  },
+  {
+   "nom": "jeton-tag-science-decouverte",
+   "image": "plateau/jeton-tag-science-decouverte.webp",
+   "source": "data/scans/decouverte-tabletop/img_a19bb781835a.png"
+  },
+  {
+   "nom": "jeton-tag-science-grand-decouverte",
+   "image": "plateau/jeton-tag-science-grand-decouverte.webp",
+   "source": "data/scans/decouverte-tabletop/img_342670df580d.png"
+  },
+  {
+   "nom": "jeton-tag-terre-decouverte",
+   "image": "plateau/jeton-tag-terre-decouverte.webp",
+   "source": "data/scans/decouverte-tabletop/img_7b1df07bd021.png"
+  },
+  {
+   "nom": "jeton-tag-terre-grand-decouverte",
+   "image": "plateau/jeton-tag-terre-grand-decouverte.webp",
+   "source": "data/scans/decouverte-tabletop/img_adc1cdfa04da.png"
+  },
+  {
+   "nom": "pastille-ressource-animal-empreinte-de-patte",
+   "image": "plateau/pastille-ressource-animal-empreinte-de-patte.webp",
+   "source": "data/scans/base/img_2bbabceac947.png"
+  },
+  {
+   "nom": "pastille-ressource-batiment-pentagone-brun",
+   "image": "plateau/pastille-ressource-batiment-pentagone-brun.webp",
+   "source": "data/scans/base/img_54dc0af22fce.png"
+  },
+  {
+   "nom": "pastille-ressource-energie-eclair-violet",
+   "image": "plateau/pastille-ressource-energie-eclair-violet.webp",
+   "source": "data/scans/base/img_8070a399a506.png"
+  },
+  {
+   "nom": "pastille-ressource-espace-soleil-jaune",
+   "image": "plateau/pastille-ressource-espace-soleil-jaune.webp",
+   "source": "data/scans/base/img_39dd9bc0bed8.png"
+  },
+  {
+   "nom": "pastille-ressource-evenement-fleche-vers-le-bas",
+   "image": "plateau/pastille-ressource-evenement-fleche-vers-le-bas.webp",
+   "source": "data/scans/base/img_86a4dc6e964d.png"
+  },
+  {
+   "nom": "pastille-ressource-jupiter",
+   "image": "plateau/pastille-ressource-jupiter.webp",
+   "source": "data/scans/base/img_5eb11ade2f59.png"
+  },
+  {
+   "nom": "pastille-ressource-microbe",
+   "image": "plateau/pastille-ressource-microbe.webp",
+   "source": "data/scans/base/img_3e5ade43e4f9.png"
+  },
+  {
+   "nom": "pastille-ressource-plante-feuille-verte",
+   "image": "plateau/pastille-ressource-plante-feuille-verte.webp",
+   "source": "data/scans/base/img_2aa3aa5ee860.png"
+  },
+  {
+   "nom": "pastille-ressource-science-atome",
+   "image": "plateau/pastille-ressource-science-atome.webp",
+   "source": "data/scans/base/img_c88a3099a7a1.png"
+  },
+  {
+   "nom": "pastille-ressource-terre",
+   "image": "plateau/pastille-ressource-terre.webp",
+   "source": "data/scans/base/img_8badd249d0eb.png"
+  },
+  {
+   "nom": "plateau-des-parametres-planetaires",
+   "image": "plateau/plateau-des-parametres-planetaires.webp",
+   "source": "data/scans/base/img_f1d17f696568.png"
+  },
+  {
+   "nom": "plateau-joueur-recto-pistes-de-production",
+   "image": "plateau/plateau-joueur-recto-pistes-de-production.webp",
+   "source": "data/scans/base/img_e2af1ce6daa7.png"
+  },
+  {
+   "nom": "plateau-joueur-verso-mars",
+   "image": "plateau/plateau-joueur-verso-mars.webp",
+   "source": "data/scans/base/img_503a82f8fc24.png"
+  },
+  {
+   "nom": "recompense-celebrity-plus-de-production-de-mc",
+   "image": "plateau/recompense-celebrity-plus-de-production-de-mc.webp",
+   "source": "data/scans/decouverte-tabletop/img_9c88384b7936.png"
+  },
+  {
+   "nom": "recompense-collector-plus-de-ressources-sur-cartes",
+   "image": "plateau/recompense-collector-plus-de-ressources-sur-cartes.webp",
+   "source": "data/scans/decouverte-tabletop/img_eaa1c5f873cd.png"
+  },
+  {
+   "nom": "recompense-generator-plus-de-production-de-chaleur",
+   "image": "plateau/recompense-generator-plus-de-production-de-chaleur.webp",
+   "source": "data/scans/decouverte-tabletop/img_00c8b2407ea6.png"
+  },
+  {
+   "nom": "recompense-industrialist-plus-de-tags-batiment-et-etoile",
+   "image": "plateau/recompense-industrialist-plus-de-tags-batiment-et-etoile.webp",
+   "source": "data/scans/decouverte-tabletop/img_5cb5c9c7b1e7.png"
+  },
+  {
+   "nom": "recompense-project-manager-plus-de-cartes-en-jeu",
+   "image": "plateau/recompense-project-manager-plus-de-cartes-en-jeu.webp",
+   "source": "data/scans/decouverte-tabletop/img_d88f024fb001.png"
+  },
+  {
+   "nom": "recompense-researcher-plus-de-tags-science",
+   "image": "plateau/recompense-researcher-plus-de-tags-science.webp",
+   "source": "data/scans/decouverte-tabletop/img_1852b6c703ef.png"
+  },
+  {
+   "nom": "recompense-vierge-sans-intitule",
+   "image": "plateau/recompense-vierge-sans-intitule.webp",
+   "source": "data/scans/decouverte-tabletop/img_856f145d7387.png"
+  },
+  {
+   "nom": "recompense-visionary-plus-de-cartes-phase-ameliorees",
+   "image": "plateau/recompense-visionary-plus-de-cartes-phase-ameliorees.webp",
+   "source": "data/scans/decouverte-tabletop/img_584957ede44f.png"
+  },
+  {
+   "nom": "tuile-foret-compteur-decouverte",
+   "image": "plateau/tuile-foret-compteur-decouverte.webp",
+   "source": "data/scans/decouverte-tabletop/img_83a3bc669bdb.png"
+  },
+  {
+   "nom": "tuile-foret-compteur-hexagone-arbre",
+   "image": "plateau/tuile-foret-compteur-hexagone-arbre.webp",
+   "source": "data/scans/base/img_54c8d253e67c.png"
+  },
+  {
+   "nom": "tuile-foret-compteur-valeur-5-decouverte",
+   "image": "plateau/tuile-foret-compteur-valeur-5-decouverte.webp",
+   "source": "data/scans/decouverte-tabletop/img_6c4e10fe0258.png"
+  },
+  {
+   "nom": "tuile-ocean-bonus-1-carte",
+   "image": "plateau/tuile-ocean-bonus-1-carte.webp",
+   "source": "data/scans/base/img_43db866b7cee.png"
+  },
+  {
+   "nom": "tuile-ocean-bonus-1-carte-et-1-plante",
+   "image": "plateau/tuile-ocean-bonus-1-carte-et-1-plante.webp",
+   "source": "data/scans/base/img_30dfb59ec285.png"
+  },
+  {
+   "nom": "tuile-ocean-bonus-1-mc",
+   "image": "plateau/tuile-ocean-bonus-1-mc.webp",
+   "source": "data/scans/base/img_5c551dbba93d.png"
+  },
+  {
+   "nom": "tuile-ocean-bonus-1-plante-et-1-mc",
+   "image": "plateau/tuile-ocean-bonus-1-plante-et-1-mc.webp",
+   "source": "data/scans/base/img_d60fa457aaaa.png"
+  },
+  {
+   "nom": "tuile-ocean-bonus-1-plante-et-2-mc",
+   "image": "plateau/tuile-ocean-bonus-1-plante-et-2-mc.webp",
+   "source": "data/scans/base/img_fcbd3ec987a3.png"
+  },
+  {
+   "nom": "tuile-ocean-bonus-2-plantes",
+   "image": "plateau/tuile-ocean-bonus-2-plantes.webp",
+   "source": "data/scans/base/img_9f81571d11fc.png"
+  },
+  {
+   "nom": "tuile-ocean-bonus-4-mc",
+   "image": "plateau/tuile-ocean-bonus-4-mc.webp",
+   "source": "data/scans/base/img_d4e8c387b4fa.png"
+  },
+  {
+   "nom": "tuile-ocean-terrain-aride-sans-bonus",
+   "image": "plateau/tuile-ocean-terrain-aride-sans-bonus.webp",
+   "source": "data/scans/base/img_39e338afffd6.png"
+  },
+  {
+   "nom": "zone-de-stockage-chaleur-orange-decouverte",
+   "image": "plateau/zone-de-stockage-chaleur-orange-decouverte.webp",
+   "source": "data/scans/decouverte-tabletop/img_5e6fd78136d6.jpg"
+  },
+  {
+   "nom": "zone-de-stockage-chaleur-rouge",
+   "image": "plateau/zone-de-stockage-chaleur-rouge.webp",
+   "source": "data/scans/base/img_297d9a79476a.png"
+  },
+  {
+   "nom": "zone-de-stockage-mc-jaune",
+   "image": "plateau/zone-de-stockage-mc-jaune.webp",
+   "source": "data/scans/base/img_b35299cd46df.png"
+  },
+  {
+   "nom": "zone-de-stockage-mc-jaune-decouverte",
+   "image": "plateau/zone-de-stockage-mc-jaune-decouverte.webp",
+   "source": "data/scans/decouverte-tabletop/img_c2ec421b94c0.jpg"
+  },
+  {
+   "nom": "zone-de-stockage-plantes-verte",
+   "image": "plateau/zone-de-stockage-plantes-verte.webp",
+   "source": "data/scans/base/img_525e019ebafe.png"
+  },
+  {
+   "nom": "zone-de-stockage-plantes-verte-decouverte",
+   "image": "plateau/zone-de-stockage-plantes-verte-decouverte.webp",
+   "source": "data/scans/decouverte-tabletop/img_1b4b2d1421aa.jpg"
+  }
+ ]
+}
