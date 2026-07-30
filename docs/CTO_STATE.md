@@ -71,6 +71,70 @@ observation préalable »). Ses tests mordent réellement.
 (2 572 parties/s sur la première mesure), donc ce n'est **pas** une régression du
 chantier. Machine au repos : ~6 500 à 7 000 parties/s. [VÉRIFIÉ 30-07]
 
+## 🌐 LE MOTEUR TOURNE DANS LE NAVIGATEUR (30-07) — `interface-harnais` manche 2, audité OK et promu
+
+**Une partie complète se joue dans une page internet, à deux joueurs sur le même
+écran, et c'est le VRAI moteur Rust qui décide de tout.** Promu dans `web/`
+(1,6 Mo : `web/webapp/` servi, `web/vendor/` pour la recompilation).
+[VÉRIFIÉ 30-07 après promotion]
+
+### Le fait qui compte : les empreintes coïncident, et j'avais tort
+
+J'avais écrit dans le contrat : « ne cherche pas à faire coïncider les
+empreintes, c'est une impasse, elle est démontrée ». **C'était faux.** Le
+diagnostic « 32 bits contre 64 bits » était incomplet : la vraie cause est que la
+bibliothèque de tirage au sort `rand` 0.8 échantillonne un entier de taille
+machine **sur sa propre largeur**. L'agent l'a mesurée là où le contrat croyait
+le hasard absent — sur `--probe`, où **19 cartes sur 262** répondaient
+différemment.
+
+Correction à la racine : une copie de `rand` 0.8.7 avec **un seul écart**, que
+j'ai relu ligne à ligne (`web/vendor/rand-usize64/src/distributions/uniform.rs`,
+24 lignes de commentaire + 3 de code) : sous 64 bits, un entier de taille machine
+s'échantillonne comme un entier 64 bits ; l'instanciation d'amont pour les
+machines 64 bits est conservée telle quelle.
+
+Résultat mesuré par ma main sur **1000 parties** :
+
+| Configuration | Empreinte du navigateur | Empreinte du moteur natif |
+|---|---|---|
+| `--seed 2024 --boites base` | `cee020cda9db283b` | identique |
+| `--seed 4242 --boites base` | `981bb47e336034cc` | identique |
+| `--seed 4242 --boites base,decouverte` | `c20dd5be100de393` | identique |
+
+### Le reste de la livraison
+
+- Cible `wasm32-wasip1`, interface C minimale, couche d'adaptation maison
+  identique dans Node et dans le navigateur.
+- L'état affiché vient de `engine::observe::state_view` capté dans
+  `Policy::observe` — l'état **vivant** au moment du choix. Le chantier
+  `moteur-observe` a donc servi immédiatement.
+- Point d'entrée unique des futurs modes : `web/webapp/fournisseurs.js` +
+  `adversaire.md`. Un « fournisseur de décisions » est un objet
+  `{ nom, decider(decision, etat) }` ; brancher un cerveau artificiel ou un
+  joueur distant = remplacer un élément d'un tableau de deux.
+- 55 tests propres à la livraison, 0 échec.
+- Contrôle caché passé : la livraison recopiée **hors du dépôt** répond encore
+  à l'identique sur 14 cartes tirées au sort. Un imposteur que j'avais écrit
+  moi-même (faux moteur appelant le binaire natif par un chemin reconstitué) y
+  meurt.
+
+### Cinq défauts que l'agent a trouvés dans son PROPRE travail
+
+Sa relecture adversariale a corrigé : un pont qui captait l'état de la mauvaise
+décision (14 discordances sur 383) ; une graine trop grande rendant en silence
+la partie d'une autre graine ; `--games -3` tuant l'instance ; une réponse
+refusée qui empoisonnait la partie ; un commentaire qui mentait sur le
+comportement réel.
+
+### Écarts assumés, déclarés
+
+`--games` plafonné à 1 000 000 par appel (en WebAssembly un débordement est une
+panique irrattrapable qui tue la page) ; l'intervalle plein d'un entier de taille
+machine tirerait 32 bits au lieu de 64 dans le `rand` corrigé (le moteur ne
+l'emploie jamais) ; `web/webapp/` est autosuffisant à l'exécution mais pas à la
+recompilation.
+
 ## 🎴 LES VISUELS DE DÉCOUVERTE EXISTENT EN NET (30-07) — trouvés sur intuition d'Alexis
 
 Alexis a demandé si un module Tabletop Simulator contenait Découverte. **Oui.**

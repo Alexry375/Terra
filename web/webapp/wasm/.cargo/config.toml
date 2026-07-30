@@ -1,0 +1,6 @@
+# Verrou : même lancé À LA MAIN depuis ce dossier, `cargo build` écrit ses
+# artefacts dans `outputs/work/target/` et non dans la livraison. Sans ce
+# fichier, un `cargo build` distrait recréerait les 80 Mo de `wasm/target/`
+# au milieu de `outputs/webapp/`, qui doit rester servable tel quel.
+[build]
+target-dir = "../../work/target"
