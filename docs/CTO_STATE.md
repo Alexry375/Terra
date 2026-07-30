@@ -71,6 +71,42 @@ observation préalable »). Ses tests mordent réellement.
 (2 572 parties/s sur la première mesure), donc ce n'est **pas** une régression du
 chantier. Machine au repos : ~6 500 à 7 000 parties/s. [VÉRIFIÉ 30-07]
 
+## 🎴 LES VISUELS DE DÉCOUVERTE EXISTENT EN NET (30-07) — trouvés sur intuition d'Alexis
+
+Alexis a demandé si un module Tabletop Simulator contenait Découverte. **Oui.**
+Ma recherche précédente ne portait que sur un module en **français** (il n'y en a
+pas) ; je n'avais jamais cherché Découverte toutes langues confondues. Lacune de
+ma part. [VÉRIFIÉ 30-07]
+
+Module Steam Workshop **3159480208**, « Ares Expedition Terraforming Mars
+Discovery and Foundation », 12-02-2024, **anglais**, non scripté.
+
+Récupéré dans `data/scans/decouverte-tabletop/` (55 Mo, 53 images + 4 PDF ;
+dossier **non versionné**, `.gitignore:4` — il n'existe que sur ce disque) :
+
+| Planche | Taille | Contenu |
+|---|---|---|
+| `img_82e08cb04661.jpg` | 4096 x 3986 | **projets Découverte**, grille 10 x 7 |
+| `img_988c9278d90e.jpg` | 3684 x 4096 | **cartes Phase améliorées**, 5 phases x 3 versions |
+| `img_d80e604470e5.jpg` | 4096 x 2136 | **corporations** Découverte + mode Crise |
+| `img_b7d95969a643.jpg` | 2948 x 4096 | projets **Fondations** (extension non modélisée) |
+
+Titres lus sur la planche et retrouvés dans `data/cards.json` (42 cartes
+`discovery`) : Communications Streamlining, Drone Assisted Construction,
+Experimental Technology, Impact Analysis, Volcanic Soil, Dandelions, Blast
+Furnaces, Political Influence, Martian Museum. [VÉRIFIÉ 30-07]
+
+**Deux pièges techniques notés** : l'hôte `cloud-3.steamusercontent.com` inscrit
+dans les modules répond désormais 403 — les mêmes fichiers répondent sur
+`cdn.steamusercontent.com`, même chemin ; et les requêtes d'entête HTTP y
+mentent (92 octets annoncés pour un fichier de 15 Mo). **Conséquence pour
+l'interface : ne jamais pointer ces adresses, toujours servir les images du
+disque.**
+
+**Décision en attente d'Alexis** : anglais net partout, ou français moins net sur
+Découverte, ou les deux avec choix de langue. Les photos françaises d'Alexis
+(`data/cartes-imprimees/projets-decouverte/`) restent la seule source française.
+
 ## Infrastructure du dépôt
 
 - **Dépôt distant créé le 26-07 : `github.com/Alexry375/Terra`, PRIVÉ.**
