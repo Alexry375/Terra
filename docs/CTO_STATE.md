@@ -5,6 +5,33 @@
 
 Dernière mise à jour : 2026-07-30
 
+## 🏷️ LES BADGES SONT TOUS JUSTES (30-07) — 262/262 [VÉRIFIÉ 30-07]
+
+**Les badges (petites icônes rondes qui classent une carte : bâtiment, science,
+espace…) de `data/cards.json` ont été confrontés un par un aux images imprimées.
+Aucune erreur.** C'était le dernier doute qui restait sur l'héritage du moteur
+Java dont ce projet est parti.
+
+- Méthode : découpe de la colonne d'icônes de chaque carte (bord gauche pour les
+  246 cartes projet, coin haut gauche pour les 16 corporations), montage en 22
+  planches numérotées, lecture **à l'aveugle** par 11 agents qui n'avaient pas
+  accès à `data/cards.json`, puis confrontation automatique.
+- Premier passage : 239/262. Les 23 écarts étaient **tous** des défauts de ma
+  méthode, aucun du dépôt :
+  - 11 corporations : leur badge n'est pas dans la colonne de gauche mais en haut
+    à gauche — ma découpe le manquait. Recoupées et relues par moi : 16/16 justes,
+    y compris *Mining Guild* qui porte bien **deux** badges bâtiment.
+  - 12 cartes projet : le badge « espace » est une **étoile jaune sur pastille
+    sombre**, que ma consigne décrivait à tort comme une fusée ; les agents l'ont
+    donc nommé « ville », « joker » ou « plante ». Relues par moi : 12/12 justes.
+- Vocabulaire des icônes établi et vérifié : maison marron = BÂTIMENT, atome =
+  SCIENCE, globe = TERRE, éclair magenta = ÉNERGIE, feuille = PLANTE, bactérie =
+  MICROBE, empreinte = ANIMAL, flèche noire vers le bas = ÉVÉNEMENT, **étoile
+  jaune = ESPACE**, planète rayée = JUPITER, pastille joker = DYNAMIQUE.
+- Complète la confrontation partielle faite le même jour contre la transcription
+  française de `data/cartes-imprimees/projets-decouverte/` (17 cartes appariables
+  sans ambiguïté, 17/17 concordantes).
+
 ## 🖼️ CHAQUE CARTE A SON IMAGE (30-07) — `harnais-images`, audité OK et promu
 
 **Les 262 cartes jouables ont chacune une image nette, découpée dans les planches
