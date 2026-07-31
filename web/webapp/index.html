@@ -2,44 +2,17 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<title>Terra — bac à sable 2 joueurs (moteur WebAssembly)</title>
-<!-- Fonctionnel et laid, par contrat : aucun effort de décoration. Rien n'est
-     chargé de l'extérieur — le dossier entier se suffit à lui-même. -->
-<style>
-  body { font-family: monospace; margin: 1em; }
-  table { border-collapse: collapse; }
-  td, th { border: 1px solid #999; padding: 2px 6px; vertical-align: top; }
-  fieldset { margin: 0 0 1em 0; }
-  button { font-family: monospace; margin: 1px; }
-  .attention { background: #ffd; }
-  ul { margin: 0; padding-left: 1.2em; }
-</style>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Terra — Ares Expedition</title>
+<!-- Rien n'est chargé de l'extérieur : ni police, ni bibliothèque, ni image.
+     Le dossier se suffit à lui-même, où qu'on le pose. -->
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="./style.css">
 </head>
-<body>
-<h1>Terra — bac à sable, 2 joueurs sur le même écran</h1>
-<p>
-  Le moteur Rust tourne dans cette page, compilé en WebAssembly. La page ne
-  calcule ni coût, ni production, ni score : elle affiche ce que le moteur rend
-  (<code>observe::state_view</code>) et lui renvoie les décisions.
-</p>
-
-<fieldset id="miseEnPlace">
-  <legend>Nouvelle partie</legend>
-  <label>Graine <input id="graine" type="number" value="1"></label>
-  <label>Boîtes
-    <select id="boites">
-      <option value="base">base seule</option>
-      <option value="base,decouverte" selected>base + Découverte</option>
-    </select>
-  </label>
-  <button id="commencer">Commencer</button>
-  <span id="chargement"></span>
-</fieldset>
-
-<div id="erreur" style="color:#a00"></div>
-<div id="decision"></div>
-<div id="etat"></div>
-
+<body data-phase="chargement">
+<!-- Le décor, les deux équipages, les deux mains et la scène sont bâtis par
+     `interface.js` à partir de l'état que le moteur rend. La page ne contient
+     aucun nombre écrit d'avance. -->
 <script type="module" src="./interface.js"></script>
 </body>
 </html>

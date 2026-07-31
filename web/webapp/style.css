@@ -1,0 +1,810 @@
+/* TERRA — l'écran du jeu.
+ *
+ * Un principe tient toute la feuille : RIEN N'EST OPAQUE. Chaque panneau est un
+ * voile posé sur le ciel de Mars, et ce ciel se réchauffe avec la température.
+ * Quand la planète change, tout l'écran change avec elle — on ne lit pas l'état
+ * de la planète dans un tableau, on est dedans.
+ */
+
+@font-face {
+  font-family: "Terra";
+  src: url("./polices/DejaVuSansCondensed.ttf") format("truetype");
+  font-weight: 400; font-style: normal; font-display: block;
+}
+@font-face {
+  font-family: "Terra";
+  src: url("./polices/DejaVuSansCondensed-Bold.ttf") format("truetype");
+  font-weight: 700; font-style: normal; font-display: block;
+}
+@font-face {
+  font-family: "TerraChiffre";
+  src: url("./polices/DejaVuSansMono-Bold.ttf") format("truetype");
+  font-weight: 700; font-style: normal; font-display: block;
+}
+
+:root {
+  --os: #efe4d4;
+  --os-faible: rgba(239, 228, 212, .46);
+  --os-tres-faible: rgba(239, 228, 212, .2);
+  --braise: #e2542b;
+  --or: #edb54e;
+  --glace: #7fc8e8;
+  --trait: rgba(239, 228, 212, .16);
+
+  --ciel-a: #060a14;
+  --ciel-b: #101a2a;
+  --chaleur: 0;
+  --brume: 0;
+  --niveau-mer: 7%;
+  --teinte: var(--braise);
+}
+
+* { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  overflow: hidden;
+  background: #05070c;
+  color: var(--os);
+  font-family: "Terra", "DejaVu Sans Condensed", sans-serif;
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+
+  display: grid;
+  grid-template-columns: minmax(212px, 14.2vw) 1fr minmax(212px, 14.2vw);
+  grid-template-rows: minmax(148px, 17vh) 118px 1fr minmax(158px, 18vh);
+  grid-template-areas:
+    "bord-g haut    bord-d"
+    "bord-g horizon bord-d"
+    "bord-g scene   bord-d"
+    "bord-g bas     bord-d";
+  column-gap: 12px;
+  padding: 0 14px 10px;
+}
+
+img { display: block; user-select: none; -webkit-user-drag: none; }
+
+/* =========================================================== LE CIEL DE MARS */
+
+#ciel { position: fixed; inset: 0; z-index: -3; overflow: hidden; }
+
+.ciel__voute {
+  position: absolute; inset: 0;
+  background: linear-gradient(178deg, var(--ciel-a) 0%, var(--ciel-a) 26%, var(--ciel-b) 100%);
+  transition: background 900ms cubic-bezier(.2, .7, .2, 1);
+}
+
+/* La brume : l'oxygène rend l'horizon respirable, et ça se voit. */
+.ciel__brume {
+  position: absolute; left: -10%; right: -10%; bottom: 8%; height: 62%;
+  background:
+    radial-gradient(120% 100% at 50% 100%,
+      rgba(226, 160, 96, calc(.30 * var(--brume))) 0%,
+      rgba(180, 120, 80, calc(.16 * var(--brume))) 38%,
+      transparent 72%);
+  filter: blur(14px);
+  transition: background 900ms ease;
+}
+
+/* Le grain : la planète n'est pas un dégradé propre. */
+.ciel__grain {
+  position: absolute; inset: 0;
+  opacity: .5; mix-blend-mode: overlay; pointer-events: none;
+  background-image: url("data:image/svg+xml;utf8,\
+<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'>\
+<filter id='b'><feTurbulence type='fractalNoise' baseFrequency='.86' numOctaves='3'/>\
+<feColorMatrix type='saturate' values='0'/></filter>\
+<rect width='180' height='180' filter='url(%23b)' opacity='.42'/></svg>");
+}
+
+/* La mer monte. Neuf océans, et l'écran a les pieds dans l'eau. */
+.ciel__mer {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  height: var(--niveau-mer);
+  background: linear-gradient(180deg,
+    rgba(30, 96, 122, .0) 0%,
+    rgba(24, 84, 112, .55) 22%,
+    rgba(10, 42, 66, .92) 100%);
+  border-top: 1px solid rgba(150, 220, 245, .3);
+  box-shadow: 0 -14px 46px rgba(60, 160, 200, .18);
+  transition: height 1100ms cubic-bezier(.16, .8, .2, 1);
+}
+
+.ciel__houle {
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(96deg,
+    rgba(255, 255, 255, .045) 0 2px, transparent 2px 26px);
+}
+@keyframes houle { to { transform: translateX(-26px); } }
+
+.ciel__vignette {
+  position: absolute; inset: 0;
+  background: radial-gradient(128% 92% at 50% 44%, transparent 42%, rgba(0, 0, 0, .72) 100%);
+}
+
+/* ============================================================== L'HORIZON */
+
+#horizon {
+  grid-area: horizon;
+  display: grid;
+  grid-template-columns: 92px 1fr 1.15fr 1fr auto;
+  align-items: stretch;
+  gap: 20px;
+  padding: 10px 18px 8px;
+  border-top: 1px solid var(--trait);
+  border-bottom: 1px solid var(--trait);
+  background:
+    linear-gradient(180deg, rgba(6, 8, 14, .58), rgba(6, 8, 14, .30));
+}
+
+.manche { display: flex; flex-direction: column; justify-content: center; }
+.manche__mot {
+  font-size: 9.5px; letter-spacing: .22em; text-transform: uppercase;
+  color: var(--os-faible);
+}
+.manche__n {
+  font-family: "TerraChiffre", monospace; font-size: 40px; line-height: .95;
+  color: var(--os); text-shadow: 0 0 26px rgba(239, 228, 212, .22);
+}
+
+.param { display: flex; flex-direction: column; justify-content: center; gap: 7px; position: relative; }
+
+.param__tete { display: flex; align-items: baseline; gap: 8px; }
+.param__nom {
+  font-size: 9.5px; letter-spacing: .22em; text-transform: uppercase;
+  color: var(--os-faible); flex: 1;
+}
+.param__n {
+  font-family: "TerraChiffre", monospace; font-size: 32px; line-height: 1;
+  color: var(--os);
+}
+.param__max {
+  font-family: "TerraChiffre", monospace; font-size: 13px; color: var(--os-tres-faible);
+}
+.param--temp .param__n { color: #ffb08a; text-shadow: 0 0 22px rgba(226, 84, 43, .5); }
+.param--o2 .param__n   { color: #cfe9f5; text-shadow: 0 0 22px rgba(127, 200, 232, .4); }
+.param--mer .param__n  { color: #a8dcf0; text-shadow: 0 0 22px rgba(90, 180, 220, .45); }
+
+/* Les crans de température : chacun est acquis pour toujours. */
+.crans { display: flex; gap: 2px; height: 26px; align-items: flex-end; }
+.crans span {
+  flex: 1; height: 46%;
+  background: rgba(239, 228, 212, .09);
+  border-bottom: 1px solid rgba(239, 228, 212, .16);
+  transition: height 420ms cubic-bezier(.2, .8, .2, 1), background 420ms ease;
+}
+.crans span.acquis {
+  height: 100%;
+  background: linear-gradient(180deg, #ffca9a, var(--braise));
+  box-shadow: 0 0 10px rgba(226, 84, 43, .5);
+  border-bottom-color: #ffca9a;
+}
+
+/* Les crans d'oxygène : même langage que la température, l'autre couleur. */
+.crans--o2 span.acquis {
+  background: linear-gradient(180deg, #dff4ff, #4fb6e0);
+  box-shadow: 0 0 10px rgba(90, 190, 235, .5);
+  border-bottom-color: #dff4ff;
+}
+
+/* La rade : un socle par océan, une tuile réelle par océan gagné. */
+.rade { display: flex; gap: 4px; height: 26px; align-items: center; }
+.rade__socle {
+  flex: 1; height: 100%; position: relative;
+  border: 1px dashed rgba(239, 228, 212, .16);
+  border-radius: 50%;
+}
+.rade__socle--plein { border-color: transparent; }
+.rade__socle img {
+  position: absolute; inset: -2px; width: calc(100% + 4px); height: calc(100% + 4px);
+  object-fit: contain;
+  filter: drop-shadow(0 0 8px rgba(80, 190, 230, .55));
+  animation: poser-tuile 620ms cubic-bezier(.2, 1.4, .4, 1);
+}
+@keyframes poser-tuile {
+  from { transform: scale(2.2) translateY(-16px); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+
+/* Objectifs et récompenses : éteints tant qu'ils sont à prendre. */
+.tuiles-honneur { display: flex; flex-direction: column; justify-content: center; gap: 6px; }
+.tuiles-honneur__rang { display: flex; gap: 6px; }
+.honneur { width: 42px; height: 42px; position: relative; }
+.honneur img {
+  width: 100%; height: 100%; object-fit: contain;
+  filter: grayscale(1) brightness(.5); opacity: .5;
+}
+.honneur--pris img { filter: none; opacity: 1; }
+.honneur--pris::after {
+  content: ""; position: absolute; inset: -3px;
+  border: 1px solid var(--or); border-radius: 50%;
+  box-shadow: 0 0 12px rgba(237, 181, 78, .5);
+}
+
+/* Le cran gagné : la valeur s'allume, l'écran encaisse le coup. */
+.param--gagne .param__n { animation: frapper 1000ms cubic-bezier(.2, .9, .2, 1); }
+@keyframes frapper {
+  0%   { transform: scale(1); }
+  14%  { transform: scale(1.75); filter: brightness(2.2); }
+  100% { transform: scale(1); }
+}
+
+#secousse {
+  position: fixed; inset: 0; z-index: 60; pointer-events: none; opacity: 0;
+}
+#secousse.secousse--active { animation: onde 900ms ease-out; }
+#secousse[data-teinte="chaud"] { background: radial-gradient(120% 80% at 50% 100%, rgba(255, 130, 60, .30), transparent 62%); }
+#secousse[data-teinte="o2"]    { background: radial-gradient(120% 80% at 50% 100%, rgba(150, 230, 255, .24), transparent 62%); }
+#secousse[data-teinte="mer"]   { background: radial-gradient(120% 60% at 50% 100%, rgba(70, 170, 230, .34), transparent 60%); }
+@keyframes onde { 0% { opacity: 0; } 18% { opacity: 1; } 100% { opacity: 0; } }
+
+/* =============================================================== LES MAINS */
+
+.main { position: relative; display: flex; flex-direction: column; min-width: 0; }
+#main-1 { grid-area: haut; justify-content: flex-start; padding-top: 4px; }
+#main-0 { grid-area: bas; justify-content: flex-end; padding-bottom: 2px; }
+
+.main__etiquette {
+  font-size: 9.5px; letter-spacing: .22em; text-transform: uppercase;
+  color: var(--os-faible); display: flex; align-items: center; gap: 7px;
+  padding: 2px 0;
+}
+#main-1 .main__etiquette { order: 0; }
+#main-0 .main__etiquette { order: 1; }
+.main__etiquette::before {
+  content: ""; width: 16px; height: 2px; background: var(--teinte); opacity: .55;
+}
+.main--active .main__etiquette { color: var(--os); }
+.main--active .main__etiquette::before { opacity: 1; box-shadow: 0 0 10px var(--teinte); }
+
+.main__eventail {
+  display: flex; justify-content: center; align-items: flex-start;
+  flex: 1; min-height: 0; --pas: 64px;
+}
+.main__eventail > * + * { margin-left: calc(var(--pas) - 112px); }
+.main__eventail .carte img { width: 112px; }
+
+/* ========================================================== LES ÉQUIPAGES */
+
+.equipage {
+  display: flex; flex-direction: column; gap: 7px;
+  padding: 12px 12px 10px;
+  min-width: 0; overflow: hidden;
+  background: linear-gradient(180deg, rgba(6, 8, 14, .62), rgba(6, 8, 14, .34));
+  border-top: 2px solid rgba(239, 228, 212, .1);
+  /* Aucune transition ici : ce panneau change de main à CHAQUE décision, et
+     animer un dégradé plein écran + une ombre interne coûtait 36 ms par
+     décision (mesuré : outputs/work/chrono.py). Le basculement est net. */
+}
+#equipage-0 { grid-area: bord-g; }
+#equipage-1 { grid-area: bord-d; }
+
+.equipage--actif {
+  border-top-color: var(--teinte);
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--teinte) 16%, rgba(6, 8, 14, .66)), rgba(6, 8, 14, .34));
+  box-shadow: inset 0 22px 46px -22px var(--teinte);
+}
+
+.equipage__tete { display: flex; align-items: center; gap: 9px; }
+.equipage__suit {
+  width: 54px; height: 54px; object-fit: contain;
+  filter: grayscale(.55) brightness(.8);
+}
+.equipage--actif .equipage__suit { filter: none; }
+.equipage__id { display: flex; flex-direction: column; min-width: 0; }
+.equipage__jn {
+  font-family: "TerraChiffre", monospace; font-size: 19px; color: var(--teinte);
+  line-height: 1;
+}
+.equipage__corpo {
+  font-size: 11px; color: var(--os-faible); text-transform: uppercase;
+  letter-spacing: .1em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.equipage__corpo-carte { display: flex; justify-content: center; }
+.equipage__corpo-carte .carte img {
+  width: 100%; max-width: 168px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .7), 0 0 0 1px rgba(239, 228, 212, .12);
+}
+
+.tr {
+  display: flex; align-items: baseline; gap: 8px;
+  border-top: 1px solid var(--trait); border-bottom: 1px solid var(--trait);
+  padding: 5px 0;
+}
+.tr__mot {
+  font-size: 9px; letter-spacing: .2em; text-transform: uppercase;
+  color: var(--os-faible); flex: 1;
+}
+.tr__n {
+  font-family: "TerraChiffre", monospace; font-size: 34px; line-height: 1;
+  color: var(--or); text-shadow: 0 0 20px rgba(237, 181, 78, .35);
+}
+
+/* Les réserves sont posées dans leurs bacs imprimés. */
+.reserves { display: flex; gap: 6px; }
+.reserve { position: relative; flex: 1; height: 46px; overflow: hidden; }
+.reserve__bac {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; opacity: .5; filter: saturate(1.1) brightness(.85);
+}
+.reserve__n {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-family: "TerraChiffre", monospace; font-size: 22px; color: #fff;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, .95), 0 0 16px rgba(0, 0, 0, .8);
+}
+.reserve__mot {
+  position: absolute; left: 0; right: 0; bottom: 1px; text-align: center;
+  font-size: 8px; letter-spacing: .16em; text-transform: uppercase;
+  color: rgba(255, 255, 255, .82); text-shadow: 0 1px 4px #000;
+}
+
+.prod { display: flex; flex-direction: column; gap: 4px; }
+.prod__mot {
+  font-size: 9px; letter-spacing: .2em; text-transform: uppercase; color: var(--os-faible);
+}
+.prod__cases { display: flex; gap: 4px; }
+.prod__case {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 1px;
+  padding: 4px 2px;
+  background: rgba(239, 228, 212, .07);
+  clip-path: polygon(0 0, 100% 0, 100% 78%, calc(100% - 7px) 100%, 0 100%);
+}
+.prod__case b { font-family: "TerraChiffre", monospace; font-size: 16px; color: var(--os); }
+.prod__case i {
+  font-style: normal; font-size: 8px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--os-faible);
+}
+.prod__case--vide { opacity: .38; }
+
+.capacites { display: flex; gap: 6px; align-items: center; }
+.cap {
+  flex: 1; display: flex; align-items: center; gap: 5px; justify-content: center;
+  font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: var(--os-faible);
+  border: 1px solid var(--trait); padding: 3px 2px;
+}
+.cap b { font-family: "TerraChiffre", monospace; font-size: 14px; color: var(--os); }
+.cap img { width: 15px; height: 15px; object-fit: contain; }
+
+.badges { display: grid; grid-template-columns: repeat(10, 1fr); gap: 2px; }
+.badge { position: relative; aspect-ratio: 1; }
+.badge img { width: 100%; height: 100%; object-fit: contain; }
+.badge b {
+  position: absolute; right: -1px; bottom: -4px;
+  font-family: "TerraChiffre", monospace; font-size: 10px; color: #fff;
+  text-shadow: 0 1px 3px #000, 0 0 6px #000;
+}
+.badge--vide img { filter: grayscale(1) brightness(.42); opacity: .34; }
+.badge--vide b { color: var(--os-tres-faible); text-shadow: none; }
+
+.phases { display: flex; gap: 6px; align-items: flex-start; }
+.phases__courante { position: relative; flex: 0 0 62px; }
+.phases__courante img { width: 62px; border-radius: 3px; box-shadow: 0 3px 10px rgba(0, 0, 0, .6); }
+.phases__nom {
+  display: block; margin-top: 2px;
+  font-size: 8px; letter-spacing: .1em; text-transform: uppercase; color: var(--os-faible);
+}
+.phases__ameliorees { display: flex; flex-wrap: wrap; gap: 3px; flex: 1; }
+.phases__ameliorees img {
+  width: 30px; border-radius: 2px; opacity: .95;
+  box-shadow: 0 0 0 1px rgba(237, 181, 78, .45);
+}
+
+.posees { display: flex; flex-direction: column; gap: 3px; flex: 1; min-height: 0; }
+.posees__mot {
+  font-size: 9px; letter-spacing: .2em; text-transform: uppercase; color: var(--os-faible);
+}
+.posees__pile {
+  display: flex; flex-wrap: wrap; gap: 2px; align-content: flex-start;
+  overflow: hidden; min-height: 0;
+}
+.posees__pile .carte img { width: 34px; border-radius: 2px; }
+
+.score { display: flex; align-items: baseline; gap: 8px; border-top: 1px solid var(--trait); padding-top: 5px; }
+.score__mot {
+  font-size: 9px; letter-spacing: .2em; text-transform: uppercase; color: var(--os-faible); flex: 1;
+}
+.score__n { font-family: "TerraChiffre", monospace; font-size: 24px; color: var(--os); }
+
+/* ================================================================ LES CARTES */
+
+.carte { margin: 0; position: relative; line-height: 0; }
+.carte img {
+  border-radius: 4px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .55);
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+.carte--sans-image .carte__plaque,
+.carte__plaque {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  padding: 3px 4px; font-size: 9px; line-height: 1.15;
+  background: rgba(6, 8, 14, .88); color: var(--os);
+  border-radius: 0 0 4px 4px;
+}
+.carte__ressources {
+  position: absolute; top: -5px; right: -5px; min-width: 19px; height: 19px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--or); color: #1a1206;
+  font-family: "TerraChiffre", monospace; font-size: 12px;
+  border-radius: 50%; box-shadow: 0 0 10px rgba(237, 181, 78, .6);
+}
+
+/* ================================================================= LA SCÈNE */
+
+#scene {
+  grid-area: scene;
+  position: relative;
+  display: flex; flex-direction: column;
+  min-height: 0; min-width: 0;
+  padding: 10px 0 6px;
+}
+
+/* Décor et titre ne reçoivent aucun clic : ils ne portent rien de cliquable, et
+   ils ne doivent jamais pouvoir s'interposer devant un choix. */
+.scene__fond, .scene__entete { pointer-events: none; }
+.scene__contexte { pointer-events: none; }
+.scene__contexte .carte { pointer-events: auto; }
+
+.scene__fond {
+  position: absolute; inset: -6% -4%;
+  background-size: cover; background-position: center 32%;
+  filter: blur(26px) saturate(1.25) brightness(.42);
+  opacity: .34;
+  z-index: -1;
+  mask-image: radial-gradient(72% 62% at 50% 46%, #000 20%, transparent 78%);
+  animation: fond-entre 700ms ease;
+}
+@keyframes fond-entre { from { opacity: 0; transform: scale(1.06); } }
+
+.scene__entete { display: flex; align-items: baseline; gap: 14px; padding: 0 4px 8px; }
+.scene__qui {
+  display: flex; align-items: baseline; gap: 6px;
+  font-size: 10px; letter-spacing: .24em; text-transform: uppercase;
+  color: var(--teinte); flex: 0 0 auto;
+  border-left: 3px solid var(--teinte); padding-left: 8px;
+}
+.scene__qui i {
+  font-family: "TerraChiffre", monospace; font-style: normal; font-size: 17px;
+}
+.scene__question {
+  margin: 0; flex: 1;
+  font-size: 25px; font-weight: 700; line-height: 1.05;
+  letter-spacing: -.005em; color: var(--os);
+  text-shadow: 0 2px 20px rgba(0, 0, 0, .8);
+}
+
+/* Le contexte : petit quand les options sont le sujet, immense quand c'est lui. */
+.scene__contexte {
+  padding: 0 4px 8px; display: flex; flex-direction: column; min-height: 0;
+}
+#scene[data-composition="contexte"] .scene__contexte { flex: 1 1 auto; }
+#scene[data-composition="options"]  .scene__contexte { flex: 0 0 auto; }
+
+.scene__contexte-mot {
+  font-size: 9px; letter-spacing: .22em; text-transform: uppercase; color: var(--os-faible);
+  flex: 0 0 auto;
+}
+.scene__contexte-rang {
+  display: flex; justify-content: center; align-items: center;
+  margin-top: 4px; flex: 1 1 auto; min-height: 0;
+}
+.scene__contexte-rang .carte img { width: var(--w, 68px); }
+.scene__contexte-rang > * + * { margin-left: var(--serrage, -22px); }
+.scene__contexte-rang .carte { transition: transform 160ms ease; }
+.scene__contexte-rang .carte:hover { transform: translateY(-8px); z-index: 3; }
+.scene__note {
+  margin: 5px 0 0; text-align: center;
+  font-size: 12px; letter-spacing: .05em; color: var(--or);
+}
+
+/* Une GRILLE au nombre de colonnes calculé : aucun retour à la ligne surprise,
+   donc aucun choix qui déborde sur ses voisins ou hors de la zone. */
+.scene__choix {
+  flex: 1 1 auto; min-height: 0;
+  display: grid; gap: 12px;
+  justify-content: center; align-content: center;
+}
+
+/* Un choix : la matière que l'option porte, et le mot du moteur en dessous. */
+.choix {
+  position: relative;
+  width: 100%;               /* la cellule de la grille fixe la largeur */
+  margin: 0; padding: 0;
+  background: none; border: 0; color: inherit; font: inherit;
+  cursor: pointer; text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+
+/* La BOÎTE du bouton ne bouge jamais : c'est elle la cible du clic. Le
+   soulèvement au survol est porté par ce qu'il y a dedans. Un élément dont le
+   cadre bouge est un élément qu'on ne peut pas cliquer tant qu'il n'a pas fini
+   de bouger — 93 ms perdues par décision, mesuré (outputs/work/detail.py). */
+.choix .carte, .choix--phase > img, .choix--plaque > .choix__mot,
+.choix--plaque > .choix__matiere, .choix--plaque > .choix__jeton {
+  transition: transform 140ms ease;
+}
+.choix:hover .carte, .choix--phase:hover > img,
+.choix--plaque:hover > .choix__mot, .choix--plaque:hover > .choix__matiere,
+.choix--plaque:hover > .choix__jeton { transform: translateY(-5px); }
+.choix:focus-visible { outline: 2px solid var(--glace); outline-offset: 3px; }
+
+.choix .carte img, .choix--phase img { width: 100%; height: auto; border-radius: 4px; }
+.choix:hover .carte img, .choix--phase:hover img {
+  box-shadow: 0 10px 26px rgba(0, 0, 0, .7), 0 0 0 2px var(--glace);
+}
+
+.choix__mot {
+  font-size: 11px; line-height: 1.15; color: var(--os-faible);
+  letter-spacing: .04em; max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.choix:hover .choix__mot { color: var(--os); }
+.scene__choix[data-dense="oui"] .choix__mot { display: none; }
+/* Sauf sur une plaque : elle n'a pas d'image pour parler à sa place. Sans son
+   mot, « Passer » devient un rectangle noir vide. */
+.scene__choix[data-dense="oui"] .choix--plaque .choix__mot { display: block; }
+
+/* Une option sans image : une plaque gravée, jamais un bouton d'interface. */
+.choix--plaque {
+  min-height: var(--hp, 84px); height: var(--hp, 84px); padding: 14px 26px;
+  flex-direction: row; align-items: center; justify-content: flex-start; gap: 20px;
+  text-align: left;
+  background:
+    linear-gradient(155deg, rgba(239, 228, 212, .16), rgba(239, 228, 212, .04) 62%),
+    linear-gradient(0deg, rgba(6, 8, 14, .5), rgba(6, 8, 14, .5));
+  border-left: 3px solid var(--os-tres-faible);
+  border-top: 1px solid rgba(239, 228, 212, .22);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%);
+  overflow: hidden;
+}
+/* Un balayage de lumière traverse la plaque au survol : elle est en métal. */
+.choix--plaque::before {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, .16) 50%, transparent 70%);
+  transform: translateX(-120%);
+  transition: transform 520ms ease;
+}
+.choix--plaque:hover::before { transform: translateX(120%); }
+.choix--plaque .choix__mot {
+  font-size: clamp(15px, calc(var(--hp, 90px) / 4.2), 30px);
+  font-weight: 700; color: var(--os); white-space: normal;
+  letter-spacing: .01em; line-height: 1.12; max-width: none;
+}
+.choix--plaque:hover {
+  background: linear-gradient(155deg, rgba(127, 200, 232, .26), rgba(239, 228, 212, .07));
+  border-left-color: var(--glace);
+}
+.choix--passer {
+  border-left-color: rgba(239, 228, 212, .28);
+  background: linear-gradient(155deg, rgba(6, 8, 14, .6), rgba(6, 8, 14, .3));
+}
+.choix--passer { justify-content: center; }
+.choix--passer .choix__mot { color: var(--os-faible); font-weight: 400; }
+.choix--passer:hover .choix__mot { color: var(--os); }
+
+.choix__matiere { object-fit: contain; }
+.choix__matiere { flex: 0 0 auto; }
+.choix__matiere--jeton { width: calc(var(--hp, 90px) * .56); height: calc(var(--hp, 90px) * .56); }
+.choix__matiere--carte { width: calc(var(--hp, 90px) * .44); border-radius: 3px; }
+.choix__jeton { width: 46px; height: 46px; object-fit: contain; }
+
+/* Sélection d'un choix multiple. */
+.choix--pris .carte img,
+.choix--pris.choix--plaque {
+  box-shadow: 0 0 0 3px var(--or), 0 10px 24px rgba(0, 0, 0, .6);
+}
+.choix--pris::after {
+  content: "✓"; position: absolute; top: -8px; right: -8px;
+  width: 24px; height: 24px; border-radius: 50%;
+  background: var(--or); color: #1a1206;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 700;
+  box-shadow: 0 0 14px rgba(237, 181, 78, .7);
+}
+
+/* La barre de validation. */
+.scene__barre {
+  display: flex; align-items: center; justify-content: center; gap: 16px;
+  min-height: 0; padding-top: 6px;
+}
+.scene__barre:empty { display: none; }
+
+.barre__compte {
+  font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: var(--os-faible);
+}
+
+.valider {
+  font: inherit; font-weight: 700; font-size: 14px;
+  letter-spacing: .18em; text-transform: uppercase;
+  color: var(--os-faible);
+  padding: 9px 26px;
+  background: rgba(239, 228, 212, .07);
+  border: 1px solid var(--os-tres-faible);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%);
+  cursor: pointer;
+  transition: background 160ms, color 160ms, border-color 160ms;
+}
+.valider--prete {
+  color: #0d1206; background: var(--or); border-color: var(--or);
+  box-shadow: 0 0 22px rgba(237, 181, 78, .35);
+}
+.valider--prete:hover { background: #ffd27a; }
+.valider--refus { animation: refus 380ms ease; }
+@keyframes refus {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-7px); } 75% { transform: translateX(7px); }
+}
+
+/* Le cadran du montant. */
+.cadran { display: flex; align-items: center; gap: 12px; }
+.cadran__champ {
+  width: 156px; padding: 10px 8px;
+  font-family: "TerraChiffre", monospace; font-size: 44px; text-align: center;
+  color: var(--os); background: rgba(6, 8, 14, .66);
+  border: 1px solid var(--trait); border-bottom: 2px solid var(--or);
+}
+.cadran__champ--refus { animation: refus 380ms ease; }
+.cadran__pas {
+  font: inherit; font-size: 26px; line-height: 1;
+  width: 48px; height: 48px; cursor: pointer;
+  color: var(--os); background: rgba(239, 228, 212, .08);
+  border: 1px solid var(--trait);
+}
+.cadran__pas:hover { background: rgba(127, 200, 232, .22); }
+.cadran__bornes {
+  font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--os-faible);
+}
+
+/* ================================================================= LA LOUPE */
+
+/* `pointer-events: none` : elle ne peut JAMAIS voler un clic. */
+#loupe {
+  position: fixed; z-index: 90; pointer-events: none;
+  opacity: 0; visibility: hidden;
+  transition: opacity 120ms ease;
+}
+#loupe.loupe--visible { opacity: 1; visibility: visible; }
+#loupe img {
+  width: 300px; border-radius: 6px;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, .9), 0 0 0 1px rgba(239, 228, 212, .22);
+}
+
+/* ============================================================== LE THÉÂTRE */
+
+/* Les annonces se posent sur le HAUT de l'écran, jamais sur la scène : le choix
+   en cours doit rester lisible et cliquable pendant qu'elles s'effacent. */
+#annonce {
+  position: fixed; top: 0; left: 0; right: 0; height: 29vh; z-index: 70;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none; opacity: 0;
+}
+#annonce.annonce--vive { animation: annonce 1200ms cubic-bezier(.2, .8, .2, 1); }
+@keyframes annonce {
+  0% { opacity: 0; transform: scale(.94); }
+  12% { opacity: 1; transform: none; }
+  72% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.annonce__manche { display: flex; align-items: baseline; gap: 18px; }
+.annonce__manche span {
+  font-size: 15px; letter-spacing: .5em; text-transform: uppercase; color: var(--os-faible);
+}
+.annonce__manche b {
+  font-family: "TerraChiffre", monospace; font-size: 112px; line-height: 1; color: var(--os);
+  text-shadow: 0 0 70px rgba(0, 0, 0, .95), 0 0 30px rgba(239, 228, 212, .35);
+}
+
+.annonce__phases { display: flex; gap: 40px; }
+.annonce__phase {
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  padding: 11px; background: rgba(6, 8, 14, .88);
+  border-top: 3px solid var(--teinte);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .8);
+}
+.annonce__phase img { width: 132px; border-radius: 4px; }
+.annonce__phase-qui {
+  font-family: "TerraChiffre", monospace; font-size: 18px; color: var(--teinte);
+}
+.annonce__phase-nom {
+  font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--os-faible);
+}
+
+/* ============================================================= L'ÉCRAN FINAL */
+
+#final {
+  position: fixed; inset: 0; z-index: 80;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 44px;
+  background:
+    radial-gradient(96% 76% at 50% 42%, rgba(8, 11, 18, .94), rgba(2, 3, 6, .988));
+  opacity: 0; transition: opacity 700ms ease;
+}
+#final.final--vif { opacity: 1; }
+
+.final__titre { text-align: center; }
+.final__titre span {
+  display: block; font-size: 12px; letter-spacing: .56em; text-transform: uppercase;
+  color: var(--or); text-indent: .56em;
+}
+.final__titre b {
+  display: block; margin-top: 10px; font-size: 42px; color: var(--os);
+  letter-spacing: .01em;
+}
+
+.final__colonnes { display: flex; gap: 74px; align-items: flex-start; }
+.final__colonne {
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  padding: 20px 30px; min-width: 250px;
+  border-top: 3px solid var(--teinte);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--teinte) 12%, transparent), transparent);
+}
+.final__corpo { width: 118px; border-radius: 4px; margin-bottom: 6px; }
+.final__qui {
+  font-size: 10px; letter-spacing: .28em; text-transform: uppercase; color: var(--teinte);
+}
+.final__corpo-nom { font-size: 13px; color: var(--os-faible); }
+.final__score {
+  font-family: "TerraChiffre", monospace; font-size: 84px; line-height: 1; color: var(--os);
+  text-shadow: 0 0 40px rgba(239, 228, 212, .28);
+}
+.final__mot {
+  font-size: 10px; letter-spacing: .3em; text-transform: uppercase; color: var(--os-faible);
+}
+.final__detail { font-size: 11px; color: var(--os-faible); margin-top: 8px; }
+.final__detail i {
+  font-style: normal; font-family: "TerraChiffre", monospace; color: var(--os);
+}
+
+.final__planete {
+  display: flex; gap: 34px; padding-top: 6px;
+  border-top: 1px solid var(--trait);
+}
+.final__planete span {
+  font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: var(--os-faible);
+}
+.final__planete i {
+  font-style: normal; font-family: "TerraChiffre", monospace; font-size: 15px; color: var(--os);
+}
+
+/* ========================================================= ENTRÉE ET PANNES */
+
+#entree, #chargement, #panne {
+  position: fixed; inset: 0; z-index: 95;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+  background: radial-gradient(80% 60% at 50% 45%, #0d1220, #05070c);
+  text-align: center;
+}
+#entree h1 {
+  margin: 0; font-size: 88px; letter-spacing: .28em; text-indent: .28em;
+  font-weight: 700; color: var(--os);
+  text-shadow: 0 0 60px rgba(226, 84, 43, .35);
+}
+.entree__sous {
+  margin: 0; font-size: 12px; letter-spacing: .28em; text-transform: uppercase;
+  color: var(--os-faible);
+}
+.entree__reglages { display: flex; gap: 22px; margin-top: 14px; }
+#entree label {
+  font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: var(--os-faible);
+  display: flex; flex-direction: column; gap: 5px;
+}
+#entree input, #entree select {
+  font: inherit; font-size: 15px; padding: 7px 10px;
+  color: var(--os); background: rgba(239, 228, 212, .08);
+  border: 1px solid var(--trait);
+}
+#entree-go {
+  margin-top: 10px; font: inherit; font-weight: 700; font-size: 15px;
+  letter-spacing: .24em; text-transform: uppercase; cursor: pointer;
+  padding: 12px 40px; color: #0d1206; background: var(--or); border: 0;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%);
+}
+
+#chargement {
+  font-size: 12px; letter-spacing: .36em; text-transform: uppercase; color: var(--os-faible);
+  background: radial-gradient(80% 60% at 50% 45%, #0d1220, #05070c);
+}
+#panne { color: #ff9b7a; font-size: 15px; padding: 40px; background: rgba(20, 4, 2, .95); }

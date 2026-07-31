@@ -1,233 +1,189 @@
-// L'interface du bac à sable — fonctionnelle et laide, par contrat.
+// TERRA — l'écran du jeu.
 //
-// Elle ne connaît AUCUNE règle. Elle affiche :
-//   • l'état, tel que `observe::state_view` le rend (clefs en anglais, ce sont
-//     celles du moteur — on ne les renomme pas, on ne les recalcule pas) ;
-//   • la décision attendue, telle que le pont la décrit, avec ses options.
-// Et elle renvoie au moteur l'indice (ou le montant, ou la liste) choisi.
+// Le moteur de règles (Rust, WebAssembly) décide de TOUT. Cette page ne connaît
+// aucune règle : elle ne sait pas ce qu'une carte coûte, ni si elle est jouable,
+// ni combien vaut un point. Elle fait exactement deux choses :
 //
-// Le joueur humain est branché par un « fournisseur de décisions »
-// (`fournisseurs.js`), exactement comme le sera un cerveau artificiel ou un
-// joueur distant. Ici, le même fournisseur tient les DEUX joueurs : c'est le
-// mode bac à sable, même écran, mains visibles.
+//   1. donner à voir `etat` — l'état que le moteur rend lui-même à chaque
+//      décision (`engine::observe::state_view`). Chaque nombre affiché porte son
+//      chemin exact dans cet objet (`data-valeur`), pour qu'on puisse vérifier à
+//      tout instant que l'écran ne ment pas ;
+//   2. offrir `decision.options` — et rien d'autre — puis rendre au moteur
+//      l'indice choisi.
+//
+// Le joueur humain est branché par le même « fournisseur de décisions » que
+// celui par lequel se brancherait un cerveau artificiel (`adversaire.md`). Ici
+// un seul fournisseur tient les DEUX joueurs : même écran, mains face visible.
 
 import { ouvrirPontDepuis } from "./pont.js";
 import { creerPartie, jouerJusquAuBout } from "./partie.js";
-import { fournisseurHumain, formeDeLaReponse, nombreDeChoix } from "./fournisseurs.js";
+import { fournisseurHumain } from "./fournisseurs.js";
 
-const $ = (id) => document.getElementById(id);
-const zoneDecision = $("decision");
-const zoneEtat = $("etat");
-const zoneErreur = $("erreur");
+import { chargerMateriel } from "./vue/materiel.js";
+import { construireMonde, majMonde, oublier } from "./vue/monde.js";
+import { construireJoueurs, majJoueurs } from "./vue/joueurs.js";
+import { construireMains, majMains } from "./vue/mains.js";
+import { construireScene, poserDecision, viderScene } from "./vue/scene.js";
+import { construireLoupe } from "./vue/loupe.js";
+import { oublierRefs } from "./vue/ecrire.js";
+import { construireAnnonce, annonceManche, annoncePhases, ecranFinal } from "./vue/annonce.js";
+import * as son from "./vue/son.js";
 
-function vider(n) {
-  while (n.firstChild) n.removeChild(n.firstChild);
-  return n;
-}
-
-function el(nom, texte, parent) {
-  const n = document.createElement(nom);
-  if (texte !== undefined && texte !== null) n.textContent = String(texte);
-  if (parent) parent.appendChild(n);
-  return n;
-}
-
-// -------------------------------------------------------------- affichage état
-
-function ligne(table, cle, valeur) {
-  const tr = el("tr", null, table);
-  el("th", cle, tr).style.textAlign = "left";
-  el("td", valeur, tr);
-}
-
-function listeCartes(cartes) {
-  return cartes
-    .map((c) => {
-      const r = c.resources ? ` [${c.resources}]` : "";
-      return `${c.name} (${c.couleur}, ${c.price})${r}`;
-    })
-    .join(", ");
-}
-
-function afficherEtat(etat, decision) {
-  const z = vider(zoneEtat);
-  el("h2", "État de la partie (rendu par le moteur)", z);
-
-  const g = el("table", null, z);
-  ligne(g, "manche", etat.generation);
-  ligne(g, "premier joueur", `J${etat.first_player}`);
-  ligne(g, "partie terminée", etat.game_over ? "oui" : "non");
-  const p = etat.planet;
-  ligne(g, "température", `${p.temperature} / ${p.temperature_max}`);
-  ligne(g, "oxygène", `${p.oxygen} / ${p.oxygen_max}`);
-  ligne(g, "océans", `${p.oceans} / ${p.oceans_max}`);
-  ligne(g, "infrastructure", p.infrastructure);
-  ligne(g, "pioche / défausse", `${etat.decks.deck} / ${etat.decks.discard}`);
-  ligne(
-    g,
-    "objectifs",
-    // `achieved_by` est un drapeau PAR JOUEUR (`[bool; 2]`) : un Objectif peut
-    // être revendiqué par les deux.
-    etat.milestones
-      .map((m) => {
-        const pris = m.achieved_by
-          .map((oui, j) => (oui ? `J${j}` : null))
-          .filter(Boolean);
-        return `${m.kind}${pris.length ? " → " + pris.join(" et ") : ""}`;
-      })
-      .join(" · ")
-  );
-  ligne(g, "récompenses", etat.awards.join(" · "));
-
-  const t = el("table", null, z);
-  const entete = el("tr", null, t);
-  el("th", "", entete);
-  for (const j of etat.players) {
-    const th = el("th", `Joueur ${j.player}`, entete);
-    if (decision && decision.joueur === j.player) th.className = "attention";
-  }
-  const rang = (cle, lire) => {
-    const tr = el("tr", null, t);
-    el("th", cle, tr).style.textAlign = "left";
-    for (const j of etat.players) el("td", lire(j), tr);
-  };
-  rang("corporation", (j) => j.corporation || "—");
-  rang("MC", (j) => j.mc);
-  rang("chaleur", (j) => j.heat);
-  rang("plantes", (j) => j.plants);
-  rang("NT", (j) => j.tr);
-  rang("forêts", (j) => j.forests);
-  rang("production", (j) =>
-    `MC ${j.production.mc} · chaleur ${j.production.heat} · plantes ${j.production.plants} · cartes ${j.production.cards}`
-  );
-  rang("savoir-faire", (j) => `acier ${j.steel_capacity} · titane ${j.titanium_capacity}`);
-  rang("phase choisie", (j) => `${j.chosen_phase} (précédente : ${j.previous_phase})`);
-  rang("phases améliorées", (j) => j.phase_upgrades.join(" ") || "—");
-  rang("badges", (j) =>
-    Object.entries(j.tags)
-      .filter(([, n]) => n > 0)
-      .map(([b, n]) => `${b}×${n}`)
-      .join(" ") || "—"
-  );
-  rang("score courant", (j) => j.score);
-  rang("main", (j) => listeCartes(j.hand) || "—");
-  rang("cartes posées", (j) => listeCartes(j.played) || "—");
-}
-
-// ---------------------------------------------------------- affichage décision
+// ------------------------------------------------------------------ l'adresse
 
 /**
- * Dessine la décision et rend une promesse résolue avec la réponse attendue par
- * le moteur. La page ne juge JAMAIS la légalité d'un choix : elle n'offre que
- * les options que le moteur a énumérées.
+ * L'adresse porte la partie : `?graine=<entier>&boites=base` ou
+ * `base,decouverte`. Quand elle est là, la partie démarre sans le moindre clic.
  */
-function demanderAuJoueur(d) {
-  return new Promise((resolve) => {
-    const z = vider(zoneDecision);
-    el("h2", `Joueur ${d.joueur} — ${d.question}`, z).className = "attention";
-    el("p", `(décision n°${d.rang} · ${d.type})`, z);
+function lireAdresse() {
+  const p = new URLSearchParams(location.search);
+  const g = p.get("graine");
+  const b = p.get("boites");
+  if (g === null && b === null) return null;
+  const graine = Number.parseInt(g ?? "1", 10);
+  return {
+    graine: Number.isFinite(graine) ? graine : 1,
+    boites: b === "base" || b === "base,decouverte" ? b : "base,decouverte",
+  };
+}
 
-    if (d.carte) el("p", `carte : ${d.carte.nom}`, z);
-    if (d.corporations) {
-      el("p", "corporations : " + d.corporations.map((c) => c.nom).join(", "), z);
-    }
-    if (d.main) {
-      el("p", "main : " + d.main.map((c) => `${c.nom} (${c.prix})`).join(", "), z);
-    }
+// ------------------------------------------------------------------ le décor
 
-    const forme = formeDeLaReponse(d);
+function batir() {
+  construireMonde();
+  construireMains();
+  construireJoueurs();
+  construireScene();
+  construireAnnonce();
+  construireLoupe();
+}
 
-    if (forme === "montant") {
-      const min = d.minimum ?? 0;
-      const max = d.maximum ?? 0;
-      const entree = el("input", null, z);
-      entree.type = "number";
-      entree.min = String(min);
-      entree.max = String(max);
-      entree.value = String(min);
-      const b = el("button", `Valider (${min} à ${max})`, z);
-      b.onclick = () => {
-        const v = Number(entree.value);
-        if (!Number.isInteger(v) || v < min || v > max) return;
-        resolve(v);
-      };
-      return;
-    }
+function etatDuChargement(texte) {
+  let e = document.getElementById("chargement");
+  if (!e) {
+    e = document.createElement("div");
+    e.id = "chargement";
+    document.body.appendChild(e);
+  }
+  e.textContent = texte;
+  return e;
+}
 
-    if (forme === "multiple") {
-      el("p", `à choisir : ${d.a_choisir} parmi ${d.options.length}`, z);
-      const cases = [];
-      const ul = el("ul", null, z);
-      const b = el("button", "Valider", z);
-      const choisis = () => cases.map((c, i) => (c.checked ? i : -1)).filter((i) => i >= 0);
-      // Le bouton reste inerte tant que le compte n'y est pas : sans cela, un
-      // clic sans effet ressemble à une page bloquée.
-      const rafraichir = () => { b.disabled = choisis().length !== d.a_choisir; };
-      d.options.forEach((o, i) => {
-        const li = el("li", null, ul);
-        const c = el("input", null, li);
-        c.type = "checkbox";
-        c.onchange = rafraichir;
-        cases.push(c);
-        el("span", " " + (o.libelle ?? `option ${i}`), li);
-      });
-      rafraichir();
-      b.onclick = () => {
-        if (choisis().length === d.a_choisir) resolve(choisis());
-      };
-      return;
-    }
+function panne(e) {
+  // Un échec se montre, il ne se jette pas : une exception non rattrapée est une
+  // erreur de console, et une erreur de console est un écran cassé.
+  const z = document.createElement("div");
+  z.id = "panne";
+  z.textContent = "Le moteur n'a pas pu continuer : " + (e && e.message ? e.message : e);
+  document.body.appendChild(z);
+}
 
-    // Choix simple : une option = un bouton. « Passer » est l'indice suivant
-    // la dernière option, quand le moteur l'autorise.
-    const total = nombreDeChoix(d);
-    (d.options || []).forEach((o, i) => {
-      const b = el("button", o.libelle ?? `option ${i}`, z);
-      b.onclick = () => resolve(i);
-    });
-    if (d.passer) {
-      const b = el("button", "Passer", z);
-      b.onclick = () => resolve(total - 1);
+// ------------------------------------------------------------------ la partie
+
+// Ce que l'écran a déjà annoncé, pour ne pas répéter la même manche deux fois.
+let dejaVu = { manche: null, phases: null };
+
+function theatre(etat) {
+  if (etat.generation !== dejaVu.manche) {
+    if (dejaVu.manche !== null) {
+      annonceManche(etat.generation);
+      son.sonManche();
     }
+    dejaVu.manche = etat.generation;
+    dejaVu.phases = null;
+  }
+  const paire = etat.players.map((p) => p.chosen_phase).join("-");
+  if (paire !== dejaVu.phases && etat.players.every((p) => p.chosen_phase)) {
+    if (dejaVu.phases !== null) annoncePhases(etat);
+    dejaVu.phases = paire;
+  }
+}
+
+/** Le rendu complet d'un instant : le monde, les deux équipages, les deux mains. */
+function rendre(etat, decision) {
+  document.body.dataset.actif = decision ? String(decision.joueur) : "";
+  majMonde(etat);
+  majJoueurs(etat, decision);
+  majMains(etat, decision);
+  theatre(etat);
+}
+
+async function lancer({ graine, boites }) {
+  document.body.dataset.phase = "chargement";
+  etatDuChargement("réveil du moteur…");
+
+  const pont = await ouvrirPontDepuis(".");
+  document.getElementById("chargement")?.remove();
+  document.body.dataset.phase = "partie";
+  oublier();
+  oublierRefs();
+  dejaVu = { manche: null, phases: null };
+
+  const partie = creerPartie(pont, { graine, boites });
+
+  // Le fournisseur : il ne connaît aucune règle, il attend un clic sur l'une des
+  // options que le moteur vient d'énumérer.
+  const humain = fournisseurHumain(async (d, etat) => {
+    rendre(etat, d);
+    const reponse = await poserDecision(d, etat);
+    son.eveiller();
+    son.sonChoix();
+    return reponse;
+  });
+
+  await jouerJusquAuBout(partie, [humain, humain]);
+
+  viderScene();
+  rendre(partie.etat, null);
+  document.body.dataset.phase = "fin";
+  ecranFinal(partie.etat);
+  son.sonFin();
+}
+
+// ------------------------------------------------------------- l'écran d'entrée
+
+function ecranEntree() {
+  const z = document.createElement("section");
+  z.id = "entree";
+  z.innerHTML = `
+    <h1>Terra</h1>
+    <p class="entree__sous">Terraforming Mars · Ares Expedition — deux joueurs, un écran</p>
+    <div class="entree__reglages">
+      <label>Graine <input id="entree-graine" type="number" value="7"></label>
+      <label>Boîtes
+        <select id="entree-boites">
+          <option value="base">base</option>
+          <option value="base,decouverte" selected>base + Découverte</option>
+        </select>
+      </label>
+    </div>
+    <button id="entree-go" type="button">Commencer</button>`;
+  document.body.appendChild(z);
+
+  document.getElementById("entree-go").addEventListener("click", () => {
+    const graine = Number.parseInt(document.getElementById("entree-graine").value, 10) || 1;
+    const boites = document.getElementById("entree-boites").value;
+    z.remove();
+    son.eveiller();
+    lancer({ graine, boites }).catch(panne);
   });
 }
 
-// -------------------------------------------------------------------- lancement
+// ---------------------------------------------------------------- le démarrage
 
-$("commencer").onclick = async () => {
-  zoneErreur.textContent = "";
-  $("chargement").textContent = " chargement du moteur…";
+async function demarrer() {
+  // Le manifeste d'abord : tout le décor est bâti à partir des images qu'il
+  // désigne, il ne peut pas se construire avant d'être lu.
   try {
-    const pont = await ouvrirPontDepuis(".");
-    $("chargement").textContent = " moteur chargé.";
-    $("commencer").disabled = true;
-
-    const partie = creerPartie(pont, {
-      graine: Number($("graine").value) || 0,
-      boites: $("boites").value,
-    });
-
-    // Le MÊME fournisseur pour les deux joueurs : bac à sable, même écran.
-    // Remplacer l'un des deux suffit à brancher un autre mode (adversaire.md).
-    const humain = fournisseurHumain(demanderAuJoueur);
-    await jouerJusquAuBout(partie, [humain, humain], (p) =>
-      afficherEtat(p.etat, p.decision)
-    );
-
-    afficherEtat(partie.etat, null);
-    const z = vider(zoneDecision);
-    el("h2", "Partie terminée", z);
-    el(
-      "p",
-      `Scores : J0 ${partie.scores[0]} — J1 ${partie.scores[1]} · ` +
-        `${partie.manches} manches · ${partie.decisions.length} décisions` +
-        (partie.partieComplete
-          ? ""
-          : " · partie ARRÊTÉE par le plafond du moteur (non terminée par les règles)"),
-      z
-    );
+    await chargerMateriel();
   } catch (e) {
-    zoneErreur.textContent = "Erreur : " + (e && e.message ? e.message : e);
-    throw e;
+    panne(e);
+    return;
   }
-};
+  batir();
+  const adresse = lireAdresse();
+  if (adresse) await lancer(adresse);
+  else ecranEntree();
+}
+
+demarrer().catch(panne);

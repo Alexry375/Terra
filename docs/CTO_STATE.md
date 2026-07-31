@@ -5,6 +5,37 @@
 
 Dernière mise à jour : 2026-07-30
 
+## 🖥️ L'ÉCRAN DE JEU EXISTE (30-07) — `interface-visuelle`, audité PARTIEL et promu
+
+**Deux personnes peuvent jouer une partie entière d'Ares Expedition sur le même
+écran, dans `web/webapp/`.** Concept « L'HORIZON » : le ciel se réchauffe avec la
+température, la mer monte avec les océans, la brume s'épaissit avec l'oxygène.
+Les cartes sont les scans réels, jusqu'à 1252 px de large.
+
+- **Contrôles visibles : 4/4** (harnais intact, partie entière cliquée jusqu'aux
+  scores, cartes réellement peintes, page autosuffisante hors dépôt).
+- **Contrôles cachés : 2/2** [VÉRIFIÉ 30-07]. Le plus important : la même partie
+  jouée deux fois, une fois à l'écran et une fois en ligne de commande, avec une
+  règle de choix que l'agent n'a jamais vue. **3115 valeurs affichées confrontées
+  à l'état réel du moteur, zéro écart**, comptes de décisions et scores finaux
+  identiques sur deux configurations. L'écran ne recalcule rien.
+- **Un défaut trouvé par moi, pas par les contrôles** : `style.css:545` masquait
+  le libellé des options en mode dense ; la plaque « Passer », qui n'a pas
+  d'image, devenait un rectangle noir vide — y compris sur « quelle carte
+  poser ? », la décision la plus fréquente. Corrigé après promotion
+  (`style.css:546-548`), vérifié dans le navigateur (largeur rendue 0 → 89 px) et
+  les contrôles 02, 03 et le hold-out vérité rejoués verts sur la version promue.
+- **Fausse alerte dans les limites déclarées par l'agent** : « deux cartes sans
+  illustration sur 264 ». `--dump-deck --boites base,decouverte` donne **262**
+  cartes (246 projets + 16 corporations) et le catalogue d'images les couvre
+  **exactement**. `Microbiology Patents` et `Project Inspection` portent le vieux
+  drapeau `in_deck_v1` mais ne sont pas dans les boîtes physiques
+  (`engine/src/cards.rs:204` : ce drapeau ne compose plus la pioche) — le moteur
+  ne les distribue jamais.
+- **Décision en attente d'Alexis** : la langue. Mon contrat ne la précisait pas.
+  L'habillage est en français (MANCHE, TERRAFORMATION, « Quelle carte poser ? »)
+  autour de cartes en anglais.
+
 ## 🏷️ LES BADGES SONT TOUS JUSTES (30-07) — 262/262 [VÉRIFIÉ 30-07]
 
 **Les badges (petites icônes rondes qui classent une carte : bâtiment, science,
