@@ -59,6 +59,21 @@ l'écran laisse le programme adverse répondre pendant que nous réfléchissons,
 raconte les deux réponses ensemble. C'est un travail d'écran, pas de moteur, mais
 il demande d'être conçu exprès.
 
+## 20-ter — LE DÉCOR EST CHOISI (01-08)
+
+Six propositions ont été comparées côte à côte, cartes réelles posées dessus
+(page de démonstration `web/demo-decor/`, `312861b`).
+
+**Retenu par Alexis : « Mars · plaine », voile sombre LÉGER.**
+
+- Fichier intégré : `web/webapp/assets/plateau/sol-martien-granicus-valles-nasa.jpg`
+- Provenance et obligations : `web/webapp/assets/plateau/CREDITS-sol-martien.md`
+  — domaine public NASA, mention « NASA / JPL / University of Arizona » à
+  afficher quelque part dans l'interface.
+- « Voile léger » = le calque sombre posé entre la photo et les cartes est à
+  **30 %** de son intensité maximale. La valeur exacte du dégradé est celle de
+  `#scene::before` dans la page de démonstration.
+
 ## 21 — Les animations de pose (rappel des points 9 et 10)
 
 Toujours attendues, telles que décrites dans le premier fichier : trois secondes
