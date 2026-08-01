@@ -5,6 +5,35 @@
 
 Dernière mise à jour : 2026-08-01
 
+## 🇬🇧 L'ÉCRAN PARLE ANGLAIS ET MONTRE LES CARTES (01-08) — `fusion-parlante`, audité OK et promu
+
+Réunion des deux chantiers parallèles. **Audit sans faute du premier coup :
+4/4 visibles, 2/2 cachés, zéro altération.** [VÉRIFIÉ 01-08]
+
+- **26 natures de question** ont leur intitulé anglais, bâti sur les champs du
+  descripteur. L'agent est remonté à `ChoiceContext::kind` pour établir la liste
+  **close**, au lieu de se fier aux trois exemples de mon contrat.
+- **Vocabulaire du jeu rétabli** : Score, Corporation, Temperature, Oceans,
+  Hand, Phase card. Les abréviations (VP, Temp, Corp, « stage card ») venaient
+  d'un défaut de **mon** contrôle de langue, qui prenait ces mots anglais pour du
+  français.
+- **Les dix cartes Phase améliorées s'affichent en image** au moment du choix,
+  désignées par le couple phase/variante de l'option, jamais par son rang.
+  Vérifié de mes yeux sur capture : « Upgrade a Phase card: which one, and which
+  variant? » avec les dix cartes imprimées.
+- Trois écrans de choix passent en superposition : la carte concernée passait de
+  90 px illisibles à 410 px.
+- Défaut d'affichage réel corrigé : sans `aspect-ratio`, une image de carte
+  mesure 0 px tant qu'elle n'est pas décodée.
+
+**Vérification propre de l'agent, au-delà des contrôles** : 60 parties,
+**24 501 décisions**, 26 natures, zéro accent, zéro mot français, zéro repli.
+
+**Limite déclarée** : pour **4 natures sur 26**, le pont ne décrit une
+proposition qu'en français (`describe_branch`, `describe_selector_grant`), sans
+champ exploitable. L'écran dit « Printed option N » et montre la carte en grand.
+À traiter côté pont — c'est la prochaine dette d'interface.
+
 ## 🃏 LE PLATEAU EST PERMANENT (01-08) — `plateau-vivant`, audité OK et promu
 
 **On voit enfin la partie.** L'écran est refait autour d'un plateau permanent :
