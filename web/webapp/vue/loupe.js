@@ -16,6 +16,12 @@ import { normaliser } from "./cartes.js";
 const LARGEUR = 348;
 const MARGE = 16;
 
+// En dessous de cette part de la largeur de la loupe, agrandir apporte quelque
+// chose. Au-dessus, la carte est DÉJÀ lisible là où elle est, et la loupe ne
+// fait que poser un doublon presque identique par-dessus le jeu — c'est ce que
+// faisaient les corporations, montrées à 300 px pour une loupe de 348.
+const PART_INUTILE = 0.8;
+
 // La loupe ne s'ouvre que sur un survol VOULU. Quand une décision se pose, le
 // curseur se retrouve immobile au-dessus d'une carte qui vient d'apparaître : le
 // navigateur envoie alors un survol que personne n'a demandé. On l'ignore
@@ -55,6 +61,9 @@ function montrer(src, ancre) {
 
   const hauteur = LARGEUR * (569 / 409);
   const r = ancre.getBoundingClientRect();
+
+  // La carte est déjà presque à la taille de la loupe : on ne montre rien.
+  if (r.width >= LARGEUR * PART_INUTILE) return;
 
   // À côté de la carte survolée si la place existe, sinon de l'autre côté.
   let x = r.right + MARGE;
