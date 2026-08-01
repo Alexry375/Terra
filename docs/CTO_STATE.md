@@ -3,7 +3,47 @@
 > Source de vérité du projet. Ancrée au code (`fichier:ligne`) dès qu'il y aura du
 > code. [VÉRIFIÉ JJ-MM] = relu à la source ce jour-là. [DÉCLARÉ] = non re-vérifié.
 
-Dernière mise à jour : 2026-07-31
+Dernière mise à jour : 2026-08-01
+
+## 🗣️ LES CHOIX PARLENT (01-08) — `choix-parlants`, audité OK et promu
+
+**Le moteur transporte désormais le SENS de chaque alternative jusqu'à celui qui
+décide.** Il n'annonçait qu'un nombre d'options ; l'écran ne pouvait afficher que
+« branche 1 », « branche 2 »… — le défaut le plus grave relevé par Alexis.
+
+- Nouveau `engine/src/choice.rs` : `ChoiceContext`, **onze variantes pour les
+  onze sites d'appel** de `flow.rs`, aucune fourre-tout. [VÉRIFIÉ 01-08]
+- Seconde voie `Policy::choose_option_ctx`, **corps par défaut retombant sur
+  `choose_option`** avec le même nombre d'options : aucune politique existante
+  modifiée, **empreintes intactes**. `ProbePolicy` et `ObservingPolicy`
+  délèguent.
+- Le pont WebAssembly a perdu ses libellés « branche N ». Une amélioration de
+  carte Phase annonce phase, variante et **nom imprimé**, lus dans
+  `effects::PHASE_UPGRADED` — la table que le moteur consulte pour appliquer la
+  règle. Le pont ne recalcule rien.
+
+**Chiffres** [VÉRIFIÉ 01-08] : **818 tests verts** ; empreintes `d6a7267472501b13`,
+`51e7966094e225cb`, `2b5235e31f71c812` **inchangées** ; audit **4/4 visibles,
+2/2 cachés**, zéro altération du contrat ; 11 547 décisions écoutées au travers
+du pont recompilé, **11 natures sur 11** rencontrées.
+
+**Le contrôle caché qui comptait** : confronter ce que le moteur ANNONCE à ce
+qu'il APPLIQUE ensuite, avec une règle de choix que l'agent n'a jamais vue —
+**93 améliorations confrontées, 93 conformes**.
+
+**Deux choses honnêtes à noter.**
+1. Ce contrôle caché a d'abord été compté en échec **deux fois** : `aw` coupe
+   chaque contrôle à 120 secondes et le mien en demandait dix minutes. Défaut de
+   mon contrôle, pas de la livraison — allégé, puis relancé avec
+   `AW_CHECK_TIMEOUT=1500`.
+2. L'agent a signalé de lui-même que son test de rétrocompatibilité était
+   **tautologique** (il comparait une valeur à elle-même) après relecture
+   adversariale, et l'a remplacé par un second calcul disjoint vérifié par
+   mutation. C'est exactement le comportement attendu.
+
+**Reste à faire** : `vue/scene.js` n'exploite pas encore ce que le moteur dit —
+c'est là que l'amélioration de carte Phase deviendra un visuel. Cela revient au
+chantier d'interface.
 
 ## ⚖️ LE MOTEUR APPREND DEUX RÈGLES (31-07) — mulligan partiel, vente choisie
 
