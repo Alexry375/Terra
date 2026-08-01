@@ -76,8 +76,8 @@ impl Policy for Script {
     fn corp_mulligan(&mut self, _: &mut StdRng, _: usize, _: &[u16]) -> bool {
         false
     }
-    fn project_mulligan(&mut self, _: &mut StdRng, _: usize, _: &[u16]) -> bool {
-        false
+    fn project_mulligan(&mut self, _: &mut StdRng, _: usize, _: &[u16]) -> Vec<usize> {
+        Vec::new()
     }
     fn pick_corporation(&mut self, _: &mut StdRng, _: usize, _: &[u16]) -> usize {
         0
@@ -463,7 +463,7 @@ fn c3_policy_hook_drives_the_number_of_discarded_cards() {
         fn corp_mulligan(&mut self, r: &mut StdRng, p: usize, c: &[u16]) -> bool {
             self.0.corp_mulligan(r, p, c)
         }
-        fn project_mulligan(&mut self, r: &mut StdRng, p: usize, h: &[u16]) -> bool {
+        fn project_mulligan(&mut self, r: &mut StdRng, p: usize, h: &[u16]) -> Vec<usize> {
             self.0.project_mulligan(r, p, h)
         }
         fn pick_corporation(&mut self, r: &mut StdRng, p: usize, c: &[u16]) -> usize {

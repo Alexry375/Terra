@@ -55,7 +55,7 @@ fn draw_n(game: &mut GameState, n: usize, out: &mut Vec<u16>) {
 /// 1. 2 corporations données à chaque joueur ;
 /// 2. mulligan corporations (les 2 ou aucune) AVANT les cartes projets ;
 /// 3. 8 cartes projets chacun ;
-/// 4. mulligan projets (les 8 ou aucune, en une fois) ;
+/// 4. mulligan projets (entre 0 et 8 cartes, au choix carte par carte) ;
 /// 5. choix final de corporation (1 parmi 2), cartes projets en main.
 pub fn setup_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameState {
     let mut rng = StdRng::seed_from_u64(seed);
@@ -189,16 +189,31 @@ pub fn setup_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameState
         game.players[p].hand.append(&mut buf);
     }
 
-    // 4. Mulligan projets — règle maison n°2 (les 8 ou aucune, en une fois).
+    // 4. Mulligan projets — règle maison n°2 : le joueur désigne CARTE PAR
+    //    CARTE celles qu'il remplace, de zéro à huit. Contrairement au mulligan
+    //    corporations, ce n'est PAS du tout ou rien.
     for p in 0..NUM_PLAYERS {
         let hand_snapshot = game.players[p].hand.clone();
         policy.observe(&game, p);
-        if policy.project_mulligan(&mut game.rng, p, &hand_snapshot) {
-            let old: Vec<u16> = game.players[p].hand.drain(..).collect();
-            game.discard.extend(old);
-            draw_n(&mut game, STARTING_HAND, &mut buf);
-            game.players[p].hand.append(&mut buf);
+        let mut idx = policy.project_mulligan(&mut game.rng, p, &hand_snapshot);
+        // Une politique peut rendre n'importe quoi : on assainit sans jamais
+        // défausser deux fois la même carte ni sortir de la main.
+        idx.retain(|&i| i < hand_snapshot.len());
+        idx.sort_unstable();
+        idx.dedup();
+        if idx.is_empty() {
+            continue;
         }
+        // Retrait par indices DÉCROISSANTS : les indices restants ne bougent
+        // pas au fur et à mesure des suppressions.
+        for &i in idx.iter().rev() {
+            let c = game.players[p].hand.remove(i);
+            game.discard.push(c);
+        }
+        // On repioche exactement autant de cartes qu'on en a rendues, et elles
+        // rejoignent la main derrière celles qu'on a gardées.
+        draw_n(&mut game, idx.len(), &mut buf);
+        game.players[p].hand.append(&mut buf);
     }
 
     // 5. Choix final de corporation, cartes projets en main.
@@ -3804,8 +3819,12 @@ fn phase_action(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
                     reveal_ocean(game, db, p, policy);
                 }
                 ActionOpt::SellCard => {
-                    let n = game.players[p].hand.len();
-                    let i = game.rng.gen_range(0..n);
+                    // La carte vendue est CHOISIE par la politique — le moteur
+                    // ne la tire plus lui-même au hasard. Le corps par défaut de
+                    // `sell_card` reproduit l'ancien tirage à l'identique.
+                    let main = game.players[p].hand.clone();
+                    let n = main.len();
+                    let i = policy.sell_card(&mut game.rng, p, &main).min(n - 1);
                     let card = game.players[p].hand.remove(i);
                     game.discard.push(card);
                     // (lot cartes-7) « Cards you discard for MC » : la vente de

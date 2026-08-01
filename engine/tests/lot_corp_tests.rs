@@ -90,8 +90,8 @@ impl Policy for Passive {
     fn corp_mulligan(&mut self, _r: &mut StdRng, _p: usize, _c: &[u16]) -> bool {
         false
     }
-    fn project_mulligan(&mut self, _r: &mut StdRng, _p: usize, _h: &[u16]) -> bool {
-        false
+    fn project_mulligan(&mut self, _r: &mut StdRng, _p: usize, _h: &[u16]) -> Vec<usize> {
+        Vec::new()
     }
     fn pick_corporation(&mut self, _r: &mut StdRng, _p: usize, _c: &[u16]) -> usize {
         0

@@ -881,7 +881,7 @@ impl Policy for ActivateBlue {
     fn corp_mulligan(&mut self, r: &mut StdRng, p: usize, c: &[u16]) -> bool {
         self.base.corp_mulligan(r, p, c)
     }
-    fn project_mulligan(&mut self, r: &mut StdRng, p: usize, h: &[u16]) -> bool {
+    fn project_mulligan(&mut self, r: &mut StdRng, p: usize, h: &[u16]) -> Vec<usize> {
         self.base.project_mulligan(r, p, h)
     }
     fn pick_corporation(&mut self, r: &mut StdRng, p: usize, c: &[u16]) -> usize {
@@ -946,7 +946,7 @@ impl Policy for PhaseOnly {
     fn corp_mulligan(&mut self, r: &mut StdRng, p: usize, c: &[u16]) -> bool {
         self.base.corp_mulligan(r, p, c)
     }
-    fn project_mulligan(&mut self, r: &mut StdRng, p: usize, h: &[u16]) -> bool {
+    fn project_mulligan(&mut self, r: &mut StdRng, p: usize, h: &[u16]) -> Vec<usize> {
         self.base.project_mulligan(r, p, h)
     }
     fn pick_corporation(&mut self, r: &mut StdRng, p: usize, c: &[u16]) -> usize {
@@ -990,7 +990,7 @@ impl Policy for ForceChoice {
     fn corp_mulligan(&mut self, r: &mut StdRng, p: usize, c: &[u16]) -> bool {
         self.base.corp_mulligan(r, p, c)
     }
-    fn project_mulligan(&mut self, r: &mut StdRng, p: usize, h: &[u16]) -> bool {
+    fn project_mulligan(&mut self, r: &mut StdRng, p: usize, h: &[u16]) -> Vec<usize> {
         self.base.project_mulligan(r, p, h)
     }
     fn pick_corporation(&mut self, r: &mut StdRng, p: usize, c: &[u16]) -> usize {

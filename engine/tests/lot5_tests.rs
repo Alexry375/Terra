@@ -1008,7 +1008,7 @@ impl Policy for PhaseForcer {
     fn corp_mulligan(&mut self, r: &mut StdRng, p: usize, c: &[u16]) -> bool {
         self.inner.corp_mulligan(r, p, c)
     }
-    fn project_mulligan(&mut self, r: &mut StdRng, p: usize, h: &[u16]) -> bool {
+    fn project_mulligan(&mut self, r: &mut StdRng, p: usize, h: &[u16]) -> Vec<usize> {
         self.inner.project_mulligan(r, p, h)
     }
     fn pick_corporation(&mut self, r: &mut StdRng, p: usize, c: &[u16]) -> usize {
@@ -1058,7 +1058,7 @@ impl Policy for ActionForcer {
     fn corp_mulligan(&mut self, r: &mut StdRng, p: usize, c: &[u16]) -> bool {
         self.inner.corp_mulligan(r, p, c)
     }
-    fn project_mulligan(&mut self, r: &mut StdRng, p: usize, h: &[u16]) -> bool {
+    fn project_mulligan(&mut self, r: &mut StdRng, p: usize, h: &[u16]) -> Vec<usize> {
         self.inner.project_mulligan(r, p, h)
     }
     fn pick_corporation(&mut self, r: &mut StdRng, p: usize, c: &[u16]) -> usize {

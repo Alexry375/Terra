@@ -141,7 +141,7 @@ impl Policy for Scriptee {
     fn corp_mulligan(&mut self, r: &mut StdRng, p: usize, c: &[u16]) -> bool {
         self.base.corp_mulligan(r, p, c)
     }
-    fn project_mulligan(&mut self, r: &mut StdRng, p: usize, h: &[u16]) -> bool {
+    fn project_mulligan(&mut self, r: &mut StdRng, p: usize, h: &[u16]) -> Vec<usize> {
         self.base.project_mulligan(r, p, h)
     }
     fn pick_corporation(&mut self, r: &mut StdRng, p: usize, c: &[u16]) -> usize {
@@ -332,12 +332,17 @@ fn the_probe_reports_exactly_what_the_research_phase_consumes() {
     let db = db();
     let mut pol = Scriptee::new();
     let mut g = jeu(&db);
+    // La corporation du joueur 0 est TIRÉE AU SORT par `jeu()` et peut elle-même
+    // porter un bonus de recherche (Tharsis Republic, par exemple). On mesure
+    // donc son apport AVANT de poser quoi que ce soit, et on ne teste que le
+    // delta dû aux deux cartes — sinon le test dépend de la graine.
+    let socle = research_extra(&db, &g.players[0]);
     poser(&mut g, &db, "Interns", &mut pol);
     poser(&mut g, &db, "Extended Resources", &mut pol);
 
     let pl = &g.players[0];
     let extra = research_extra(&db, pl);
-    assert_eq!(extra, (2, 1));
+    assert_eq!((extra.0 - socle.0, extra.1 - socle.1), (2, 1));
     let (base_n, base_k) = research_base(&db, pl);
     assert_eq!(
         research_draw_keep(&db, pl),
@@ -353,11 +358,22 @@ fn the_research_bonus_follows_the_phase_selector_base() {
     let db = db();
     let mut pol = Scriptee::new();
     let mut g = jeu(&db);
+    // Même précaution qu'au-dessus : la corporation tirée au sort peut ajouter
+    // son propre bonus, on le retranche.
+    let socle = research_extra(&db, &g.players[0]);
     poser(&mut g, &db, "Interns", &mut pol);
     g.players[0].chosen_phase = 0;
-    assert_eq!(research_draw_keep(&db, &g.players[0]), (4, 1), "2+2 / 1+0");
+    assert_eq!(
+        research_draw_keep(&db, &g.players[0]),
+        (4 + socle.0, 1 + socle.1),
+        "2+2 / 1+0"
+    );
     g.players[0].chosen_phase = 5;
-    assert_eq!(research_draw_keep(&db, &g.players[0]), (7, 2), "5+2 / 2+0");
+    assert_eq!(
+        research_draw_keep(&db, &g.players[0]),
+        (7 + socle.0, 2 + socle.1),
+        "5+2 / 2+0"
+    );
 }
 
 #[test]
@@ -1654,3 +1670,4 @@ fn the_speed_stays_above_the_contract_floor() {
         s.games_per_sec
     );
 }
+

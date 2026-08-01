@@ -3,7 +3,63 @@
 > Source de vérité du projet. Ancrée au code (`fichier:ligne`) dès qu'il y aura du
 > code. [VÉRIFIÉ JJ-MM] = relu à la source ce jour-là. [DÉCLARÉ] = non re-vérifié.
 
-Dernière mise à jour : 2026-07-30
+Dernière mise à jour : 2026-07-31
+
+## ⚖️ LE MOTEUR APPREND DEUX RÈGLES (31-07) — mulligan partiel, vente choisie
+
+Alexis a joué lui-même sur l'interface livrée la veille et a relevé dix-huit
+points. **Deux d'entre eux n'étaient pas des défauts d'affichage mais des règles
+fausses dans le moteur**, corrigées le soir même. Les seize autres sont des
+travaux d'interface, réunis dans `docs/INTERFACE_RETOURS_01.md`, qui sert de
+cahier des charges au chantier de refonte.
+
+**1. Le remplacement des cartes projet de départ n'était pas partiel.**
+[VÉRIFIÉ 31-07] `Policy::project_mulligan` rendait un oui/non et `setup_game`
+défaussait la main entière. La règle est « entre 0 et 8 cartes, au choix ». La
+méthode rend désormais `Vec<usize>` — les indices des cartes rendues, comme
+`discard_down` — et `engine/src/flow.rs` ne défausse que celles-là, en assainissant
+les indices hors bornes ou répétés. Le tout ou rien ne concerne plus que les
+corporations.
+
+**2. La carte vendue pour 3 MC était tirée au hasard par le moteur.**
+[VÉRIFIÉ 31-07] La branche `ActionOpt::SellCard` faisait `game.rng.gen_range`.
+Une méthode `Policy::sell_card` a été ajoutée : le moteur demande, en présentant
+la main entière. Son corps par défaut reproduit l'ancien tirage **à l'identique**,
+donc les politiques existantes jouent exactement comme avant et cette correction
+seule ne déplace aucune empreinte. `ProbePolicy` et `ObservingPolicy` la
+délèguent toutes deux.
+
+**Reste connu et NON corrigé** : vendre une carte devrait être possible « à tout
+moment » (`docs/regles/livret-base.md:96`), pas seulement en phase Action et en
+fin de ronde. Écart déjà recensé (`docs/regles/notes/conformite-moteur-24-07.md`
+§E4). Ma recommandation : chantier moteur à part, car cela ouvre un point de
+décision permanent qui pèsera lourd sur la future intelligence artificielle.
+
+**Les chiffres** [VÉRIFIÉ 31-07] :
+
+| Mesure | Valeur |
+|---|---|
+| Tests | **813 verts** (810 + 3 neufs sur le mulligan et la vente), 0 échec |
+| Empreinte `--seed 2024 --boites base` | `d6a7267472501b13` (était `cee020cda9db283b`) |
+| Empreinte `--seed 4242 --boites base` | `51e7966094e225cb` (était `981bb47e336034cc`) |
+| Empreinte `--seed 4242 --boites base,decouverte` | `2b5235e31f71c812` (était `c20dd5be100de393`) |
+| Invariants cassés sur 3 × 1000 parties | **0** |
+| Effets de carte non traités | **0** |
+
+Les trois empreintes ont changé, et **c'est attendu** : remplacer trois cartes au
+lieu de huit modifie l'ordre de sortie du paquet. Elles ont été recalculées et
+réinscrites dans les trois tests qui les figent.
+
+**Deux tests fragiles démasqués au passage.** `lot7_tests` mesurait le bonus de
+recherche d'*Interns* et d'*Extended Resources* sans neutraliser la corporation,
+elle-même tirée au sort par la graine ; ils ne passaient que parce que le tirage
+tombait bien. Ils retranchent désormais l'apport de la corporation, mesuré avant
+de poser les cartes.
+
+**Dette réparée en passant** : `web/webapp/wasm/Cargo.toml` pointait vers un
+moteur inexistant (`../../../../../engine`, chemin du workspace, jamais recalculé
+à la promotion). Le dossier promu n'était donc pas reconstructible. Corrigé,
+`web/construire.sh` refabrique `terra.wasm` depuis la racine du dépôt.
 
 ## 🖥️ L'ÉCRAN DE JEU EXISTE (30-07) — `interface-visuelle`, audité PARTIEL et promu
 

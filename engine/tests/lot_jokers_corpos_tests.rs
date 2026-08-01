@@ -396,7 +396,7 @@ impl Policy for PolitiqueJoker {
     fn corp_mulligan(&mut self, r: &mut StdRng, p: usize, c: &[u16]) -> bool {
         self.base.corp_mulligan(r, p, c)
     }
-    fn project_mulligan(&mut self, r: &mut StdRng, p: usize, h: &[u16]) -> bool {
+    fn project_mulligan(&mut self, r: &mut StdRng, p: usize, h: &[u16]) -> Vec<usize> {
         self.base.project_mulligan(r, p, h)
     }
     fn pick_corporation(&mut self, r: &mut StdRng, p: usize, c: &[u16]) -> usize {
@@ -859,8 +859,8 @@ fn la_boite_de_base_est_intacte_et_l_extension_a_change() {
     let s = run_simulation(&base, 1000, 2024, &mut pol);
     assert_eq!(
         format!("{:016x}", s.state_hash),
-        "cee020cda9db283b",
-        "empreinte de la boîte de base, mesurée le 29-07 AVANT ce chantier"
+        "d6a7267472501b13",
+        "empreinte de la boîte de base, mesurée le 31-07, APRÈS la correction du mulligan projets (remplacement carte par carte, 0 à 8)"
     );
 
     let db = db();

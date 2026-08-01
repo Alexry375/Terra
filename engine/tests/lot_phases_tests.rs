@@ -109,8 +109,8 @@ impl Policy for Scenario {
     fn corp_mulligan(&mut self, _r: &mut StdRng, _p: usize, _c: &[u16]) -> bool {
         false
     }
-    fn project_mulligan(&mut self, _r: &mut StdRng, _p: usize, _h: &[u16]) -> bool {
-        false
+    fn project_mulligan(&mut self, _r: &mut StdRng, _p: usize, _h: &[u16]) -> Vec<usize> {
+        Vec::new()
     }
     fn pick_corporation(&mut self, _r: &mut StdRng, _p: usize, _c: &[u16]) -> usize {
         0
@@ -827,8 +827,8 @@ impl Policy for Activeur {
     fn corp_mulligan(&mut self, _r: &mut StdRng, _p: usize, _c: &[u16]) -> bool {
         false
     }
-    fn project_mulligan(&mut self, _r: &mut StdRng, _p: usize, _h: &[u16]) -> bool {
-        false
+    fn project_mulligan(&mut self, _r: &mut StdRng, _p: usize, _h: &[u16]) -> Vec<usize> {
+        Vec::new()
     }
     fn pick_corporation(&mut self, _r: &mut StdRng, _p: usize, _c: &[u16]) -> usize {
         0
@@ -1229,13 +1229,15 @@ fn effets_coupes_les_cinq_compteurs_restent_nuls() {
 #[test]
 fn le_deroulement_de_la_boite_de_base_n_a_pas_bouge() {
     // Le témoin de non-régression le plus dur : à graine fixe, la boîte de base
-    // rend exactement l'empreinte mesurée avant ce chantier.
+    // rend exactement l'empreinte de référence. Repère REFIXÉ le 31-07 : la
+    // correction du mulligan projets (remplacement carte par carte, 0 à 8)
+    // change le tirage des cartes, donc l'empreinte, et c'est attendu.
     let db = db();
     let mut pol = RandomPolicy;
     let s = run_simulation(&db, 1000, 2024, &mut pol);
     assert_eq!(
         format!("{:016x}", s.state_hash),
-        "cee020cda9db283b",
+        "d6a7267472501b13",
         "la boîte de base doit se dérouler exactement comme avant"
     );
 }

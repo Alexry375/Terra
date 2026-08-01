@@ -462,8 +462,8 @@ impl Policy for ActionScript {
     fn corp_mulligan(&mut self, _: &mut StdRng, _: usize, _: &[u16]) -> bool {
         false
     }
-    fn project_mulligan(&mut self, _: &mut StdRng, _: usize, _: &[u16]) -> bool {
-        false
+    fn project_mulligan(&mut self, _: &mut StdRng, _: usize, _: &[u16]) -> Vec<usize> {
+        Vec::new()
     }
     fn pick_corporation(&mut self, _: &mut StdRng, _: usize, _: &[u16]) -> usize {
         0
@@ -576,8 +576,8 @@ impl Policy for RecordBuild {
     fn corp_mulligan(&mut self, _: &mut StdRng, _: usize, _: &[u16]) -> bool {
         false
     }
-    fn project_mulligan(&mut self, _: &mut StdRng, _: usize, _: &[u16]) -> bool {
-        false
+    fn project_mulligan(&mut self, _: &mut StdRng, _: usize, _: &[u16]) -> Vec<usize> {
+        Vec::new()
     }
     fn pick_corporation(&mut self, _: &mut StdRng, _: usize, _: &[u16]) -> usize {
         0

@@ -387,7 +387,7 @@ impl Policy for ProbePolicy {
     fn corp_mulligan(&mut self, rng: &mut StdRng, p: usize, corps: &[u16]) -> bool {
         self.inner.corp_mulligan(rng, p, corps)
     }
-    fn project_mulligan(&mut self, rng: &mut StdRng, p: usize, hand: &[u16]) -> bool {
+    fn project_mulligan(&mut self, rng: &mut StdRng, p: usize, hand: &[u16]) -> Vec<usize> {
         self.inner.project_mulligan(rng, p, hand)
     }
     fn pick_corporation(&mut self, rng: &mut StdRng, p: usize, corps: &[u16]) -> usize {
@@ -416,6 +416,10 @@ impl Policy for ProbePolicy {
     }
     fn discard_down(&mut self, rng: &mut StdRng, p: usize, hand: &[u16], n: usize) -> Vec<usize> {
         self.inner.discard_down(rng, p, hand, n)
+    }
+
+    fn sell_card(&mut self, rng: &mut StdRng, p: usize, hand: &[u16]) -> usize {
+        self.inner.sell_card(rng, p, hand)
     }
 
     fn choose_option(&mut self, rng: &mut StdRng, p: usize, n: usize) -> usize {

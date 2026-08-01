@@ -315,7 +315,7 @@ impl<P: Policy> Policy for ObservingPolicy<'_, P> {
         self.inner.corp_mulligan(rng, player, corps)
     }
 
-    fn project_mulligan(&mut self, rng: &mut StdRng, player: usize, hand: &[u16]) -> bool {
+    fn project_mulligan(&mut self, rng: &mut StdRng, player: usize, hand: &[u16]) -> Vec<usize> {
         self.inner.project_mulligan(rng, player, hand)
     }
 
@@ -416,5 +416,9 @@ impl<P: Policy> Policy for ObservingPolicy<'_, P> {
         n: usize,
     ) -> Vec<usize> {
         self.inner.discard_down(rng, player, hand, n)
+    }
+
+    fn sell_card(&mut self, rng: &mut StdRng, player: usize, hand: &[u16]) -> usize {
+        self.inner.sell_card(rng, player, hand)
     }
 }

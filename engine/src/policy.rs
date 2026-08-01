@@ -73,9 +73,15 @@ pub trait Policy {
     /// par 2 nouvelles — les 2 ou aucune. Avant la donne des cartes projets.
     fn corp_mulligan(&mut self, rng: &mut StdRng, player: usize, corps: &[u16]) -> bool;
 
-    /// Mulligan projets (règle maison n°2) : remplacer ses 8 cartes de départ —
-    /// les 8 ou aucune, en une fois.
-    fn project_mulligan(&mut self, rng: &mut StdRng, player: usize, hand: &[u16]) -> bool;
+    /// Mulligan projets (règle maison n°2) : remplacer **entre 0 et 8** de ses
+    /// 8 cartes de départ, carte par carte — contrairement au mulligan
+    /// corporations qui reste « les 2 ou aucune ».
+    ///
+    /// Rend les **indices dans `hand`** des cartes à remplacer, comme
+    /// `discard_down`. Vide = on garde tout. Les indices hors bornes ou répétés
+    /// sont ignorés par le moteur (`flow::setup_game`), qui ne défausse jamais
+    /// deux fois la même carte.
+    fn project_mulligan(&mut self, rng: &mut StdRng, player: usize, hand: &[u16]) -> Vec<usize>;
 
     /// Choix final de corporation (1 parmi 2), cartes projets en main.
     fn pick_corporation(&mut self, rng: &mut StdRng, player: usize, corps: &[u16]) -> usize;
@@ -246,6 +252,22 @@ pub trait Policy {
     /// Fin de ronde : défausser `n` cartes (limite de main) — indices à défausser.
     fn discard_down(&mut self, rng: &mut StdRng, player: usize, hand: &[u16], n: usize)
         -> Vec<usize>;
+
+    /// **Vente d'une carte** (`ActionOpt::SellCard`) : QUELLE carte de la main
+    /// on défausse pour ses 3 MC. Rend un indice dans `hand`.
+    ///
+    /// Corps par défaut = l'ancien comportement du moteur, **au hasard**, et
+    /// il consomme le RNG exactement comme avant : les politiques qui ne
+    /// redéfinissent pas cette méthode jouent à l'identique, empreintes de
+    /// référence comprises. Un joueur humain, lui, doit pouvoir choisir — c'est
+    /// tout l'objet de cette méthode.
+    ///
+    /// À ne pas confondre avec `discard_down`, qui est la limite de main de fin
+    /// de ronde : le contexte de décision n'est pas le même, une politique
+    /// pensante doit pouvoir les distinguer.
+    fn sell_card(&mut self, rng: &mut StdRng, _player: usize, hand: &[u16]) -> usize {
+        rng.gen_range(0..hand.len())
+    }
 }
 
 /// Politique uniforme aléatoire (toutes décisions tirées du RNG de la partie).
@@ -256,8 +278,10 @@ impl Policy for RandomPolicy {
         rng.gen_bool(0.5)
     }
 
-    fn project_mulligan(&mut self, rng: &mut StdRng, _player: usize, _hand: &[u16]) -> bool {
-        rng.gen_bool(0.5)
+    /// Chaque carte est remplacée ou non à pile ou face, indépendamment des
+    /// autres — le mulligan projets n'est plus « tout ou rien ».
+    fn project_mulligan(&mut self, rng: &mut StdRng, _player: usize, hand: &[u16]) -> Vec<usize> {
+        (0..hand.len()).filter(|_| rng.gen_bool(0.5)).collect()
     }
 
     fn pick_corporation(&mut self, rng: &mut StdRng, _player: usize, corps: &[u16]) -> usize {

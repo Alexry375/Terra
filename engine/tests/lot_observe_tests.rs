@@ -156,7 +156,7 @@ impl Policy for CountingPolicy {
         self.decision(p);
         self.inner.corp_mulligan(r, p, c)
     }
-    fn project_mulligan(&mut self, r: &mut StdRng, p: usize, h: &[u16]) -> bool {
+    fn project_mulligan(&mut self, r: &mut StdRng, p: usize, h: &[u16]) -> Vec<usize> {
         self.decision(p);
         self.inner.project_mulligan(r, p, h)
     }
@@ -377,7 +377,7 @@ impl Policy for FreshnessPolicy {
     fn corp_mulligan(&mut self, r: &mut StdRng, p: usize, c: &[u16]) -> bool {
         self.inner.corp_mulligan(r, p, c)
     }
-    fn project_mulligan(&mut self, r: &mut StdRng, p: usize, h: &[u16]) -> bool {
+    fn project_mulligan(&mut self, r: &mut StdRng, p: usize, h: &[u16]) -> Vec<usize> {
         self.inner.project_mulligan(r, p, h)
     }
     fn pick_corporation(&mut self, r: &mut StdRng, p: usize, c: &[u16]) -> usize {
@@ -638,7 +638,7 @@ impl Policy for ViewFromObserve<'_> {
     fn corp_mulligan(&mut self, r: &mut StdRng, p: usize, c: &[u16]) -> bool {
         self.inner.corp_mulligan(r, p, c)
     }
-    fn project_mulligan(&mut self, r: &mut StdRng, p: usize, h: &[u16]) -> bool {
+    fn project_mulligan(&mut self, r: &mut StdRng, p: usize, h: &[u16]) -> Vec<usize> {
         self.inner.project_mulligan(r, p, h)
     }
     fn pick_corporation(&mut self, r: &mut StdRng, p: usize, c: &[u16]) -> usize {
@@ -764,7 +764,7 @@ impl Policy for SnapWatcher {
     fn corp_mulligan(&mut self, r: &mut StdRng, p: usize, c: &[u16]) -> bool {
         self.inner.corp_mulligan(r, p, c)
     }
-    fn project_mulligan(&mut self, r: &mut StdRng, p: usize, h: &[u16]) -> bool {
+    fn project_mulligan(&mut self, r: &mut StdRng, p: usize, h: &[u16]) -> Vec<usize> {
         self.inner.project_mulligan(r, p, h)
     }
     fn pick_corporation(&mut self, r: &mut StdRng, p: usize, c: &[u16]) -> usize {
@@ -859,7 +859,7 @@ impl Policy for TallyPolicy {
         self.calls[0] += 1;
         self.inner.corp_mulligan(r, p, c)
     }
-    fn project_mulligan(&mut self, r: &mut StdRng, p: usize, h: &[u16]) -> bool {
+    fn project_mulligan(&mut self, r: &mut StdRng, p: usize, h: &[u16]) -> Vec<usize> {
         self.calls[1] += 1;
         self.inner.project_mulligan(r, p, h)
     }

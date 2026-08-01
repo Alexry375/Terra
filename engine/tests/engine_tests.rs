@@ -22,7 +22,8 @@ fn db() -> CardsDb {
 struct TestPolicy {
     base: RandomPolicy,
     corp_mulligans: [bool; 2],
-    project_mulligans: [bool; 2],
+    /// Indices des cartes que chaque joueur remplace au mulligan projets.
+    project_mulligans: [Vec<usize>; 2],
     corp_picks: [usize; 2],
     /// Phases servies dans l'ordre des appels (p0, p1, p0, p1, ...).
     phase_script: VecDeque<u8>,
@@ -41,7 +42,7 @@ impl TestPolicy {
         TestPolicy {
             base: RandomPolicy,
             corp_mulligans: [false, false],
-            project_mulligans: [false, false],
+            project_mulligans: [Vec::new(), Vec::new()],
             corp_picks: [0, 0],
             phase_script: VecDeque::new(),
             action_script: VecDeque::new(),
@@ -61,10 +62,10 @@ impl Policy for TestPolicy {
         self.corp_mulligans[player]
     }
 
-    fn project_mulligan(&mut self, _rng: &mut StdRng, player: usize, hand: &[u16]) -> bool {
+    fn project_mulligan(&mut self, _rng: &mut StdRng, player: usize, hand: &[u16]) -> Vec<usize> {
         self.call_log.push(format!("project_mulligan:{player}"));
         self.project_mulligan_hands.push((player, hand.to_vec()));
-        self.project_mulligans[player]
+        self.project_mulligans[player].clone()
     }
 
     fn pick_corporation(&mut self, _rng: &mut StdRng, player: usize, _corps: &[u16]) -> usize {
@@ -266,10 +267,10 @@ fn corp_mulligan_happens_before_project_cards_and_pick_after() {
 }
 
 #[test]
-fn project_mulligan_replaces_all_eight_at_once() {
+fn project_mulligan_replaces_all_eight_when_all_designated() {
     let db = db();
     let mut pol = TestPolicy::new();
-    pol.project_mulligans = [true, false];
+    pol.project_mulligans = [(0..8).collect(), Vec::new()];
     let game = setup_game(&db, 14, &mut pol);
 
     let p0_initial = &pol.project_mulligan_hands[0].1;
@@ -279,8 +280,57 @@ fn project_mulligan_replaces_all_eight_at_once() {
         assert!(game.discard.contains(c));
         assert!(!game.players[0].hand.contains(c));
     }
-    // p1 garde exactement sa main initiale.
+    // p1 n'a rien désigné : il garde exactement sa main initiale.
     assert_eq!(&game.players[1].hand, &pol.project_mulligan_hands[1].1);
+}
+
+#[test]
+fn project_mulligan_replaces_only_the_designated_cards() {
+    // Règle maison n°2 corrigée : le mulligan projets N'EST PAS du tout ou
+    // rien. Ici p0 rend trois cartes sur huit — les cinq autres doivent rester
+    // en main, et la main doit revenir à huit.
+    let db = db();
+    let mut pol = TestPolicy::new();
+    pol.project_mulligans = [vec![1, 4, 6], Vec::new()];
+    let game = setup_game(&db, 21, &mut pol);
+
+    let avant = pol.project_mulligan_hands[0].1.clone();
+    let rendues: Vec<u16> = vec![avant[1], avant[4], avant[6]];
+    let gardees: Vec<u16> = [0usize, 2, 3, 5, 7].iter().map(|&i| avant[i]).collect();
+
+    assert_eq!(game.players[0].hand.len(), 8, "la main est recomplétée à huit");
+    for c in &gardees {
+        assert!(
+            game.players[0].hand.contains(c),
+            "une carte non désignée a quitté la main"
+        );
+    }
+    for c in &rendues {
+        assert!(game.discard.contains(c), "une carte désignée n'est pas en défausse");
+    }
+    // Les cinq gardées sont en tête de main, dans leur ordre d'origine : le
+    // retrait par indices décroissants ne réordonne pas ce qui reste.
+    assert_eq!(&game.players[0].hand[..5], &gardees[..]);
+}
+
+#[test]
+fn project_mulligan_ignores_out_of_range_and_repeated_indices() {
+    // Une politique peut rendre n'importe quoi : le moteur assainit sans
+    // jamais défausser deux fois la même carte ni sortir de la main.
+    let db = db();
+    let mut pol = TestPolicy::new();
+    pol.project_mulligans = [vec![2, 2, 2, 99, 8], Vec::new()];
+    let game = setup_game(&db, 22, &mut pol);
+
+    let avant = pol.project_mulligan_hands[0].1.clone();
+    assert_eq!(game.players[0].hand.len(), 8);
+    // Seule la carte d'indice 2 est partie — une fois.
+    assert!(!game.players[0].hand.contains(&avant[2]) || avant.iter().filter(|&&c| c == avant[2]).count() > 1);
+    let en_defausse = game.discard.iter().filter(|&&c| c == avant[2]).count();
+    assert_eq!(en_defausse, 1, "la carte désignée trois fois n'est défaussée qu'une fois");
+    for i in [0usize, 1, 3, 4, 5, 6, 7] {
+        assert!(game.players[0].hand.contains(&avant[i]), "carte {i} perdue à tort");
+    }
 }
 
 #[test]
@@ -324,7 +374,7 @@ fn phase_choice_never_repeats_over_full_games() {
         fn corp_mulligan(&mut self, r: &mut StdRng, p: usize, c: &[u16]) -> bool {
             self.base.corp_mulligan(r, p, c)
         }
-        fn project_mulligan(&mut self, r: &mut StdRng, p: usize, h: &[u16]) -> bool {
+        fn project_mulligan(&mut self, r: &mut StdRng, p: usize, h: &[u16]) -> Vec<usize> {
             self.base.project_mulligan(r, p, h)
         }
         fn pick_corporation(&mut self, r: &mut StdRng, p: usize, c: &[u16]) -> usize {
@@ -639,8 +689,8 @@ fn truncated_games_are_not_completed() {
         fn corp_mulligan(&mut self, _: &mut StdRng, _: usize, _: &[u16]) -> bool {
             false
         }
-        fn project_mulligan(&mut self, _: &mut StdRng, _: usize, _: &[u16]) -> bool {
-            false
+        fn project_mulligan(&mut self, _: &mut StdRng, _: usize, _: &[u16]) -> Vec<usize> {
+            Vec::new()
         }
         fn pick_corporation(&mut self, _: &mut StdRng, _: usize, _: &[u16]) -> usize {
             0
@@ -860,4 +910,63 @@ fn research_reshuffles_discard_when_deck_empty() {
     let drawn = engine::flow::draw_card(&mut game);
     assert!(drawn.is_some(), "la défausse est remélangée en pioche");
     assert!(game.discard.is_empty());
+}
+
+/// Politique qui vend TOUJOURS la carte d'indice imposé, et note ce qu'on lui
+/// a présenté. Sert à prouver que le moteur ne tire plus la carte lui-même.
+struct VendeurScripte {
+    base: RandomPolicy,
+    indice: usize,
+    mains_vues: Vec<Vec<u16>>,
+}
+
+impl Policy for VendeurScripte {
+    fn corp_mulligan(&mut self, r: &mut StdRng, p: usize, c: &[u16]) -> bool {
+        self.base.corp_mulligan(r, p, c)
+    }
+    fn project_mulligan(&mut self, r: &mut StdRng, p: usize, h: &[u16]) -> Vec<usize> {
+        self.base.project_mulligan(r, p, h)
+    }
+    fn pick_corporation(&mut self, r: &mut StdRng, p: usize, c: &[u16]) -> usize {
+        self.base.pick_corporation(r, p, c)
+    }
+    fn pick_phase(&mut self, r: &mut StdRng, p: usize, a: &[u8]) -> u8 {
+        self.base.pick_phase(r, p, a)
+    }
+    fn choose_build(&mut self, r: &mut StdRng, p: usize, a: &[usize]) -> Option<usize> {
+        self.base.choose_build(r, p, a)
+    }
+    fn research_keep(&mut self, r: &mut StdRng, p: usize, d: &[u16], k: usize) -> Vec<usize> {
+        self.base.research_keep(r, p, d, k)
+    }
+    fn discard_down(&mut self, r: &mut StdRng, p: usize, h: &[u16], n: usize) -> Vec<usize> {
+        self.base.discard_down(r, p, h, n)
+    }
+    fn construction_bonus(&mut self, r: &mut StdRng, p: usize) -> ConstructionBonus {
+        self.base.construction_bonus(r, p)
+    }
+    fn action_choice(&mut self, r: &mut StdRng, p: usize, o: &[ActionOpt]) -> Option<usize> {
+        self.base.action_choice(r, p, o)
+    }
+    fn sell_card(&mut self, _r: &mut StdRng, _p: usize, hand: &[u16]) -> usize {
+        self.mains_vues.push(hand.to_vec());
+        self.indice.min(hand.len() - 1)
+    }
+}
+
+#[test]
+fn selling_a_card_asks_the_policy_which_one() {
+    // Alexis, 31-07 : « on ne peut même pas choisir la carte qu'on défausse ».
+    // Le moteur tirait la carte au hasard ; il DEMANDE désormais à la politique,
+    // en lui montrant la main entière. Preuve en partie réelle.
+    let db = db();
+    let mut pol = VendeurScripte { base: RandomPolicy, indice: 0, mains_vues: Vec::new() };
+    let _ = engine::sim::play_game(&db, 31, &mut pol);
+    assert!(
+        !pol.mains_vues.is_empty(),
+        "la vente de carte doit passer par la politique, pas par le RNG du moteur"
+    );
+    for main in &pol.mains_vues {
+        assert!(!main.is_empty(), "on ne vend jamais depuis une main vide");
+    }
 }

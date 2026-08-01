@@ -11,7 +11,7 @@ crate-type = ["cdylib"]
 path = "src/lib.rs"
 
 [dependencies]
-engine = { path = "../../../../../engine" }
+engine = { path = "../../../engine" }
 serde_json = "1"
 rand = "0.8"
 

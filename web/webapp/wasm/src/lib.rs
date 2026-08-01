@@ -815,6 +815,26 @@ impl<'a> Harnais<'a> {
         }
     }
 
+    /// Comme `liste`, mais SANS nombre imposé : de zéro à `n` indices, tous
+    /// distincts et dans les bornes. Sert au mulligan projets.
+    fn liste_libre(&mut self, r: &Value, n: usize) -> Option<Vec<usize>> {
+        let Some(a) = r.as_array() else {
+            self.faute(format!("liste attendue, reçu {r}"));
+            return None;
+        };
+        let mut v: Vec<usize> = Vec::with_capacity(a.len());
+        for x in a {
+            match x.as_u64() {
+                Some(i) if (i as usize) < n && !v.contains(&(i as usize)) => v.push(i as usize),
+                _ => {
+                    self.faute(format!("indice {x} invalide ou en double (0..{n})"));
+                    return None;
+                }
+            }
+        }
+        Some(v)
+    }
+
     fn liste(&mut self, r: &Value, n: usize, attendu: usize) -> Option<Vec<usize>> {
         let Some(a) = r.as_array() else {
             self.faute(format!("liste attendue, reçu {r}"));
@@ -872,16 +892,27 @@ impl Policy for Harnais<'_> {
         }
     }
 
-    fn project_mulligan(&mut self, rng: &mut StdRng, player: usize, hand: &[u16]) -> bool {
+    /// Le mulligan projets n'est PAS du tout ou rien : le joueur coche entre 0
+    /// et 8 cartes. `a_choisir` est absent — c'est ce qui signale à l'écran un
+    /// nombre libre, là où `discard_down` en impose un.
+    fn project_mulligan(&mut self, rng: &mut StdRng, player: usize, hand: &[u16]) -> Vec<usize> {
         let desc = json!({
             "type": "project_mulligan",
             "joueur": player,
-            "question": "Remplacer vos 8 cartes projets (les 8 ou aucune) ?",
-            "options": [ { "libelle": "Garder" }, { "libelle": "Remplacer les 8" } ],
+            "question": "Quelles cartes projets remplacez-vous ? (de 0 à 8)",
+            "options": hand.iter().map(|c| {
+                let mut o = carte_json(self.db, *c);
+                o["libelle"] = json!(o["nom"].as_str().unwrap_or("?"));
+                o
+            }).collect::<Vec<_>>(),
+            "multiple": true,
             "main": self.cartes(hand),
         });
         match self.prendre(desc) {
-            Some(r) => self.indice(&r, 2).map(|i| i == 1).unwrap_or(false),
+            Some(r) => match self.liste_libre(&r, hand.len()) {
+                Some(v) => v,
+                None => self.defaut.project_mulligan(rng, player, hand),
+            },
             None => self.defaut.project_mulligan(rng, player, hand),
         }
     }
@@ -1182,6 +1213,26 @@ impl Policy for Harnais<'_> {
                 None => self.defaut.research_keep(rng, player, drawn, keep),
             },
             None => self.defaut.research_keep(rng, player, drawn, keep),
+        }
+    }
+
+    /// Vente d'une carte pour 3 MC : c'est le JOUEUR qui désigne laquelle.
+    fn sell_card(&mut self, rng: &mut StdRng, player: usize, hand: &[u16]) -> usize {
+        let desc = json!({
+            "type": "sell_card",
+            "joueur": player,
+            "question": "Quelle carte vendez-vous pour 3 MC ?",
+            "options": hand.iter().map(|c| {
+                let mut o = carte_json(self.db, *c);
+                o["libelle"] = json!(o["nom"].as_str().unwrap_or("?"));
+                o
+            }).collect::<Vec<_>>(),
+        });
+        match self.prendre(desc) {
+            Some(r) => self
+                .indice(&r, hand.len())
+                .unwrap_or_else(|| self.defaut.sell_card(rng, player, hand)),
+            None => self.defaut.sell_card(rng, player, hand),
         }
     }
 

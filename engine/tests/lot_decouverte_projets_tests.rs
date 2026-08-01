@@ -1010,10 +1010,11 @@ fn les_cinq_compteurs_sont_nuls_en_boite_de_base_seule() {
 
 #[test]
 fn l_empreinte_de_la_boite_de_base_est_inchangee() {
-    // NEVER 4, mesuré : même graine, même empreinte qu'avant le chantier.
+    // NEVER 4, mesuré : même graine, même empreinte. Repère REFIXÉ le 31-07,
+    // la correction du mulligan projets ayant changé le tirage des cartes.
     let db = CardsDb::load_boites(CARDS, BoiteSet::parse("base").unwrap()).expect("base");
     let s = run_simulation(&db, 1000, 2024, &mut RandomPolicy);
-    assert_eq!(format!("{:016x}", s.state_hash), "cee020cda9db283b");
+    assert_eq!(format!("{:016x}", s.state_hash), "d6a7267472501b13");
 }
 
 #[test]
