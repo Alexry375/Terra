@@ -35,6 +35,30 @@ deux mains en clair parce qu'il servait à vérifier le moteur.
 - L'adversaire est un programme qui joue des coups arbitraires. Il n'a pas
   besoin d'être bon : il doit être **présent et opaque**.
 
+## 20-bis — Les choix simultanés se voient simultanément
+
+Précision d'Alexis : « les choix de corporations de mulligan et tout, ce serait
+bien que les 2 joueurs puissent les faire en même temps et qu'on voit juste
+l'adversaire faire ses choix avec des cartes retournées et en petits formats
+(pour que la majorité de l'écran soit toujours prise par nos choix et nos
+cartes). »
+
+Donc, quand une phase demande la même chose aux deux joueurs :
+
+- **Notre** choix occupe la majorité de l'écran, en grand.
+- Le choix de l'adversaire se déroule **au même moment**, dans un coin, en
+  **petit format et cartes retournées** — on voit qu'il agit, jamais quoi.
+- Interdit : reprendre l'écran actuel en se contentant de retourner les cartes de
+  l'adversaire à chacun de ses tours de parole.
+
+Contrainte technique à ne pas sous-estimer : le moteur pose aujourd'hui les
+décisions **l'une après l'autre** (une décision pour le joueur 0, puis une pour
+le joueur 1). [VÉRIFIÉ 01-08 — relevé à l'écran : décision 0 = joueur 0, décision
+1 = joueur 1 pour la même question.] L'affichage simultané suppose donc que
+l'écran laisse le programme adverse répondre pendant que nous réfléchissons, puis
+raconte les deux réponses ensemble. C'est un travail d'écran, pas de moteur, mais
+il demande d'être conçu exprès.
+
 ## 21 — Les animations de pose (rappel des points 9 et 10)
 
 Toujours attendues, telles que décrites dans le premier fichier : trois secondes
