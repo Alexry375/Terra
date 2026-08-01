@@ -99,7 +99,12 @@ Gravité : ce n'est pas cosmétique. Un joueur peut gâcher son unique activatio
 la manche, et surtout l'intelligence artificielle à venir devra apprendre à
 éviter des coups qui ne devraient pas exister.
 
-Correction : ajouter au filtre la condition « cette carte porte une action ».
+**CORRIGÉ le 01-08** (`4eb57fe`) : nouveau contrôle `flow::activable_blue`, qui
+exige que la carte porte réellement une action. Trois tests, dont le contrôle
+inverse — vérifié qu'en revenant au filtre par couleur seule, le test redevient
+rouge. 821 tests verts, 0 rouge. Les trois empreintes de référence changent, ce
+qui est attendu (la suite des tirages n'est plus la même) : boîte de base, graine
+2024, `d6a7267472501b13` → **`c1c52fcbe4e057b0`**.
 
 ## 23 — Vendre une carte à tout moment, et plusieurs à la fois
 
@@ -115,6 +120,25 @@ vente n'existe que comme une action de la phase III
 (`engine/src/policy.rs:38`), et la rendre permanente ouvre un point de décision
 nouveau à chaque instant de la partie — ce qui pèsera lourd sur l'apprentissage
 de l'intelligence artificielle. À traiter à part, avec sa propre réflexion.
+
+**Le livret donne raison à Alexis** [VÉRIFIÉ 01-08, `docs/regles/livret-base.md`
+l. 96] : « gardez à l'esprit qu'à tout moment, **vous pouvez défausser une carte
+Projet de votre main pour gagner 3 MC** ». Et l. 348 : le coût d'une carte peut
+être payé « en défaussant d'autres cartes Projet dans votre main à raison de 3 MC
+par carte », le surplus étant rendu.
+
+**Portée retenue** (proposition d'Alexis, à confirmer une dernière fois) :
+autoriser la vente pendant les phases **I (développement), II (construction) et
+III (actions)**, et pas pendant IV (production) ni V (recherche), où l'on ne
+dépense rien. [VÉRIFIÉ 01-08 : la phase V ne fait payer aucune carte gardée —
+livret l. 425.] Cela couvre tous les moments utiles sans créer un point de
+décision à chaque respiration.
+
+**Ma recommandation, en plus** : implémenter aussi le **paiement par défausse**
+(payer une carte en défaussant d'autres cartes à 3 MC pièce). C'est la seconde
+moitié de l'écart E4, c'est ce que le livret décrit, et c'est en pratique ce à
+quoi sert la vente permanente — cela évite au joueur d'avoir à vendre puis
+acheter en deux gestes.
 
 ## 24 — Les jauges de température et d'oxygène, façon jeu de société
 
@@ -146,14 +170,51 @@ sens existent dans le dossier de travail depuis le 01-08 à 9h52
 (`engine/src/state.rs`, `engine/src/observe.rs`) mais ne sont **ni vérifiées ni
 enregistrées**.
 
-Question ouverte : le choix de la tuile à retourner est-il conforme au livret ?
-Le moteur les retourne aujourd'hui dans l'ordre d'un mélange. Si le joueur
-choisit, ce n'est plus la même règle. **À trancher avant de coder.**
+**Tranché le 01-08.** Alexis choisit une tuile **face cachée** parmi celles qui
+restent. J'avais objecté que cela changeait les probabilités : **j'avais tort**.
+Neuf tuiles mélangées face cachée sont indiscernables ; désigner la troisième
+plutôt que la première donne exactement la même loi de tirage. Le choix est donc
+purement une sensation de jeu, sans effet sur les règles ni sur l'équité. À
+implémenter tel quel.
 
 ## 26 — Des effets sonores
 
 « Il faudra du sound effect aussi, ça fait trop la différence. » Sons de pose de
 carte, de retournement de tuile, de validation. Portée et style à préciser.
+
+## 26-bis — Trois rôles à prévoir dès maintenant, pas seulement deux
+
+Réponse d'Alexis à ma question sur le jeu en ligne : « Oui si c'est moins cher,
+prévois le maintenant. Et je pourrais faire jouer mon IA contre mon pote, en
+ligne (moi je vois l'IA jouer cartes visible comme si c'était moi et je ne vois
+pas les cartes de l'adversaire). »
+
+Il y a donc **trois** situations, et non deux, et elles se ramènent à une seule
+question : **qui décide** et **qui regarde**.
+
+| Situation | Qui décide pour moi | Ce que je vois |
+|---|---|---|
+| Moi contre un programme | moi | ma main, l'adversaire caché |
+| Moi contre un humain à distance | moi | ma main, l'adversaire caché |
+| Mon intelligence artificielle contre son humain | l'IA | **la main de l'IA en clair**, comme si c'était la mienne ; l'adversaire caché |
+
+Conclusion de conception : l'écran ne doit **jamais** supposer que le joueur du
+bas est celui qui décide. Un point de vue (« de quel siège je regarde ») et une
+source de décisions (« qui répond aux questions ») doivent être deux réglages
+séparés. C'est le seul choix d'architecture réellement structurant de toute cette
+liste, et il ne coûte presque rien si on le fait maintenant.
+
+## 26-ter — Voir quelles phases ont été choisies dans la manche
+
+Aujourd'hui les cinq cartes Phase sont affichées en permanence sur le côté
+gauche. À la place :
+
+- montrer **les deux phases choisies** par les joueurs pour cette manche — une
+  seule si les deux joueurs ont choisi la même ;
+- **celle en cours est allumée**, les autres éteintes.
+
+Le moteur expose déjà le nécessaire : `players.N.chosen_phase` et
+`players.N.previous_phase`. [VÉRIFIÉ 31-07, vocabulaire d'état.]
 
 ## 27 — L'écran de menu (rappel du point 18, non fait)
 
