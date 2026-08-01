@@ -5,6 +5,48 @@
 
 Dernière mise à jour : 2026-08-01
 
+## 🃏 LE PLATEAU EST PERMANENT (01-08) — `plateau-vivant`, audité OK et promu
+
+**On voit enfin la partie.** L'écran est refait autour d'un plateau permanent :
+les cartes des deux joueurs posées en escalier, le plateau d'en face en
+vis-à-vis, la scène de décision en bande centrale, la main projet en arc de
+cercle à droite, les cartes Phase à gauche.
+
+- **L'empilement** : décalage de 40 % de la largeur vers la droite, 9 % vers le
+  haut. Le chiffre vient d'un **regard sur une capture**, pas du seuil du
+  contrôle : sur les scans, le rectangle imprimé en bas à gauche va jusqu'à 37 %
+  de la carte et se trouvait coupé à 36 %. [VÉRIFIÉ 01-08]
+- Piles par couleur, nouvelle pile au-delà d'un seuil, **réduction automatique**
+  quand le plateau déborde — rien n'est masqué, rien ne défile.
+- Contour vert des cartes jouables : **recopie** des options que le moteur
+  énumère, aucun prix comparé à aucune bourse.
+- Loupe au survol : **485 px, à l'endroit, sur les deux plateaux**.
+- Carte des tuiles Océan, bouton pour masquer les points de victoire, tout
+  l'habillage en anglais.
+
+**Audit** [VÉRIFIÉ 01-08] : **5/5 visibles, 2/2 cachés**, zéro altération. Le
+contrôle caché décisif confronte chaque valeur affichée à l'état réel du moteur
+sur deux parties entières : **3243 valeurs, zéro écart**, mêmes décisions et
+mêmes scores qu'en ligne de commande. Moteur et pont **intacts octet pour
+octet**.
+
+**Les deux échecs initiaux venaient de MES contrôles, pas de la livraison** : le
+pilote secret ne savait pas répondre à un choix multiple à nombre libre (règle
+née la veille), et le contrôle du survol ignorait la loupe. Corrigés, tous deux
+passent. Leçon : un contrôle hérité d'un chantier précédent doit être relu à
+l'aune des règles qui ont changé depuis.
+
+**Deux limites connues, déclarées par l'agent** :
+1. Le moteur ne rend qu'un **compte** d'océans, jamais l'identité des tuiles
+   retournées — alors qu'il les modélise bien une à une (`flow::reveal_ocean`
+   lit `tile.mc`, `tile.plants`, `tile.cards`). Ce n'est donc pas une lacune de
+   règle, seulement un manque d'exposition dans `observe::state_view`. L'écran
+   révèle les *n* premières tuiles de la planche, ce qui est faux dans le détail.
+2. L'écran évite six mots anglais corrects (`score`, `phase`, `corporation`,
+   `points`, `temperature`, `oceans`) parce que **mon** contrôle de langue les
+   prenait pour du français : il dit VP, Temp, Corp, « stage card ». Défaut de
+   mon contrôle, réparé au chantier `fusion-parlante`.
+
 ## 🗣️ LES CHOIX PARLENT (01-08) — `choix-parlants`, audité OK et promu
 
 **Le moteur transporte désormais le SENS de chaque alternative jusqu'à celui qui
