@@ -493,3 +493,24 @@ le nombre est libre, validation possible dès zéro carte cochée.
 
 C'est exactement le genre de défaut qu'un contrôle automatique attrape et qu'une
 relecture ne voit pas — il n'est apparu qu'en faisant jouer une machine.
+
+---
+
+## 19. Les tuiles Océan : le moteur sait, mais ne le dit pas — dette ouverte
+
+Découvert le 01-08 en construisant la carte des océans. [VÉRIFIÉ 01-08]
+
+Le moteur **modélise bien les neuf tuiles Océan une à une** : `flow::reveal_ocean`
+tire la tuile suivante de `game.oceans`, incrémente `oceans_revealed`, et applique
+ses bonus propres (`tile.mc`, `tile.plants`, `tile.cards`). La règle est donc
+juste.
+
+Mais `observe::state_view` n'expose qu'un **compte** — `planet.oceans` — jamais
+l'identité des tuiles retournées. L'écran ne peut donc pas dire *lesquelles* le
+sont : il affiche les premières de la planche, ce qui est faux dans le détail.
+
+**Ce qu'il faut faire** : exposer, dans l'état rendu, la liste des tuiles déjà
+révélées (leur rang dans la planche, ou leur identifiant). C'est un ajout
+d'affichage, pas une règle : quelques lignes dans `engine/src/observe.rs` et dans
+le pont. À faire avant l'animation de retournement (point 15), qui n'aurait aucun
+sens sur une tuile inventée.
