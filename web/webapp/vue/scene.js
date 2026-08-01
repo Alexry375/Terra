@@ -8,18 +8,29 @@
 // corporations, la carte concernée — jamais cliquable) et les CHOIX (un élément
 // `data-choix` par option, dans l'ordre des indices, « passer » en dernier).
 
-import { carte, normaliser, libelle } from "./cartes.js";
+import { carte, normaliser } from "./cartes.js";
 import {
-  imagePhase, phaseNom, phaseRomain, imageBadge, nomBadge, imageCarte,
-  imageForet, imageOcean, imageReserve, dosDeCarte, EQUIPAGES,
+  imagePhase, phaseNom, imageBadge, nomBadge, imageCarte,
+  imageForet, imageOcean, imageReserve, dosDeCarte, EQUIPAGES, nomJoueur,
 } from "./materiel.js";
 import { survolable, cacher as cacherLoupe, figer } from "./loupe.js";
+import { MOT, question as questionAnglaise, libelleOption, sorteAction } from "./mots.js";
 
 const RATIO = 569 / 409; // les images de cartes, telles qu'elles ont été découpées
 const ECART = 12;
 const MAX_CARTE = 340; // au-delà, une carte mange la scène sans rien ajouter
+// La ligne de nom sous une carte de choix : 11 px de texte, son interligne et
+// l'espace qui la sépare de la carte. Sous-estimée, les choix débordent de leur
+// bande et se posent sur les plateaux.
+const LEGENDE = 26;
+
+// Les trois moments qui méritent de couvrir la table : on y regarde des cartes
+// en grand, et le plateau reste visible dessous. Partout ailleurs la scène est
+// une bande, et les deux plateaux gardent leur place.
+const SUPERPOSITION = new Set(["corp_mulligan", "project_mulligan", "pick_corporation"]);
 
 let resoudre = null; // la réponse attendue par le moteur, une fois cliquée
+let enCours = null; // la décision affichée, pour pouvoir la redessiner
 
 /** Le squelette de la scène. Appelé une fois. */
 export function construireScene() {
@@ -36,14 +47,29 @@ export function construireScene() {
 export function poserDecision(d, etat) {
   return new Promise((ok) => {
     resoudre = ok;
+    enCours = { d, etat };
     dessiner(d, etat);
   });
+}
+
+/**
+ * REDESSINER À LA NOUVELLE TAILLE. La grille des choix est calculée en pixels
+ * au moment du dessin, à partir de la place disponible. Si la fenêtre change de
+ * taille pendant qu'une décision est posée, ces pixels ne veulent plus rien
+ * dire : les choix débordent de leur bande et se posent sur les plateaux. On
+ * refait donc le dessin. Une sélection multiple en cours est reprise à zéro —
+ * c'est le prix, et il est payé une fois, au moment où l'on redimensionne.
+ */
+export function replacerScene() {
+  if (!resoudre || !enCours) return;
+  dessiner(enCours.d, enCours.etat);
 }
 
 /** Efface la scène : plus aucun `data-choix` ne subsiste (fin de partie). */
 export function viderScene() {
   const m = document.getElementById("scene");
   if (m) m.textContent = "";
+  enCours = null;
   fermerScene();
 }
 
@@ -60,6 +86,7 @@ export function fermerScene() {
 function repondre(r) {
   const f = resoudre;
   resoudre = null;
+  enCours = null;
   if (!f) return;
   fermerScene();
   f(r);
@@ -75,6 +102,8 @@ function dessiner(d, etat) {
 
   const forme = d.multiple ? "multiple" : d.montant ? "montant" : "simple";
   m.dataset.decisionForme = forme;
+  m.dataset.mode = SUPERPOSITION.has(d.type) ? "superposition" : "bande";
+  m.dataset.type = d.type;
   // Nombre libre (remplacement partiel des cartes de départ) : on ne pose pas
   // l'attribut du tout, plutôt que d'annoncer « undefined » à qui nous lit.
   if (forme === "multiple" && d.a_choisir !== undefined && d.a_choisir !== null) {
@@ -89,7 +118,8 @@ function dessiner(d, etat) {
   if (sujet) fond.style.backgroundImage = `url("${sujet}")`;
   m.appendChild(fond);
 
-  m.appendChild(entete(d));
+  const tete = entete(d);
+  m.appendChild(tete);
 
   // Deux compositions, selon ce que la décision donne à regarder.
   //
@@ -110,22 +140,29 @@ function dessiner(d, etat) {
 
   const barre = document.createElement("div");
   barre.className = "scene__barre";
+  // La barre de validation est remplie APRÈS que les choix soient mesurés : on
+  // lui réserve sa hauteur tout de suite, sinon les choix la recouvrent.
+  if (forme !== "simple") barre.dataset.reservee = "";
   m.appendChild(barre);
 
   // En composition « contexte », les choix ne sont que des mots : on leur
   // réserve leur hauteur AVANT de mesurer le contexte, sinon les deux zones se
-  // disputent la place et les cartes débordent.
+  // disputent la place et les cartes débordent. Cette hauteur ne peut pas être
+  // écrite en dur : la bande de décision fait 292 px sur un grand écran et 168
+  // sur un petit, et des choix trop hauts déborderaient sur les plateaux.
   if (!riche && ctx) {
     const n = (d.options || []).length + (d.passer ? 1 : 0);
-    zone.style.height = (forme === "montant" ? 108 : n <= 4 ? 172 : 312) + "px";
+    const voulue = forme === "montant" ? 108 : n <= 4 ? 172 : 312;
+    const dispo = m.clientHeight - tete.offsetHeight - barre.offsetHeight;
+    zone.style.height = Math.max(56, Math.min(voulue, Math.floor(dispo * 0.6))) + "px";
     zone.style.flex = "0 0 auto";
   }
 
   if (ctx) remplirContexte(ctx, !riche);
 
   if (forme === "montant") montant(d, zone, barre);
-  else if (forme === "multiple") multiple(d, zone, barre);
-  else simple(d, zone);
+  else if (forme === "multiple") multiple(d, zone, barre, etat);
+  else simple(d, zone, etat);
 }
 
 function entete(d) {
@@ -133,9 +170,11 @@ function entete(d) {
   e.className = "scene__entete";
   e.innerHTML =
     `<span class="scene__qui" style="--teinte:${EQUIPAGES[d.joueur].teinte}">` +
-    `<i>J${d.joueur}</i>${EQUIPAGES[d.joueur].nom}</span>` +
+    `<i>${nomJoueur(d.joueur)}</i>${EQUIPAGES[d.joueur].nom}</span>` +
     `<h1 class="scene__question"></h1>`;
-  e.querySelector(".scene__question").textContent = d.question;
+  // La question du moteur est française ; l'écran ne montre que son intitulé
+  // anglais, tenu par `mots.js` et indexé sur le `type` de la décision.
+  e.querySelector(".scene__question").textContent = questionAnglaise(d);
   return e;
 }
 
@@ -167,13 +206,16 @@ function contexte(d) {
 
   if (d.carte) {
     cartes.push(d.carte);
-    mot = "carte en cours";
+    mot = MOT.currentCard;
   } else if (d.corporations) {
     cartes.push(...d.corporations);
-    mot = "vos corporations";
-  } else if (d.main) {
+    mot = MOT.yourCorps;
+  } else if (d.main && !optionsIllustrees(d)) {
+    // La main n'est rappelée que si elle n'est pas DÉJÀ le sujet : au
+    // remplacement des cartes de départ, les options SONT la main, et la
+    // montrer deux fois ne fait que voler de la place aux cartes.
     cartes.push(...d.main);
-    mot = "votre main";
+    mot = MOT.yourHand;
   }
   if (!cartes.length) return null;
 
@@ -197,7 +239,8 @@ function contexte(d) {
   if (d.type === "discard_payment_count") {
     const n = document.createElement("p");
     n.className = "scene__note";
-    n.textContent = `coût ${d.cout} MC · vous avez ${d.mc} MC · ${d.taux} MC par carte défaussée`;
+    // Trois nombres du descripteur du moteur, recopiés tels quels.
+    n.textContent = `cost ${d.cout} MC · you hold ${d.mc} MC · ${d.taux} MC per discard`;
     z.appendChild(n);
   }
   return z;
@@ -229,30 +272,30 @@ function remplirContexte(z, maitre) {
 // ------------------------------------------------------------------ les choix
 
 /** Choix simple : un élément cliquable par option, « passer » en dernier. */
-function simple(d, zone) {
+function simple(d, zone, etat) {
   const options = d.options || [];
   const total = options.length + (d.passer ? 1 : 0);
 
   const largeur = mesurer(d, zone, total);
   options.forEach((o, i) => {
-    const b = choix(d, o, i, largeur);
+    const b = choix(d, o, i, largeur, etat);
     b.addEventListener("click", () => repondre(i));
     zone.appendChild(b);
   });
 
   if (d.passer) {
-    const b = slab("Passer", "passer");
+    const b = slab(MOT.pass, "passer");
     b.dataset.choix = String(options.length);
     b.classList.add("choix--passer");
     b.style.setProperty("--w", largeur + "px");
-    b.setAttribute("aria-label", "passer");
+    b.setAttribute("aria-label", "pass");
     b.addEventListener("click", () => repondre(options.length));
     zone.appendChild(b);
   }
 }
 
 /** Choix multiple : on sélectionne, puis on valide. */
-function multiple(d, zone, barre) {
+function multiple(d, zone, barre, etat) {
   const options = d.options || [];
   // `a_choisir` absent = nombre LIBRE : le remplacement partiel des cartes de
   // départ va de 0 à 8. On accepte alors n'importe quelle quantité, et le
@@ -269,17 +312,17 @@ function multiple(d, zone, barre) {
   valider.className = "valider";
   valider.type = "button";
   valider.dataset.valider = "";
-  valider.textContent = "Valider";
+  valider.textContent = MOT.confirm;
 
   const rafraichir = () => {
     compteur.textContent = libre
-      ? `${choisis.size} / ${options.length} sélectionnée${choisis.size > 1 ? "s" : ""}`
-      : `${choisis.size} / ${k} sélectionnée${k > 1 ? "s" : ""}`;
+      ? `${choisis.size} / ${options.length} picked`
+      : `${choisis.size} / ${k} picked`;
     valider.classList.toggle("valider--prete", libre || choisis.size === k);
   };
 
   options.forEach((o, i) => {
-    const b = choix(d, o, i, largeur);
+    const b = choix(d, o, i, largeur, etat);
     b.addEventListener("click", () => {
       if (choisis.has(i)) choisis.delete(i);
       else choisis.add(i);
@@ -318,7 +361,7 @@ function montant(d, zone, barre) {
     <button class="cadran__pas" type="button" data-pas="-1">−</button>
     <input class="cadran__champ" data-montant type="number" inputmode="numeric">
     <button class="cadran__pas" type="button" data-pas="1">+</button>
-    <span class="cadran__bornes">de ${min} à ${max}</span>`;
+    <span class="cadran__bornes">from ${min} to ${max}</span>`;
   const champ = c.querySelector("[data-montant]");
   champ.min = String(min);
   champ.max = String(max);
@@ -336,7 +379,7 @@ function montant(d, zone, barre) {
   valider.className = "valider valider--prete";
   valider.type = "button";
   valider.dataset.valider = "";
-  valider.textContent = "Valider";
+  valider.textContent = MOT.confirm;
   valider.addEventListener("click", () => {
     const v = Number(champ.value);
     if (!Number.isInteger(v) || v < min || v > max) {
@@ -358,9 +401,10 @@ function montant(d, zone, barre) {
  * une action nommée « Action de X » a l'image de la carte X. À défaut, une
  * plaque gravée qui porte le libellé du moteur, mot pour mot.
  */
-function choix(d, o, i, largeur) {
+function choix(d, o, i, largeur, etat) {
   let b;
   const c = normaliser(o);
+  const mot = libelleOption(d, o, i, c, etat);
 
   if (d.type === "pick_phase" && o.phase) {
     b = document.createElement("button");
@@ -368,14 +412,14 @@ function choix(d, o, i, largeur) {
     b.className = "choix choix--phase";
     const im = document.createElement("img");
     im.src = imagePhase(o.phase);
-    im.alt = "carte Phase " + phaseNom(o.phase);
+    im.alt = "stage card " + phaseNom(o.phase);
     b.appendChild(im);
     const t = document.createElement("span");
     t.className = "choix__mot";
-    t.textContent = `${phaseRomain(o.phase)} · ${phaseNom(o.phase)}`;
+    t.textContent = mot;
     b.appendChild(t);
   } else if (d.type === "pick_joker_tag" && o.badge) {
-    b = slab(libelle(o), "badge");
+    b = slab(mot, "badge");
     const im = document.createElement("img");
     im.className = "choix__jeton";
     im.src = imageBadge(o.badge, true);
@@ -386,13 +430,21 @@ function choix(d, o, i, largeur) {
     b.type = "button";
     b.className = "choix choix--carte";
     b.appendChild(carte(o, { classe: "carte--choix" }));
-    survolable(b, o);
+    // Au choix de la corporation la carte est déjà affichée en très grand :
+    // la loupe n'ajoute rien et gêne. On la débranche là, et là seulement.
+    if (d.type !== "pick_corporation") survolable(b, o);
     const t = document.createElement("span");
     t.className = "choix__mot";
-    t.textContent = libelle(o, c.nom);
+    t.textContent = mot;
     b.appendChild(t);
+    // Une option QUI EST une carte porte son identifiant, et se déclare jouable :
+    // c'est le moteur qui vient de l'énumérer, la page ne fait que le recopier.
+    if (c.id !== null && c.id !== undefined) {
+      b.dataset.carteId = String(c.id);
+      b.dataset.jouable = "oui";
+    }
   } else {
-    b = slabAction(libelle(o, `option ${i + 1}`));
+    b = slabAction(o, mot);
   }
 
   b.dataset.choix = String(i);
@@ -413,23 +465,26 @@ function slab(texte, sorte) {
 }
 
 // Les actions courantes du jeu portent un nom stable : on leur rend leur
-// matière. Le libellé du moteur reste écrit en toutes lettres sur la plaque —
-// l'image ne le remplace pas, elle l'accompagne.
-function matiereAction(texte) {
-  if (texte.startsWith("Action de ")) {
-    const im = imageCarte(texte.slice("Action de ".length));
-    if (im) return { src: im, sorte: "carte" };
+// matière. Le libellé ANGLAIS reste écrit en toutes lettres sur la plaque —
+// l'image ne le remplace pas, elle l'accompagne. La reconnaissance, elle, se
+// fait sur le libellé brut du moteur, par la table explicite de `mots.js`.
+function matiereAction(brut) {
+  const s = sorteAction(brut || "");
+  if (!s) return null;
+  if (s.carte) {
+    const im = imageCarte(s.carte);
+    return im ? { src: im, sorte: "carte" } : null;
   }
-  if (texte.startsWith("Forêt")) return { src: imageForet(), sorte: "jeton" };
-  if (texte.startsWith("Océan")) return { src: imageOcean(0), sorte: "jeton" };
-  if (texte.startsWith("Température")) return { src: imageReserve("heat"), sorte: "jeton" };
-  if (texte.startsWith("Défausser")) return { src: dosDeCarte(), sorte: "carte" };
+  if (s.jeton === "foret") return { src: imageForet(), sorte: "jeton" };
+  if (s.jeton === "ocean") return { src: imageOcean(0), sorte: "jeton" };
+  if (s.jeton === "chaleur") return { src: imageReserve("heat"), sorte: "jeton" };
+  if (s.jeton === "dos") return { src: dosDeCarte(), sorte: "carte" };
   return null;
 }
 
-function slabAction(texte) {
-  const b = slab(texte, "action");
-  const m = matiereAction(texte);
+function slabAction(o, mot) {
+  const b = slab(mot, "action");
+  const m = matiereAction(o && (o.libelle ?? o.nom ?? o.name));
   if (m) {
     const im = document.createElement("img");
     im.className = "choix__matiere choix__matiere--" + m.sorte;
@@ -471,15 +526,24 @@ function colonne(L, c) {
 
 /** Des cartes : elles gardent leurs proportions, et le rang doit tenir en hauteur. */
 function planImages(L, H, n) {
-  let mieux = { c: n, w: 40, h: 60 };
+  let mieux = null;
   for (let c = 1; c <= n; c++) {
     const r = Math.ceil(n / c);
     const w = Math.min(colonne(L, c), MAX_CARTE);
-    // hauteur d'une rangée = la carte + la ligne de légende
-    const h = (H - (r - 1) * ECART) / r - 20;
-    if (h <= 0) continue;
+    // hauteur d'une rangée = la carte + sa ligne de nom
+    const h = (H - (r - 1) * ECART) / r - LEGENDE;
+    if (h <= 0 || w <= 0) continue;
     const utile = Math.min(w, h / RATIO);
-    if (utile > mieux.w) mieux = { c, w: Math.floor(utile), h: Math.floor(utile * RATIO + 20) };
+    if (!mieux || utile > mieux.utile) {
+      mieux = { c, utile, w: Math.floor(utile), h: Math.floor(utile * RATIO + LEGENDE) };
+    }
+  }
+  if (!mieux) {
+    // DERNIER RECOURS, et rien d'autre : aucune disposition ne tenait en
+    // hauteur. Un seul rang, aussi large que la largeur le permet. Sans lui, un
+    // écran très bas rendrait un plan qui déborde sur les plateaux.
+    const w = Math.max(18, Math.min(colonne(L, n), Math.floor((H - LEGENDE) / RATIO) || 18));
+    mieux = { c: n, w, h: Math.floor(w * RATIO + LEGENDE) };
   }
   return mieux;
 }
@@ -496,9 +560,13 @@ function planPlaques(L, H, n) {
     if (!mieux || aire > mieux.aire) mieux = { c, w, h: Math.floor(h), aire };
   }
   if (!mieux) {
-    // Cas extrême : on serre en autant de colonnes qu'il faut pour tenir.
-    const c = Math.max(1, Math.ceil(n / Math.max(1, Math.floor(H / 62))));
-    mieux = { c, w: colonne(L, c), h: Math.max(48, Math.floor(H / Math.ceil(n / c)) - ECART) };
+    // Cas extrême : on serre en autant de colonnes qu'il faut pour tenir. La
+    // hauteur d'une plaque descend alors aussi bas qu'il le faut — une plaque
+    // basse se lit encore, une plaque qui déborde sur le plateau, non.
+    const rmax = Math.max(1, Math.floor(H / (44 + ECART)));
+    const c = Math.max(1, Math.ceil(n / rmax));
+    const r = Math.ceil(n / c);
+    mieux = { c, w: colonne(L, c), h: Math.max(18, Math.floor((H - (r - 1) * ECART) / r)) };
   }
   return mieux;
 }

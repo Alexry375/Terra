@@ -5,6 +5,8 @@
 // de découpe. Ce module fait la jointure, et RIEN d'autre : il ne décide rien,
 // ne calcule rien, n'invente aucune valeur.
 
+import { STAGES, BADGE_EN, MOT } from "./mots.js";
+
 const MANIFESTE = "./assets/manifeste.json";
 
 let parCarte = new Map(); // nom exact de la carte -> chemin de l'image
@@ -35,20 +37,22 @@ export function piece(nom) {
 
 // ------------------------------------------------------------- les cinq Phases
 
+// Le nom de découpe de l'image est français (c'est le nom du fichier fourni) ;
+// le nom AFFICHÉ vient de `mots.js`, en anglais, comme tout ce que le joueur lit.
 const PHASES = {
-  1: { slug: "1-development", nom: "Développement", romain: "I" },
-  2: { slug: "2-construction", nom: "Construction", romain: "II" },
-  3: { slug: "3-action", nom: "Action", romain: "III" },
-  4: { slug: "4-production", nom: "Production", romain: "IV" },
-  5: { slug: "5-research", nom: "Research", romain: "V" },
+  1: { slug: "1-development" },
+  2: { slug: "2-construction" },
+  3: { slug: "3-action" },
+  4: { slug: "4-production" },
+  5: { slug: "5-research" },
 };
 
 export function phaseNom(n) {
-  return PHASES[n] ? PHASES[n].nom : "—";
+  return STAGES[n] ? STAGES[n].nom : "—";
 }
 
 export function phaseRomain(n) {
-  return PHASES[n] ? PHASES[n].romain : "—";
+  return STAGES[n] ? STAGES[n].romain : "—";
 }
 
 /** La carte Phase, face normale. */
@@ -70,17 +74,18 @@ export function imageAmelioration(code) {
 // ---------------------------------------------------------------- les badges
 
 // Les dix familles du moteur (`players[].tags`) et leur jeton imprimé.
+// Le nom de découpe du jeton est français ; le nom affiché vient de `mots.js`.
 const BADGES = {
-  BUILDING: { piece: "batiment", nom: "Bâtiment" },
-  SPACE: { piece: "espace-soleil", nom: "Espace" },
-  SCIENCE: { piece: "science", nom: "Science" },
-  PLANT: { piece: "plante", nom: "Plante" },
-  ENERGY: { piece: "energie", nom: "Énergie" },
-  EARTH: { piece: "terre", nom: "Terre" },
-  JUPITER: { piece: "jupiter", nom: "Jupiter" },
-  MICROBE: { piece: "microbe", nom: "Microbe" },
-  ANIMAL: { piece: "animal", nom: "Animal" },
-  EVENT: { piece: "evenement", nom: "Événement" },
+  BUILDING: "batiment",
+  SPACE: "espace-soleil",
+  SCIENCE: "science",
+  PLANT: "plante",
+  ENERGY: "energie",
+  EARTH: "terre",
+  JUPITER: "jupiter",
+  MICROBE: "microbe",
+  ANIMAL: "animal",
+  EVENT: "evenement",
 };
 
 export const ORDRE_BADGES = Object.keys(BADGES);
@@ -88,11 +93,11 @@ export const ORDRE_BADGES = Object.keys(BADGES);
 export function imageBadge(cle, grand = false) {
   const b = BADGES[cle];
   if (!b) return null;
-  return piece(`jeton-tag-${b.piece}${grand ? "-grand" : ""}-decouverte`);
+  return piece(`jeton-tag-${b}${grand ? "-grand" : ""}-decouverte`);
 }
 
 export function nomBadge(cle) {
-  return BADGES[cle] ? BADGES[cle].nom : cle;
+  return BADGE_EN[cle] || cle;
 }
 
 // -------------------------------------------------------- objectifs et récompenses
@@ -148,9 +153,14 @@ export function titre(mot) {
 // Deux équipages, deux couleurs de combinaison. C'est la seule marque d'identité
 // dont ce jeu a besoin : on sait à qui c'est le tour à la couleur de l'écran.
 export const EQUIPAGES = [
-  { suit: "astronautes-combinaisons-rouges", teinte: "#e2542b", nom: "ROUGE" },
-  { suit: "astronautes-combinaisons-bleues", teinte: "#3d9fd6", nom: "BLEU" },
+  { suit: "astronautes-combinaisons-rouges", teinte: "#e2542b", nom: "RED" },
+  { suit: "astronautes-combinaisons-bleues", teinte: "#3d9fd6", nom: "BLUE" },
 ];
+
+/** Le nom court d'un joueur, tel qu'il s'écrit à l'écran. */
+export function nomJoueur(j) {
+  return MOT.players[j] ?? "P" + j;
+}
 
 export function imageEquipage(j) {
   return piece(EQUIPAGES[j].suit);

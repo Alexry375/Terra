@@ -21,13 +21,17 @@ import { fournisseurHumain } from "./fournisseurs.js";
 
 import { chargerMateriel } from "./vue/materiel.js";
 import { construireMonde, majMonde, oublier } from "./vue/monde.js";
-import { construireJoueurs, majJoueurs } from "./vue/joueurs.js";
+import { construireJoueurs, majJoueurs, replacerBarres } from "./vue/joueurs.js";
 import { construireMains, majMains } from "./vue/mains.js";
-import { construireScene, poserDecision, viderScene } from "./vue/scene.js";
+import {
+  construirePlateaux, majPlateaux, replacerPlateaux, oublierPlateaux,
+} from "./vue/plateau.js";
+import { construireScene, poserDecision, viderScene, replacerScene } from "./vue/scene.js";
 import { construireLoupe } from "./vue/loupe.js";
 import { oublierRefs } from "./vue/ecrire.js";
 import { construireAnnonce, annonceManche, annoncePhases, ecranFinal } from "./vue/annonce.js";
 import * as son from "./vue/son.js";
+import { MOT } from "./vue/mots.js";
 
 // ------------------------------------------------------------------ l'adresse
 
@@ -51,11 +55,23 @@ function lireAdresse() {
 
 function batir() {
   construireMonde();
-  construireMains();
+  construirePlateaux();
   construireJoueurs();
+  construireMains();
   construireScene();
   construireAnnonce();
   construireLoupe();
+  // TOUT ce qui est mesuré en pixels doit être remesuré quand la fenêtre change
+  // de taille : les deux plateaux, les deux barres de joueur, et la grille des
+  // choix de la décision en cours. On attend la fin du geste plutôt que de tout
+  // refaire à chaque pixel de la poignée de redimensionnement.
+  let minuteur = null;
+  window.addEventListener("resize", () => {
+    replacerPlateaux();
+    replacerBarres();
+    clearTimeout(minuteur);
+    minuteur = setTimeout(replacerScene, 120);
+  }, { passive: true });
 }
 
 function etatDuChargement(texte) {
@@ -74,7 +90,7 @@ function panne(e) {
   // erreur de console, et une erreur de console est un écran cassé.
   const z = document.createElement("div");
   z.id = "panne";
-  z.textContent = "Le moteur n'a pas pu continuer : " + (e && e.message ? e.message : e);
+  z.textContent = MOT.broken + (e && e.message ? e.message : e);
   document.body.appendChild(z);
 }
 
@@ -103,6 +119,7 @@ function theatre(etat) {
 function rendre(etat, decision) {
   document.body.dataset.actif = decision ? String(decision.joueur) : "";
   majMonde(etat);
+  majPlateaux(etat, decision);
   majJoueurs(etat, decision);
   majMains(etat, decision);
   theatre(etat);
@@ -110,13 +127,14 @@ function rendre(etat, decision) {
 
 async function lancer({ graine, boites }) {
   document.body.dataset.phase = "chargement";
-  etatDuChargement("réveil du moteur…");
+  etatDuChargement(MOT.waking);
 
   const pont = await ouvrirPontDepuis(".");
   document.getElementById("chargement")?.remove();
   document.body.dataset.phase = "partie";
   oublier();
   oublierRefs();
+  oublierPlateaux();
   dejaVu = { manche: null, phases: null };
 
   const partie = creerPartie(pont, { graine, boites });
@@ -147,17 +165,17 @@ function ecranEntree() {
   z.id = "entree";
   z.innerHTML = `
     <h1>Terra</h1>
-    <p class="entree__sous">Terraforming Mars · Ares Expedition — deux joueurs, un écran</p>
+    <p class="entree__sous">${MOT.subtitle}</p>
     <div class="entree__reglages">
-      <label>Graine <input id="entree-graine" type="number" value="7"></label>
-      <label>Boîtes
+      <label>${MOT.seed} <input id="entree-graine" type="number" value="7"></label>
+      <label>${MOT.boxes}
         <select id="entree-boites">
           <option value="base">base</option>
-          <option value="base,decouverte" selected>base + Découverte</option>
+          <option value="base,decouverte" selected>base + Discovery</option>
         </select>
       </label>
     </div>
-    <button id="entree-go" type="button">Commencer</button>`;
+    <button id="entree-go" type="button">${MOT.start}</button>`;
   document.body.appendChild(z);
 
   document.getElementById("entree-go").addEventListener("click", () => {

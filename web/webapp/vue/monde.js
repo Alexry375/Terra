@@ -10,8 +10,10 @@
 // Chaque valeur affichée porte son chemin exact dans l'état rendu par le moteur
 // (`data-valeur`). Aucun nombre n'est calculé ici : tout est lu.
 
-import { imageOcean, imageJalon, imageRecompense, titre } from "./materiel.js";
+import { imageJalon, imageRecompense, titre } from "./materiel.js";
 import { ref, poser, poserValeur } from "./ecrire.js";
+import { construireMasqueVP } from "./plateau.js";
+import { MOT } from "./mots.js";
 
 const CIEL_FROID = [[6, 10, 20], [16, 26, 42]];
 const CIEL_CHAUD = [[26, 6, 3], [125, 44, 16]];
@@ -39,13 +41,13 @@ export function construireMonde() {
   h.id = "horizon";
   h.innerHTML = `
     <div class="manche">
-      <span class="manche__mot">manche</span>
+      <span class="manche__mot">${MOT.round}</span>
       <b class="manche__n" data-valeur="generation">—</b>
     </div>
 
     <section class="param param--temp" id="param-temp">
       <div class="param__tete">
-        <span class="param__nom">Température</span>
+        <span class="param__nom">${MOT.temp}</span>
         <b class="param__n" data-valeur="planet.temperature">0</b>
         <span class="param__max">/<i id="temp-max" data-valeur="planet.temperature_max">0</i></span>
       </div>
@@ -54,7 +56,7 @@ export function construireMonde() {
 
     <section class="param param--o2" id="param-o2">
       <div class="param__tete">
-        <span class="param__nom">Oxygène</span>
+        <span class="param__nom">${MOT.oxygen}</span>
         <b class="param__n" data-valeur="planet.oxygen">0</b>
         <span class="param__max">/<i id="o2-max" data-valeur="planet.oxygen_max">0</i></span>
       </div>
@@ -63,11 +65,11 @@ export function construireMonde() {
 
     <section class="param param--mer" id="param-mer">
       <div class="param__tete">
-        <span class="param__nom">Océans</span>
+        <span class="param__nom">${MOT.ocean}</span>
         <b class="param__n" data-valeur="planet.oceans">0</b>
         <span class="param__max">/<i id="mer-max" data-valeur="planet.oceans_max">0</i></span>
       </div>
-      <div class="rade" id="rade"></div>
+      <div class="crans crans--mer" id="crans-mer"></div>
     </section>
 
     <section class="tuiles-honneur">
@@ -75,6 +77,9 @@ export function construireMonde() {
       <div class="tuiles-honneur__rang" id="recompenses"></div>
     </section>`;
   frag.appendChild(h);
+  // La case qui masque les points de victoire vit dans le bandeau : elle doit
+  // rester atteignable à tout instant de la partie.
+  construireMasqueVP(h);
 
   const secousse = document.createElement("div");
   secousse.id = "secousse";
@@ -108,7 +113,7 @@ export function majMonde(etat) {
 
   crans("crans-temp", p.temperature, p.temperature_max);
   crans("crans-o2", p.oxygen, p.oxygen_max);
-  rade(p.oceans, p.oceans_max);
+  crans("crans-mer", p.oceans, p.oceans_max);
 
   honneurs(etat);
   ressentir(etat);
@@ -135,31 +140,6 @@ function crans(id, v, max) {
   [...z.children].forEach((c, i) => c.classList.toggle("acquis", i < v));
 }
 
-/** La rade : un socle par océan possible, une TUILE réelle par océan gagné. */
-function rade(v, max) {
-  const z = ref("#rade");
-  if (z.childElementCount !== max) {
-    z.textContent = "";
-    for (let i = 0; i < max; i++) {
-      const s = document.createElement("span");
-      s.className = "rade__socle";
-      z.appendChild(s);
-    }
-  }
-  [...z.children].forEach((s, i) => {
-    const rempli = i < v;
-    s.classList.toggle("rade__socle--plein", rempli);
-    if (rempli && !s.firstChild) {
-      const im = document.createElement("img");
-      im.src = imageOcean(i);
-      im.alt = "tuile océan";
-      s.appendChild(im);
-    } else if (!rempli && s.firstChild) {
-      s.textContent = "";
-    }
-  });
-}
-
 /** Objectifs et récompenses : les tuiles imprimées, éteintes tant qu'à prendre. */
 function honneurs(etat) {
   const zj = ref("#jalons");
@@ -168,10 +148,10 @@ function honneurs(etat) {
     for (const m of etat.milestones) {
       const d = document.createElement("div");
       d.className = "honneur";
-      d.title = "Objectif " + titre(m.kind);
+      d.title = MOT.milestone + " " + titre(m.kind);
       const im = document.createElement("img");
       im.src = imageJalon(m.kind);
-      im.alt = "objectif " + titre(m.kind);
+      im.alt = MOT.milestone + " " + titre(m.kind);
       d.appendChild(im);
       zj.appendChild(d);
     }
@@ -192,10 +172,10 @@ function honneurs(etat) {
     for (const a of etat.awards) {
       const d = document.createElement("div");
       d.className = "honneur honneur--recompense";
-      d.title = "Récompense " + titre(a);
+      d.title = MOT.award + " " + titre(a);
       const im = document.createElement("img");
       im.src = imageRecompense(a);
-      im.alt = "récompense " + titre(a);
+      im.alt = MOT.award + " " + titre(a);
       d.appendChild(im);
       zr.appendChild(d);
     }

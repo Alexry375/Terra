@@ -9,7 +9,11 @@
 import { imageCarte } from "./materiel.js";
 import { normaliser } from "./cartes.js";
 
-const LARGEUR = 300;
+// La largeur de la loupe est posée ICI, et la feuille de style ne la redéfinit
+// pas : c'est le même nombre qui dessine l'image et qui calcule sa place. Deux
+// constantes désaccordées, et la carte sort de l'écran par le bas — c'est-à-dire
+// que le seul moyen de lecture prévu ne lit plus rien.
+const LARGEUR = 348;
 const MARGE = 16;
 
 // La loupe ne s'ouvre que sur un survol VOULU. Quand une décision se pose, le
@@ -22,6 +26,7 @@ export function construireLoupe() {
   const l = document.createElement("div");
   l.id = "loupe";
   l.innerHTML = "<img alt=''>";
+  l.firstElementChild.style.width = LARGEUR + "px";
   document.body.appendChild(l);
   document.addEventListener("mousemove", () => { gele = false; }, { passive: true });
 }

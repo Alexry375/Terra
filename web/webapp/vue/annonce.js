@@ -5,7 +5,8 @@
 // l'annonce s'efface. Un humain met plus d'une demi-seconde à décider : il voit
 // tout. Une machine qui clique tout de suite n'est jamais gênée.
 
-import { imagePhase, phaseNom, phaseRomain, EQUIPAGES, imageCarte } from "./materiel.js";
+import { imagePhase, phaseNom, phaseRomain, EQUIPAGES, imageCarte, nomJoueur } from "./materiel.js";
+import { MOT } from "./mots.js";
 
 export function construireAnnonce() {
   const d = document.createElement("div");
@@ -33,7 +34,7 @@ export function annonceManche(n) {
   d.className = "annonce__manche";
   // Ce chiffre est `generation`, rendu par le moteur : il déclare son chemin
   // comme tous les autres nombres de l'écran.
-  d.innerHTML = `<span>manche</span><b data-valeur="generation">${n}</b>`;
+  d.innerHTML = `<span>${MOT.round}</span><b data-valeur="generation">${n}</b>`;
   jouerAnnonce(d, 1100);
 }
 
@@ -51,8 +52,8 @@ export function annoncePhases(etat) {
     c.className = "annonce__phase";
     c.style.setProperty("--teinte", EQUIPAGES[p.player].teinte);
     c.innerHTML =
-      `<img src="${imagePhase(n)}" alt="carte Phase ${phaseNom(n)}">` +
-      `<span class="annonce__phase-qui">J${p.player}</span>` +
+      `<img src="${imagePhase(n)}" alt="stage card ${phaseNom(n)}">` +
+      `<span class="annonce__phase-qui">${nomJoueur(p.player)}</span>` +
       `<span class="annonce__phase-nom">${phaseRomain(n)} · ${phaseNom(n)}</span>`;
     d.appendChild(c);
   }
@@ -84,32 +85,31 @@ export function ecranFinal(etat) {
       return `
       <div class="final__colonne" style="--teinte:${EQUIPAGES[j].teinte}">
         ${im ? `<img class="final__corpo" src="${im}" alt="${p.corporation}">` : ""}
-        <span class="final__qui">J${j} · ${EQUIPAGES[j].nom}</span>
-        <span class="final__corpo-nom">${p.corporation || ""}</span>
+        <span class="final__qui">${nomJoueur(j)} · ${EQUIPAGES[j].nom}</span>
         <b class="final__score" data-score-final="${j}" data-valeur="players.${j}.score"
            >${p.score}</b>
-        <span class="final__mot">points</span>
-        <span class="final__detail">terraformation
+        <span class="final__mot">${MOT.vp}</span>
+        <span class="final__detail">${MOT.tr}
           <i data-valeur="players.${j}.tr">${p.tr}</i> ·
-          forêts <i data-valeur="players.${j}.forests">${p.forests}</i></span>
+          ${MOT.forests} <i data-valeur="players.${j}.forests">${p.forests}</i></span>
       </div>`;
     })
     .join("");
 
   f.innerHTML = `
     <div class="final__titre">
-      <span>Mars est terraformée</span>
-      <b>Décompte final</b>
+      <span>${MOT.endTitle}</span>
+      <b>${MOT.endSub}</b>
     </div>
     <div class="final__colonnes">${colonnes}</div>
     <div class="final__planete">
-      <span>température <i data-valeur="planet.temperature">${etat.planet.temperature}</i>
+      <span>${MOT.temp} <i data-valeur="planet.temperature">${etat.planet.temperature}</i>
         /<i data-valeur="planet.temperature_max">${etat.planet.temperature_max}</i></span>
-      <span>oxygène <i data-valeur="planet.oxygen">${etat.planet.oxygen}</i>
+      <span>${MOT.oxygen} <i data-valeur="planet.oxygen">${etat.planet.oxygen}</i>
         /<i data-valeur="planet.oxygen_max">${etat.planet.oxygen_max}</i></span>
-      <span>océans <i data-valeur="planet.oceans">${etat.planet.oceans}</i>
+      <span>${MOT.ocean} <i data-valeur="planet.oceans">${etat.planet.oceans}</i>
         /<i data-valeur="planet.oceans_max">${etat.planet.oceans_max}</i></span>
-      <span>manche <i data-valeur="generation">${etat.generation}</i></span>
+      <span>${MOT.round} <i data-valeur="generation">${etat.generation}</i></span>
     </div>`;
 
   document.body.appendChild(f);

@@ -1,32 +1,36 @@
-// LES DEUX ÉQUIPAGES — une colonne par joueur, de part et d'autre du monde.
+// LES DEUX ÉQUIPAGES — une barre par joueur, collée à son plateau.
 //
 // Tout ce qui s'affiche ici vient de `etat.players[j]` et porte son chemin exact
-// dans `data-valeur`. Les réserves (MC, chaleur, plantes) sont posées dans les
-// zones de stockage réellement imprimées sur le plateau joueur : le nombre n'est
-// pas dans une case d'un tableau, il est dans son bac.
+// dans `data-valeur`. Rien n'est calculé : la barre lit, elle ne compte pas.
+//
+// La place appartient désormais au plateau de jeu : ces barres sont donc
+// compactes et horizontales, l'une sous le plateau du joueur d'en face, l'autre
+// au-dessus du sien. Les cartes en jeu, elles, ne sont plus ici — elles sont
+// posées sur le plateau (`plateau.js`).
 
 import {
   imageEquipage, imageReserve, imageBadge, nomBadge, ORDRE_BADGES,
-  imageForet, imagePhase, imageAmelioration, phaseNom, phaseRomain, EQUIPAGES,
+  imageForet, EQUIPAGES, nomJoueur,
 } from "./materiel.js";
 import { carte } from "./cartes.js";
 import { survolable } from "./loupe.js";
 import { ref, poser, poserValeur } from "./ecrire.js";
+import { MOT } from "./mots.js";
 
 const RESERVES = [
-  ["mc", "MC"],
-  ["heat", "Chaleur"],
-  ["plants", "Plantes"],
+  ["mc", MOT.mc],
+  ["heat", MOT.heat],
+  ["plants", MOT.plants],
 ];
 
 const PRODUCTIONS = [
-  ["mc", "MC"],
-  ["heat", "chaleur"],
-  ["plants", "plantes"],
-  ["cards", "cartes"],
+  ["mc", MOT.mc],
+  ["heat", MOT.heat],
+  ["plants", MOT.plants],
+  ["cards", MOT.cards],
 ];
 
-/** Construit les deux colonnes. Appelé une fois par partie. */
+/** Construit les deux barres. Appelé une fois par partie. */
 export function construireJoueurs() {
   for (const j of [0, 1]) {
     const a = document.createElement("aside");
@@ -36,49 +40,39 @@ export function construireJoueurs() {
     a.style.setProperty("--teinte", EQUIPAGES[j].teinte);
 
     a.innerHTML = `
+      <div class="equipage__rang" id="rang-${j}">
       <div class="equipage__tete">
-        <img class="equipage__suit" src="${imageEquipage(j)}" alt="équipage ${EQUIPAGES[j].nom}">
-        <div class="equipage__id">
-          <span class="equipage__jn">J${j}</span>
-          <span class="equipage__corpo" id="corpo-nom-${j}">—</span>
-        </div>
+        <img class="equipage__suit" src="${imageEquipage(j)}" alt="crew ${EQUIPAGES[j].nom}">
+        <span class="equipage__jn">${nomJoueur(j)}</span>
       </div>
       <div class="equipage__corpo-carte" id="corpo-carte-${j}"></div>
 
-      <div class="tr">
-        <span class="tr__mot">Terraformation</span>
-        <b class="tr__n" data-valeur="players.${j}.tr">0</b>
+      <div class="jauge jauge--tr">
+        <span class="jauge__mot">${MOT.tr}</span>
+        <b class="jauge__n" data-valeur="players.${j}.tr">0</b>
       </div>
 
       <div class="reserves" id="reserves-${j}"></div>
 
       <div class="prod">
-        <span class="prod__mot">Production</span>
+        <span class="prod__mot">${MOT.production}</span>
         <div class="prod__cases" id="prod-${j}"></div>
       </div>
 
       <div class="capacites">
-        <span class="cap"><i>acier</i><b data-valeur="players.${j}.steel_capacity">0</b></span>
-        <span class="cap"><i>titane</i><b data-valeur="players.${j}.titanium_capacity">0</b></span>
-        <span class="cap cap--foret"><img src="${imageForet()}" alt="forêts">
+        <span class="cap"><i>${MOT.steel}</i><b data-valeur="players.${j}.steel_capacity">0</b></span>
+        <span class="cap"><i>${MOT.titanium}</i><b data-valeur="players.${j}.titanium_capacity">0</b></span>
+        <span class="cap cap--foret"><img src="${imageForet()}" alt="forests">
           <b data-valeur="players.${j}.forests">0</b></span>
+        <span class="cap"><i>stage</i><b data-valeur="players.${j}.chosen_phase">0</b></span>
       </div>
 
       <div class="badges" id="badges-${j}"></div>
 
-      <div class="phases">
-        <div class="phases__courante" id="phase-courante-${j}"></div>
-        <div class="phases__ameliorees" id="phase-up-${j}"></div>
+      <div class="jauge jauge--vp" data-role="vp">
+        <span class="jauge__mot">${MOT.vp}</span>
+        <b class="jauge__n" data-valeur="players.${j}.score">0</b>
       </div>
-
-      <div class="posees">
-        <span class="posees__mot">En jeu</span>
-        <div class="posees__pile" id="posees-${j}"></div>
-      </div>
-
-      <div class="score">
-        <span class="score__mot">Score</span>
-        <b class="score__n" data-valeur="players.${j}.score">0</b>
       </div>`;
 
     document.body.appendChild(a);
@@ -89,7 +83,7 @@ export function construireJoueurs() {
       d.className = "reserve reserve--" + cle;
       const im = imageReserve(cle);
       d.innerHTML =
-        `<img class="reserve__bac" src="${im}" alt="réserve ${mot}">` +
+        `<img class="reserve__bac" src="${im}" alt="${mot} store">` +
         `<b class="reserve__n" data-valeur="players.${j}.${cle}">0</b>` +
         `<span class="reserve__mot">${mot}</span>`;
       zr.appendChild(d);
@@ -118,7 +112,27 @@ export function construireJoueurs() {
   }
 }
 
-/** Réécrit les deux colonnes à partir de l'état. */
+/**
+ * LA BARRE SE MET À L'ÉCHELLE, ELLE NE SE COUPE PAS. Sur un écran étroit, la
+ * ligne d'un joueur (réserves, production, capacités, badges, VP) ne tient plus
+ * dans la largeur. Plutôt que d'en rogner la fin — les points de victoire
+ * seraient les premiers perdus — on la réduit, comme on réduit le plateau.
+ * Tout reste affiché, plus petit.
+ */
+export function replacerBarres() {
+  for (const j of [0, 1]) {
+    const rang = ref("#rang-" + j);
+    if (!rang || !rang.parentElement) continue;
+    const hote = rang.parentElement;
+    const l = rang.scrollWidth;
+    const h = rang.scrollHeight;
+    if (!l || !h) continue;
+    const s = Math.min(1, hote.clientWidth / l, hote.clientHeight / h);
+    rang.style.setProperty("--echelle", Math.max(0.3, s).toFixed(4));
+  }
+}
+
+/** Réécrit les deux barres à partir de l'état. */
 export function majJoueurs(etat, decision) {
   for (const p of etat.players) {
     const j = p.player;
@@ -131,6 +145,7 @@ export function majJoueurs(etat, decision) {
     poserValeur(`players.${j}.forests`, p.forests);
     poserValeur(`players.${j}.steel_capacity`, p.steel_capacity);
     poserValeur(`players.${j}.titanium_capacity`, p.titanium_capacity);
+    poserValeur(`players.${j}.chosen_phase`, p.chosen_phase || 0);
     for (const [cle] of RESERVES) poserValeur(`players.${j}.${cle}`, p[cle]);
     for (const [cle] of PRODUCTIONS) {
       const e = ref(`[data-valeur="players.${j}.production.${cle}"]`);
@@ -140,12 +155,17 @@ export function majJoueurs(etat, decision) {
       }
     }
 
-    const nom = ref("#corpo-nom-" + j);
-    if (nom.textContent !== (p.corporation || "—")) {
-      nom.textContent = p.corporation || "—";
-      const z = ref("#corpo-carte-" + j);
+    // La corporation est montrée par son SCAN, jamais par son nom écrit : six
+    // cartes du jeu s'appellent « … Corporation », et l'écran est en anglais.
+    const z = ref("#corpo-carte-" + j);
+    if (z.dataset.corpo !== (p.corporation || "")) {
+      z.dataset.corpo = p.corporation || "";
       z.textContent = "";
-      if (p.corporation) z.appendChild(carte({ nom: p.corporation }, { classe: "carte--corpo" }));
+      if (p.corporation) {
+        const f = carte({ nom: p.corporation }, { classe: "carte--corpo" });
+        survolable(f, { nom: p.corporation });
+        z.appendChild(f);
+      }
     }
 
     // Les familles de badges sont celles que l'état porte, pas une liste recopiée.
@@ -156,61 +176,8 @@ export function majJoueurs(etat, decision) {
       poser(e, n);
       e.parentElement.classList.toggle("badge--vide", n === 0);
     }
-
-    phases(j, p);
-    posees(j, p);
   }
-}
-
-/** La carte Phase du joueur, et ses améliorations acquises. */
-function phases(j, p) {
-  const z = ref("#phase-courante-" + j);
-  const choisie = p.chosen_phase || 0;
-  if (z.dataset.phase !== String(choisie)) {
-    z.dataset.phase = String(choisie);
-    z.textContent = "";
-    if (choisie) {
-      const im = document.createElement("img");
-      im.src = imagePhase(choisie);
-      im.alt = "carte Phase " + phaseNom(choisie);
-      z.appendChild(im);
-      const t = document.createElement("span");
-      t.className = "phases__nom";
-      t.textContent = `${phaseRomain(choisie)} · ${phaseNom(choisie)}`;
-      z.appendChild(t);
-    }
-  }
-
-  const zu = ref("#phase-up-" + j);
-  const codes = (p.phase_upgrades || []).join(",");
-  if (zu.dataset.codes !== codes) {
-    zu.dataset.codes = codes;
-    zu.textContent = "";
-    for (const c of p.phase_upgrades || []) {
-      const src = imageAmelioration(c);
-      if (!src) continue;
-      const im = document.createElement("img");
-      im.src = src;
-      im.alt = "phase améliorée " + c;
-      im.title = "Phase améliorée " + c;
-      zu.appendChild(im);
-    }
-  }
-}
-
-/** Les cartes déjà posées, en pile serrée : on voit la fortune s'empiler. */
-function posees(j, p) {
-  const z = ref("#posees-" + j);
-  const signature = p.played.map((c) => `${c.name}:${c.resources ?? 0}`).join("|");
-  if (z.dataset.signature === signature) return;
-  z.dataset.signature = signature;
-  z.textContent = "";
-  p.played.forEach((c, k) => {
-    const f = carte(c, {
-      classe: "carte--posee",
-      chemin: `players.${j}.played.${k}.resources`,
-    });
-    survolable(f, c);
-    z.appendChild(f);
-  });
+  // Les nombres grossissent en cours de partie (3 MC devient 104 MC) : la
+  // largeur de la barre change avec eux, donc l'échelle se reprend à chaque fois.
+  replacerBarres();
 }

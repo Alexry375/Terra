@@ -42,7 +42,19 @@
 * { box-sizing: border-box; }
 
 html, body { height: 100%; }
+html { overflow: hidden; }
 
+/* LA MISE EN PAGE — le plateau d'abord.
+ *
+ * L'écran est une table vue de dessus. De haut en bas : le bandeau de la
+ * planète, le joueur d'en face (sa barre puis son plateau, en vis-à-vis), la
+ * scène où se pose la décision, puis son propre plateau et sa barre. Sur les
+ * côtés, ses deux mains : les cartes Phase à gauche, les cartes projet à droite.
+ *
+ * Tout est posé dans une grille de la taille de l'écran, et RIEN n'en sort :
+ * chaque plateau se réduit pour tenir dans la case qu'on lui laisse
+ * (`plateau.js`), il ne déborde jamais et ne défile jamais.
+ */
 body {
   margin: 0;
   overflow: hidden;
@@ -53,16 +65,28 @@ body {
   -webkit-font-smoothing: antialiased;
 
   display: grid;
-  grid-template-columns: minmax(212px, 14.2vw) 1fr minmax(212px, 14.2vw);
-  grid-template-rows: minmax(148px, 17vh) 118px 1fr minmax(158px, 18vh);
-  grid-template-areas:
-    "bord-g haut    bord-d"
-    "bord-g horizon bord-d"
-    "bord-g scene   bord-d"
-    "bord-g bas     bord-d";
-  column-gap: 12px;
-  padding: 0 14px 10px;
+  grid-template-columns: clamp(112px, 11vw, 172px) minmax(0, 1fr) clamp(190px, 18.5vw, 292px);
+  grid-template-rows:
+    clamp(54px, 7.8vh, 78px)   /* le bandeau de la planète */
+    auto                        /* la barre du joueur d'en face */
+    minmax(0, 1fr)              /* son plateau */
+    clamp(168px, 29vh, 292px)   /* la bande de décision */
+    minmax(0, 1fr)              /* son propre plateau */
+    auto;                       /* sa barre */
+  column-gap: 10px;
+  row-gap: 6px;
+  padding: 0 12px 8px;
 }
+
+#horizon      { grid-column: 1 / 4; grid-row: 1; }
+#main-phases  { grid-column: 1; grid-row: 2 / 5; }
+#oceans       { grid-column: 1; grid-row: 5 / 7; }
+#main-projets { grid-column: 3; grid-row: 2 / 7; }
+#equipage-1   { grid-column: 2; grid-row: 2; }
+#plateau-1    { grid-column: 2; grid-row: 3; }
+#scene        { grid-column: 2; grid-row: 4; }
+#plateau-0    { grid-column: 2; grid-row: 5; }
+#equipage-0   { grid-column: 2; grid-row: 6; }
 
 img { display: block; user-select: none; -webkit-user-drag: none; }
 
@@ -127,50 +151,47 @@ img { display: block; user-select: none; -webkit-user-drag: none; }
 /* ============================================================== L'HORIZON */
 
 #horizon {
-  grid-area: horizon;
   display: grid;
-  grid-template-columns: 92px 1fr 1.15fr 1fr auto;
+  grid-template-columns: 72px 1fr 1fr 1fr auto auto;
   align-items: stretch;
-  gap: 20px;
-  padding: 10px 18px 8px;
-  border-top: 1px solid var(--trait);
+  gap: 16px;
+  padding: 6px 14px 4px;
   border-bottom: 1px solid var(--trait);
-  background:
-    linear-gradient(180deg, rgba(6, 8, 14, .58), rgba(6, 8, 14, .30));
+  background: linear-gradient(180deg, rgba(6, 8, 14, .58), rgba(6, 8, 14, .30));
 }
 
 .manche { display: flex; flex-direction: column; justify-content: center; }
 .manche__mot {
-  font-size: 9.5px; letter-spacing: .22em; text-transform: uppercase;
+  font-size: 9px; letter-spacing: .22em; text-transform: uppercase;
   color: var(--os-faible);
 }
 .manche__n {
-  font-family: "TerraChiffre", monospace; font-size: 40px; line-height: .95;
+  font-family: "TerraChiffre", monospace; font-size: 30px; line-height: .95;
   color: var(--os); text-shadow: 0 0 26px rgba(239, 228, 212, .22);
 }
 
-.param { display: flex; flex-direction: column; justify-content: center; gap: 7px; position: relative; }
+.param { display: flex; flex-direction: column; justify-content: center; gap: 5px; position: relative; }
 
 .param__tete { display: flex; align-items: baseline; gap: 8px; }
 .param__nom {
-  font-size: 9.5px; letter-spacing: .22em; text-transform: uppercase;
+  font-size: 9px; letter-spacing: .22em; text-transform: uppercase;
   color: var(--os-faible); flex: 1;
 }
 .param__n {
-  font-family: "TerraChiffre", monospace; font-size: 32px; line-height: 1;
+  font-family: "TerraChiffre", monospace; font-size: 24px; line-height: 1;
   color: var(--os);
 }
 .param__max {
-  font-family: "TerraChiffre", monospace; font-size: 13px; color: var(--os-tres-faible);
+  font-family: "TerraChiffre", monospace; font-size: 12px; color: var(--os-tres-faible);
 }
 .param--temp .param__n { color: #ffb08a; text-shadow: 0 0 22px rgba(226, 84, 43, .5); }
 .param--o2 .param__n   { color: #cfe9f5; text-shadow: 0 0 22px rgba(127, 200, 232, .4); }
 .param--mer .param__n  { color: #a8dcf0; text-shadow: 0 0 22px rgba(90, 180, 220, .45); }
 
-/* Les crans de température : chacun est acquis pour toujours. */
-.crans { display: flex; gap: 2px; height: 26px; align-items: flex-end; }
+/* Les crans : chacun est acquis pour toujours. */
+.crans { display: flex; gap: 2px; height: 18px; align-items: flex-end; }
 .crans span {
-  flex: 1; height: 46%;
+  flex: 1; height: 44%;
   background: rgba(239, 228, 212, .09);
   border-bottom: 1px solid rgba(239, 228, 212, .16);
   transition: height 420ms cubic-bezier(.2, .8, .2, 1), background 420ms ease;
@@ -181,47 +202,47 @@ img { display: block; user-select: none; -webkit-user-drag: none; }
   box-shadow: 0 0 10px rgba(226, 84, 43, .5);
   border-bottom-color: #ffca9a;
 }
-
-/* Les crans d'oxygène : même langage que la température, l'autre couleur. */
 .crans--o2 span.acquis {
   background: linear-gradient(180deg, #dff4ff, #4fb6e0);
   box-shadow: 0 0 10px rgba(90, 190, 235, .5);
   border-bottom-color: #dff4ff;
 }
-
-/* La rade : un socle par océan, une tuile réelle par océan gagné. */
-.rade { display: flex; gap: 4px; height: 26px; align-items: center; }
-.rade__socle {
-  flex: 1; height: 100%; position: relative;
-  border: 1px dashed rgba(239, 228, 212, .16);
-  border-radius: 50%;
-}
-.rade__socle--plein { border-color: transparent; }
-.rade__socle img {
-  position: absolute; inset: -2px; width: calc(100% + 4px); height: calc(100% + 4px);
-  object-fit: contain;
-  filter: drop-shadow(0 0 8px rgba(80, 190, 230, .55));
-  animation: poser-tuile 620ms cubic-bezier(.2, 1.4, .4, 1);
-}
-@keyframes poser-tuile {
-  from { transform: scale(2.2) translateY(-16px); opacity: 0; }
-  to   { transform: none; opacity: 1; }
+.crans--mer span.acquis {
+  background: linear-gradient(180deg, #cbeeff, #2f86b8);
+  box-shadow: 0 0 10px rgba(60, 150, 200, .5);
+  border-bottom-color: #cbeeff;
 }
 
 /* Objectifs et récompenses : éteints tant qu'ils sont à prendre. */
-.tuiles-honneur { display: flex; flex-direction: column; justify-content: center; gap: 6px; }
-.tuiles-honneur__rang { display: flex; gap: 6px; }
-.honneur { width: 42px; height: 42px; position: relative; }
+.tuiles-honneur { display: flex; flex-direction: column; justify-content: center; gap: 4px; }
+.tuiles-honneur__rang { display: flex; gap: 5px; }
+.honneur { width: 28px; height: 28px; position: relative; }
 .honneur img {
   width: 100%; height: 100%; object-fit: contain;
   filter: grayscale(1) brightness(.5); opacity: .5;
 }
 .honneur--pris img { filter: none; opacity: 1; }
 .honneur--pris::after {
-  content: ""; position: absolute; inset: -3px;
+  content: ""; position: absolute; inset: -2px;
   border: 1px solid var(--or); border-radius: 50%;
   box-shadow: 0 0 12px rgba(237, 181, 78, .5);
 }
+
+/* La case qui masque les points de victoire : elle vit dans le bandeau, donc
+   elle reste sous la main du joueur à tout instant de la partie. */
+.masque-vp {
+  display: flex; align-items: center; gap: 7px; align-self: center;
+  padding: 5px 10px; cursor: pointer;
+  font-size: 9px; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--os-faible);
+  border: 1px solid var(--trait); background: rgba(6, 8, 14, .4);
+}
+.masque-vp:hover { color: var(--os); border-color: var(--os-tres-faible); }
+.masque-vp input { width: 15px; height: 15px; accent-color: var(--or); cursor: pointer; }
+
+/* Les points de victoire masqués : ils disparaissent des DEUX barres, et
+   reviennent au décochage. Rien d'autre ne bouge. */
+html[data-pv-masques="oui"] [data-role="vp"] { display: none; }
 
 /* Le cran gagné : la valeur s'allume, l'écran encaisse le coup. */
 .param--gagne .param__n { animation: frapper 1000ms cubic-bezier(.2, .9, .2, 1); }
@@ -231,183 +252,262 @@ img { display: block; user-select: none; -webkit-user-drag: none; }
   100% { transform: scale(1); }
 }
 
-#secousse {
-  position: fixed; inset: 0; z-index: 60; pointer-events: none; opacity: 0;
-}
+#secousse { position: fixed; inset: 0; z-index: 60; pointer-events: none; opacity: 0; }
 #secousse.secousse--active { animation: onde 900ms ease-out; }
 #secousse[data-teinte="chaud"] { background: radial-gradient(120% 80% at 50% 100%, rgba(255, 130, 60, .30), transparent 62%); }
 #secousse[data-teinte="o2"]    { background: radial-gradient(120% 80% at 50% 100%, rgba(150, 230, 255, .24), transparent 62%); }
 #secousse[data-teinte="mer"]   { background: radial-gradient(120% 60% at 50% 100%, rgba(70, 170, 230, .34), transparent 60%); }
 @keyframes onde { 0% { opacity: 0; } 18% { opacity: 1; } 100% { opacity: 0; } }
 
-/* =============================================================== LES MAINS */
+/* ========================================================= LE PLATEAU DE JEU */
 
-.main { position: relative; display: flex; flex-direction: column; min-width: 0; }
-#main-1 { grid-area: haut; justify-content: flex-start; padding-top: 4px; }
-#main-0 { grid-area: bas; justify-content: flex-end; padding-bottom: 2px; }
+/* Le plateau est PERMANENT : il occupe sa case, il ne s'ouvre pas et ne se
+   ferme pas. Le cadre a la taille que la grille lui donne ; les piles, elles,
+   se réduisent pour tenir dedans (`plateau.js`). D'où `overflow: hidden` : il
+   n'est pas là pour couper des cartes — la réduction s'en charge — mais pour
+   qu'aucune mesure intermédiaire ne puisse faire défiler la page. */
+.plateau {
+  position: relative; min-width: 0; min-height: 0; overflow: hidden;
+  border-top: 1px solid var(--trait);
+  background: linear-gradient(180deg, rgba(6, 8, 14, .34), rgba(6, 8, 14, .12));
+}
+.plateau--actif {
+  border-top-color: var(--teinte);
+  box-shadow: inset 0 18px 40px -26px var(--teinte);
+}
+.plateau__mot {
+  position: absolute; top: 3px; left: 8px; z-index: 2;
+  font-size: 8.5px; letter-spacing: .22em; text-transform: uppercase;
+  color: var(--os-faible); pointer-events: none;
+}
+.plateau--actif .plateau__mot { color: var(--os); }
 
-.main__etiquette {
-  font-size: 9.5px; letter-spacing: .22em; text-transform: uppercase;
-  color: var(--os-faible); display: flex; align-items: center; gap: 7px;
-  padding: 2px 0;
+.plateau__cadre {
+  position: absolute; inset: 16px 8px 6px;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
 }
-#main-1 .main__etiquette { order: 0; }
-#main-0 .main__etiquette { order: 1; }
-.main__etiquette::before {
-  content: ""; width: 16px; height: 2px; background: var(--teinte); opacity: .55;
+.plateau__piles {
+  display: flex; gap: 14px; align-items: flex-end;
+  flex: 0 0 auto;
+  transform-origin: center center;
+  transform: rotate(var(--tour, 0deg)) scale(var(--echelle, 1));
 }
-.main--active .main__etiquette { color: var(--os); }
-.main--active .main__etiquette::before { opacity: 1; box-shadow: 0 0 10px var(--teinte); }
+/* Le joueur d'en face : sa table est de l'autre côté, donc tête-bêche. Ce qui
+   reste découvert de chaque carte ne change pas d'un iota — c'est la même pile,
+   vue de l'autre bord. Le survol, lui, la remet à l'endroit (`loupe.js`). */
+.plateau[data-vis-a-vis="oui"] .plateau__piles { --tour: 180deg; }
 
-.main__eventail {
-  display: flex; justify-content: center; align-items: flex-start;
-  flex: 1; min-height: 0; --pas: 64px;
+.pile { position: relative; flex: 0 0 auto; }
+
+/* Les sélecteurs portent `.pile` : la section « LES CARTES », plus bas, pose le
+   style commun à toutes les cartes, et une carte POSÉE doit le surcharger. */
+.pile .carte--jeu { position: absolute; }
+.pile .carte--jeu img { width: 100%; border-radius: 3px; box-shadow: 0 3px 10px rgba(0, 0, 0, .7); }
+/* Le survol met la carte en avant SANS la déplacer ni l'agrandir : c'est la
+   loupe qui l'agrandit, et l'escalier doit rester mesurable au pixel près. */
+.pile .carte--jeu:hover { z-index: 999; }
+.pile .carte--jeu:hover img { box-shadow: 0 0 0 2px var(--glace), 0 8px 26px rgba(0, 0, 0, .85); }
+.pile .carte--jeu .carte__ressources {
+  top: -4px; right: -4px; min-width: 17px; height: 17px; font-size: 11px;
 }
-.main__eventail > * + * { margin-left: calc(var(--pas) - 112px); }
-.main__eventail .carte img { width: 112px; }
+
+/* ======================================================== LA CARTE DES OCÉANS */
+
+#oceans {
+  position: relative; min-height: 0; overflow: hidden; cursor: zoom-in;
+  padding: 4px 6px;
+  border-top: 1px solid var(--trait);
+  background: linear-gradient(180deg, rgba(6, 8, 14, .5), rgba(6, 8, 14, .2));
+}
+.oceans__mot {
+  display: block; font-size: 8.5px; letter-spacing: .2em; text-transform: uppercase;
+  color: var(--os-faible); margin-bottom: 4px;
+}
+.oceans__grille { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.ocean { position: relative; aspect-ratio: 1; }
+.ocean img { width: 100%; height: 100%; object-fit: contain; }
+.ocean[data-ocean-revele="non"] img { filter: grayscale(1) brightness(.24); opacity: .42; }
+.ocean[data-ocean-revele="oui"] img { filter: drop-shadow(0 0 7px rgba(80, 190, 230, .6)); }
+
+/* On l'agrandit pour la détailler ; un clic la referme. */
+#oceans.oceans--grande {
+  position: fixed; inset: 8vh 28vw; z-index: 88; cursor: zoom-out;
+  padding: 22px; overflow: auto;
+  background: rgba(6, 8, 14, .96);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, .9), 0 0 0 1px var(--trait);
+}
+#oceans.oceans--grande .oceans__mot { font-size: 12px; margin-bottom: 14px; }
+#oceans.oceans--grande .oceans__grille { gap: 14px; }
 
 /* ========================================================== LES ÉQUIPAGES */
 
+/* Une barre par joueur, collée à son plateau : elle dit ce que le moteur dit
+   de lui, et rien de plus. */
+/* La barre tient sur UNE ligne, et se met à l'échelle quand l'écran rétrécit
+   (`joueurs.js`) plutôt que de rogner sa fin — sinon les points de victoire,
+   qui la terminent, seraient les premiers perdus. */
 .equipage {
-  display: flex; flex-direction: column; gap: 7px;
-  padding: 12px 12px 10px;
+  display: flex; align-items: center;
+  padding: 4px 10px; height: clamp(46px, 6.6vh, 66px);
   min-width: 0; overflow: hidden;
   background: linear-gradient(180deg, rgba(6, 8, 14, .62), rgba(6, 8, 14, .34));
-  border-top: 2px solid rgba(239, 228, 212, .1);
-  /* Aucune transition ici : ce panneau change de main à CHAQUE décision, et
-     animer un dégradé plein écran + une ombre interne coûtait 36 ms par
-     décision (mesuré : outputs/work/chrono.py). Le basculement est net. */
+  border-left: 3px solid rgba(239, 228, 212, .1);
 }
-#equipage-0 { grid-area: bord-g; }
-#equipage-1 { grid-area: bord-d; }
-
+.equipage__rang {
+  display: flex; align-items: center; gap: 10px;
+  width: max-content; flex: 0 0 auto;
+  transform-origin: left center;
+  transform: scale(var(--echelle, 1));
+}
 .equipage--actif {
-  border-top-color: var(--teinte);
-  background: linear-gradient(180deg,
-    color-mix(in srgb, var(--teinte) 16%, rgba(6, 8, 14, .66)), rgba(6, 8, 14, .34));
-  box-shadow: inset 0 22px 46px -22px var(--teinte);
+  border-left-color: var(--teinte);
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--teinte) 18%, rgba(6, 8, 14, .66)), rgba(6, 8, 14, .34));
 }
 
-.equipage__tete { display: flex; align-items: center; gap: 9px; }
-.equipage__suit {
-  width: 54px; height: 54px; object-fit: contain;
-  filter: grayscale(.55) brightness(.8);
-}
+.equipage__tete { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+.equipage__suit { width: 34px; height: 34px; object-fit: contain; filter: grayscale(.55) brightness(.8); }
 .equipage--actif .equipage__suit { filter: none; }
-.equipage__id { display: flex; flex-direction: column; min-width: 0; }
-.equipage__jn {
-  font-family: "TerraChiffre", monospace; font-size: 19px; color: var(--teinte);
-  line-height: 1;
-}
-.equipage__corpo {
-  font-size: 11px; color: var(--os-faible); text-transform: uppercase;
-  letter-spacing: .1em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
+.equipage__jn { font-family: "TerraChiffre", monospace; font-size: 16px; color: var(--teinte); }
 
-.equipage__corpo-carte { display: flex; justify-content: center; }
+.equipage__corpo-carte { flex: 0 0 auto; }
 .equipage__corpo-carte .carte img {
-  width: 100%; max-width: 168px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, .7), 0 0 0 1px rgba(239, 228, 212, .12);
+  width: 40px; box-shadow: 0 2px 8px rgba(0, 0, 0, .7), 0 0 0 1px rgba(239, 228, 212, .12);
 }
+.equipage__corpo-carte .carte__plaque { display: none; }
 
-.tr {
-  display: flex; align-items: baseline; gap: 8px;
-  border-top: 1px solid var(--trait); border-bottom: 1px solid var(--trait);
-  padding: 5px 0;
+.jauge {
+  display: flex; flex-direction: column; align-items: center; flex: 0 0 auto;
+  padding: 0 8px; border-left: 1px solid var(--trait);
 }
-.tr__mot {
-  font-size: 9px; letter-spacing: .2em; text-transform: uppercase;
-  color: var(--os-faible); flex: 1;
-}
-.tr__n {
-  font-family: "TerraChiffre", monospace; font-size: 34px; line-height: 1;
-  color: var(--or); text-shadow: 0 0 20px rgba(237, 181, 78, .35);
-}
+.jauge__mot { font-size: 8px; letter-spacing: .18em; text-transform: uppercase; color: var(--os-faible); }
+.jauge__n { font-family: "TerraChiffre", monospace; font-size: 26px; line-height: 1.05; }
+.jauge--tr .jauge__n { color: var(--or); text-shadow: 0 0 20px rgba(237, 181, 78, .35); }
+.jauge--vp .jauge__n { color: var(--os); }
 
-/* Les réserves sont posées dans leurs bacs imprimés. */
-.reserves { display: flex; gap: 6px; }
-.reserve { position: relative; flex: 1; height: 46px; overflow: hidden; }
+.reserves { display: flex; gap: 5px; flex: 0 0 auto; }
+.reserve { position: relative; width: 52px; height: 44px; overflow: hidden; }
 .reserve__bac {
   position: absolute; inset: 0; width: 100%; height: 100%;
   object-fit: cover; opacity: .5; filter: saturate(1.1) brightness(.85);
 }
 .reserve__n {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-  font-family: "TerraChiffre", monospace; font-size: 22px; color: #fff;
+  font-family: "TerraChiffre", monospace; font-size: 19px; color: #fff;
   text-shadow: 0 2px 6px rgba(0, 0, 0, .95), 0 0 16px rgba(0, 0, 0, .8);
 }
 .reserve__mot {
-  position: absolute; left: 0; right: 0; bottom: 1px; text-align: center;
-  font-size: 8px; letter-spacing: .16em; text-transform: uppercase;
+  position: absolute; left: 0; right: 0; bottom: 0; text-align: center;
+  font-size: 7.5px; letter-spacing: .14em; text-transform: uppercase;
   color: rgba(255, 255, 255, .82); text-shadow: 0 1px 4px #000;
 }
 
-.prod { display: flex; flex-direction: column; gap: 4px; }
-.prod__mot {
-  font-size: 9px; letter-spacing: .2em; text-transform: uppercase; color: var(--os-faible);
-}
-.prod__cases { display: flex; gap: 4px; }
+.prod { display: flex; flex-direction: column; gap: 2px; flex: 0 0 auto; }
+.prod__mot { font-size: 8px; letter-spacing: .18em; text-transform: uppercase; color: var(--os-faible); }
+.prod__cases { display: flex; gap: 3px; }
 .prod__case {
-  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 1px;
-  padding: 4px 2px;
+  width: 37px; display: flex; flex-direction: column; align-items: center;
+  padding: 2px 1px;
   background: rgba(239, 228, 212, .07);
-  clip-path: polygon(0 0, 100% 0, 100% 78%, calc(100% - 7px) 100%, 0 100%);
+  clip-path: polygon(0 0, 100% 0, 100% 78%, calc(100% - 6px) 100%, 0 100%);
 }
-.prod__case b { font-family: "TerraChiffre", monospace; font-size: 16px; color: var(--os); }
+.prod__case b { font-family: "TerraChiffre", monospace; font-size: 14px; color: var(--os); }
 .prod__case i {
-  font-style: normal; font-size: 8px; letter-spacing: .1em; text-transform: uppercase;
+  font-style: normal; font-size: 7.5px; letter-spacing: .08em; text-transform: uppercase;
   color: var(--os-faible);
 }
 .prod__case--vide { opacity: .38; }
 
-.capacites { display: flex; gap: 6px; align-items: center; }
+.capacites { display: flex; gap: 4px; flex: 0 0 auto; }
 .cap {
-  flex: 1; display: flex; align-items: center; gap: 5px; justify-content: center;
-  font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: var(--os-faible);
-  border: 1px solid var(--trait); padding: 3px 2px;
+  display: flex; align-items: center; gap: 4px; padding: 3px 5px;
+  font-size: 8px; letter-spacing: .08em; text-transform: uppercase; color: var(--os-faible);
+  border: 1px solid var(--trait);
 }
-.cap b { font-family: "TerraChiffre", monospace; font-size: 14px; color: var(--os); }
-.cap img { width: 15px; height: 15px; object-fit: contain; }
+.cap b { font-family: "TerraChiffre", monospace; font-size: 13px; color: var(--os); }
+.cap img { width: 13px; height: 13px; object-fit: contain; }
 
-.badges { display: grid; grid-template-columns: repeat(10, 1fr); gap: 2px; }
-.badge { position: relative; aspect-ratio: 1; }
+.badges { display: grid; grid-template-columns: repeat(10, 23px); gap: 2px; flex: 0 0 auto; }
+.badge { position: relative; height: 24px; }
 .badge img { width: 100%; height: 100%; object-fit: contain; }
 .badge b {
-  position: absolute; right: -1px; bottom: -4px;
-  font-family: "TerraChiffre", monospace; font-size: 10px; color: #fff;
+  position: absolute; right: -1px; bottom: -3px;
+  font-family: "TerraChiffre", monospace; font-size: 9px; color: #fff;
   text-shadow: 0 1px 3px #000, 0 0 6px #000;
 }
 .badge--vide img { filter: grayscale(1) brightness(.42); opacity: .34; }
 .badge--vide b { color: var(--os-tres-faible); text-shadow: none; }
 
-.phases { display: flex; gap: 6px; align-items: flex-start; }
-.phases__courante { position: relative; flex: 0 0 62px; }
-.phases__courante img { width: 62px; border-radius: 3px; box-shadow: 0 3px 10px rgba(0, 0, 0, .6); }
-.phases__nom {
-  display: block; margin-top: 2px;
-  font-size: 8px; letter-spacing: .1em; text-transform: uppercase; color: var(--os-faible);
-}
-.phases__ameliorees { display: flex; flex-wrap: wrap; gap: 3px; flex: 1; }
-.phases__ameliorees img {
-  width: 30px; border-radius: 2px; opacity: .95;
-  box-shadow: 0 0 0 1px rgba(237, 181, 78, .45);
+/* =============================================================== LES MAINS */
+
+.main { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
+.main__mot {
+  position: absolute; top: 2px; left: 6px; right: 6px; z-index: 3;
+  font-size: 8.5px; letter-spacing: .2em; text-transform: uppercase;
+  color: var(--os-faible); pointer-events: none;
 }
 
-.posees { display: flex; flex-direction: column; gap: 3px; flex: 1; min-height: 0; }
-.posees__mot {
-  font-size: 9px; letter-spacing: .2em; text-transform: uppercase; color: var(--os-faible);
+/* La main de projets, tenue en éventail, décalée vers la droite de l'écran. */
+.main--projets {
+  border-left: 1px solid var(--trait);
+  background: linear-gradient(270deg, rgba(6, 8, 14, .5), transparent);
 }
-.posees__pile {
-  display: flex; flex-wrap: wrap; gap: 2px; align-content: flex-start;
-  overflow: hidden; min-height: 0;
+.main__arc { position: absolute; inset: 18px 0 6px; --cw: 112px; --ch: 156px; }
+.main__arc .carte--main {
+  position: absolute; right: 104px; top: calc(50% - var(--ch) / 2);
+  width: var(--cw); height: var(--ch);
+  transform-origin: var(--pivot, 460px) 50%;
+  transform: rotate(var(--angle, 0deg));
+  transition: filter 160ms ease;
 }
-.posees__pile .carte img { width: 34px; border-radius: 2px; }
+.main__arc .carte--main img { width: 100%; border-radius: 4px; }
+.main__arc .carte--main:hover { z-index: 999 !important; }
 
-.score { display: flex; align-items: baseline; gap: 8px; border-top: 1px solid var(--trait); padding-top: 5px; }
-.score__mot {
-  font-size: 9px; letter-spacing: .2em; text-transform: uppercase; color: var(--os-faible); flex: 1;
+/* CE QU'ON PEUT JOUER : un contour vert franc, et rien d'autre ne l'a. Ce que
+   ce contour désigne est exactement ce que le moteur vient d'énumérer. */
+.carte--main[data-jouable="oui"] img {
+  box-shadow:
+    0 0 0 3px #46ffa3,
+    0 0 20px 5px rgba(70, 255, 163, .72),
+    0 0 46px 10px rgba(70, 255, 163, .3),
+    0 6px 18px rgba(0, 0, 0, .6);
 }
-.score__n { font-family: "TerraChiffre", monospace; font-size: 24px; color: var(--os); }
+.carte--main[data-jouable="non"] img { filter: grayscale(.34) brightness(.74); }
+
+/* La seconde main : les cinq cartes Phase, à gauche. */
+.main--phases {
+  border-right: 1px solid var(--trait);
+  background: linear-gradient(90deg, rgba(6, 8, 14, .5), transparent);
+}
+/* Les cinq cartes se partagent la hauteur disponible : sur un écran bas, elles
+   RÉTRÉCISSENT — aucune n'est coupée, aucune ne sort du bord. */
+.phases-main {
+  position: absolute; inset: 18px 6px 6px;
+  display: flex; flex-direction: column; justify-content: space-between; gap: 4px;
+}
+.phase-main {
+  position: relative; align-self: center;
+  flex: 1 1 0; min-height: 0; max-width: 82px;
+  display: flex; align-items: center; justify-content: center;
+}
+.phase-main img {
+  height: 100%; width: auto; max-width: 100%; object-fit: contain;
+  border-radius: 3px; filter: grayscale(.7) brightness(.55);
+}
+.phase-main__mot {
+  position: absolute; top: 2px; left: 4px;
+  font-family: "TerraChiffre", monospace; font-size: 11px; color: #fff;
+  text-shadow: 0 1px 4px #000, 0 0 8px #000;
+}
+.phase-main--precedente img { filter: grayscale(.9) brightness(.34); }
+.phase-main--precedente::after {
+  content: ""; position: absolute; inset: 0;
+  background: repeating-linear-gradient(45deg, rgba(0,0,0,.5) 0 5px, transparent 5px 10px);
+}
+.phase-main--choisie img { filter: none; }
+.phase-main--choisie { box-shadow: 0 0 0 2px var(--or), 0 0 20px rgba(237, 181, 78, .5); }
+.phase-main--amelioree img { box-shadow: 0 0 0 1px rgba(237, 181, 78, .55); }
 
 /* ================================================================ LES CARTES */
 
@@ -415,7 +515,6 @@ img { display: block; user-select: none; -webkit-user-drag: none; }
 .carte img {
   border-radius: 4px;
   box-shadow: 0 4px 14px rgba(0, 0, 0, .55);
-  transition: transform 180ms ease, box-shadow 180ms ease;
 }
 .carte--sans-image .carte__plaque,
 .carte__plaque {
@@ -430,17 +529,34 @@ img { display: block; user-select: none; -webkit-user-drag: none; }
   background: var(--or); color: #1a1206;
   font-family: "TerraChiffre", monospace; font-size: 12px;
   border-radius: 50%; box-shadow: 0 0 10px rgba(237, 181, 78, .6);
+  z-index: 4;
 }
-
 /* ================================================================= LA SCÈNE */
 
+/* LA SCÈNE — une BANDE, pas un écran. Le plateau des deux joueurs reste posé
+   au-dessus et en dessous d'elle : c'est tout l'objet de ce chantier. */
 #scene {
-  grid-area: scene;
   position: relative;
   display: flex; flex-direction: column;
   min-height: 0; min-width: 0;
-  padding: 10px 0 6px;
+  padding: 6px 0 4px;
+  border-top: 1px solid var(--trait);
+  border-bottom: 1px solid var(--trait);
+  background: linear-gradient(180deg, rgba(6, 8, 14, .46), rgba(6, 8, 14, .22));
 }
+
+/* Les moments particuliers — remplacement des cartes de départ, choix de la
+   corporation — se posent EN GRAND par-dessus la table. Le fond n'est pas
+   opaque : les deux plateaux restent visibles dessous. */
+#scene[data-mode="superposition"] {
+  position: fixed; inset: 5vh 8vw; z-index: 78;
+  padding: 18px 24px;
+  background: linear-gradient(180deg, rgba(6, 8, 14, .84), rgba(6, 8, 14, .72));
+  box-shadow: 0 40px 120px rgba(0, 0, 0, .85), 0 0 0 1px var(--trait);
+}
+/* Au choix de la corporation, la carte est déjà énorme : la loupe n'y ajoute
+   rien et gêne (elle est débranchée dans `scene.js`). Le léger soulèvement au
+   survol, lui, reste — il dit ce que le curseur vise. */
 
 /* Décor et titre ne reçoivent aucun clic : ils ne portent rien de cliquable, et
    ils ne doivent jamais pouvoir s'interposer devant un choix. */
@@ -476,10 +592,18 @@ img { display: block; user-select: none; -webkit-user-drag: none; }
   text-shadow: 0 2px 20px rgba(0, 0, 0, .8);
 }
 
-/* Le contexte : petit quand les options sont le sujet, immense quand c'est lui. */
+/* Le contexte : petit quand les options sont le sujet, immense quand c'est lui.
+ *
+ * Il est EXPLICITEMENT sous les choix. Ses cartes sont survolables (la loupe les
+ * lit), donc elles reçoivent le curseur ; si la zone des choix venait à les
+ * chevaucher — écran étroit, beaucoup d'options — une carte de contexte survolée
+ * pourrait voler le clic destiné à un choix. Un choix qu'on ne peut pas cliquer
+ * est un écran cassé, pour une main comme pour une machine. */
 .scene__contexte {
   padding: 0 4px 8px; display: flex; flex-direction: column; min-height: 0;
+  position: relative; z-index: 1;
 }
+.scene__choix, .scene__barre { position: relative; z-index: 5; }
 #scene[data-composition="contexte"] .scene__contexte { flex: 1 1 auto; }
 #scene[data-composition="options"]  .scene__contexte { flex: 0 0 auto; }
 
@@ -608,9 +732,12 @@ img { display: block; user-select: none; -webkit-user-drag: none; }
 /* La barre de validation. */
 .scene__barre {
   display: flex; align-items: center; justify-content: center; gap: 16px;
-  min-height: 0; padding-top: 6px;
+  min-height: 0; padding-top: 6px; flex: 0 0 auto;
 }
-.scene__barre:empty { display: none; }
+.scene__barre[data-reservee] { min-height: 52px; }
+/* Vide, la barre ne prend pas de place — SAUF quand la scène la lui a réservée
+   d'avance : les choix sont mesurés avant qu'elle ne soit remplie. */
+.scene__barre:empty:not([data-reservee]) { display: none; }
 
 .barre__compte {
   font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: var(--os-faible);
@@ -667,17 +794,20 @@ img { display: block; user-select: none; -webkit-user-drag: none; }
   transition: opacity 120ms ease;
 }
 #loupe.loupe--visible { opacity: 1; visibility: visible; }
+/* La largeur vient de `loupe.js` (elle sert aussi à placer la loupe) : on ne la
+   redit pas ici, sous peine de voir les deux valeurs diverger. */
 #loupe img {
-  width: 300px; border-radius: 6px;
+  border-radius: 6px;
   box-shadow: 0 18px 60px rgba(0, 0, 0, .9), 0 0 0 1px rgba(239, 228, 212, .22);
 }
 
 /* ============================================================== LE THÉÂTRE */
 
-/* Les annonces se posent sur le HAUT de l'écran, jamais sur la scène : le choix
-   en cours doit rester lisible et cliquable pendant qu'elles s'effacent. */
+/* Les annonces se posent sur le BANDEAU de la planète — ni sur la scène (le
+   choix en cours doit rester lisible et cliquable) ni sur les deux plateaux,
+   qui doivent rester sous les yeux à chaque instant. */
 #annonce {
-  position: fixed; top: 0; left: 0; right: 0; height: 29vh; z-index: 70;
+  position: fixed; top: 0; left: 0; right: 0; height: clamp(54px, 7.8vh, 78px); z-index: 70;
   display: flex; align-items: center; justify-content: center;
   pointer-events: none; opacity: 0;
 }
@@ -691,21 +821,21 @@ img { display: block; user-select: none; -webkit-user-drag: none; }
 
 .annonce__manche { display: flex; align-items: baseline; gap: 18px; }
 .annonce__manche span {
-  font-size: 15px; letter-spacing: .5em; text-transform: uppercase; color: var(--os-faible);
+  font-size: 11px; letter-spacing: .4em; text-transform: uppercase; color: var(--os-faible);
 }
 .annonce__manche b {
-  font-family: "TerraChiffre", monospace; font-size: 112px; line-height: 1; color: var(--os);
+  font-family: "TerraChiffre", monospace; font-size: 46px; line-height: 1; color: var(--os);
   text-shadow: 0 0 70px rgba(0, 0, 0, .95), 0 0 30px rgba(239, 228, 212, .35);
 }
 
-.annonce__phases { display: flex; gap: 40px; }
+.annonce__phases { display: flex; gap: 26px; align-items: center; }
 .annonce__phase {
-  display: flex; flex-direction: column; align-items: center; gap: 5px;
-  padding: 11px; background: rgba(6, 8, 14, .88);
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 10px; background: rgba(6, 8, 14, .88);
   border-top: 3px solid var(--teinte);
   box-shadow: 0 24px 70px rgba(0, 0, 0, .8);
 }
-.annonce__phase img { width: 132px; border-radius: 4px; }
+.annonce__phase img { width: 34px; border-radius: 3px; }
 .annonce__phase-qui {
   font-family: "TerraChiffre", monospace; font-size: 18px; color: var(--teinte);
 }
