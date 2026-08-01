@@ -463,3 +463,33 @@ fidèle au jeu de société.
 
 À vérifier au moment du chantier : quels visuels de boîte et d'ambiance sont
 réellement disponibles dans ce qui a été récupéré.
+
+---
+
+# Le plan retenu, et ce qui a été lancé dans la nuit du 31 juillet
+
+Les dix-huit points ne tiennent pas dans un seul chantier. Ils ont été répartis
+en quatre, dont deux sont **déjà lancés**.
+
+| Chantier | Contenu | État au 01-08 au matin |
+|---|---|---|
+| Moteur (fait par le CTO) | 1 · remplacement partiel des cartes de départ ; 16a · choisir la carte vendue | **livré et enregistré** |
+| `choix-parlants` | 2 et 6 · le moteur doit dire de quoi il parle, et le pont poser de vraies questions | **en cours** |
+| `plateau-vivant` | tout en anglais ; 3 · pas de loupe au choix des corporations ; 7 et 11 · plateau permanent, cartes empilées, mains à droite et à gauche ; 8 · masquer les points ; 12 · cartes Phase améliorées visibles ; 15 · carte des océans | **en cours** |
+| à lancer ensuite | 5 · prix réduit ; 9 · pose animée ; 10 · glisser-déposer physique ; 13 · décor du plateau ; 14 · sauvegarde ; 15 · retournement animé des tuiles ; 17 · jauges de style poste de pilotage ; 18 · écran d'accueil | pas commencé |
+
+Les deux chantiers en cours travaillent sur des fichiers **disjoints** — l'un
+sur le moteur et le pont, l'autre sur la page — pour pouvoir avancer en même
+temps sans se marcher dessus.
+
+## Ce que la préparation a révélé au passage
+
+**Une régression que j'avais introduite le soir même.** En rendant le
+remplacement des cartes de départ partiel, j'ai fait poser au moteur une
+question d'un genre nouveau : « cochez entre 0 et 8 cartes », sans nombre imposé.
+L'écran, lui, exigeait un compte exact : il annonçait `data-a-choisir="undefined"`
+et **la partie se bloquait à la mise en place**. Corrigé : attribut absent quand
+le nombre est libre, validation possible dès zéro carte cochée.
+
+C'est exactement le genre de défaut qu'un contrôle automatique attrape et qu'une
+relecture ne voit pas — il n'est apparu qu'en faisant jouer une machine.
