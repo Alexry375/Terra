@@ -125,3 +125,54 @@ fn le_compte_suit_la_mise_en_jeu_dans_le_flux_reel() {
     poser(&mut game, &db, "Space Station");
     assert_eq!(game.players[0].titanium_capacity, 2);
 }
+
+// =============================================================================
+// (retours-02) UNE CARTE BLEUE SANS ACTION N'EST PAS ACTIVABLE.
+//
+// Signalé à l'écran par Alexis le 01-08 : *United Planetary Alliance* était
+// proposée à l'activation en phase III alors qu'elle ne porte qu'un effet
+// permanent. Le filtre ne regardait que la couleur.
+// =============================================================================
+
+#[test]
+fn une_carte_bleue_sans_action_n_est_pas_activable() {
+    let db = db();
+    // Les huit cartes bleues à effet permanent seul relevées le 01-08.
+    for nom in [
+        "United Planetary Alliance",
+        "Adaptation Technology",
+        "Composting Factory",
+        "Extended Resources",
+        "Interns",
+        "Mars University",
+        "Restructured Resources",
+        "Standard Technology",
+    ] {
+        let id = db.resolve_card(nom).unwrap_or_else(|| panic!("{nom} introuvable"));
+        assert!(
+            !activable_blue(&db, id),
+            "{nom} ne porte aucune action : la proposer gâche l'activation"
+        );
+    }
+}
+
+#[test]
+fn une_carte_bleue_avec_action_reste_activable() {
+    // Le contrôle dans l'autre sens : sans lui, un filtre qui refuserait TOUT
+    // passerait le test précédent.
+    let db = db();
+    for nom in ["Solarpunk", "Water Import from Europa"] {
+        let id = db.resolve_card(nom).unwrap_or_else(|| panic!("{nom} introuvable"));
+        assert!(activable_blue(&db, id), "{nom} porte une action");
+    }
+}
+
+#[test]
+fn aucune_carte_non_bleue_n_est_activable() {
+    let db = db();
+    for (i, c) in db.projects.iter().enumerate() {
+        if c.color != Color::Blue {
+            assert!(!activable_blue(&db, i as u16), "{} n'est pas bleue", c.name);
+        }
+    }
+}

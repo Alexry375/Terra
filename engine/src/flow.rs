@@ -2852,6 +2852,23 @@ fn pay_standard_mc(game: &mut GameState, db: &CardsDb, p: usize, base: i64) {
     game.players[p].mc -= cost;
 }
 
+/// **Cette carte posée peut-elle être ACTIVÉE en phase III ?**
+///
+/// La couleur ne suffit pas. Une carte bleue peut ne porter qu'un effet
+/// permanent, sans aucune action à déclencher — *United Planetary Alliance*
+/// (« When you draw cards during the research phase… ») en est une, et sa fiche
+/// le dit déjà : `atrig: []`, donc `action: None`.
+///
+/// Tant qu'on filtrait sur la seule couleur, ces cartes étaient proposées :
+/// `apply_blue_action` ne faisait rien, mais l'activation était consommée « dans
+/// tous les cas ». Le joueur perdait son unique activation de la manche, et la
+/// future intelligence artificielle devait apprendre à éviter un coup qui n'a
+/// jamais existé dans le jeu.
+pub(crate) fn activable_blue(db: &CardsDb, card_id: u16) -> bool {
+    let card = &db.projects[card_id as usize];
+    card.color == Color::Blue && card.effect.is_some_and(|spec| spec.action.is_some())
+}
+
 fn action_options(
     game: &GameState,
     db: &CardsDb,
@@ -3803,7 +3820,7 @@ fn phase_action(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
             .played
             .iter()
             .copied()
-            .filter(|&c| db.projects[c as usize].color == Color::Blue)
+            .filter(|&c| activable_blue(db, c))
             .collect();
     }
 

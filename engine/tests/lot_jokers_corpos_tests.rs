@@ -859,8 +859,8 @@ fn la_boite_de_base_est_intacte_et_l_extension_a_change() {
     let s = run_simulation(&base, 1000, 2024, &mut pol);
     assert_eq!(
         format!("{:016x}", s.state_hash),
-        "d6a7267472501b13",
-        "empreinte de la boîte de base, mesurée le 31-07, APRÈS la correction du mulligan projets (remplacement carte par carte, 0 à 8)"
+        "c1c52fcbe4e057b0",
+        "empreinte de la boîte de base, REFIXÉE le 01-08 : les cartes bleues sans action ne sont plus proposées à l'activation (repère précédent, 31-07 : d6a7267472501b13)"
     );
 
     let db = db();
