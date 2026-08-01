@@ -2,6 +2,7 @@
 //! choix ; TOUT l'aléatoire passe par le RNG de la partie (D11), fourni en
 //! paramètre — la politique elle-même ne possède pas de RNG.
 
+use crate::choice::ChoiceContext;
 use crate::state::GameState;
 use rand::rngs::StdRng;
 use rand::Rng;
@@ -177,6 +178,33 @@ pub trait Policy {
         } else {
             rng.gen_range(0..n)
         }
+    }
+
+    /// **La même question, mais en disant DE QUOI elle parle.**
+    ///
+    /// `ctx` ([`ChoiceContext`]) porte la nature du choix, la carte concernée
+    /// quand le site d'appel la connaît, et ce que désigne chaque option — de
+    /// quoi présenter à un joueur humain autre chose qu'un bouton numéroté.
+    /// C'est par ici que passent DÉSORMAIS les onze points d'alternative de
+    /// `flow.rs` : aucun d'eux ne demande plus « choisis parmi n ».
+    ///
+    /// **Corps par défaut, et c'est tout le mécanisme de rétrocompatibilité** :
+    /// il retombe sur [`Policy::choose_option`] avec
+    /// `ctx.option_count()`, qui vaut exactement le `n` d'avant ce chantier.
+    /// Une politique qui n'implémente pas cette méthode — `RandomPolicy`,
+    /// toutes les politiques scriptées des tests — consomme donc le RNG au même
+    /// instant, avec la même borne, et décide à l'identique : les trois
+    /// empreintes de référence ne peuvent pas bouger.
+    ///
+    /// L'ordre des options est celui du contexte, qui est celui du moteur :
+    /// une politique ne doit pas le réordonner, l'indice rendu est lu tel quel.
+    fn choose_option_ctx(
+        &mut self,
+        rng: &mut StdRng,
+        player: usize,
+        ctx: &ChoiceContext,
+    ) -> usize {
+        self.choose_option(rng, player, ctx.option_count())
     }
 
     /// Choisit la carte qui REÇOIT la ressource, parmi `candidates`

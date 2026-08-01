@@ -32,7 +32,13 @@
 
 use engine::boites::BoiteSet;
 use engine::cards::{CardsDb, Tag};
-use engine::flow::{play_round, score_parts, setup_game, SelectorBonus};
+use engine::choice::{
+    action_res_label, action_res_quantity, describe_branch, describe_selector_grant,
+    spend_amount_quantity, tag_label, ChoiceContext,
+};
+use engine::flow::{
+    play_round, score_parts, setup_game, ActionSource, SelectorBonus, UpgradeSource,
+};
 use engine::observe::{state_view, ObservingPolicy};
 use engine::policy::{ActionOpt, ConstructionBonus, Policy, RandomPolicy};
 use engine::probe::{
@@ -868,6 +874,261 @@ impl<'a> Harnais<'a> {
             None => Value::Null,
         }
     }
+
+    /// Nom imprimé d'une carte projet, pour rédiger une question.
+    fn nom_carte(&self, id: u16) -> String {
+        match self.db.projects.get(id as usize) {
+            Some(c) => c.name.clone(),
+            None => format!("carte {id}"),
+        }
+    }
+
+    /// **(choix-parlants) La question et les options, pour chacune des onze
+    /// natures de choix.**
+    ///
+    /// Une par variante de [`ChoiceContext`], aucune rédaction générique : c'est
+    /// ce qui distingue « dire de quoi on parle » de « renuméroter des boutons ».
+    /// Tout ce qui est affiché est lu sur le contexte que le moteur a construit.
+    fn decrire_choix(&self, ctx: &ChoiceContext) -> Value {
+        match ctx {
+            ChoiceContext::CorpTrBoost {
+                corporation,
+                cost_mc,
+                steps,
+            } => {
+                let corpo = corporation.map(|c| corpo_json(self.db, c));
+                json!({
+                    "question": format!(
+                        "Votre corporation vous propose de payer {cost_mc} MC pour {steps} pas de NT \
+                         supplémentaire(s). Payer ?"
+                    ),
+                    "options": [
+                        { "libelle": format!("Payer {cost_mc} MC et gagner {steps} NT"),
+                          "cout_mc": cost_mc, "pas_nt": steps },
+                        { "libelle": "Ne pas payer", "cout_mc": 0, "pas_nt": 0 },
+                    ],
+                    "corporation": corpo,
+                })
+            }
+
+            ChoiceContext::PhaseUpgrade {
+                candidates,
+                imposed_phase,
+                source,
+            } => json!({
+                "question": match imposed_phase {
+                    Some(ph) => format!(
+                        "Améliorez votre carte Phase {} : quelle variante ?", nom_phase(*ph)
+                    ),
+                    None => "Améliorez une carte Phase : laquelle, et en quelle variante ?"
+                        .to_string(),
+                },
+                // Phase ET variante par option : c'est le couple qui désigne le
+                // visuel de la carte améliorée à afficher.
+                "options": candidates.iter().map(|c| json!({
+                    "libelle": format!(
+                        "{} — variante {} : {}", nom_phase(c.phase), c.variant.label(), c.name
+                    ),
+                    "phase": c.phase,
+                    "variante": c.variant.label(),
+                    "nom": c.name,
+                })).collect::<Vec<_>>(),
+                "phase_imposee": imposed_phase,
+                "origine": nom_origine_amelioration(*source),
+            }),
+
+            ChoiceContext::CardAlternative {
+                card,
+                source,
+                branches,
+            } => json!({
+                "question": format!(
+                    "« {} » vous laisse le choix : quelle proposition appliquez-vous ?",
+                    self.nom_carte(*card)
+                ),
+                "options": branches.iter().map(|b| json!({
+                    "libelle": describe_branch(b.effects),
+                    "rang_imprime": b.printed_rank,
+                })).collect::<Vec<_>>(),
+                "carte": carte_json(self.db, *card),
+                "origine": nom_origine_amelioration(*source),
+            }),
+
+            ChoiceContext::ActionAlternative { card, branches } => json!({
+                "question": format!(
+                    "Action de « {} » : quelle proposition appliquez-vous ?",
+                    self.nom_carte(*card)
+                ),
+                "options": branches.iter().map(|b| json!({
+                    "libelle": describe_branch(b.effects),
+                    "rang_imprime": b.printed_rank,
+                })).collect::<Vec<_>>(),
+                "carte": carte_json(self.db, *card),
+            }),
+
+            ChoiceContext::MicrobeDiscount {
+                card,
+                holder,
+                count,
+                amount,
+            } => json!({
+                "question": format!(
+                    "Dépenser {count} microbe(s) de « {} » pour payer {amount} MC de moins sur \
+                     « {} » ?",
+                    self.nom_carte(*holder), self.nom_carte(*card)
+                ),
+                "options": [
+                    { "libelle": format!("Oui : −{amount} MC contre {count} microbe(s)"),
+                      "microbes": count, "reduction_mc": amount },
+                    { "libelle": "Non : garder les microbes et payer le prix plein",
+                      "microbes": 0, "reduction_mc": 0 },
+                ],
+                "carte": carte_json(self.db, *card),
+                "carte_porteuse": carte_json(self.db, *holder),
+            }),
+
+            ChoiceContext::PlantDiscount {
+                card,
+                plants,
+                amount,
+            } => json!({
+                "question": format!(
+                    "Dépenser {plants} plante(s) pour payer {amount} MC de moins sur « {} » ?",
+                    self.nom_carte(*card)
+                ),
+                "options": [
+                    { "libelle": format!("Oui : −{amount} MC contre {plants} plante(s)"),
+                      "plantes": plants, "reduction_mc": amount },
+                    { "libelle": "Non : garder les plantes et payer le prix plein",
+                      "plantes": 0, "reduction_mc": 0 },
+                ],
+                "carte": carte_json(self.db, *card),
+            }),
+
+            ChoiceContext::HeatAsMc { card, cost } => json!({
+                "question": format!(
+                    "« {} » coûte {cost} MC : convertir votre chaleur en MC pour la payer ?",
+                    self.nom_carte(*card)
+                ),
+                "options": [
+                    { "libelle": "Oui : payer en convertissant de la chaleur" },
+                    { "libelle": "Non : payer en défaussant des cartes" },
+                ],
+                "carte": carte_json(self.db, *card),
+                "cout": cost,
+            }),
+
+            ChoiceContext::DiscardToDraw {
+                card,
+                tag,
+                draw_if,
+                draw_else,
+            } => json!({
+                "question": format!(
+                    "{} : défausser une carte pour en piocher {draw_else} — ou {draw_if} si elle \
+                     porte un badge {} ?",
+                    match card {
+                        Some(c) => format!("« {} »", self.nom_carte(*c)),
+                        None => "Votre corporation".to_string(),
+                    },
+                    tag_label(*tag)
+                ),
+                "options": [
+                    { "libelle": format!(
+                        "Défausser une carte (piocher {draw_if} avec un badge {}, {draw_else} \
+                         sinon)", tag_label(*tag)) },
+                    { "libelle": "Ne rien défausser" },
+                ],
+                "carte": card.map(|c| carte_json(self.db, c)),
+                "badge": tag_label(*tag),
+            }),
+
+            ChoiceContext::SpendAmount {
+                source,
+                spend,
+                gain,
+                max,
+            } => json!({
+                "question": format!(
+                    "Combien de {} dépenser (1 à {max}) pour gagner autant de {} ?",
+                    action_res_label(*spend), action_res_label(*gain)
+                ),
+                // Quantités CROISSANTES : l'option k vaut k+1 unités. La clé
+                // `quantite` le dit à l'écran, qui peut donc offrir un curseur
+                // plutôt qu'une rangée de boutons.
+                // La quantité de l'option k est celle du moteur
+                // (`choice::spend_amount_quantity`) : le pont ne réécrit pas la
+                // correspondance « option k = k+1 unités ».
+                "options": (0..*max as usize).map(|k| {
+                    let q = spend_amount_quantity(k);
+                    json!({
+                        "libelle": format!(
+                            "Dépenser {} pour gagner {}",
+                            action_res_quantity(*spend, q), action_res_quantity(*gain, q)
+                        ),
+                        "quantite": q,
+                    })
+                }).collect::<Vec<_>>(),
+                "quantites_croissantes": true,
+                "minimum": 1,
+                "maximum": max,
+                "carte": match source {
+                    ActionSource::Card(c) => carte_json(self.db, *c),
+                    ActionSource::Corp => Value::Null,
+                },
+            }),
+
+            ChoiceContext::SelectorBonus {
+                phase,
+                variant,
+                card_name,
+                branches,
+            } => json!({
+                "question": format!(
+                    "Bonus du sélectionneur de « {card_name} » ({}) : lequel prenez-vous ?",
+                    nom_phase(*phase)
+                ),
+                "options": branches.iter().map(|g| json!({
+                    "libelle": describe_selector_grant(g),
+                })).collect::<Vec<_>>(),
+                "phase": phase,
+                "variante": variant.map(|v| v.label()),
+                "nom": card_name,
+            }),
+
+            ChoiceContext::ReplayProduction { candidates } => json!({
+                "question": "Quelle carte verte rejoue son effet de production ?",
+                "options": candidates.iter().map(|c| {
+                    let mut o = carte_json(self.db, c.card);
+                    let nom = o["nom"].as_str().unwrap_or("?").to_string();
+                    // Ce que le rejeu RAPPORTE, tel que le moteur l'a mesuré.
+                    let mut gains: Vec<String> = Vec::new();
+                    if c.mc != 0 { gains.push(format!("{} MC", c.mc)); }
+                    if c.heat != 0 { gains.push(format!("{} chaleur", c.heat)); }
+                    if c.plants != 0 { gains.push(format!("{} plantes", c.plants)); }
+                    if c.cards != 0 { gains.push(format!("{} carte(s) piochée(s)", c.cards)); }
+                    o["libelle"] = json!(if gains.is_empty() {
+                        nom
+                    } else {
+                        format!("{nom} — {}", gains.join(", "))
+                    });
+                    o["production"] = json!({
+                        "mc": c.mc, "chaleur": c.heat, "plantes": c.plants, "cartes": c.cards,
+                    });
+                    o
+                }).collect::<Vec<_>>(),
+            }),
+        }
+    }
+}
+
+/// D'où vient une amélioration de carte Phase, en français.
+fn nom_origine_amelioration(src: UpgradeSource) -> &'static str {
+    match src {
+        UpgradeSource::Build => "pose d'une carte",
+        UpgradeSource::Action => "action d'une carte",
+        UpgradeSource::Setup => "mise en place de la corporation",
+    }
 }
 
 impl Policy for Harnais<'_> {
@@ -1104,22 +1365,57 @@ impl Policy for Harnais<'_> {
         }
     }
 
+    /// **(choix-parlants) La voie anonyme, rendue BRUYANTE.**
+    ///
+    /// Plus aucun site du moteur ne l'emprunte : tous passent par
+    /// `choose_option_ctx`. Elle n'est pas supprimée pour autant, et c'est
+    /// délibéré — sans elle, un site qui reviendrait à l'ancienne voie ferait
+    /// décider le corps par défaut du trait, c'est-à-dire un tirage aléatoire
+    /// **sans jamais interroger le navigateur**, silencieusement. Ici la faute
+    /// est déclarée : elle remonte à la page dans le champ `erreur`.
     fn choose_option(&mut self, rng: &mut StdRng, player: usize, n: usize) -> usize {
+        if self.erreur.is_none() {
+            // Écrit sans passer par `faute`, qui numérote la décision à partir
+            // du curseur : il n'y a pas eu de décision soumise ici, il n'y a
+            // donc pas de numéro à citer.
+            self.erreur = Some(format!(
+                "le moteur a demandé un choix parmi {n} sans dire de quoi il s'agit \
+                 (voie anonyme `choose_option`) : la page n'a pas pu poser la question"
+            ));
+        }
+        self.defaut.choose_option(rng, player, n)
+    }
+
+    /// **(choix-parlants) La voie enrichie, et la seule que le moteur emprunte.**
+    ///
+    /// `choose_option` a disparu de ce pont : les onze points d'alternative de
+    /// `flow.rs` passent tous par ici, et chacun sait dire de quoi il parle. Le
+    /// descripteur porte donc un `type` propre à la NATURE du choix (celui du
+    /// moteur, `ChoiceContext::kind`), une question rédigée pour un joueur, et
+    /// des options qui portent de quoi être affichées — jamais un numéro nu.
+    ///
+    /// **Ce pont ne recalcule aucune règle.** Les couples (phase, variante)
+    /// d'une amélioration de carte Phase, le nom de la carte améliorée
+    /// correspondante et la description de chaque branche viennent tels quels du
+    /// moteur (`engine::choice`). Reconstruire ici la liste « 5 phases × 2
+    /// variantes moins celles déjà en place » serait une seconde implémentation
+    /// de la même règle, qui divergerait au premier changement.
+    fn choose_option_ctx(
+        &mut self,
+        rng: &mut StdRng,
+        player: usize,
+        ctx: &ChoiceContext,
+    ) -> usize {
+        let n = ctx.option_count();
         if n == 0 {
             return 0;
         }
-        // Le moteur ne donne QUE le nombre de branches jouables (dans l'ordre du
-        // texte imprimé) : il n'y a pas de libellé à afficher, la page numérote.
-        let desc = json!({
-            "type": "choose_option",
-            "joueur": player,
-            "question": "Choisissez une branche du texte de la carte (ordre du texte imprimé)",
-            "options": (0..n).map(|i| json!({ "libelle": format!("branche {}", i + 1) }))
-                .collect::<Vec<_>>(),
-        });
+        let mut desc = self.decrire_choix(ctx);
+        desc["type"] = json!(ctx.kind());
+        desc["joueur"] = json!(player);
         match self.prendre(desc) {
             Some(r) => self.indice(&r, n).unwrap_or(0),
-            None => self.defaut.choose_option(rng, player, n),
+            None => self.defaut.choose_option_ctx(rng, player, ctx),
         }
     }
 

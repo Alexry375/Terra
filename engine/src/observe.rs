@@ -19,6 +19,7 @@
 //! (`Color::nom_fr`, rendu par `--dump-deck` sous la clef `couleur`).
 
 use crate::cards::{CardsDb, JOKER_TAG_CHOICES};
+use crate::choice::ChoiceContext;
 use crate::flow::score_parts;
 use crate::policy::{ActionOpt, ConstructionBonus, Policy};
 use crate::state::{
@@ -368,6 +369,19 @@ impl<P: Policy> Policy for ObservingPolicy<'_, P> {
 
     fn choose_option(&mut self, rng: &mut StdRng, player: usize, n: usize) -> usize {
         self.inner.choose_option(rng, player, n)
+    }
+
+    /// (choix-parlants) La voie enrichie est déléguée elle aussi, et il le
+    /// FAUT : sans cette ligne, l'enveloppe retomberait sur le corps par défaut
+    /// du trait, lequel appelle `choose_option` — la politique enveloppée qui
+    /// sait lire un contexte ne le verrait jamais, silencieusement.
+    fn choose_option_ctx(
+        &mut self,
+        rng: &mut StdRng,
+        player: usize,
+        ctx: &ChoiceContext,
+    ) -> usize {
+        self.inner.choose_option_ctx(rng, player, ctx)
     }
 
     fn choose_res_target(

@@ -7,6 +7,7 @@
 
 pub mod boites;
 pub mod cards;
+pub mod choice;
 pub mod effects;
 pub mod flow;
 pub mod observe;

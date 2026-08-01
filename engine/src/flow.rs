@@ -9,6 +9,7 @@
 
 use crate::cards::{CardsDb, Color, Tag, VpKind, JOKER_TAG_CHOICES};
 use crate::boites::Boite;
+use crate::choice::{BranchOption, ChoiceContext, PhaseUpgradeOption, ProductionOption};
 use crate::effects::{
     self, Action, ActionCost, ActionEff, ActionRes, BuildGrant, Capacity, CorpEffects, Eff,
     GlobalTrigger,
@@ -807,7 +808,12 @@ pub fn gain_tr(game: &mut GameState, db: &CardsDb, p: usize, policy: &mut dyn Po
     }
     // Deux branches jouables : payer (0, l'option imprimée) ou renoncer (1).
     policy.observe(&game, p);
-    if policy.choose_option(&mut game.rng, p, 2) != 0 {
+    let ctx = ChoiceContext::CorpTrBoost {
+        corporation: game.players[p].corporation,
+        cost_mc: boost.cost_mc,
+        steps: boost.steps,
+    };
+    if policy.choose_option_ctx(&mut game.rng, p, &ctx) != 0 {
         return;
     }
     top_up_mc_with_heat(game, db, p, boost.cost_mc);
@@ -1020,8 +1026,25 @@ fn apply_phase_upgrade(
     let i = if cands.len() == 1 {
         0
     } else {
+        // Le contexte porte les couples que le moteur vient de construire, plus
+        // le nom imprimé de chaque carte Phase améliorée, lu dans la table du
+        // moteur (`effects::PHASE_UPGRADED`) : celui qui décide n'a aucune règle
+        // à rejouer pour savoir ce qu'on lui propose.
+        let options: Vec<PhaseUpgradeOption> = cands
+            .iter()
+            .map(|&(phase, variant)| PhaseUpgradeOption {
+                phase,
+                variant,
+                name: effects::PHASE_UPGRADED[phase as usize - 1][variant.index()].name,
+            })
+            .collect();
+        let ctx = ChoiceContext::PhaseUpgrade {
+            candidates: &options,
+            imposed_phase: target,
+            source: src,
+        };
         policy.observe(&game, p);
-        policy.choose_option(&mut game.rng, p, cands.len())
+        policy.choose_option_ctx(&mut game.rng, p, &ctx)
     };
     let (phase, variant) = cands[i.min(cands.len() - 1)];
     let deja = game.players[p].upgrade_phase(phase, variant);
@@ -1204,8 +1227,22 @@ fn apply_choice(
     let k = if playable.len() == 1 {
         0
     } else {
+        // Chaque option porte son rang DANS LE TEXTE IMPRIMÉ (avant filtrage)
+        // et les effets que le moteur appliquera si elle est retenue.
+        let options: Vec<BranchOption> = playable
+            .iter()
+            .map(|&i| BranchOption {
+                printed_rank: i,
+                effects: branches[i],
+            })
+            .collect();
+        let ctx = ChoiceContext::CardAlternative {
+            card: self_card,
+            source: src,
+            branches: &options,
+        };
         policy.observe(&game, p);
-        let c = policy.choose_option(&mut game.rng, p, playable.len());
+        let c = policy.choose_option_ctx(&mut game.rng, p, &ctx);
         if c >= playable.len() {
             return; // renoncement explicite (journal D4)
         }
@@ -2218,8 +2255,14 @@ pub fn build_card_granted(
         // Branche 0 = utiliser la réduction (l'option imprimée) ; branche 1 = y
         // renoncer.
         let use_it = if can_decline {
+            let ctx = ChoiceContext::MicrobeDiscount {
+                card: card_id,
+                holder: src,
+                count,
+                amount,
+            };
             policy.observe(&game, p);
-            policy.choose_option(&mut game.rng, p, 2) == 0
+            policy.choose_option_ctx(&mut game.rng, p, &ctx) == 0
         } else {
             true
         };
@@ -2245,8 +2288,13 @@ pub fn build_card_granted(
             rate,
         );
         let use_it = if can_decline {
+            let ctx = ChoiceContext::PlantDiscount {
+                card: card_id,
+                plants,
+                amount,
+            };
             policy.observe(&game, p);
-            policy.choose_option(&mut game.rng, p, 2) == 0
+            policy.choose_option_ctx(&mut game.rng, p, &ctx) == 0
         } else {
             true
         };
@@ -2277,8 +2325,12 @@ pub fn build_card_granted(
         let can_decline =
             payable(game.players[p].mc, game.players[p].hand.len() + 1, cost, rate);
         let use_heat = if can_decline {
+            let ctx = ChoiceContext::HeatAsMc {
+                card: card_id,
+                cost,
+            };
             policy.observe(&game, p);
-            policy.choose_option(&mut game.rng, p, 2) == 0
+            policy.choose_option_ctx(&mut game.rng, p, &ctx) == 0
         } else {
             true
         };
@@ -2525,8 +2577,18 @@ fn apply_trig_gain(
                 if game.players[p].hand.is_empty() {
                     break;
                 }
+                // `src` vaut `None` quand le déclencheur est porté par la
+                // planche de CORPORATION, qui n'est pas une carte en jeu :
+                // l'inconnue est déclarée telle quelle, jamais comblée par une
+                // carte plausible.
+                let ctx = ChoiceContext::DiscardToDraw {
+                    card: src,
+                    tag: if_tag,
+                    draw_if,
+                    draw_else,
+                };
                 policy.observe(&game, p);
-                if policy.choose_option(&mut game.rng, p, 2) != 0 {
+                if policy.choose_option_ctx(&mut game.rng, p, &ctx) != 0 {
                     continue;
                 }
                 let hand = game.players[p].hand.clone();
@@ -3282,8 +3344,18 @@ fn apply_action_spec(
             let k = if branches == 1 {
                 0
             } else {
+                // Les options ne sont pas des branches de texte : ce sont des
+                // QUANTITÉS croissantes, l'option k valant k+1 unités. Le
+                // contexte le dit, pour qu'un écran propose un montant et non
+                // une liste de boutons.
+                let ctx = ChoiceContext::SpendAmount {
+                    source: src,
+                    spend,
+                    gain,
+                    max: branches,
+                };
                 policy.observe(&game, p);
-                let c = policy.choose_option(&mut game.rng, p, branches as usize);
+                let c = policy.choose_option_ctx(&mut game.rng, p, &ctx);
                 if c >= branches as usize {
                     return false; // renoncement explicite (convention lot 3)
                 }
@@ -3386,8 +3458,19 @@ fn apply_action_spec(
             let k = if playable.len() == 1 {
                 0
             } else {
+                let options: Vec<BranchOption> = playable
+                    .iter()
+                    .map(|&i| BranchOption {
+                        printed_rank: i,
+                        effects: branches[i],
+                    })
+                    .collect();
+                let ctx = ChoiceContext::ActionAlternative {
+                    card: card_id,
+                    branches: &options,
+                };
                 policy.observe(&game, p);
-                let c = policy.choose_option(&mut game.rng, p, playable.len());
+                let c = policy.choose_option_ctx(&mut game.rng, p, &ctx);
                 if c >= playable.len() {
                     return false; // renoncement explicite (journal D4)
                 }
@@ -3536,8 +3619,14 @@ fn selector_branch(
     if branches.len() < 2 {
         return &branches[0];
     }
+    let ctx = ChoiceContext::SelectorBonus {
+        phase: b.phase,
+        variant: b.upgraded,
+        card_name: b.spec.name,
+        branches,
+    };
     policy.observe(&game, p);
-    let i = policy.choose_option(&mut game.rng, p, branches.len());
+    let i = policy.choose_option_ctx(&mut game.rng, p, &ctx);
     &branches[i.min(branches.len() - 1)]
 }
 
@@ -3936,8 +4025,27 @@ fn replay_green_production(
     let i = if cands.len() == 1 {
         0
     } else {
+        // Chaque option dit CE QU'ELLE RAPPORTE, lu par le service unique
+        // `card_production` — celui-là même qui versera le rejeu deux lignes
+        // plus bas.
+        let options: Vec<ProductionOption> = cands
+            .iter()
+            .map(|&c| {
+                let (mc, heat, plants, cards) = card_production(db, &game.players[p], c);
+                ProductionOption {
+                    card: c,
+                    mc,
+                    heat,
+                    plants,
+                    cards,
+                }
+            })
+            .collect();
+        let ctx = ChoiceContext::ReplayProduction {
+            candidates: &options,
+        };
         policy.observe(&game, p);
-        policy.choose_option(&mut game.rng, p, cands.len())
+        policy.choose_option_ctx(&mut game.rng, p, &ctx)
     };
     if i >= cands.len() {
         return;

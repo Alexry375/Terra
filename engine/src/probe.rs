@@ -23,6 +23,7 @@
 //! restantes en ordre d'index ; tuiles océan NON mélangées.
 
 use crate::cards::{CardsDb, Tag, JOKER_TAG_CHOICES};
+use crate::choice::ChoiceContext;
 use crate::flow::{
     apply_blue_action, apply_corp_action, build_card_with, card_discount, card_points,
     discard_mc_rate, next_card_discount,
@@ -429,6 +430,27 @@ impl Policy for ProbePolicy {
             c
         } else {
             self.inner.choose_option(rng, p, n)
+        }
+    }
+
+    /// (choix-parlants) Même règle que ci-dessus, sur la voie enrichie : la pile
+    /// `--probe-choice` d'abord, puis DÉLÉGATION à la politique enveloppée. Sans
+    /// cette méthode, l'enveloppe passerait par le corps par défaut du trait et
+    /// neutraliserait la voie enrichie d'`inner`. Le rang consommé dans la pile
+    /// et le repli sur le RNG sont ceux de `choose_option` : la sonde répond
+    /// exactement comme avant.
+    fn choose_option_ctx(
+        &mut self,
+        rng: &mut StdRng,
+        p: usize,
+        ctx: &ChoiceContext,
+    ) -> usize {
+        if self.ci < self.choices.len() {
+            let c = self.choices[self.ci];
+            self.ci += 1;
+            c
+        } else {
+            self.inner.choose_option_ctx(rng, p, ctx)
         }
     }
 
