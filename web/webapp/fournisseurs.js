@@ -59,7 +59,10 @@ export function fournisseurAleatoire(graine, nom = "aléatoire") {
             const j = entre(0, i);
             [indices[i], indices[j]] = [indices[j], indices[i]];
           }
-          return indices.slice(0, d.a_choisir);
+          // `a_choisir` absent = nombre LIBRE (le mulligan projets, de 0 à 8) :
+          // on tire alors aussi la quantité, sinon on remplacerait toujours tout.
+          const combien = d.a_choisir ?? entre(0, n);
+          return indices.slice(0, combien);
         }
         default:
           return entre(0, nombreDeChoix(d) - 1);

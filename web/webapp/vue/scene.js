@@ -75,7 +75,11 @@ function dessiner(d, etat) {
 
   const forme = d.multiple ? "multiple" : d.montant ? "montant" : "simple";
   m.dataset.decisionForme = forme;
-  if (forme === "multiple") m.dataset.aChoisir = String(d.a_choisir);
+  // Nombre libre (remplacement partiel des cartes de départ) : on ne pose pas
+  // l'attribut du tout, plutôt que d'annoncer « undefined » à qui nous lit.
+  if (forme === "multiple" && d.a_choisir !== undefined && d.a_choisir !== null) {
+    m.dataset.aChoisir = String(d.a_choisir);
+  }
 
   // Le fond de scène : un fragment agrandi et noyé de la carte dont il est
   // question. L'image devient l'atmosphère, pas une vignette.
@@ -250,7 +254,11 @@ function simple(d, zone) {
 /** Choix multiple : on sélectionne, puis on valide. */
 function multiple(d, zone, barre) {
   const options = d.options || [];
+  // `a_choisir` absent = nombre LIBRE : le remplacement partiel des cartes de
+  // départ va de 0 à 8. On accepte alors n'importe quelle quantité, et le
+  // compteur ne promet pas un total qui n'existe pas.
   const k = d.a_choisir;
+  const libre = k === undefined || k === null;
   const largeur = mesurer(d, zone, options.length);
   const choisis = new Set();
 
@@ -264,8 +272,10 @@ function multiple(d, zone, barre) {
   valider.textContent = "Valider";
 
   const rafraichir = () => {
-    compteur.textContent = `${choisis.size} / ${k} sélectionnée${k > 1 ? "s" : ""}`;
-    valider.classList.toggle("valider--prete", choisis.size === k);
+    compteur.textContent = libre
+      ? `${choisis.size} / ${options.length} sélectionnée${choisis.size > 1 ? "s" : ""}`
+      : `${choisis.size} / ${k} sélectionnée${k > 1 ? "s" : ""}`;
+    valider.classList.toggle("valider--prete", libre || choisis.size === k);
   };
 
   options.forEach((o, i) => {
@@ -283,7 +293,7 @@ function multiple(d, zone, barre) {
   // l'on ne peut pas atteindre. Il refuse simplement tant que le compte n'y est
   // pas, et le dit.
   valider.addEventListener("click", () => {
-    if (choisis.size !== k) {
+    if (!libre && choisis.size !== k) {
       valider.classList.remove("valider--refus");
       void valider.offsetWidth;
       valider.classList.add("valider--refus");
