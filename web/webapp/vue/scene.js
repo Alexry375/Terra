@@ -10,7 +10,7 @@
 
 import { carte, normaliser } from "./cartes.js";
 import {
-  imagePhase, phaseNom, imageBadge, nomBadge, imageCarte,
+  imagePhase, imageAmelioration, phaseNom, imageBadge, nomBadge, imageCarte,
   imageForet, imageOcean, imageReserve, dosDeCarte, EQUIPAGES, nomJoueur,
 } from "./materiel.js";
 import { survolable, cacher as cacherLoupe, figer } from "./loupe.js";
@@ -24,10 +24,19 @@ const MAX_CARTE = 340; // au-delà, une carte mange la scène sans rien ajouter
 // bande et se posent sur les plateaux.
 const LEGENDE = 26;
 
-// Les trois moments qui méritent de couvrir la table : on y regarde des cartes
-// en grand, et le plateau reste visible dessous. Partout ailleurs la scène est
-// une bande, et les deux plateaux gardent leur place.
-const SUPERPOSITION = new Set(["corp_mulligan", "project_mulligan", "pick_corporation"]);
+// Les moments qui méritent de couvrir la table : on y regarde des cartes en
+// grand, et le plateau reste visible dessous. Partout ailleurs la scène est une
+// bande, et les deux plateaux gardent leur place.
+//
+// Les trois choix de BRANCHE en font partie : la proposition qu'on applique est
+// écrite sur la carte elle-même — le texte imprimé d'une carte projet pour
+// `alternative_carte` et `alternative_action`, la case BONUS de la carte Phase
+// pour `bonus_selectionneur`. Dans une bande, cette carte tombe à 90 px de haut
+// et n'est plus lisible : la décision se prendrait à l'aveugle.
+const SUPERPOSITION = new Set([
+  "corp_mulligan", "project_mulligan", "pick_corporation",
+  "alternative_carte", "alternative_action", "bonus_selectionneur",
+]);
 
 let resoudre = null; // la réponse attendue par le moteur, une fois cliquée
 let enCours = null; // la décision affichée, pour pouvoir la redessiner
@@ -183,18 +192,54 @@ function optionsIllustrees(d) {
   const o = (d.options || [])[0];
   if (!o) return false;
   if (d.type === "pick_phase" || d.type === "pick_joker_tag") return true;
+  // Une amélioration de carte Phase se CHOISIT sur l'image de la carte
+  // améliorée : ce sont les options le sujet, elles prennent toute la place.
+  if (d.type === "amelioration_carte_phase") return !!codeAmelioration(o);
   return !!normaliser(o);
+}
+
+/**
+ * Le code d'image d'une amélioration de carte Phase (« 2B »), lu sur les champs
+ * `phase` et `variante` que le moteur pose sur l'option — jamais sur son rang.
+ */
+function codeAmelioration(o) {
+  if (!o || o.phase === undefined || o.phase === null || !o.variante) return null;
+  return `${o.phase}${o.variante}`;
 }
 
 /** L'image qui portera l'atmosphère de la scène. */
 function imageSujet(d) {
-  const c = normaliser(d.carte) || normaliser((d.options || [])[0]);
+  const c = normaliser(d.carte);
   if (c) {
     const im = imageCarte(c.nom);
     if (im) return im;
   }
+  // Une carte Phase (améliorée ou non) est un sujet à part entière.
+  if (d.type === "amelioration_carte_phase") {
+    const code = codeAmelioration((d.options || [])[0]);
+    if (code) return imageAmelioration(code);
+  }
+  if (d.type === "bonus_selectionneur") {
+    const im = imageSelectionneur(d);
+    if (im) return im;
+  }
+  const p = normaliser((d.options || [])[0]);
+  if (p) {
+    const im = imageCarte(p.nom);
+    if (im) return im;
+  }
   if (d.type === "pick_phase") return imagePhase(1);
   return null;
+}
+
+/**
+ * La carte Phase dont on prend le bonus de sélectionneur. Le moteur donne sa
+ * `phase` et, si elle est améliorée, sa `variante` : c'est ce couple qui
+ * désigne l'image, comme pour une amélioration.
+ */
+function imageSelectionneur(d) {
+  if (d.phase === undefined || d.phase === null) return null;
+  return d.variante ? imageAmelioration(`${d.phase}${d.variante}`) : imagePhase(d.phase);
 }
 
 // ---------------------------------------------------------------- le contexte
@@ -203,6 +248,13 @@ function imageSujet(d) {
 function contexte(d) {
   const cartes = [];
   let mot = "";
+
+  // Le bonus du sélectionneur se prend SUR une carte Phase : on la montre,
+  // sinon la question n'a rien à quoi se raccrocher.
+  if (d.type === "bonus_selectionneur") {
+    const im = imageSelectionneur(d);
+    if (im) return contextePhase(im, `${MOT.currentCard} · ${phaseNom(d.phase)}`);
+  }
 
   if (d.carte) {
     cartes.push(d.carte);
@@ -243,6 +295,30 @@ function contexte(d) {
     n.textContent = `cost ${d.cout} MC · you hold ${d.mc} MC · ${d.taux} MC per discard`;
     z.appendChild(n);
   }
+  return z;
+}
+
+/** Un contexte fait d'une seule carte Phase imprimée, montrée telle quelle. */
+function contextePhase(src, mot) {
+  const z = document.createElement("div");
+  z.className = "scene__contexte";
+  const l = document.createElement("span");
+  l.className = "scene__contexte-mot";
+  l.textContent = mot;
+  z.appendChild(l);
+
+  const r = document.createElement("div");
+  r.className = "scene__contexte-rang";
+  r.dataset.combien = "1";
+  const f = document.createElement("figure");
+  f.className = "carte carte--contexte";
+  const im = document.createElement("img");
+  im.src = src;
+  im.alt = mot;
+  im.draggable = false;
+  f.appendChild(im);
+  r.appendChild(f);
+  z.appendChild(r);
   return z;
 }
 
@@ -412,12 +488,40 @@ function choix(d, o, i, largeur, etat) {
     b.className = "choix choix--phase";
     const im = document.createElement("img");
     im.src = imagePhase(o.phase);
-    im.alt = "stage card " + phaseNom(o.phase);
+    im.alt = "Phase card " + phaseNom(o.phase);
     b.appendChild(im);
     const t = document.createElement("span");
     t.className = "choix__mot";
     t.textContent = mot;
     b.appendChild(t);
+  } else if (d.type === "amelioration_carte_phase") {
+    // ON VOIT LA CARTE. L'image est celle du couple (phase, variante) que
+    // l'option porte ; les deux champs sont posés sur le bouton pour que la
+    // correspondance soit vérifiable depuis l'extérieur de la page.
+    //
+    // Cette branche prend TOUTES les options de cette nature, même celle qui
+    // n'aurait pas ses deux champs : le repli est une plaque, jamais le chemin
+    // des cartes — l'option porte un `nom` FRANÇAIS (« Research (phase
+    // améliorée A) ») que `cartes.js` écrirait sous un dos de carte.
+    const code = codeAmelioration(o);
+    if (!code) {
+      b = slab(mot, "amelioration");
+    } else {
+      b = document.createElement("button");
+      b.type = "button";
+      b.className = "choix choix--phase choix--amelioration";
+      const im = document.createElement("img");
+      im.src = imageAmelioration(code);
+      im.alt = `upgraded Phase card ${phaseNom(o.phase)} ${o.variante}`;
+      im.draggable = false;
+      b.appendChild(im);
+      const t = document.createElement("span");
+      t.className = "choix__mot";
+      t.textContent = mot;
+      b.appendChild(t);
+      b.dataset.phase = String(o.phase);
+      b.dataset.variante = String(o.variante);
+    }
   } else if (d.type === "pick_joker_tag" && o.badge) {
     b = slab(mot, "badge");
     const im = document.createElement("img");

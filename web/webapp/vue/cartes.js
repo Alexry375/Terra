@@ -6,7 +6,7 @@
 // absorbe ces trois formes et rend toujours le même objet d'affichage.
 
 import { imageCarte, dosDeCarte } from "./materiel.js";
-import { MOT, nomLisible } from "./mots.js";
+import { MOT } from "./mots.js";
 
 /** Ramène les trois formes du moteur à une seule. Ne calcule rien. */
 export function normaliser(c) {
@@ -67,7 +67,7 @@ export function carte(c, { classe = "", muette = true, chemin = null } = {}) {
   if (!src || !muette) {
     const p = document.createElement("figcaption");
     p.className = "carte__plaque";
-    p.textContent = nomLisible(n.nom);
+    p.textContent = n.nom;
     f.appendChild(p);
   }
 

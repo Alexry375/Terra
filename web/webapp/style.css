@@ -655,7 +655,18 @@ html[data-pv-masques="oui"] [data-role="vp"] { display: none; }
 .choix--plaque:hover > .choix__jeton { transform: translateY(-5px); }
 .choix:focus-visible { outline: 2px solid var(--glace); outline-offset: 3px; }
 
-.choix .carte img, .choix--phase img { width: 100%; height: auto; border-radius: 4px; }
+/* UNE CARTE OCCUPE SA PLACE AVANT D'ÊTRE DÉCODÉE. Avec `height: auto` seul, la
+   hauteur d'une image reste NULLE tant que le fichier n'est pas décodé : au
+   premier dessin d'un écran, la carte est là mais mesure 0 px, et la rangée se
+   replie sous elle. Les proportions de la découpe la lui rendent tout de
+   suite. Les fichiers fournis ne sont pas tous au même millième — 410 × 571
+   pour les cartes projet et les cartes Phase, 737 × 1024 pour les cartes Phase
+   améliorées, soit 0,35 % d'écart : `contain` absorbe la différence sans
+   déformer. */
+.choix .carte img, .choix--phase img {
+  width: 100%; height: auto; border-radius: 4px;
+  aspect-ratio: 410 / 571; object-fit: contain;
+}
 .choix:hover .carte img, .choix--phase:hover img {
   box-shadow: 0 10px 26px rgba(0, 0, 0, .7), 0 0 0 2px var(--glace);
 }
@@ -670,6 +681,10 @@ html[data-pv-masques="oui"] [data-role="vp"] { display: none; }
 /* Sauf sur une plaque : elle n'a pas d'image pour parler à sa place. Sans son
    mot, « Passer » devient un rectangle noir vide. */
 .scene__choix[data-dense="oui"] .choix--plaque .choix__mot { display: block; }
+/* Sauf sur une carte Phase améliorée : la VARIANTE (A ou B) n'est écrite nulle
+   part sur l'image imprimée. Sans son mot, deux améliorations d'une même phase
+   sont indiscernables l'une de l'autre. */
+.scene__choix[data-dense="oui"] .choix--amelioration .choix__mot { display: block; }
 
 /* Une option sans image : une plaque gravée, jamais un bouton d'interface. */
 .choix--plaque {

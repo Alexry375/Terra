@@ -11,18 +11,20 @@
 // (« … pour 3 MC ») n'existe dans aucun champ. C'est une reprise du gabarit
 // connu, bornée à un nombre, avec repli propre si le gabarit change.
 //
-// Vocabulaire : quelques mots anglais sont aussi des mots français (`score`,
-// `phase`, `corporation`, `points`, `temperature`, `oceans`). L'écran dit donc
-// VP, stage, Corp, Temp, Ocean — de l'anglais courant, rien de masqué.
+// Vocabulaire : l'écran dit les mots du jeu en toutes lettres — « Score »,
+// « Corporation », « Temperature », « Oceans », « Hand », « Phase card ». Ce
+// sont des mots anglais parfaitement corrects ; les abréger (VP, Corp, Temp,
+// « stage card ») n'appauvrissait l'écran que pour contourner un ancien
+// contrôle de langue, qui est corrigé.
 
 // ------------------------------------------------------------- les étiquettes
 
 /** Les mots fixes du décor. Un seul endroit pour les relire tous. */
 export const MOT = {
   round: "Round",
-  temp: "Temp",
+  temp: "Temperature",
   oxygen: "Oxygen",
-  ocean: "Ocean",
+  ocean: "Oceans",
   oceanMap: "Ocean tiles",
   tr: "TR",
   production: "Production",
@@ -30,21 +32,21 @@ export const MOT = {
   titanium: "Titanium",
   forests: "Forests",
   inPlay: "In play",
-  vp: "VP",
-  hideVp: "Hide VP",
+  vp: "Score",
+  hideVp: "Hide score",
   mc: "MC",
   heat: "Heat",
   plants: "Plants",
   cards: "Draw",
   hand: "Hand",
-  stages: "Stage cards",
-  corp: "Corp",
+  stages: "Phase cards",
+  corp: "Corporation",
   pass: "Pass",
   confirm: "Confirm",
   milestone: "Milestone",
   award: "Award",
   currentCard: "Current card",
-  yourCorps: "Your Corp cards",
+  yourCorps: "Your Corporation cards",
   yourHand: "Your hand",
   faceDown: "face-down card",
   waking: "waking the engine…",
@@ -82,19 +84,44 @@ export const BADGE_EN = {
 };
 
 /**
- * Un nom de carte tel qu'on peut l'ÉCRIRE à l'écran.
- *
- * Six cartes du jeu s'appellent « … Corporation » ; le mot est aussi un mot
- * français et le contrôle de langue le refuse. On l'abrège comme l'anglais
- * l'abrège. Le scan de la carte, lui, est montré tel quel : rien n'est caché.
+ * Les onze familles de badges, du nom FRANÇAIS que le moteur en donne
+ * (`engine::choice::tag_label`, repris tel quel dans le champ `badge` d'une
+ * décision) vers le nom anglais affiché. Table explicite, écrite à la main : la
+ * clé est le mot exact du moteur, jamais une devinette d'exécution.
  */
-export function nomLisible(nom) {
-  return typeof nom === "string" ? nom.replace(/\bCorporation\b/g, "Corp.") : nom;
+export const BADGE_FR_EN = {
+  "Bâtiment": "Building",
+  "Espace": "Space",
+  "Science": "Science",
+  "Plante": "Plant",
+  "Microbe": "Microbe",
+  "Animal": "Animal",
+  "Terre": "Earth",
+  "Jupiter": "Jupiter",
+  "Énergie": "Energy",
+  "Événement": "Event",
+  "joker": "wild",
+};
+
+/** Le nom anglais d'un badge que le moteur nomme en français. */
+export function badgeAnglais(fr) {
+  return BADGE_FR_EN[fr] || "";
 }
 
 // ------------------------------------------------------------- les questions
 
 const s = (n) => (n === 1 ? "" : "s");
+
+/** Le nom anglais d'une carte Phase, prêt à entrer dans une phrase. */
+function nomPhase(n) {
+  const st = STAGES[n];
+  return st ? `${st.romain} — ${st.nom}` : `Phase ${n}`;
+}
+
+/** Le nom d'une carte d'une décision, s'il y en a une. */
+function nomCarte(d) {
+  return (d.carte && (d.carte.nom ?? d.carte.name)) || "this card";
+}
 
 /**
  * L'intitulé anglais d'une décision, par son `type`. Les nombres viennent des
@@ -103,14 +130,14 @@ const s = (n) => (n === 1 ? "" : "s");
 const QUESTIONS = {
   corp_mulligan: (d) => {
     const n = (d.corporations || []).length;
-    return `Swap your ${n} Corp card${s(n)} for ${n} new one${s(n)}?`;
+    return `Swap your ${n} Corporation card${s(n)} for ${n} new one${s(n)}?`;
   },
   project_mulligan: (d) =>
     `Which project cards do you swap? (0 to ${(d.options || []).length})`,
-  pick_corporation: () => "Choose your Corp card",
-  pick_phase: () => "Choose your stage card",
+  pick_corporation: () => "Choose your Corporation card",
+  pick_phase: () => "Choose your Phase card",
   choose_build: () => "Which card do you play?",
-  construction_bonus: () => "Construction stage selector bonus",
+  construction_bonus: () => "Construction Phase selector bonus",
   research_keep: (d) =>
     `Keep ${d.a_choisir} card${s(d.a_choisir)} out of ${(d.options || []).length}`,
   action_choice: () => "Which action do you trigger?",
@@ -131,6 +158,69 @@ const QUESTIONS = {
   pick_joker_tag: () => "Choose the tag to add to this card",
   choose_res_source: () => "Take a resource from which card?",
   choose_res_target: () => "Put the resource on which card?",
+
+  // ------------------------------------------------------------------------
+  // LES ONZE NATURES QUALIFIÉES (`ChoiceContext::kind` du moteur). Chacune a
+  // son intitulé propre, rédigé une fois pour toutes, qui dit CE QU'ON DEMANDE
+  // — jamais un intitulé creux, jamais une traduction de la phrase française.
+  // Les valeurs citées sont les champs du descripteur.
+  // ------------------------------------------------------------------------
+
+  corp_tr_boost: (d) => {
+    // L'offre est portée par la première option (`cout_mc`, `pas_nt`).
+    const o = (d.options || [])[0] || {};
+    const mc = o.cout_mc ?? 0;
+    const nt = o.pas_nt ?? 0;
+    return `Your Corporation offers ${nt} extra TR step${s(nt)} for ${mc} MC. Pay?`;
+  },
+
+  amelioration_carte_phase: (d) =>
+    d.phase_imposee
+      ? `Upgrade your ${nomPhase(d.phase_imposee)} Phase card: which variant?`
+      : "Upgrade a Phase card: which one, and which variant?",
+
+  alternative_carte: (d) => `"${nomCarte(d)}" lets you choose: which branch do you apply?`,
+
+  alternative_action: (d) => `Action of "${nomCarte(d)}": which branch do you apply?`,
+
+  reduction_microbes: (d) => {
+    const o = (d.options || [])[0] || {};
+    const n = o.microbes ?? 0;
+    const porteuse = (d.carte_porteuse && d.carte_porteuse.nom) || "a card";
+    return `Spend ${n} microbe${s(n)} from "${porteuse}" to pay ${o.reduction_mc ?? 0} MC` +
+      ` less for "${nomCarte(d)}"?`;
+  },
+
+  reduction_plantes: (d) => {
+    const o = (d.options || [])[0] || {};
+    const n = o.plantes ?? 0;
+    return `Spend ${n} plant${s(n)} to pay ${o.reduction_mc ?? 0} MC less for` +
+      ` "${nomCarte(d)}"?`;
+  },
+
+  paiement_chaleur: (d) =>
+    `"${nomCarte(d)}" costs ${d.cout ?? 0} MC: turn your heat into MC to pay for it?`,
+
+  defausser_pour_piocher: (d) => {
+    // Combien on pioche n'est dans aucun champ (voir `outputs/blocked.md`) :
+    // on ne l'invente pas, on dit seulement ce dont cela dépend.
+    const badge = badgeAnglais(d.badge);
+    const quoi = d.carte ? `"${nomCarte(d)}"` : "Your Corporation";
+    return badge
+      ? `${quoi}: discard a card to draw — the draw depends on its ${badge} tag?`
+      : `${quoi}: discard a card to draw?`;
+  },
+
+  montant_depense: (d) =>
+    `How much do you spend to gain as much? (${d.minimum ?? 1} to ${d.maximum ?? 1})`,
+
+  bonus_selectionneur: (d) => {
+    const variante = d.variante ? ` variant ${d.variante}` : "";
+    return `Selector bonus of your ${nomPhase(d.phase)}${variante} Phase card:` +
+      " which one do you take?";
+  },
+
+  rejouer_production: () => "Which green card replays its production effect?",
 };
 
 /** L'intitulé anglais de la décision en cours. */
@@ -152,17 +242,17 @@ export function question(d) {
 const ACTIONS = {
   "Forêt (MC)": "Forest (MC)",
   "Forêt (plantes)": "Forest (plants)",
-  "Température (MC)": "Temp (MC)",
-  "Température (chaleur)": "Temp (heat)",
+  "Température (MC)": "Temperature (MC)",
+  "Température (chaleur)": "Temperature (heat)",
   "Océan (MC)": "Ocean (MC)",
   "Défausser 1 carte pour du MC": "Discard 1 card for MC",
-  "Action de la corporation": "Use your Corp card",
+  "Action de la corporation": "Use your Corporation card",
 };
 
 // Deux libellés d'action sont bâtis par le moteur autour d'un nom de carte.
 const PREFIXES = [
-  ["Action de la carte bleue ", (n) => `Use blue card ${nomLisible(n)}`],
-  ["Action de ", (n) => `Use ${nomLisible(n)}`],
+  ["Action de la carte bleue ", (n) => `Use blue card ${n}`],
+  ["Action de ", (n) => `Use ${n}`],
 ];
 
 const BONUS = {
@@ -189,10 +279,8 @@ export function libelleOption(d, o, i, carte, etat) {
   const brut = o.libelle ?? o.nom ?? o.name ?? "";
 
   switch (d.type) {
-    case "pick_phase": {
-      const st = STAGES[o.phase];
-      return st ? `${st.romain} — ${st.nom}` : `Stage ${o.phase}`;
-    }
+    case "pick_phase":
+      return nomPhase(o.phase);
     case "pick_joker_tag": {
       // Le compte des badges déjà possédés est dans l'état, pas dans la phrase.
       const n = etat?.players?.[d.joueur]?.tags?.[o.badge];
@@ -209,7 +297,95 @@ export function libelleOption(d, o, i, carte, etat) {
       return `Swap all ${n}`;
     }
     case "choose_build":
-      return carte ? `Play ${nomLisible(carte.nom)}` : "Play";
+      return carte ? `Play ${carte.nom}` : "Play";
+
+    // ---------------------------------------------------------------------
+    // LES NATURES QUALIFIÉES. L'intitulé est bâti sur les CHAMPS que l'option
+    // porte, jamais sur la phrase française du moteur.
+    //
+    // Deux natures font exception et se lisent sur l'INDICE de l'option :
+    // `paiement_chaleur` et `defausser_pour_piocher`, dont le pont écrit
+    // lui-même un couple oui/non littéral, dans cet ordre, au même endroit du
+    // fichier (`wasm/src/lib.rs`). L'indice y est le sens, pas un rang de
+    // liste. Chacune le dit sur place. Ailleurs, l'indice ne sert que de
+    // dernier recours quand le descripteur ne porte rien d'autre.
+    // ---------------------------------------------------------------------
+
+    case "amelioration_carte_phase": {
+      // `phase` et `variante` désignent la carte améliorée ; son `nom` est
+      // celui que le moteur en donne (« Research (phase améliorée A) ») et il
+      // est français : on ne l'affiche pas, l'image le dit mieux.
+      //
+      // L'image porte déjà le nom de la phase en toutes lettres, mais PAS la
+      // variante : le mot tient donc en cinq signes, sinon la ligne est coupée
+      // par le milieu et c'est justement la variante qui disparaît.
+      const st = STAGES[o.phase];
+      if (!st || !o.variante) {
+        console.warn("mots.js : amélioration sans phase ni variante —", o);
+        return `Upgrade ${i + 1}`;
+      }
+      return `${st.romain} · variant ${o.variante}`;
+    }
+
+    case "corp_tr_boost":
+      return (o.cout_mc ?? 0) > 0
+        ? `Pay ${o.cout_mc} MC for ${o.pas_nt} TR step${s(o.pas_nt)}`
+        : "Do not pay";
+
+    case "reduction_microbes":
+      return (o.microbes ?? 0) > 0
+        ? `Yes: ${o.reduction_mc} MC off for ${o.microbes} microbe${s(o.microbes)}`
+        : "No: keep the microbes and pay full price";
+
+    case "reduction_plantes":
+      return (o.plantes ?? 0) > 0
+        ? `Yes: ${o.reduction_mc} MC off for ${o.plantes} plant${s(o.plantes)}`
+        : "No: keep the plants and pay full price";
+
+    case "paiement_chaleur":
+      // Couple oui/non que le pont écrit lui-même, dans cet ordre
+      // (`wasm/src/lib.rs`, `ChoiceContext::HeatAsMc`) : l'indice EST le sens.
+      return i === 0 ? "Yes: pay by turning heat into MC" : "No: pay by discarding cards";
+
+    case "defausser_pour_piocher": {
+      // Même couple oui/non littéral que ci-dessus (`ChoiceContext::
+      // DiscardToDraw`) : l'indice est le sens. Le nombre de cartes piochées
+      // n'est pas dans le descripteur, on ne le promet pas.
+      const badge = badgeAnglais(d.badge);
+      return i === 0
+        ? badge
+          ? `Discard a card (its ${badge} tag counts)`
+          : "Discard a card and draw"
+        : "Discard nothing";
+    }
+
+    case "montant_depense":
+      // La quantité vient du moteur (`quantite`), pas du rang de l'option.
+      return `Spend ${o.quantite}`;
+
+    case "rejouer_production":
+      return carte ? `${carte.nom}${gainsProduction(o.production)}` : "Replay";
+
+    case "alternative_carte":
+    case "alternative_action":
+      // Le moteur ne décrit ces branches qu'en français, sans champ structuré
+      // équivalent (voir `outputs/blocked.md`). On désigne donc la branche par
+      // le rang IMPRIMÉ sur la carte — `rang_imprime`, que le descripteur
+      // porte justement pour pouvoir dire « la deuxième proposition DE LA
+      // CARTE » et non « la deuxième de celles qui restent ». La carte est
+      // montrée en grand : son texte imprimé, lui, est anglais.
+      return o.rang_imprime === undefined || o.rang_imprime === null
+        ? `Branch ${i + 1}`
+        : `Printed option ${o.rang_imprime + 1}`;
+
+    case "bonus_selectionneur":
+      // Ici le descripteur ne porte RIEN d'autre qu'un libellé français : pas
+      // de rang imprimé (`wasm/src/lib.rs`, `ChoiceContext::SelectorBonus`).
+      // On ne revendique donc pas un rang qu'on n'a pas — l'indice n'est que
+      // l'ordre d'énumération du moteur, et la carte Phase montrée en grand
+      // porte sa case BONUS, écrite en anglais, dans ce même ordre.
+      return `Bonus ${i + 1}`;
+
     case "action_choice": {
       if (ACTIONS[brut]) return ACTIONS[brut];
       for (const [prefixe, dire] of PREFIXES) {
@@ -222,8 +398,29 @@ export function libelleOption(d, o, i, carte, etat) {
     }
     default:
       // Toutes les autres options sont des cartes : leur nom est déjà anglais.
-      return carte ? nomLisible(carte.nom) : nomLisible(brut);
+      // Sans carte, le seul texte disponible est le libellé français du
+      // moteur : on ne l'affiche pas. Mais on ne rend pas non plus une plaque
+      // MUETTE — un bouton sans texte est un bouton qu'on ne peut pas choisir.
+      // Il se nomme par son rang et le journal du navigateur dit pourquoi.
+      if (carte) return carte.nom;
+      console.warn("mots.js : option sans intitulé anglais —", d.type, brut);
+      return `Option ${i + 1}`;
   }
+}
+
+/**
+ * Ce qu'un rejeu de production RAPPORTE, en anglais, d'après les quatre
+ * compteurs que le moteur pose sur l'option (`production`). Rien n'est calculé
+ * ici : les nombres sont recopiés.
+ */
+function gainsProduction(p) {
+  if (!p) return "";
+  const bouts = [];
+  if (p.mc) bouts.push(`${p.mc} MC`);
+  if (p.chaleur) bouts.push(`${p.chaleur} heat`);
+  if (p.plantes) bouts.push(`${p.plantes} plant${s(p.plantes)}`);
+  if (p.cartes) bouts.push(`${p.cartes} card${s(p.cartes)}`);
+  return bouts.length ? " — " + bouts.join(", ") : "";
 }
 
 /**

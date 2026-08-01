@@ -64,7 +64,7 @@ export function construireJoueurs() {
         <span class="cap"><i>${MOT.titanium}</i><b data-valeur="players.${j}.titanium_capacity">0</b></span>
         <span class="cap cap--foret"><img src="${imageForet()}" alt="forests">
           <b data-valeur="players.${j}.forests">0</b></span>
-        <span class="cap"><i>stage</i><b data-valeur="players.${j}.chosen_phase">0</b></span>
+        <span class="cap"><i>Phase</i><b data-valeur="players.${j}.chosen_phase">0</b></span>
       </div>
 
       <div class="badges" id="badges-${j}"></div>

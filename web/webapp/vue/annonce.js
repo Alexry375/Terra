@@ -52,7 +52,7 @@ export function annoncePhases(etat) {
     c.className = "annonce__phase";
     c.style.setProperty("--teinte", EQUIPAGES[p.player].teinte);
     c.innerHTML =
-      `<img src="${imagePhase(n)}" alt="stage card ${phaseNom(n)}">` +
+      `<img src="${imagePhase(n)}" alt="Phase card ${phaseNom(n)}">` +
       `<span class="annonce__phase-qui">${nomJoueur(p.player)}</span>` +
       `<span class="annonce__phase-nom">${phaseRomain(n)} · ${phaseNom(n)}</span>`;
     d.appendChild(c);

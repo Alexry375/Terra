@@ -141,7 +141,7 @@ function cartesPhase(j, p) {
     if (code) d.classList.add("phase-main--amelioree");
     const im = document.createElement("img");
     im.src = src || imagePhase(n);
-    im.alt = `stage card ${phaseNom(n)}`;
+    im.alt = `Phase card ${phaseNom(n)}`;
     im.draggable = false;
     d.appendChild(im);
     const t = document.createElement("span");
