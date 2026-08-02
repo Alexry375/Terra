@@ -5,7 +5,26 @@
 
 Dernière mise à jour : 2026-08-02
 
-## 🚧 DEUX CHANTIERS EN COURS (02-08, matin) — `table-vivante` et `bandeau-et-monde`
+## 🚧 TROIS CHANTIERS EN COURS (02-08) — `table-vivante`, `bandeau-et-monde`, `menu-et-options`
+
+### `menu-et-options` — scellé et lancé le 02-08 après-midi
+
+7 contrôles visibles, 3 cachés. L'écran d'accueil est refait (Alexis, deux fois :
+« le menu est toujours moche »), un bouton d'options devient atteignable à tout
+instant — reprendre, aide, réglages, retour au menu principal — et l'aide montre
+les quinze faces des cartes Phase, dont les dix améliorées que rien ne permettait
+de consulter. Chantier purement d'affichage : `engine/` et le pont lui sont
+interdits, et le contrôle 07 le vérifie octet pour octet. Trois contrôles cachés :
+la main adverse ne fuit pas, le bouton d'options ne recouvre jamais rien de
+jouable (à trois tailles), et trois allers-retours menu/partie — dont un depuis
+l'écran de fin — sans qu'une partie abandonnée réponde encore ni que le document
+enfle.
+
+Volontairement **hors** de ce chantier, pour ne pas mélanger affichage et règles :
+la sauvegarde de partie, le réglage « ne jamais me proposer de vendre des cartes
+pour payer », les effets sonores.
+
+### Les deux premiers, lancés le matin
 
 Lancés en parallèle après la troisième série de retours d'Alexis. Zones
 volontairement disjointes : le premier tient les mains, les cartes et le milieu
@@ -44,6 +63,47 @@ possible.
    12 px et les pastilles de récompense sont coupées.
    [VÉRIFIÉ 02-08] Le contrat a été corrigé en conséquence, et le contrôle
    mesure le défaut réel.
+
+### Quatre faits mesurés l'après-midi, sur questions d'Alexis
+
+4. **Vendre des cartes pour payer est une règle officielle, pas un défaut.**
+   Défausser une carte de sa main rapporte 3 MC pour compléter un paiement
+   (`engine/src/state.rs:32` `SELL_CARD_MC = 3`, appliqué en
+   `engine/src/flow.rs:2342-2369`, le commentaire cite le livret p. 13).
+   [VÉRIFIÉ 02-08] Alexis préférerait qu'une action trop chère soit simplement
+   indisponible. Je le lui ai déconseillé : son ami jouera la vraie règle, et
+   une intelligence artificielle entraînée sans elle ne saurait pas la voir
+   venir. Ma proposition, qui couvre sa demande sans amputer le moteur : vente
+   **volontaire** (on peut refuser et renoncer à la construction), choix des
+   cartes par le joueur, et un réglage « ne jamais me proposer de vendre » qui
+   la fait disparaître pour de bon. En attente de sa décision.
+5. **Le joueur ne choisit pas quelles cartes partent.** Le moteur prend les
+   **dernières de la main** (`engine/src/flow.rs:2354`, choix assumé pour la
+   sonde séquence). [VÉRIFIÉ 02-08]
+6. **Le prix réduit n'est affiché nulle part, et n'est même pas transmis.** Le
+   module qui dessine une carte lit un prix mais ne l'écrit jamais
+   (`web/webapp/vue/cartes.js:20`), et le pont ne publie que le prix **imprimé**
+   (`web/webapp/wasm/src/lib.rs:693`) : aucune des cinq sources de réduction
+   (badges, carte suivante, microbes, plantes, titane) n'arrive à l'écran.
+   [VÉRIFIÉ 02-08] Chantier 4 : publier le prix effectif depuis le **même**
+   service que celui qui prélève l'argent, jamais un second calcul dans la page.
+7. **La température est affichée en crans, pas en degrés.** Le moteur compte des
+   niveaux 0 à 19 (`engine/src/state.rs:19`, « index 19 == +8 °C »), et l'écran
+   recopie ce numéro tel quel (`web/webapp/vue/monde.js:66`). Le joueur lit
+   « 3 / 19 » là où le jeu dit « −24 °C ». [VÉRIFIÉ 02-08] L'oxygène (0-14 %) et
+   les océans (0-9) sont, eux, dans leur vraie unité. À vérifier à l'audit de
+   `bandeau-et-monde` : le contrat impose l'arc gradué de −30 à +8, mais pas la
+   correction du chiffre écrit à côté.
+
+### Une faiblesse de mes propres contrôles, trouvée sur question d'Alexis
+
+Aucun des 7 contrôles visibles de `bandeau-et-monde` ne vérifiait **de quel
+côté** chaque arc se trouve : deux arcs empilés du même bord auraient été
+acceptés. Contrôle caché ajouté le 02-08 après le scellement,
+`03-chacun-son-bord.sh` : température dans la moitié gauche, oxygène dans la
+moitié droite, sans recouvrement mutuel ni recouvrement de la main, à trois
+tailles. Le contrat, lui, le disait déjà noir sur blanc — c'est le contrôle qui
+manquait, pas la consigne.
 
 ## 🎭 LE CADRE DE JEU EXISTE (02-08) — `cadre-de-jeu`, audité OK (6/6 et 4/4) et promu
 
