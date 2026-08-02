@@ -104,11 +104,16 @@ keep one additional card » — un effet, jamais une action. Sa définition dans
 moteur est pourtant correcte : `atrig: []`, c'est-à-dire aucune action
 déclenchable (`engine/src/effects.rs:2223`).
 
-**Au moins huit cartes** sont concernées : Adaptation Technology, Composting
-Factory, Extended Resources, Interns, Mars University, Restructured Resources,
-Standard Technology, United Planetary Alliance. [DÉCLARÉ — mon relevé n'a su
-analyser que 73 des 90 cartes bleues, le compte réel est probablement plus
-élevé ; à refaire proprement.]
+**Soixante-deux cartes** sont concernées, sur les 101 cartes bleues que le moteur
+charge : seules 39 portent réellement une action. [VÉRIFIÉ 02-08 — relevé
+directement dans le moteur, en comptant les cartes bleues dont la fiche d'effet
+ne déclare aucune action (`engine/src/cards.rs:224`, champ `effect.action`), et
+non plus par lecture du texte des cartes.]
+
+Mon premier relevé annonçait « au moins huit » cartes : il n'avait su analyser
+que 73 des 90 cartes bleues qu'il croyait devoir examiner, et il lisait le texte
+imprimé au lieu d'interroger le moteur. Le compte réel est près de huit fois plus
+élevé.
 
 Gravité : ce n'est pas cosmétique. Un joueur peut gâcher son unique activation de
 la manche, et surtout l'intelligence artificielle à venir devra apprendre à
