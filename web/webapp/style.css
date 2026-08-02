@@ -37,6 +37,15 @@
   --brume: 0;
   --niveau-mer: 7%;
   --teinte: var(--braise);
+
+  /* LES TROIS HAUTEURS DU CADRE. Elles sont écrites ICI parce que trois choses
+     s'en servent : la grille de la page, la bande adverse et la mienne, et la
+     scène qui « couvre la table » — laquelle doit s'arrêter avant les deux
+     mains, sinon elle recouvre justement ce que ce chantier existe pour
+     montrer. */
+  --h-bandeau: clamp(54px, 7.8vh, 78px);
+  --h-adverse: clamp(104px, 13vh, 132px);
+  --h-mienne: clamp(146px, 18vh, 182px);
 }
 
 * { box-sizing: border-box; }
@@ -44,12 +53,21 @@
 html, body { height: 100%; }
 html { overflow: hidden; }
 
-/* LA MISE EN PAGE — le plateau d'abord.
+/* LA MISE EN PAGE — un seul point de vue, de haut en bas.
  *
- * L'écran est une table vue de dessus. De haut en bas : le bandeau de la
- * planète, le joueur d'en face (sa barre puis son plateau, en vis-à-vis), la
- * scène où se pose la décision, puis son propre plateau et sa barre. Sur les
- * côtés, ses deux mains : les cartes Phase à gauche, les cartes projet à droite.
+ * L'écran est une table vue depuis MON siège. De haut en bas : le bandeau de la
+ * planète, la main de l'adversaire (retournée), sa barre, son plateau en
+ * vis-à-vis, la scène où se pose ma décision, mon plateau, ma barre, et ma main
+ * en clair tout en bas. Les deux bords, gauche et droit, ne portent que des
+ * panneaux étroits — les phases choisies à gauche, la planche des océans à
+ * droite — et leur MOITIÉ HAUTE reste entièrement libre : c'est la place
+ * réservée aux jauges de température et d'oxygène, qui font l'objet d'un
+ * chantier à part. Le décor martien, lui, doit rester visible entre les
+ * panneaux.
+ *
+ * QUEL JOUEUR EST EN BAS ? Celui que `?siege=` désigne — jamais « le joueur 0 ».
+ * `body[data-siege]` porte la réponse, et les huit règles ci-dessous sont les
+ * SEULES qui placent un plateau ou une barre.
  *
  * Tout est posé dans une grille de la taille de l'écran, et RIEN n'en sort :
  * chaque plateau se réduit pour tenir dans la case qu'on lui laisse
@@ -65,28 +83,69 @@ body {
   -webkit-font-smoothing: antialiased;
 
   display: grid;
-  grid-template-columns: clamp(112px, 11vw, 172px) minmax(0, 1fr) clamp(190px, 18.5vw, 292px);
+  grid-template-columns: clamp(92px, 9vw, 134px) minmax(0, 1fr) clamp(92px, 9vw, 134px);
   grid-template-rows:
-    clamp(54px, 7.8vh, 78px)   /* le bandeau de la planète */
+    var(--h-bandeau)            /* le bandeau de la planète */
+    var(--h-adverse)            /* la main de l'adversaire, retournée */
     auto                        /* la barre du joueur d'en face */
-    minmax(0, 1fr)              /* son plateau */
-    clamp(168px, 29vh, 292px)   /* la bande de décision */
-    minmax(0, 1fr)              /* son propre plateau */
-    auto;                       /* sa barre */
+    minmax(0, 1fr)              /* son plateau, en vis-à-vis */
+    clamp(150px, 24vh, 248px)   /* la bande de décision */
+    minmax(0, 1fr)              /* mon plateau */
+    auto                        /* ma barre */
+    var(--h-mienne);            /* ma main, en clair */
   column-gap: 10px;
   row-gap: 6px;
   padding: 0 12px 8px;
 }
 
 #horizon      { grid-column: 1 / 4; grid-row: 1; }
-#main-phases  { grid-column: 1; grid-row: 2 / 5; }
-#oceans       { grid-column: 1; grid-row: 5 / 7; }
-#main-projets { grid-column: 3; grid-row: 2 / 7; }
-#equipage-1   { grid-column: 2; grid-row: 2; }
-#plateau-1    { grid-column: 2; grid-row: 3; }
-#scene        { grid-column: 2; grid-row: 4; }
-#plateau-0    { grid-column: 2; grid-row: 5; }
-#equipage-0   { grid-column: 2; grid-row: 6; }
+#main-adverse { grid-column: 2; grid-row: 2; }
+#scene        { grid-column: 2; grid-row: 5; }
+#main-mienne  { grid-column: 1 / 4; grid-row: 8; }
+#phases       { grid-column: 1; grid-row: 5 / 8; }
+#oceans       { grid-column: 3; grid-row: 5 / 8; }
+
+/* Le siège regardé s'assoit en bas, l'autre en face. Le siège 0 est la
+   disposition PAR DÉFAUT — sans attribut, la page reste montée ; `?siege=1`
+   échange les deux, et ces quatre lignes-là sont tout ce qui l'en distingue. */
+#equipage-1 { grid-column: 2; grid-row: 3; }
+#plateau-1  { grid-column: 2; grid-row: 4; }
+#plateau-0  { grid-column: 2; grid-row: 6; }
+#equipage-0 { grid-column: 2; grid-row: 7; }
+body[data-siege="1"] #equipage-0 { grid-column: 2; grid-row: 3; }
+body[data-siege="1"] #plateau-0  { grid-column: 2; grid-row: 4; }
+body[data-siege="1"] #plateau-1  { grid-column: 2; grid-row: 6; }
+body[data-siege="1"] #equipage-1 { grid-column: 2; grid-row: 7; }
+
+/* Le demi-tour du plateau suit le SIÈGE, pas le numéro du joueur : c'est
+   `plateau.js` qui pose `data-vis-a-vis` à chaque rendu, et la règle qui
+   retourne la table vit avec les plateaux (section « LE PLATEAU DE JEU »). */
+
+/* ====================================================== LE SOL DE LA TABLE */
+
+/* LE DÉCOR CHOISI (01-08) : la plaine martienne de Granicus Valles, photographiée
+   par HiRISE. Elle est posée à même la fenêtre, sous tout le reste.
+   Mention obligatoire à l'écran : voir `.credit` et
+   `assets/plateau/CREDITS-sol-martien.md`. */
+#sol {
+  position: fixed; inset: 0; z-index: -2;
+  background-image: url("./assets/plateau/sol-martien-granicus-valles-nasa.jpg");
+  background-size: cover;
+  background-position: center 46%;
+}
+
+/* LE VOILE — il sépare la photographie des cartes. La formule du dégradé est
+   celle de la page de comparaison (`web/demo-decor/`, règle `#scene::before`),
+   reprise telle quelle ; Alexis a tranché pour « léger », c'est-à-dire 30 % de
+   son intensité. Sans voile, aucune carte ne se lit sur le sable ; à pleine
+   intensité, le décor disparaît. */
+#voile {
+  position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(120% 90% at 50% 40%, rgba(0, 0, 0, .10) 0%, rgba(0, 0, 0, .62) 100%),
+    linear-gradient(180deg, rgba(2, 5, 12, .55) 0%, rgba(2, 5, 12, .18) 32%, rgba(2, 5, 12, .72) 100%);
+  opacity: .3;
+}
 
 img { display: block; user-select: none; -webkit-user-drag: none; }
 
@@ -152,12 +211,12 @@ img { display: block; user-select: none; -webkit-user-drag: none; }
 
 #horizon {
   display: grid;
-  grid-template-columns: 72px 1fr 1fr 1fr auto auto;
+  grid-template-columns: 72px 1fr 1fr 1fr auto auto auto;
   align-items: stretch;
   gap: 16px;
   padding: 6px 14px 4px;
   border-bottom: 1px solid var(--trait);
-  background: linear-gradient(180deg, rgba(6, 8, 14, .58), rgba(6, 8, 14, .30));
+  background: linear-gradient(180deg, rgba(4, 6, 11, .90), rgba(4, 6, 11, .66));
 }
 
 .manche { display: flex; flex-direction: column; justify-content: center; }
@@ -238,6 +297,17 @@ img { display: block; user-select: none; -webkit-user-drag: none; }
   border: 1px solid var(--trait); background: rgba(6, 8, 14, .4);
 }
 .masque-vp:hover { color: var(--os); border-color: var(--os-tres-faible); }
+
+/* Le crédit de la photographie du sol : petit, mais TOUJOURS lisible. C'est une
+   obligation de licence, pas une décoration — il ne se cache jamais. */
+.credit {
+  align-self: center; max-width: 160px;
+  /* PAS de `text-transform` : la mention exigée par la licence s'écrit
+     « NASA / JPL / University of Arizona », telle quelle. La déformer en
+     capitales, ce n'est plus la citer. */
+  font-size: 8.5px; letter-spacing: .06em; line-height: 1.35;
+  color: var(--os-faible); text-shadow: 0 1px 3px #000;
+}
 .masque-vp input { width: 15px; height: 15px; accent-color: var(--or); cursor: pointer; }
 
 /* Les points de victoire masqués : ils disparaissent des DEUX barres, et
@@ -269,7 +339,7 @@ html[data-pv-masques="oui"] [data-role="vp"] { display: none; }
 .plateau {
   position: relative; min-width: 0; min-height: 0; overflow: hidden;
   border-top: 1px solid var(--trait);
-  background: linear-gradient(180deg, rgba(6, 8, 14, .34), rgba(6, 8, 14, .12));
+  background: linear-gradient(180deg, rgba(4, 6, 11, .74), rgba(4, 6, 11, .5));
 }
 .plateau--actif {
   border-top-color: var(--teinte);
@@ -318,7 +388,7 @@ html[data-pv-masques="oui"] [data-role="vp"] { display: none; }
   position: relative; min-height: 0; overflow: hidden; cursor: zoom-in;
   padding: 4px 6px;
   border-top: 1px solid var(--trait);
-  background: linear-gradient(180deg, rgba(6, 8, 14, .5), rgba(6, 8, 14, .2));
+  background: linear-gradient(180deg, rgba(4, 6, 11, .84), rgba(4, 6, 11, .58));
 }
 .oceans__mot {
   display: block; font-size: 8.5px; letter-spacing: .2em; text-transform: uppercase;
@@ -351,7 +421,7 @@ html[data-pv-masques="oui"] [data-role="vp"] { display: none; }
   display: flex; align-items: center;
   padding: 4px 10px; height: clamp(46px, 6.6vh, 66px);
   min-width: 0; overflow: hidden;
-  background: linear-gradient(180deg, rgba(6, 8, 14, .62), rgba(6, 8, 14, .34));
+  background: linear-gradient(180deg, rgba(4, 6, 11, .88), rgba(4, 6, 11, .68));
   border-left: 3px solid rgba(239, 228, 212, .1);
 }
 .equipage__rang {
@@ -441,28 +511,71 @@ html[data-pv-masques="oui"] [data-role="vp"] { display: none; }
 
 /* =============================================================== LES MAINS */
 
-.main { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
+/* Deux bandes, et deux seulement : la mienne en bas, en clair ; celle de
+   l'adversaire en haut, retournée. Elles ne se croisent jamais et ne changent
+   pas de place en cours de partie — c'est la lisibilité de la partie. */
+.main {
+  position: relative; min-width: 0; min-height: 0; overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.main__tete {
+  display: flex; align-items: baseline; gap: 12px; flex: 0 0 auto;
+  padding: 2px 10px 3px;
+}
 .main__mot {
-  position: absolute; top: 2px; left: 6px; right: 6px; z-index: 3;
   font-size: 8.5px; letter-spacing: .2em; text-transform: uppercase;
   color: var(--os-faible); pointer-events: none;
 }
+/* Le rang de cartes. `--serrage` est posé par `mains.js` : positif, c'est un
+   écart ; négatif, c'est le recouvrement calculé pour que la main tienne dans
+   la largeur SANS que les cartes rétrécissent. */
+.main__rang {
+  flex: 1 1 auto; min-height: 0;
+  display: flex; align-items: flex-start; justify-content: center;
+}
+.main__rang > * + * { margin-left: var(--serrage, 10px); }
 
-/* La main de projets, tenue en éventail, décalée vers la droite de l'écran. */
-.main--projets {
-  border-left: 1px solid var(--trait);
-  background: linear-gradient(270deg, rgba(6, 8, 14, .5), transparent);
+/* ---- ma main, en bas ---- */
+.main--mienne {
+  border-top: 1px solid var(--trait);
+  background: linear-gradient(0deg, rgba(4, 6, 11, .92), rgba(4, 6, 11, .58));
 }
-.main__arc { position: absolute; inset: 18px 0 6px; --cw: 112px; --ch: 156px; }
-.main__arc .carte--main {
-  position: absolute; right: 104px; top: calc(50% - var(--ch) / 2);
-  width: var(--cw); height: var(--ch);
-  transform-origin: var(--pivot, 460px) 50%;
-  transform: rotate(var(--angle, 0deg));
-  transition: filter 160ms ease;
+.main--mienne .carte--main img { width: 116px; border-radius: 4px; }
+.main--mienne .carte--main { transition: transform 140ms ease; }
+.main--mienne .carte--main:hover { transform: translateY(-10px); z-index: 999; }
+
+/* ---- la main de l'adversaire, en haut, retournée ---- */
+.main--adverse {
+  border-bottom: 1px solid var(--trait);
+  background: linear-gradient(180deg, rgba(4, 6, 11, .9), rgba(4, 6, 11, .54));
 }
-.main__arc .carte--main img { width: 100%; border-radius: 4px; }
-.main__arc .carte--main:hover { z-index: 999 !important; }
+.main--adverse .carte--adverse img { width: 62px; border-radius: 3px; opacity: .92; }
+
+/* IL AGIT, ET ON NE SAIT PAS QUOI. Le mot dit la NATURE de sa décision ; les dos
+   respirent tant qu'elle dure. Rien d'autre ne sort de cette zone. */
+.main__agit {
+  font-size: 9px; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--or); opacity: 0; transition: opacity 160ms ease;
+}
+/* À la mise en place, l'adversaire ne tient encore aucune carte projet : la zone
+   n'a alors aucun dos à faire respirer. C'est le MOT qui bat — sans quoi « il
+   agit » ne se verrait pas du tout à ce moment précis, qui est justement celui
+   des choix simultanés. */
+.main--adverse[data-agit="oui"] .main__agit {
+  opacity: 1; animation: agit-bat 1400ms ease-in-out infinite;
+}
+@keyframes agit-bat { 0%, 100% { opacity: 1; } 50% { opacity: .38; } }
+.main--adverse[data-agit="oui"] {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--or) 14%, rgba(6, 8, 14, .72)),
+              rgba(6, 8, 14, .16));
+}
+.main--adverse[data-agit="oui"] .carte--adverse { animation: adverse-agit 900ms ease-in-out infinite; }
+.main--adverse[data-agit="oui"] .carte--adverse:nth-child(2n) { animation-delay: 140ms; }
+.main--adverse[data-agit="oui"] .carte--adverse:nth-child(3n) { animation-delay: 280ms; }
+@keyframes adverse-agit {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
 
 /* CE QU'ON PEUT JOUER : un contour vert franc, et rien d'autre ne l'a. Ce que
    ce contour désigne est exactement ce que le moteur vient d'énumérer. */
@@ -475,39 +588,47 @@ html[data-pv-masques="oui"] [data-role="vp"] { display: none; }
 }
 .carte--main[data-jouable="non"] img { filter: grayscale(.34) brightness(.74); }
 
-/* La seconde main : les cinq cartes Phase, à gauche. */
-.main--phases {
-  border-right: 1px solid var(--trait);
-  background: linear-gradient(90deg, rgba(6, 8, 14, .5), transparent);
+/* ================================================ LES PHASES DE LA MANCHE */
+
+/* Une ou deux cartes, jamais cinq : celles qui ont été choisies. Celle qui se
+   joue est allumée, l'autre attend son tour, éteinte. */
+#phases {
+  position: relative; min-width: 0; min-height: 0; overflow: hidden;
+  display: flex; flex-direction: column; justify-content: center; gap: 8px;
+  padding: 6px 2px;
 }
-/* Les cinq cartes se partagent la hauteur disponible : sur un écran bas, elles
-   RÉTRÉCISSENT — aucune n'est coupée, aucune ne sort du bord. */
-.phases-main {
-  position: absolute; inset: 18px 6px 6px;
-  display: flex; flex-direction: column; justify-content: space-between; gap: 4px;
+.phases__mot {
+  font-size: 8px; letter-spacing: .18em; text-transform: uppercase;
+  text-align: center; color: var(--os-faible); text-shadow: 0 1px 3px #000;
 }
-.phase-main {
-  position: relative; align-self: center;
-  flex: 1 1 0; min-height: 0; max-width: 82px;
-  display: flex; align-items: center; justify-content: center;
+.phases__rang {
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  min-height: 0;
 }
-.phase-main img {
-  height: 100%; width: auto; max-width: 100%; object-fit: contain;
-  border-radius: 3px; filter: grayscale(.7) brightness(.55);
+.phase {
+  position: relative; width: 100%; max-width: 104px;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
 }
-.phase-main__mot {
-  position: absolute; top: 2px; left: 4px;
-  font-family: "TerraChiffre", monospace; font-size: 11px; color: #fff;
-  text-shadow: 0 1px 4px #000, 0 0 8px #000;
+.phase img {
+  width: 100%; border-radius: 3px;
+  filter: grayscale(.8) brightness(.42);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .6);
+  transition: filter 260ms ease, box-shadow 260ms ease;
 }
-.phase-main--precedente img { filter: grayscale(.9) brightness(.34); }
-.phase-main--precedente::after {
-  content: ""; position: absolute; inset: 0;
-  background: repeating-linear-gradient(45deg, rgba(0,0,0,.5) 0 5px, transparent 5px 10px);
+.phase[data-phase-en-cours="oui"] img {
+  filter: none;
+  box-shadow: 0 0 0 2px var(--or), 0 0 26px rgba(237, 181, 78, .55);
 }
-.phase-main--choisie img { filter: none; }
-.phase-main--choisie { box-shadow: 0 0 0 2px var(--or), 0 0 20px rgba(237, 181, 78, .5); }
-.phase-main--amelioree img { box-shadow: 0 0 0 1px rgba(237, 181, 78, .55); }
+.phase__mot {
+  font-size: 8px; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--os-faible); text-align: center; text-shadow: 0 1px 3px #000;
+}
+.phase[data-phase-en-cours="oui"] .phase__mot { color: var(--or); }
+.phase__qui { display: flex; gap: 5px; }
+.phase__qui i {
+  font-family: "TerraChiffre", monospace; font-style: normal; font-size: 10px;
+  color: var(--teinte); text-shadow: 0 1px 3px #000;
+}
 
 /* ================================================================ LES CARTES */
 
@@ -542,21 +663,34 @@ html[data-pv-masques="oui"] [data-role="vp"] { display: none; }
   padding: 6px 0 4px;
   border-top: 1px solid var(--trait);
   border-bottom: 1px solid var(--trait);
-  background: linear-gradient(180deg, rgba(6, 8, 14, .46), rgba(6, 8, 14, .22));
+  background: linear-gradient(180deg, rgba(4, 6, 11, .86), rgba(4, 6, 11, .68));
 }
 
 /* Les moments particuliers — remplacement des cartes de départ, choix de la
    corporation — se posent EN GRAND par-dessus la table. Le fond n'est pas
    opaque : les deux plateaux restent visibles dessous. */
+/* Elle s'arrête AVANT les deux mains : ma main doit rester lisible sous mon
+   choix, et l'adversaire doit rester visible en train d'agir au-dessus — c'est
+   exactement ce que demandent les choix simultanés. */
 #scene[data-mode="superposition"] {
-  position: fixed; inset: 5vh 8vw; z-index: 78;
+  position: fixed; z-index: 78;
+  inset: calc(var(--h-bandeau) + var(--h-adverse) + 10px) 6vw
+         calc(var(--h-mienne) + 10px);
   padding: 18px 24px;
-  background: linear-gradient(180deg, rgba(6, 8, 14, .84), rgba(6, 8, 14, .72));
+  background: linear-gradient(180deg, rgba(4, 6, 11, .95), rgba(4, 6, 11, .88));
   box-shadow: 0 40px 120px rgba(0, 0, 0, .85), 0 0 0 1px var(--trait);
 }
 /* Au choix de la corporation, la carte est déjà énorme : la loupe n'y ajoute
    rien et gêne (elle est débranchée dans `scene.js`). Le léger soulèvement au
    survol, lui, reste — il dit ce que le curseur vise. */
+
+/* QUAND C'EST L'ADVERSAIRE QUI PARLE, la scène s'éteint à demi : ma dernière
+   question y reste posée — l'écran ne se vide pas sous mes yeux — mais plus rien
+   n'y attend de réponse, et le regard va à la bande du haut, où lui agit.
+   `data-actif` porte le joueur qui décide, `data-siege` celui que je regarde :
+   la comparaison des deux se fait ici, sans une ligne de script. */
+body[data-siege="0"][data-actif="1"] #scene,
+body[data-siege="1"][data-actif="0"] #scene { opacity: .42; }
 
 /* Décor et titre ne reçoivent aucun clic : ils ne portent rien de cliquable, et
    ils ne doivent jamais pouvoir s'interposer devant un choix. */

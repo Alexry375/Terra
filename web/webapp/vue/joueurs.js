@@ -15,6 +15,7 @@ import {
 import { carte } from "./cartes.js";
 import { survolable } from "./loupe.js";
 import { ref, poser, poserValeur } from "./ecrire.js";
+import { estPlanification } from "./phases.js";
 import { MOT } from "./mots.js";
 
 const RESERVES = [
@@ -113,6 +114,33 @@ export function construireJoueurs() {
 }
 
 /**
+ * La corporation du siège `j` est-elle publique pour qui regarde `siege` ?
+ *
+ * PRÉDICAT PUR, comme `estPlanification` pour les phases : il ne lit que l'état
+ * qu'on lui passe, jamais une variable posée par un autre module — sans quoi il
+ * dépendrait de l'ordre dans lequel l'écran se réécrit.
+ *
+ * Le livret (`docs/regles/livret-base.md` l. 211) distribue les Corporations
+ * FACE CACHÉE, deux par joueur ; chacun choisit la sienne parmi ses deux, et
+ * l'étape 9 (l. 215) les révèle ensemble. Le moteur, lui, pose la question aux
+ * deux joueurs L'UN APRÈS L'AUTRE et installe la corporation du premier avant
+ * d'interroger le second : celui-ci choisissait donc en connaissant celle d'en
+ * face — un avantage que la table ne donne pas.
+ *
+ * Le moment se lit dans l'état seul, et c'est le plus sûr : ma corporation est
+ * posée à l'instant exact où je réponds, et le moteur ne la retire jamais. Tant
+ * que je n'ai pas la mienne, celle d'en face n'a pas été révélée. La décision
+ * n'apprendrait rien de plus ici — le type de question ne dit pas si j'ai déjà
+ * répondu à la mienne.
+ */
+export function corporationRevelee(etat, siege, j) {
+  // La sienne lui appartient : on ne la lui cache jamais.
+  if (j === siege) return true;
+  const moi = etat.players.find((p) => p.player === siege);
+  return !!(moi && moi.corporation);
+}
+
+/**
  * LA BARRE SE MET À L'ÉCHELLE, ELLE NE SE COUPE PAS. Sur un écran étroit, la
  * ligne d'un joueur (réserves, production, capacités, badges, VP) ne tient plus
  * dans la largeur. Plutôt que d'en rogner la fin — les points de victoire
@@ -132,8 +160,14 @@ export function replacerBarres() {
   }
 }
 
-/** Réécrit les deux barres à partir de l'état. */
-export function majJoueurs(etat, decision) {
+/**
+ * Réécrit les deux barres à partir de l'état.
+ *
+ * @param {number} siege  le siège regardé — sa phase choisie lui appartient,
+ *                        celle d'en face attend la révélation.
+ */
+export function majJoueurs(etat, decision, siege) {
+  const planifie = estPlanification(decision);
   for (const p of etat.players) {
     const j = p.player;
     const a = ref("#equipage-" + j);
@@ -145,7 +179,18 @@ export function majJoueurs(etat, decision) {
     poserValeur(`players.${j}.forests`, p.forests);
     poserValeur(`players.${j}.steel_capacity`, p.steel_capacity);
     poserValeur(`players.${j}.titanium_capacity`, p.titanium_capacity);
-    poserValeur(`players.${j}.chosen_phase`, p.chosen_phase || 0);
+    // LA PHASE D'EN FACE N'EST PUBLIQUE QU'APRÈS LA RÉVÉLATION, ici comme dans
+    // la bande (`vue/phases.js`) et dans l'annonce. Le marqueur `data-valeur`
+    // reste posé — il est le contrat —, mais tant que la manche se planifie la
+    // case affiche 0, comme avant tout choix. Sans cela, `chosen_phase` étant
+    // rémanent, le siège interrogé en SECOND lisait ici la carte que
+    // l'adversaire venait de poser face cachée, et choisissait la sienne en la
+    // connaissant : mesuré 43 planifications sur 43 (graine 911, siège 1),
+    // toutes différentes de la valeur de fin de manche précédente — donc bien
+    // le choix du moment, pas une rémanence. La valeur redevient publique dès
+    // la révélation, c'est-à-dire pendant presque toute la manche.
+    const attendRevelation = planifie && j !== siege;
+    poserValeur(`players.${j}.chosen_phase`, attendRevelation ? 0 : (p.chosen_phase || 0));
     for (const [cle] of RESERVES) poserValeur(`players.${j}.${cle}`, p[cle]);
     for (const [cle] of PRODUCTIONS) {
       const e = ref(`[data-valeur="players.${j}.production.${cle}"]`);
@@ -157,13 +202,21 @@ export function majJoueurs(etat, decision) {
 
     // La corporation est montrée par son SCAN, jamais par son nom écrit : six
     // cartes du jeu s'appellent « … Corporation », et l'écran est en anglais.
+    //
+    // CELLE D'EN FACE N'ENTRE PAS DANS LA PAGE TANT QUE JE N'AI PAS CHOISI LA
+    // MIENNE. Un nom vide, et la zone reste ce qu'elle était avant tout choix :
+    // rien à lire, rien à survoler, `data-corpo` vide. On ne se contente pas de
+    // masquer la carte — son nom voyageait par TROIS chemins à la fois
+    // (`data-corpo`, l'`alt` de l'image, et le nom de fichier du scan), et une
+    // information cachée mais présente reste une information donnée.
+    const nom = corporationRevelee(etat, siege, j) ? (p.corporation || "") : "";
     const z = ref("#corpo-carte-" + j);
-    if (z.dataset.corpo !== (p.corporation || "")) {
-      z.dataset.corpo = p.corporation || "";
+    if (z.dataset.corpo !== nom) {
+      z.dataset.corpo = nom;
       z.textContent = "";
-      if (p.corporation) {
-        const f = carte({ nom: p.corporation }, { classe: "carte--corpo" });
-        survolable(f, { nom: p.corporation });
+      if (nom) {
+        const f = carte({ nom }, { classe: "carte--corpo" });
+        survolable(f, { nom });
         z.appendChild(f);
       }
     }

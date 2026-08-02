@@ -92,6 +92,16 @@ export function fermerScene() {
   figer();
 }
 
+/**
+ * RÉPONDRE SANS CLIC — le siège regardé est tenu par un programme
+ * (`?decide=programme`). La scène est posée comme pour un humain : on la voit se
+ * remplir, puis la réponse tombe. Le chemin est le MÊME que celui du clic, à
+ * l'origine du geste près.
+ */
+export function repondrePourLeSiege(reponse) {
+  repondre(reponse);
+}
+
 function repondre(r) {
   const f = resoudre;
   resoudre = null;

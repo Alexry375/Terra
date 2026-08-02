@@ -39,7 +39,14 @@ export const MOT = {
   plants: "Plants",
   cards: "Draw",
   hand: "Hand",
-  stages: "Phase cards",
+  // Le cadre à un seul point de vue : le siège du bas, l'adversaire en haut.
+  opponent: "Opponent",
+  oneCard: "card",
+  manyCards: "cards",
+  roundPhases: "Phases this round",
+  // Obligation de licence de la photographie du sol (voir
+  // `assets/plateau/CREDITS-sol-martien.md`) : la mention doit se LIRE à l'écran.
+  credit: "Mars surface · NASA / JPL / University of Arizona",
   corp: "Corporation",
   pass: "Pass",
   confirm: "Confirm",
@@ -438,4 +445,31 @@ export function sorteAction(brut) {
   if (brut.startsWith("Température")) return { jeton: "chaleur" };
   if (brut.startsWith("Défausser")) return { jeton: "dos" };
   return null;
+}
+
+// ------------------------------------------------- ce que fait l'adversaire
+
+/**
+ * LES TROIS QUESTIONS QUE LE MOTEUR POSE AUX DEUX JOUEURS pour la même phase.
+ * Il les pose l'une après l'autre ; à l'écran elles doivent se voir ensemble.
+ */
+export const SIMULTANEES = new Set(["corp_mulligan", "project_mulligan", "pick_phase"]);
+
+// CE QU'ON DIT DE SON GESTE. Pour les trois questions posées aux DEUX joueurs,
+// on peut le nommer sans rien lui prendre : la question est la mienne aussi, je
+// la lis en grand au même instant. Partout ailleurs on ne dit QUE le fait qu'il
+// joue — « on voit qu'il agit, jamais quoi ». Nommer « il paie », « il se
+// défausse », « il améliore une carte Phase » serait un fil d'actualité de son
+// tour, et personne ne l'a demandé.
+const AGIT_ENSEMBLE = {
+  corp_mulligan: "choosing Corporation cards",
+  project_mulligan: "choosing project cards",
+  pick_phase: "choosing a Phase card",
+};
+
+const AGIT = "playing";
+
+/** L'action de l'adversaire, en anglais, sans rien dire de son contenu. */
+export function actionAdverse(d) {
+  return (d && AGIT_ENSEMBLE[d.type]) || AGIT;
 }

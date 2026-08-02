@@ -51,9 +51,9 @@ export function construirePlateaux() {
     s.id = "plateau-" + j;
     s.dataset.plateau = String(j);
     s.style.setProperty("--teinte", EQUIPAGES[j].teinte);
-    // Le plateau d'en face est en vis-à-vis, comme de l'autre côté d'une table.
-    // Le survol, lui, rend toujours la carte à l'endroit (voir `loupe.js`).
-    if (j === 1) s.dataset.visAVis = "oui";
+    // Le vis-à-vis n'est PAS écrit ici : il dépend du siège regardé, pas du
+    // numéro du joueur (`majPlateaux`). Le survol, lui, rend toujours la carte à
+    // l'endroit (voir `loupe.js`).
     s.innerHTML =
       `<span class="plateau__mot">${MOT.inPlay} · ${nomJoueur(j)}</span>` +
       `<div class="plateau__cadre"><div class="plateau__piles" id="piles-${j}"></div></div>`;
@@ -112,13 +112,21 @@ export function construireMasqueVP(hote) {
 
 // ------------------------------------------------------------------ le rendu
 
-/** Réécrit les deux plateaux et la carte des océans à partir de l'état. */
-export function majPlateaux(etat, decision) {
+/**
+ * Réécrit les deux plateaux et la carte des océans à partir de l'état.
+ *
+ * @param {number} siege  le joueur assis en bas de l'écran : c'est LUI qui voit
+ *                        sa table à l'endroit, et l'autre de l'autre bord.
+ */
+export function majPlateaux(etat, decision, siege = 0) {
   for (const p of etat.players) {
     const j = p.player;
     const s = ref("#plateau-" + j);
-    if (s) s.classList.toggle("plateau--actif", !!decision && decision.joueur === j);
-    piles(j, p);
+    if (s) {
+      s.classList.toggle("plateau--actif", !!decision && decision.joueur === j);
+      s.dataset.visAVis = j === siege ? "non" : "oui";
+    }
+    piles(j, p, j !== siege);
   }
   oceans(etat.planet.oceans);
 }
@@ -128,10 +136,11 @@ export function majPlateaux(etat, decision) {
  * Rien n'est réécrit tant que rien n'a bougé — l'écran se redessine à chaque
  * décision, et une partie en compte plusieurs centaines.
  */
-function piles(j, p) {
+function piles(j, p, visAVis) {
   const z = ref("#piles-" + j);
   if (!z) return;
-  const signature = p.played.map((c) => `${c.id}:${c.resources ?? 0}`).join("|");
+  const signature =
+    (visAVis ? "f#" : "n#") + p.played.map((c) => `${c.id}:${c.resources ?? 0}`).join("|");
   if (z.dataset.signature === signature) return;
   z.dataset.signature = signature;
   z.textContent = "";
@@ -156,7 +165,7 @@ function piles(j, p) {
     const cartes = parCouleur.get(couleur);
     for (let debut = 0; debut < cartes.length; debut += PAR_PILE) {
       const morceau = cartes.slice(debut, debut + PAR_PILE);
-      const pile = fabriquerPile(j, couleur, morceau, j === 1);
+      const pile = fabriquerPile(j, couleur, morceau, visAVis);
       z.appendChild(pile.noeud);
       largeurTotale += pile.largeur + ECART;
       hauteurTotale = Math.max(hauteurTotale, pile.hauteur);

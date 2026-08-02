@@ -14,7 +14,10 @@ dit rien du marquage de la MAIN. Ce banc-ci le dit :
 Depuis la racine du workspace :  python3 outputs/verif/jouable.py [graine]
 """
 import sys
-sys.path.insert(0, "inputs/checks")
+# Le module de pilotage vit a cote de ce banc dans le depot ; on l'importe par
+# le chemin de CE fichier, pour que le banc tourne de n'importe ou.
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from pilote import serveur, page, jouer, echec
 
 LECTURE = """
@@ -22,7 +25,8 @@ LECTURE = """
   // Hors décision (partie terminée), la main ne porte aucun marquage : il n'y a
   // rien à jouer, et un marquage sans décision serait un mensonge.
   if (!document.querySelector('[data-decision-rang]')) return { main: [] };
-  const main = [...document.querySelectorAll('#arc .carte--main')];
+  // La main du siege regarde, en bas de l'ecran (cadre a un seul point de vue).
+  const main = [...document.querySelectorAll('[data-main="mienne"] .carte--main')];
   const opt = [...document.querySelectorAll('[data-choix][data-carte-id]')]
       .filter(e => e.offsetParent !== null).map(e => e.getAttribute('data-carte-id'));
   return {
@@ -37,7 +41,7 @@ LECTURE = """
 
 graine = sys.argv[1] if len(sys.argv) > 1 else "77"
 ecarts, sans, vus, marquees = [], 0, 0, 0
-with serveur("outputs/web/webapp") as base:
+with serveur(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")) as base:
     with page(f"{base}/?graine={graine}&boites=base,decouverte") as (pg, erreurs, _):
         def controle(p, rang):
             global sans, vus, marquees

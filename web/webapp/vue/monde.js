@@ -37,6 +37,21 @@ export function construireMonde() {
     <div class="ciel__vignette"></div>`;
   frag.appendChild(ciel);
 
+  // LE SOL MARTIEN — la table est posée sur une photographie, pas sur un
+  // dégradé. Le décor a été choisi par Alexis le 01-08 parmi six propositions
+  // (Granicus Valles, HiRISE). Le VOILE qui le sépare des cartes est un élément
+  // à part : sans lui la photo passe sous les cartes et plus rien ne se lit ;
+  // trop dense, le décor disparaît. Il s'éteint tout seul si on le retire du
+  // document, ce qui rend son effet mesurable de l'extérieur (`data-voile`).
+  const sol = document.createElement("div");
+  sol.id = "sol";
+  frag.appendChild(sol);
+
+  const voile = document.createElement("div");
+  voile.id = "voile";
+  voile.dataset.voile = "";
+  frag.appendChild(voile);
+
   const h = document.createElement("header");
   h.id = "horizon";
   h.innerHTML = `
@@ -75,7 +90,12 @@ export function construireMonde() {
     <section class="tuiles-honneur">
       <div class="tuiles-honneur__rang" id="jalons"></div>
       <div class="tuiles-honneur__rang" id="recompenses"></div>
-    </section>`;
+    </section>
+
+    <!-- La mention de la photographie du sol est une CONDITION D'USAGE de
+         l'image, pas une décoration : elle se lit à l'écran, en toutes lettres,
+         à tout instant de la partie. -->
+    <span class="credit" id="credit">${MOT.credit}</span>`;
   frag.appendChild(h);
   // La case qui masque les points de victoire vit dans le bandeau : elle doit
   // rester atteignable à tout instant de la partie.
