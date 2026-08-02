@@ -859,3 +859,70 @@ boîte de base passe donc avant d'implanter les effets de Découverte** — ce s
 plusieurs lots, certaines des 62 réclamant des mécanismes absents (acier et
 titane comme monnaies, actions standard, cartes jouées en supplément).
 Recommandation posée à Alexis, réponse en attente.
+
+## 2026-07-28 → 2026-07-31 — Découverte complète, le moteur observable, l'écran de jeu, les choix qui parlent
+
+*[RECONSTITUÉ le 02-08 à partir des enregistrements du dépôt : ces journées
+n'avaient pas été écrites au jour le jour. Les faits cités sont ceux des messages
+d'enregistrement, non re-vérifiés un par un.]*
+
+- `decouverte-phases`, `decouverte-projets`, `decouverte-jokers-corpos` :
+  livrés, audités, promus. Tout le contenu imprimé est encodé — 246 projets,
+  16 corporations, 793 tests. Deux erreurs de mes propres contrôles cachés et
+  une erreur de mon contrat relevées à cette occasion. [DÉCLARÉ — messages
+  `6ce5b26`, `42d7c65`, `09bd20f`]
+- `moteur-observe` : le moteur est enfin observable de l'extérieur — 33 sites sur
+  33, 810 tests, trois empreintes de référence inchangées. C'est ce qui a rendu
+  l'écran possible. [DÉCLARÉ — `0f0e0f1`]
+- `harnais-images` : les 262 cartes ont leur image, et les 262 badges ont été
+  confrontés aux images imprimées, sans une seule erreur dans `data/cards.json`.
+  [DÉCLARÉ — `c0699c1`, `a2f33e4`]
+- Le moteur tourne dans le navigateur (`5446886`), puis une partie à deux sur le
+  même écran devient jouable, avec 3115 valeurs affichées confrontées à l'état du
+  moteur (`6f6f2c9`).
+- Le remplacement des cartes de départ devient partiel — de 0 à 8, au lieu de
+  tout ou rien (`973a656`, `fccef86`), et chaque alternative proposée dit enfin
+  de quoi elle parle (`73cb9cf`).
+
+## 2026-08-01 — Deuxième série de retours d'Alexis, une vraie erreur de règle, et le décor choisi
+
+### Ce qui a été corrigé et enregistré
+
+- **Une carte bleue sans action n'est plus proposée à l'activation**
+  (`4eb57fe`). C'est une vraie erreur de règle, relevée par Alexis à l'écran sur
+  *United Planetary Alliance*. Le moteur filtrait sur la COULEUR ; il filtre
+  désormais sur l'existence d'une action (`flow::activable_blue`). Le joueur
+  perdait son unique activation de la manche, et l'intelligence artificielle à
+  venir aurait dû apprendre à éviter un coup qui n'existe pas.
+  **Les trois empreintes de référence ont bougé** — recalculées et réécrites :
+  `--seed 2024 --boites base` vaut maintenant `c1c52fcbe4e057b0`.
+  [VÉRIFIÉ 01-08]
+- **La loupe ne se pose plus sur une carte déjà lisible** (`9a95718`) : en
+  dessous de 80 % de la largeur de la loupe, agrandir apporte quelque chose ;
+  au-dessus, on posait un doublon par-dessus le jeu. Mesuré dans les deux sens :
+  corporation à 300 px, pas de loupe ; carte de main à 159 px, loupe.
+  [VÉRIFIÉ 01-08]
+- **Le décor du plateau est choisi.** Six propositions montrées avec de vraies
+  cartes (`312861b`) ; Alexis a tranché : sol martien de Granicus Valles, voile
+  sombre léger (`f0a710d`). Domaine public NASA/JPL/University of Arizona, avec
+  mention obligatoire à l'écran.
+
+### Mes erreurs de la journée
+
+- **J'ai affirmé qu'un serveur servait le projet sans le vérifier.** Il servait
+  le brouillon d'un ancien chantier, vieux de la veille. Alexis a commenté
+  pendant un moment une version périmée. Leçon retenue et appliquée depuis :
+  vérifier ce qu'un serveur SERT, pas seulement qu'il répond.
+- **J'ai eu tort sur les tuiles Océan.** J'avais objecté que choisir sa tuile
+  changerait les probabilités ; Alexis a demandé en quoi choisir FACE CACHÉE les
+  changerait. Il a raison : neuf tuiles indiscernables donnent la même loi.
+- **J'avais tort sur la vente de cartes** : le livret dit bien « à tout moment »
+  (l. 96 et l. 348).
+- **Mon relevé des cartes bleues sans action était faux** : « au moins huit ».
+  Refait le 02-08 en interrogeant le moteur : **62 sur 101**.
+
+### Ce qui a été préparé sans être lancé
+
+Le chantier `cadre-de-jeu` — un seul point de vue, l'adversaire opaque : contrat
+écrit, six contrôles visibles tous vérifiés rouges, deux contrôles cachés écrits
+et éprouvés. Lancé la nuit suivante.
