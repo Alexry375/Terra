@@ -45,6 +45,11 @@ pub const PRODUCTION_SELECTOR_MC: i64 = 4;
 /// Bonus d'une tuile océan (cartes, MC, plantes) — `PlanetFactory` Java.
 #[derive(Debug, Clone, Copy)]
 pub struct OceanTile {
+    /// Rang de la tuile dans `OCEAN_TILES`, AVANT mélange — son identité sur la
+    /// planche imprimée. Ne participe à aucune règle : il n'existe que pour que
+    /// l'écran puisse montrer QUELLE tuile a été retournée, au lieu d'en
+    /// inventer une. Le mélange réordonne le tableau, pas les identités.
+    pub id: u8,
     pub cards: u8,
     pub mc: i64,
     pub plants: i64,
@@ -52,15 +57,15 @@ pub struct OceanTile {
 
 /// Les 9 tuiles océan du jeu de base (ordre avant mélange).
 pub const OCEAN_TILES: [OceanTile; 9] = [
-    OceanTile { cards: 0, mc: 0, plants: 2 },
-    OceanTile { cards: 0, mc: 4, plants: 0 },
-    OceanTile { cards: 1, mc: 1, plants: 0 },
-    OceanTile { cards: 0, mc: 2, plants: 1 },
-    OceanTile { cards: 1, mc: 0, plants: 1 },
-    OceanTile { cards: 1, mc: 0, plants: 0 },
-    OceanTile { cards: 0, mc: 1, plants: 1 },
-    OceanTile { cards: 1, mc: 0, plants: 0 },
-    OceanTile { cards: 0, mc: 0, plants: 2 },
+    OceanTile { id: 0, cards: 0, mc: 0, plants: 2 },
+    OceanTile { id: 1, cards: 0, mc: 4, plants: 0 },
+    OceanTile { id: 2, cards: 1, mc: 1, plants: 0 },
+    OceanTile { id: 3, cards: 0, mc: 2, plants: 1 },
+    OceanTile { id: 4, cards: 1, mc: 0, plants: 1 },
+    OceanTile { id: 5, cards: 1, mc: 0, plants: 0 },
+    OceanTile { id: 6, cards: 0, mc: 1, plants: 1 },
+    OceanTile { id: 7, cards: 1, mc: 0, plants: 0 },
+    OceanTile { id: 8, cards: 0, mc: 0, plants: 2 },
 ];
 
 /// (Découverte) **Améliorations de carte Phase.** Chaque phase dispose de deux

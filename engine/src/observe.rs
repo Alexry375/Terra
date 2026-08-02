@@ -119,6 +119,20 @@ pub fn state_view(game: &GameState, db: &CardsDb) -> Value {
             "oxygen_max": OXYGEN_MAX,
             "oceans": game.oceans_revealed,
             "oceans_max": NUM_OCEANS,
+            // Les tuiles Océan DÉJÀ RETOURNÉES, dans l'ordre où elles l'ont
+            // été. Sans cette liste, l'écran connaît le nombre d'océans mais
+            // pas lesquels : il en montrait donc de fausses. `id` est le rang
+            // de la tuile sur la planche imprimée (`state::OCEAN_TILES`), les
+            // trois autres champs sont le bonus qu'elle a versé.
+            "oceans_revealed_tiles": game.oceans[..game.oceans_revealed as usize]
+                .iter()
+                .map(|t| json!({
+                    "id": t.id,
+                    "cards": t.cards,
+                    "mc": t.mc,
+                    "plants": t.plants,
+                }))
+                .collect::<Vec<_>>(),
             "infrastructure": game.infrastructure,
         },
         // Tailles des paquets : le contenu de la pioche n'est pas une
