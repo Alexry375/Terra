@@ -979,6 +979,12 @@ objet.**
 - Comptage des cartes bleues sans action refait en interrogeant le moteur :
   **62 sur 101**, et non « au moins huit ».
 - Le journal (cinq jours de retard) et `engine/ARCHITECTURE.md` remis à jour.
+- `web/servir.py` ajouté : un serveur d'essai local qui **interdit au navigateur
+  de garder les fichiers en réserve**. Cette mise en réserve nous avait déjà
+  coûté une heure, l'écran mélangeant du code neuf et un moteur périmé.
+- Défaut vu sur les captures et **non corrigé** : en haut de l'écran, le mot
+  « OCEANS » est recouvert par « ROUND » et son chiffre. C'est la zone des
+  jauges, donc le chantier suivant. [VÉRIFIÉ 02-08 — captures aux deux sièges]
 
 ### Ce qui attend Alexis
 
