@@ -5,6 +5,46 @@
 
 Dernière mise à jour : 2026-08-02
 
+## 🚧 DEUX CHANTIERS EN COURS (02-08, matin) — `table-vivante` et `bandeau-et-monde`
+
+Lancés en parallèle après la troisième série de retours d'Alexis. Zones
+volontairement disjointes : le premier tient les mains, les cartes et le milieu
+de l'écran ; le second tient le bandeau du haut, les deux bords et le score.
+Chacun écrit ses styles dans un fichier à lui (`style-table.css`,
+`style-monde.css`) : `style.css` est interdit aux deux, pour que la fusion soit
+possible.
+
+- `table-vivante` — 10 contrôles visibles, 6 cachés (dont 4 repris de
+  `cadre-de-jeu` : l'opacité de la main adverse doit tenir). On pose les cartes
+  en les glissant, le clic reste équivalent ; les cartes Phase se posent par un
+  clic avec rotation ; la carte de la manche précédente est couchée de côté
+  **avant** le choix ; deux cartes si les deux joueurs prennent la même phase.
+- `bandeau-et-monde` — 7 contrôles visibles, 2 cachés. Deux arcs de cercle
+  gradués comme le plateau imprimé, la planche des neuf tuiles Océan qui se
+  retournent, et un score qui se décompose. Une seule modification du moteur
+  autorisée : publier la ventilation du score, sans toucher au calcul.
+
+### Trois faits mesurés ce matin, avant d'écrire les contrats
+
+1. **Le score de 17 en début de partie est juste.** `score_parts`
+   (`engine/src/flow.rs:4339`) compte les récompenses comme si la partie
+   s'arrêtait : au départ les deux joueurs sont à égalité sur les trois, et une
+   égalité vaut 4 points à chacun. 5 de note de terraformation + 12 = 17.
+   Mesuré en lançant le moteur sur une partie neuve, graine 5150.
+   [VÉRIFIÉ 02-08] Ce n'est donc pas un défaut de calcul mais un défaut
+   d'explication : la ventilation manque.
+2. **Le bouton « pass » dépasse bien les cartes.** Le conteneur du bouton et
+   celui d'une carte font la même hauteur (194 px), mais l'image de la carte
+   n'en fait que 167 : le bouton est peint sur 27 px de plus.
+   [VÉRIFIÉ 02-08 — mesure Playwright, graine 5150]
+3. **Mon constat du chevauchement du bandeau était FAUX.** J'avais annoncé à
+   Alexis que « OCEANS » était recouvert par « ROUND ». Mesure à six tailles de
+   fenêtre : aucun texte n'en recouvre un autre. Les vrais défauts sont
+   ailleurs — sous 1440 px de large, les blocs débordent du bandeau de 6 à
+   12 px et les pastilles de récompense sont coupées.
+   [VÉRIFIÉ 02-08] Le contrat a été corrigé en conséquence, et le contrôle
+   mesure le défaut réel.
+
 ## 🎭 LE CADRE DE JEU EXISTE (02-08) — `cadre-de-jeu`, audité OK (6/6 et 4/4) et promu
 
 L'écran montrait les DEUX mains en clair : il servait à vérifier le moteur, pas à
