@@ -82,7 +82,12 @@ gagne toujours.
   Arctic Algae +4 plantes/océan).
 - **(C) Actions de cartes bleues** : le stub neutre `ActionOpt::BlueAction` de
   `phase_action` devient un vrai moteur (`flow::apply_blue_action`). Chaque
-  carte bleue en jeu offre 1 activation par phase III (INCHANGÉ) ; à
+  carte bleue en jeu offre 1 activation par phase III (INCHANGÉ) — mais
+  **seules les cartes bleues qui portent réellement une action sont proposées**
+  (`flow::activable_blue`, depuis le 01-08). La couleur ne suffit pas : sur les
+  101 cartes bleues chargées, 62 ne portent qu'un effet permanent et aucune
+  action (relevé du 02-08). Tant qu'on filtrait sur la seule couleur, les
+  proposer consommait l'unique activation de la manche sans rien faire. À
   l'activation, si les effets sont ON et l'action définie et payable, coût et
   effet sont appliqués et le compteur `blue_actions` incrémenté ; sinon no-op
   (`--effects off` = squelette « à blanc », `blue_actions: 0`). Coûts (chaleur/
@@ -603,7 +608,12 @@ Tout l'état d'une partie tient dans `GameState` (`src/state.rs`) :
 - **Planète** : `temperature: u8` (niveau 0..=19, soit −30 °C à +8 °C par pas
   de 2), `oxygen: u8` (0..=14 %), `oceans: [OceanTile; 9]` mélangées à la mise
   en place + `oceans_revealed: u8`. Chaque `OceanTile` porte son bonus
-  (cartes/MC/plantes) repris de `PlanetFactory.generateOceans` du moteur Java.
+  (cartes/MC/plantes) repris de `PlanetFactory.generateOceans` du moteur Java,
+  et — depuis le 02-08 — son `id: u8`, rang de la tuile sur la planche imprimée
+  AVANT mélange. Cet identifiant ne participe à aucune règle : il existe pour
+  que l'écran puisse montrer QUELLE tuile a été retournée au lieu d'en inventer
+  une. Les tuiles déjà retournées sont le préfixe `oceans[..oceans_revealed]`,
+  publié tel quel par `observe::state_view` sous `oceans_revealed_tiles`.
   Un **instantané de début de phase** (`snap_*`) porte la règle du livret :
   les caps de hausse s'évaluent sur l'état planétaire au début de la phase en
   cours, ce qui permet aux deux joueurs de finir un paramètre dans la même
