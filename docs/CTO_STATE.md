@@ -3,7 +3,91 @@
 > Source de vérité du projet. Ancrée au code (`fichier:ligne`) dès qu'il y aura du
 > code. [VÉRIFIÉ JJ-MM] = relu à la source ce jour-là. [DÉCLARÉ] = non re-vérifié.
 
-Dernière mise à jour : 2026-08-01
+Dernière mise à jour : 2026-08-02
+
+## 🎭 LE CADRE DE JEU EXISTE (02-08) — `cadre-de-jeu`, audité OK (6/6 et 4/4) et promu
+
+L'écran montrait les DEUX mains en clair : il servait à vérifier le moteur, pas à
+jouer. C'est fini. **Ma main est en bas et lisible, celle de l'adversaire en haut
+et retournée**, sur le sol martien choisi le 01-08. C'est le cadre définitif :
+le même contre un programme et contre un humain à distance.
+
+- `?siege=0|1` place le siège regardé, `?decide=humain|programme` dit qui répond
+  pour lui. Deux réglages **vraiment** indépendants : on peut regarder son propre
+  programme jouer, cartes en clair, comme si c'était soi.
+  [VÉRIFIÉ 02-08 — `web/webapp/interface.js`, `siegeHumain` / `siegeProgramme`]
+- La zone adverse ne reçoit que des dos et un NOMBRE. Aucun nom, aucun
+  identifiant. [VÉRIFIÉ 02-08 — `web/webapp/vue/mains.js:155`]
+- Les cartes Phase montrées sont celles choisies dans la manche, celle en cours
+  allumée (déduite du type de la décision : l'état ne la rend pas).
+  [VÉRIFIÉ 02-08 — `web/webapp/vue/phases.js`]
+- Le moteur est intact d'un octet, et le pont n'a pas été modifié : le nombre de
+  cartes adverses était déjà déductible. [VÉRIFIÉ 02-08 — contrôle 06]
+
+### Deux fuites réelles, trouvées par l'audit et corrigées
+
+1. **La phase choisie.** Le moteur interroge toujours le joueur 0 en premier :
+   vu du siège 1, la barre d'équipage affichait la carte que l'adversaire venait
+   de poser **face cachée**. Mesure avant correction : **43 planifications sur
+   43**, toutes prouvées — la valeur avait changé depuis la manche précédente,
+   ce n'était donc pas une rémanence. On choisissait sa phase en connaissant
+   celle d'en face, à chaque manche. **C'était une faute de mon contrat** : le
+   contrôle 04 exigeait d'afficher cette valeur. Contrainte levée par écrit,
+   puis corrigée. [VÉRIFIÉ 02-08 — contrôle caché 03, trois configurations]
+2. **La corporation.** Même défaut un cran plus tôt. Le livret l'interdit
+   (l. 211 : distribution face cachée ; l. 215 : révélation commune). Le nom
+   voyageait par trois chemins à la fois — l'attribut, le texte de remplacement
+   de l'image, et le nom de fichier du scan.
+   [VÉRIFIÉ 02-08 — contrôle caché 04]
+
+### Mon propre contrôle caché était faux — le fait le plus important de l'audit
+
+Le contrôle censé prouver l'opacité de la main rejouait la partie **deux fois
+séparément**, en espérant que ce soit la même. Ce n'en était pas une : dans la
+page, l'adversaire est joué par un programme du navigateur, et le siège regardé
+ne répond qu'à ses propres questions. **159 décisions dans la page contre 345
+dans ma référence, 135 désaccords de forme.** Il cherchait donc les cartes d'une
+main qui n'existait pas : sans valeur, ni pour accuser ni pour disculper — et il
+avait pourtant servi à déclarer 852 fuites sur l'ancien écran.
+
+Refait sur une base saine : **on joue d'abord** en relevant tout ce que la page
+livre, **le moteur rejoue ensuite** la même partie avec les réponses réellement
+données. Éprouvé dans les deux sens : vert sur la livraison (137 et 143
+occasions), rouge sur deux versions volontairement fautives (513 et 762 fautes).
+[VÉRIFIÉ 02-08]
+
+**Leçon générale, à appliquer à tous les contrôles à venir :** un contrôle qui
+reconstruit une référence par un chemin parallèle doit d'abord prouver que les
+deux chemins produisent le même objet. Sinon il mesure autre chose que ce qu'il
+croit.
+
+### Ce qui reste ouvert sur cet écran, déclaré et accepté
+
+- La phase en cours est **déduite** du type de la décision, pas lue : l'état du
+  moteur ne la rend pas. 0 à 2 % des écrans n'allument alors rien plutôt que de
+  deviner. [DÉCLARÉ par l'agent, mesuré par son banc]
+- Sous ~640 px de hauteur de fenêtre, les deux plateaux manquent de place. Les
+  six contrôles mesurent en 1600 × 1000, et le contrôle caché sur six tailles
+  descend à 1600 × 720. [DÉCLARÉ]
+- `data-cartes` compte la main de projets : à la mise en place, les deux cartes
+  Corporation que l'adversaire tient ne sont pas dans l'état, la zone affiche
+  donc 0 à cet instant. [DÉCLARÉ]
+
+## 🌊 LES TUILES OCÉAN ONT UNE IDENTITÉ (02-08)
+
+`OceanTile` porte son rang sur la planche imprimée, et `state_view` publie la
+liste des tuiles déjà retournées (`oceans_revealed_tiles`). L'écran connaissait
+le NOMBRE d'océans, jamais lesquels : il en montrait de fausses. Le champ ne
+participe à aucune règle. **821 tests verts, les trois empreintes de référence
+inchangées.** [VÉRIFIÉ 02-08 — `engine/src/state.rs:48`, `engine/src/observe.rs:122`]
+
+## 🔵 62 CARTES BLEUES SUR 101 NE PORTENT AUCUNE ACTION (02-08)
+
+Relevé refait en interrogeant le moteur, non plus en lisant le texte des cartes :
+39 cartes bleues portent une action, 62 n'en portent pas. Mon premier relevé
+annonçait « au moins huit ». La correction du 01-08 les couvre toutes — le filtre
+porte sur la fiche d'effet, pas sur une liste de noms.
+[VÉRIFIÉ 02-08 — `engine/src/flow.rs:2867`]
 
 ## 🇬🇧 L'ÉCRAN PARLE ANGLAIS ET MONTRE LES CARTES (01-08) — `fusion-parlante`, audité OK et promu
 

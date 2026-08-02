@@ -926,3 +926,61 @@ d'enregistrement, non re-vérifiés un par un.]*
 Le chantier `cadre-de-jeu` — un seul point de vue, l'adversaire opaque : contrat
 écrit, six contrôles visibles tous vérifiés rouges, deux contrôles cachés écrits
 et éprouvés. Lancé la nuit suivante.
+
+## 2026-08-02 (nuit) — Le cadre de jeu livré, deux fuites réelles trouvées, et mon propre contrôle pris en défaut
+
+Alexis est allé se coucher en me laissant sceller le contrat, lancer l'agent et
+auditer. Voici ce qui s'est passé.
+
+### Le chantier
+
+`cadre-de-jeu` scellé, lancé, livré en une passe : six contrôles visibles verts,
+le moteur intact d'un octet, le pont jamais modifié. Puis deux corrections
+ciblées, demandées après audit. **Bilan final : 6/6 visibles, 4/4 cachés,
+promu.** [VÉRIFIÉ 02-08]
+
+### Mon contrôle caché était faux — et c'est le fait le plus important
+
+Le contrôle censé prouver que la main de l'adversaire ne fuit nulle part
+rejouait la partie **deux fois séparément**, en espérant que ce soit la même.
+Ce n'en était pas une : dans la page, l'adversaire est joué par un programme du
+navigateur, et le siège regardé ne répond qu'à ses propres questions. **159
+décisions dans la page contre 345 dans ma référence, 135 désaccords de forme.**
+
+Il cherchait donc les cartes d'une main qui n'existait pas. Sans valeur dans les
+deux sens — et il avait pourtant servi, la veille, à déclarer « 852 fuites »
+sur l'ancien écran. Ce chiffre ne valait rien.
+
+Refait : on joue d'abord en relevant tout ce que la page livre, le moteur rejoue
+ensuite la même partie avec les réponses réellement données. Éprouvé dans les
+deux sens — vert sur la livraison, rouge sur deux versions que j'ai
+volontairement abîmées (513 et 762 fautes).
+
+**Leçon à appliquer partout : un contrôle qui reconstruit une référence par un
+chemin parallèle doit d'abord prouver que les deux chemins produisent le même
+objet.**
+
+### Deux fuites réelles, et la première vient de mon contrat
+
+1. **La phase choisie**, 43 planifications sur 43. Vu du siège interrogé en
+   second, la barre d'équipage montrait la carte que l'adversaire venait de
+   poser face cachée. L'agent l'avait **déclaré lui-même** en disant que mon
+   contrôle 04 l'y obligeait : il avait raison sur les deux points. Contrainte
+   levée par écrit, correction demandée, vérifiée par un contrôle caché écrit
+   pour l'occasion.
+2. **La corporation**, une fois par partie. Trouvée en cherchant, après la
+   première, s'il existait d'autres moments de la partie où le moteur révèle
+   avant l'heure. Le livret tranche (l. 211 et l. 215).
+
+### Le reste
+
+- Dette du moteur réglée : les tuiles Océan portent leur identité, l'état dit
+  lesquelles sont retournées. 821 tests verts, empreintes inchangées.
+- Comptage des cartes bleues sans action refait en interrogeant le moteur :
+  **62 sur 101**, et non « au moins huit ».
+- Le journal (cinq jours de retard) et `engine/ARCHITECTURE.md` remis à jour.
+
+### Ce qui attend Alexis
+
+La couverture de boîte sous droit d'auteur, la portée de la vente de cartes, et
+le lancement du chantier des jauges en arc de cercle.
