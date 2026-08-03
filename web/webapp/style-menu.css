@@ -19,12 +19,22 @@
  * `transition` ou une `animation` : les éteindre toutes, c'est éteindre le
  * mouvement, sans rien changer d'autre — la page reste jouable, les états
  * d'arrivée sont posés immédiatement. */
+/* 03-08 — CORRECTION DE LA COUTURE. Cette feuille est chargée en DERNIER : ses
+ * `0s` écrasaient les `1ms` que `style-table.css` posait sur le même sélecteur
+ * universel, et donc l'avertissement que `table-vivante` avait écrit noir sur
+ * blanc : « une durée nulle empêche certains navigateurs de déclencher
+ * l'événement de fin, et un `await` qui n'aboutit pas bloque la partie ».
+ * Constaté en mesure : avec `?animations=non`, la question « quelle carte
+ * vends-tu ? » ne recevait plus aucun clic — l'écran attendait une fin
+ * d'animation qui ne venait jamais. On reprend donc `1ms`, la valeur que
+ * l'auteur de l'avertissement avait choisie : invisible à l'œil, et l'événement
+ * de fin arrive toujours. */
 html[data-animations="non"] *,
 html[data-animations="non"] *::before,
 html[data-animations="non"] *::after {
-  transition-duration: 0s !important;
+  transition-duration: 1ms !important;
   transition-delay: 0s !important;
-  animation-duration: 0s !important;
+  animation-duration: 1ms !important;
   animation-delay: 0s !important;
 }
 
