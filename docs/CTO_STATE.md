@@ -5,6 +5,55 @@
 
 Dernière mise à jour : 2026-08-02
 
+## 🧵 LA FUSION EST EN CHANTIER (02-08 nuit) — `fusion-trois-chantiers`
+
+Les trois livraisons sont **prêtes mais séparées** : chacune est verte chez elle,
+aucune ne connaît le travail des deux autres. Le chantier `fusion-trois-chantiers`
+n'en fait qu'une seule page dans `outputs/web/webapp/`.
+
+**Ce que j'ai découvert en le montant [VÉRIFIÉ 02-08]** : la correction des
+corporations n'avait **jamais été promue dans le dépôt**. `web/webapp/vue/mains.js`
+contenait encore `corposEnMain` ; seul `workspaces/table-vivante/outputs/` était
+corrigé. Mes deux bancs (`corporation.py`, `identifiants.py`) tournaient depuis le
+workspace, donc mesuraient la livraison et **pas ce qu'Alexis ouvre**. Il a rouvert
+sa page (port 8020, `web/servir.py`) et a revu une corporation dans sa main. Leçon
+écrite en mémoire : avant d'annoncer « réglé », rejouer le banc **depuis la racine
+du dépôt** et dire à Alexis **quel port** porte la correction.
+
+**Le contrat** : 24 contrôles visibles — les 9 de `table-vivante`, les 6 de
+`bandeau-et-monde`, les 6 de `menu-et-options` (dont le `05` réparé, ma faute
+connue depuis l'audit), plus `22` (corporations au centre), `23` (un numéro ne
+désigne jamais deux cartes) et `24` (rien n'est perdu, moteur intact, quatre
+parties au bout). Deux contrôles cachés, tous deux visant la faute propre à une
+couture : le premier piste **ligne à ligne** ce que chaque chantier a apporté aux
+cinq fichiers partagés (`index.html`, `interface.js`, `vue/mots.js`,
+`vue/joueurs.js`, `vue/materiel.js`) et refuse qu'un tiers en disparaisse ; le
+second exige de voir les marques des trois chantiers **dans une même partie**, plus
+zéro fichier introuvable.
+
+Premier scellement refusé, à raison : `24` passait déjà sur la page de départ. Il
+exige désormais les onze fichiers neufs des trois livraisons — rouge pour la
+bonne raison.
+
+## 💸 LA VENTE EST UNE ERREUR DE RÈGLE, PAS D'AFFICHAGE (02-08 nuit) — trouvé par Alexis
+
+**Le défaut, [VÉRIFIÉ 02-08], `engine/src/flow.rs:1628`.** Le prédicat
+d'abordabilité `payable` vaut `mc + taux × (cartes en main − 1) ≥ prix` : le moteur
+juge une carte jouable **en comptant d'avance la vente de la main**. Avec 9 MC,
+7 cartes et 3 MC par carte, il déclare accessible tout ce qui coûte jusqu'à 27 MC —
+d'où « Arctic Algae à 19 MC » proposée à un joueur qui a 9 MC. Puis
+`flow.rs:2352` met le joueur devant le fait accompli (combien défausser) et
+`flow.rs:2358` **choisit les cartes à sa place** : « les DERNIÈRES de la main ».
+
+Alexis avait explicitement demandé l'inverse, et je ne l'avais pas fait.
+
+**Ce qu'il veut, et que je vais faire d'un bloc** : la jouabilité ne compte que les
+MC réellement détenus ; un bouton « vendre » disponible pendant toutes les phases
+où l'on dépense (toutes sauf production et recherche) ; le joueur choisit **quelles**
+cartes il vend ; les contours verts apparaissent **en direct** dès que la vente
+donne assez. Cela ouvre le moteur : **les trois empreintes de référence changeront**,
+et devront être recalculées puis redéclarées.
+
 ## 🃏 LE CHOIX DE LA CORPORATION EST RÉPARÉ (02-08 soir) — trouvé par Alexis en jouant
 
 **Le défaut, [VÉRIFIÉ 02-08].** Alexis a vu, au choix de sa corporation, une carte
