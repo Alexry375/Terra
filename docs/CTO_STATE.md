@@ -3,7 +3,58 @@
 > Source de vérité du projet. Ancrée au code (`fichier:ligne`) dès qu'il y aura du
 > code. [VÉRIFIÉ JJ-MM] = relu à la source ce jour-là. [DÉCLARÉ] = non re-vérifié.
 
-Dernière mise à jour : 2026-08-02
+Dernière mise à jour : 2026-08-03
+
+## ✅ LA FUSION EST LIVRÉE ET PROMUE (03-08)
+
+Audit `--mode code` : **24/24 contrôles visibles, 2/2 cachés, contrat intact**.
+Vérification indépendante écrite APRÈS coup (un sous-agent avait lu le dossier
+des hold-outs de sa propre initiative, déclaré spontanément) : sur les cinq
+fichiers partagés, **zéro ligne de code absente** de la fusion — seuls des
+commentaires, remplacés par des commentaires de couture. [VÉRIFIÉ 03-08]
+
+Promue dans le dépôt (`4de3b6d`), puis vérifiée **depuis la racine du dépôt** et
+non depuis le workspace : graines 2024 et 4242, 191 et 234 décisions, 36 crans
+d'arc, **0 corporation dans la main**, 0 erreur de console. [VÉRIFIÉ 03-08]
+
+Défaut préexistant corrigé au passage par l'agent : le contrôle 23 était **déjà
+rouge sur `table-vivante` seul** — la corporation « Inventrix » portait le
+numéro 7 comme la carte projet 7. Alexis avait raison de douter que ce soit réglé.
+
+## 🐛 TROIS DÉFAUTS TROUVÉS APRÈS LA FUSION, DEUX CORRIGÉS (03-08)
+
+**1. Le coupe-circuit des animations bloquait la partie. CORRIGÉ.**
+`style-menu.css` est chargé en dernier : son `animation-duration: 0s !important`
+écrasait le `1ms` de `style-table.css` — et donc l'avertissement que son auteur
+avait écrit noir sur blanc (« une durée nulle empêche certains navigateurs de
+déclencher l'événement de fin, et un `await` qui n'aboutit pas bloque la
+partie »). Conséquence mesurée : avec `?animations=non`, la question « quelle
+carte vends-tu ? » ne recevait plus aucun clic, boutons pourtant visibles,
+opaques et cliquables. Remis à `1ms` (`5996c45`). Après correction : 191
+décisions en 1600×1000 ET en 1280×720. [VÉRIFIÉ 03-08]
+
+**2. Jauges illisibles éteintes + mot « PROVISIONAL » tronqué. CORRIGÉS.**
+`opacity .38` / `brightness .62` → `.68` / `.88` ; boîte de 56px → 74px
+(besoin mesuré ≈ 62px). (`5996c45`)
+
+**3. Les boutons de choix se recouvrent en 1440×810. NON CORRIGÉ.**
+Cause racine mesurée : sur la décision « choisir le badge », la zone des choix
+ne fait que **1137 × 32 pixels**. Aucun plan ne tient, le cas extrême de
+`planPlaques` (`vue/scene.js`) serre à **dix colonnes de 4px** alors que les
+boutons mesurent réellement 55px : ils se recouvrent, six sur dix, et le jeu est
+bloqué. `.scene__choix` a `min-height: 0`, donc rien n'empêche l'écrasement.
+Le code porte pourtant la « RÈGLE DE FER : les choix ne se recouvrent jamais ».
+Ne se produit ni en 1600×1000 ni en 1280×720. [VÉRIFIÉ 03-08]
+
+## ⚠️ LEÇON DE MÉTHODE — MES CONTRÔLES ÉTAIENT VERTS ET LE JEU ÉTAIT BLOQUÉ
+
+Les 24 contrôles passaient alors que deux décisions étaient injouables. Raison :
+un contrôle qui n'arrive pas à répondre à une décision **s'arrête sans crier**.
+
+Règle à porter dans TOUS les contrats à venir : **tout contrôle qui échoue à
+répondre à une décision doit échouer bruyamment, en nommant la question qui l'a
+bloqué**. Et mes hold-outs cherchaient les lignes *supprimées* : ils ne pouvaient
+pas voir deux lignes présentes toutes les deux dont l'une annule l'autre.
 
 ## 🧵 LA FUSION EST EN CHANTIER (02-08 nuit) — `fusion-trois-chantiers`
 
