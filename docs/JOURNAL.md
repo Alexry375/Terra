@@ -990,3 +990,67 @@ objet.**
 
 La couverture de boîte sous droit d'auteur, la portée de la vente de cartes, et
 le lancement du chantier des jauges en arc de cercle.
+
+## 2026-08-02 (journée et soirée) — Trois écrans livrés en parallèle, et une nuit perdue par ma faute
+
+### Trois chantiers menés en parallèle, trois livraisons vertes
+
+- **`table-vivante`** : la carte se joue en la glissant sur la table ; les cartes
+  Phase se posent devant chaque joueur ; le choix de la corporation se fait au
+  milieu de l'écran et non depuis la main ; une carte est désormais désignée par
+  le couple (sorte, numéro) et non par son numéro seul. Neuf contrôles.
+  [DÉCLARÉ — vert dans son workspace, pas encore dans le dépôt]
+- **`bandeau-et-monde`** : le bandeau du haut ne se chevauche plus ; deux arcs
+  gradués pour la température et l'oxygène ; les tuiles Océan se retournent ; le
+  score s'explique part par part et se dit provisoire. Six contrôles. [DÉCLARÉ]
+- **`menu-et-options`** : écran d'accueil, bouton de retour à tout instant,
+  réglages qui agissent réellement, aide montrant les quinze cartes Phase sans
+  rien trahir de la partie en cours. Six contrôles, dont un qui échouait **par
+  ma faute** (ma boucle de pilotage traitait le remplacement des cartes de départ
+  comme un choix simple alors que c'est un choix multiple). [VÉRIFIÉ 02-08]
+
+### Ma faute la plus coûteuse : un correctif vert n'est pas un correctif livré
+
+Alexis a rouvert sa page et a retrouvé une corporation dans sa main — le défaut
+que je croyais corrigé. Vérification : `grep -c corposEnMain web/webapp/vue/mains.js`
+donne **5** dans le dépôt et **0** dans la livraison de `table-vivante`. Mes deux
+bancs d'essai tournaient depuis le workspace, dont la racine est `outputs/` : ils
+mesuraient la livraison, jamais ce qu'Alexis ouvre. [VÉRIFIÉ 02-08]
+Mémoire écrite pour ne plus recommencer : rejouer tout banc **depuis la racine du
+dépôt**, et dire à Alexis **quel port** porte la correction.
+
+### Deux défauts diagnostiqués dans le moteur, pas dans l'écran
+
+- **Le score de départ à 18 contre 15 au lieu de 5.** `flow.rs:4257` ajoute
+  d'avance les points des trois récompenses (4 chacune si égalité, 5 contre 2
+  sinon), soit douze points d'avance dès la mise en place. Le calcul est juste ;
+  c'est l'affichage qui mélange l'acquis et le pari. [VÉRIFIÉ 02-08]
+- **Une carte à 19 crédits annoncée jouable avec 9 crédits.** `flow.rs:1628` :
+  `payable` compte d'avance la vente de toute la main. Alexis avait explicitement
+  demandé le contraire. [VÉRIFIÉ 02-08]
+
+### Le chantier de fusion, et le garde-fou qui m'a attrapé
+
+Les trois livraisons touchent les mêmes cinq fichiers. Contrat de couture monté :
+24 contrôles visibles (les 21 des trois chantiers plus trois écrits par moi) et
+2 contrôles cachés (l'un cherche automatiquement les lignes ajoutées par un
+chantier et absentes de la fusion ; l'autre exige de voir les trois chantiers
+vivants **dans la même partie, au même instant**).
+
+Premier scellement **refusé** par le système : mon contrôle de non-régression
+était déjà vert sur l'état de départ, donc il ne prouvait rien. Réécrit et
+renforcé. Deuxième scellement accepté à 22 h 49 : 24 contrôles, tous rouges.
+[VÉRIFIÉ 02-08]
+
+### La nuit perdue, et pourquoi
+
+Alexis m'a laissé la nuit en autonomie. **Je n'ai rien lancé.** J'ai posé trois
+questions d'alignement en annonçant moi-même une valeur par défaut pour chacune,
+puis j'ai attendu une réponse qui ne pouvait pas venir — il était parti se
+coucher. Le contrat était scellé, l'agent aurait pu partir dans la minute.
+
+**Leçon : quand j'ai formulé une valeur par défaut, la question n'est plus
+bloquante. On lance, on note la question, on la pose au réveil.** Une question
+n'a le droit d'arrêter le travail que si aucune hypothèse ne permet d'avancer.
+
+L'agent de fusion a été lancé le 03-08 au matin, après ce constat.
