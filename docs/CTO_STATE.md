@@ -5,6 +5,63 @@
 
 Dernière mise à jour : 2026-08-03
 
+## 🔴 LA VENTE CHOISIE — ROUND 1 **PARTIEL, NON PROMU** (03-08) — `regles-de-la-vente`
+
+Demande d'Alexis, mot pour mot : « qu'on ne puisse juste pas acheter une carte
+tant qu'on a pas fait le choix avant de vendre. L'idéal serait qu'on ait pendant
+ces phases où l'on peut dépenser (toutes sauf production et recherche) un bouton
+pour vendre (rappel : on choisit les cartes qu'on veut défausser), et que les
+cartes qu'on peut désormais acheter deviennent jouables en live (contour vert
+apparaît). »
+
+Audit `--mode code` : **5/5 contrôles visibles verts, 1/2 caché, contrat
+intact**. Verdict enregistré `partial` dans `reports.jsonl`. **Rien n'a été
+promu dans le dépôt.** Le travail vit dans `workspaces/regles-de-la-vente/`, qui
+est exclu du dépôt (`.gitignore` l. 19). [VÉRIFIÉ 03-08]
+
+**Le défaut bloquant, reproduit quatre fois.** Graine 2024, fenêtre 1600×1000,
+siège 0, rang de décision 10 (phase II Construction, décision subordonnée de
+5 choix). On ouvre la vente, on désigne une carte, on valide : le mode de vente
+ne retombe pas, la marque reste sur la carte, la main garde ses 8 cartes, et la
+décision suivante n'arrive **jamais**. La partie est figée définitivement.
+Indépendant de la carte choisie. Le rang 9, même phase, passe ; le rang 16 aussi.
+[VÉRIFIÉ 03-08]
+
+**Cause identifiée, à re-vérifier et non à croire :**
+`outputs/engine/src/flow.rs:2186` appelle `observer(game, p, policy)` pour
+`discard_down` **sans** `occasion_de_vendre` au-dessus. Or `game.vente_offerte`
+n'est écrit que dans `occasion_de_vendre` : il garde donc la valeur du point
+précédent (vrai), l'écran offre le bouton, la page ajoute son entrée de vente, et
+le rejeu n'atteint jamais d'occasion pour la consommer. La ligne 3474 a le même
+motif mais avec une justification écrite.
+
+**Second défaut, déclaré par l'agent juste avant son arrêt :** l'entrée de vente
+désigne l'indice 4 alors que la main du moteur a 1 carte — l'occasion offerte à
+`DrawDiscard` tourne AVANT la pioche, tandis que la page affiche la main d'APRÈS
+la pioche. Même famille : mauvais placement des occasions de vendre. [DÉCLARÉ]
+
+**Ce qui est bon et ne doit pas être refait** (conception D0-D18 du journal du
+chantier) : `payable(mc, cost)` qui ne compte plus la main d'avance ;
+`occasion_de_vendre` ; `main_payable` ; le contour vert adossé à la payabilité
+réelle ; le grand nombre du score qui ne compte que l'acquis. Le compteur
+`discard_payments` passe de **20 939 ventes d'office sur 1000 parties à zéro**.
+
+**Trois réserves à lever avant toute promotion :**
+1. `outputs/web/vendor/rand-usize64/` — dépendance recopiée à la main, à
+   justifier et à comparer à l'originale.
+2. `outputs/web/webapp/verif/vente-a-chaque-rang.py` — outil de vérification posé
+   **dans** la livraison, à sortir de `webapp/`.
+3. `outputs/web/work/target/` — artefacts de compilation, à ne pas promouvoir.
+
+**Note de reprise complète pour le prochain agent :**
+`workspaces/regles-de-la-vente/outputs/AUDIT-MAIN.md`. Le §Reprise du journal de
+l'agent, lui, est **périmé** : il annonce « LIVRÉ, 5/5 ».
+
+**Ma faiblesse de méthode, reconnue.** Mes contrôles visibles vendaient à des
+rangs choisis par une formule (un sur sept) et sont passés à côté du défaut.
+Deuxième fois en deux jours qu'un contrôle prouve moins qu'il n'en a l'air. Seul
+un balayage exhaustif de **tous** les points de décision vaut ici.
+
 ## ✅ LA FUSION EST LIVRÉE ET PROMUE (03-08)
 
 Audit `--mode code` : **24/24 contrôles visibles, 2/2 cachés, contrat intact**.
