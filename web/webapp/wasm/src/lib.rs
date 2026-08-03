@@ -685,9 +685,27 @@ fn bilan(
 // décrivent pas l'état de la partie — celui-là vient de `observe::state_view`,
 // et de nulle part ailleurs.
 
+// LA SORTE, ET POURQUOI ELLE EST INDISPENSABLE.
+//
+// Le moteur range ses cartes dans DEUX tables distinctes : `db.projects` et
+// `db.corporations`. L'identifiant publié ici est un INDICE dans l'une ou dans
+// l'autre — jamais un identifiant unique sur l'ensemble du jeu. Les projets vont
+// de 0 à ~330, les corporations de 0 à ~15 : les deux plages se recouvrent, donc
+// le numéro 7 désigne à la fois la carte projet « Arctic Algae » et la
+// corporation « Inventrix ».
+//
+// Tant que la sorte n'était pas publiée, rien ne permettait de les distinguer à
+// l'arrivée. Mesuré le 02-08 sur 70 graines : 3 fois sur 70, l'écran écartait une
+// corporation comme doublon d'une carte projet portant le même numéro, et
+// reportait le choix « joue cette corporation » sur cette carte projet. Cliquer
+// une carte de sa main jouait alors une corporation.
+//
+// On publie donc la sorte à côté du numéro. C'est le COUPLE (sorte, numéro) qui
+// désigne une carte, et rien d'autre.
 fn carte_json(db: &CardsDb, id: u16) -> Value {
     match db.projects.get(id as usize) {
         Some(c) => json!({
+            "sorte": "projet",
             "id": id,
             "nom": c.name,
             "prix": c.price,
@@ -695,19 +713,24 @@ fn carte_json(db: &CardsDb, id: u16) -> Value {
             "badges": c.tags.iter().map(|t| t.as_str()).collect::<Vec<_>>(),
             "pv": c.vp,
         }),
-        None => json!({ "id": id, "nom": format!("carte inconnue {id}") }),
+        None => json!({ "sorte": "projet", "id": id, "nom": format!("carte inconnue {id}") }),
     }
 }
 
 fn corpo_json(db: &CardsDb, id: u16) -> Value {
     match db.corporations.get(id as usize) {
         Some(c) => json!({
+            "sorte": "corporation",
             "id": id,
             "nom": c.name,
             "mc_depart": c.starting_mc,
             "badges": c.tags.iter().map(|t| t.as_str()).collect::<Vec<_>>(),
         }),
-        None => json!({ "id": id, "nom": format!("corporation inconnue {id}") }),
+        None => json!({
+            "sorte": "corporation",
+            "id": id,
+            "nom": format!("corporation inconnue {id}"),
+        }),
     }
 }
 

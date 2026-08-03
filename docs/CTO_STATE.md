@@ -5,6 +5,50 @@
 
 Dernière mise à jour : 2026-08-02
 
+## 🃏 LE CHOIX DE LA CORPORATION EST RÉPARÉ (02-08 soir) — trouvé par Alexis en jouant
+
+**Le défaut, [VÉRIFIÉ 02-08].** Alexis a vu, au choix de sa corporation, une carte
+projet (« Arctic Algae ») marquée jouable dans sa main à la place d'une des deux
+corporations, et cliquer a joué l'autre corporation.
+
+**La cause racine.** Le moteur range ses cartes dans **deux tables séparées** :
+`db.projects` (numéros 0 à ~330) et `db.corporations` (numéros 0 à ~15). Le numéro
+publié vers l'écran est un rang **dans l'une ou dans l'autre**, jamais un numéro
+unique : le numéro 7 désigne à la fois « Arctic Algae » et « Inventrix ». L'écran
+glissait les corporations dans la main du joueur et écartait les doublons **par le
+numéro seul** : la corporation disparaissait, et la carte projet héritait de sa
+réponse.
+
+**Mesuré, pas déduit** : 3 parties sur 70 (graines 2026, 2043, 2052). Sur la
+graine 2052, `Inventrix` (numéro 7) absente de l'écran, `Arctic Algae` (numéro 7)
+marquée jouable avec la réponse d'Inventrix.
+
+**Les trois corrections.**
+
+1. **La sorte est publiée** — `web/webapp/wasm/src/lib.rs`, `carte_json` et
+   `corpo_json` posent `"sorte": "projet"` / `"sorte": "corporation"`. C'est le
+   **couple (sorte, numéro)** qui désigne une carte, plus jamais le numéro seul.
+   `terra.wasm` recompilé (`web/construire.sh`), empreinte `5981d6aa78e777e6…`,
+   installé à l'identique dans les trois livraisons en attente de fusion.
+2. **La vue compare des clés** — `vue/cartes.js` expose `cle(c)` = `sorte#numéro`,
+   et `vue/mains.js` l'emploie partout (`planDeLaDecision`, `cartesEnMain`,
+   `maMain`). Les corporations **n'entrent plus du tout** dans la main.
+3. **Le choix se fait au centre** — demandé par Alexis : les deux corporations
+   s'affichent en grand au milieu de l'écran, on ne peut que cliquer, et le clic
+   déclenche **la même animation de pose que les cartes Phase** (`vue/scene.js`,
+   branche `pick_corporation` de `brancherChoix`, `voler()` vers
+   `#corpo-carte-<siège>`). Marque propre `data-corpo-choix` — jamais
+   `data-carte-id` ni `data-carte-en-jeu`.
+
+**Le banc permanent** : `web/webapp/verif/corporation.py`. 8 parties × 2 rangs =
+16 choix éprouvés, 0 faute. **Éprouvé dans les deux sens** : sur une copie qui
+répond toujours « la première », 8 fautes ; sur une copie qui retire la marque du
+centre, échec immédiat.
+
+**La leçon sur mes contrôles [VÉRIFIÉ 02-08]** : les 10 contrôles visibles et les
+6 contrôles cachés de `table-vivante` regardaient tous la partie **en cours**.
+Aucun ne regardait la **mise en place**. Alexis l'a trouvé en trois minutes de jeu.
+
 ## 🚧 TROIS CHANTIERS EN COURS (02-08) — `table-vivante`, `bandeau-et-monde`, `menu-et-options`
 
 ### `menu-et-options` — scellé et lancé le 02-08 après-midi
