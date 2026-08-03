@@ -4328,6 +4328,34 @@ pub fn award_points(game: &GameState) -> [i64; NUM_PLAYERS] {
     award_points_split(game).0
 }
 
+/// **Le score d'un joueur, part par part.** Les cinq termes du décompte du
+/// livret (p.16-17 + Discovery p.3), tels que [`score_breakdown`] vient de les
+/// additionner — jamais recomptés ailleurs.
+///
+/// Un total n'explique rien : « 17 » en début de partie a surpris le joueur
+/// alors que le chiffre était juste. Ce sont les mêmes additions qu'avant,
+/// simplement gardées séparées le temps d'être rendues.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct ScoreBreakdown {
+    /// Niveau de terraformation.
+    pub tr: i64,
+    /// 1 VP par forêt.
+    pub forests: i64,
+    /// VP des cartes jouées (fixes + dynamiques), effets ON uniquement.
+    pub cards: i64,
+    /// 3 VP par Repère (« milestone ») atteint.
+    pub milestones: i64,
+    /// Récompenses (« awards »), comptées comme si la partie s'arrêtait ici.
+    pub awards: i64,
+}
+
+impl ScoreBreakdown {
+    /// La somme des parts — c'est-à-dire le score, à l'entier près.
+    pub fn total(&self) -> i64 {
+        self.tr + self.forests + self.cards + self.milestones + self.awards
+    }
+}
+
 /// Score final + deux compteurs d'audit tirés du MÊME parcours : les points de
 /// victoire venant des RESSOURCES posées sur les cartes (`vp_from_resources`)
 /// et ceux distribués par la tuile VISIONNAIRE (`visionary_award_points`),
@@ -4336,26 +4364,52 @@ pub fn award_points(game: &GameState) -> [i64; NUM_PLAYERS] {
 /// Les trois sortent du même passage et des mêmes calculs (`card_points`,
 /// `award_points_split`) : les valeurs rapportées sont celles qui comptent
 /// réellement au score, jamais un second parcours ni un barème parallèle.
+///
+/// Façade : le décompte lui-même vit dans [`score_breakdown`], qui garde les
+/// parts séparées. Ici on ne fait que les additionner — il n'existe donc
+/// toujours qu'UN point de calcul du score.
 pub fn score_parts(game: &GameState, db: &CardsDb) -> ([i64; NUM_PLAYERS], i64, i64) {
-    let (awards, visionary) = award_points_split(game);
+    let (parts, vp_from_resources, visionary) = score_breakdown(game, db);
     let mut out = [0i64; NUM_PLAYERS];
+    for p in 0..NUM_PLAYERS {
+        out[p] = parts[p].total();
+    }
+    (out, vp_from_resources, visionary)
+}
+
+/// **Le point de calcul unique du score**, rendu part par part.
+///
+/// Rigoureusement les additions d'avant, dans le même ordre et sur les mêmes
+/// entiers : seul le rangement change (cinq accumulateurs au lieu d'un). Le
+/// total, `ScoreBreakdown::total`, est donc identique au bit près — ce que les
+/// trois empreintes de référence vérifient.
+pub fn score_breakdown(
+    game: &GameState,
+    db: &CardsDb,
+) -> ([ScoreBreakdown; NUM_PLAYERS], i64, i64) {
+    let (awards, visionary) = award_points_split(game);
+    let mut out = [ScoreBreakdown::default(); NUM_PLAYERS];
     let mut vp_from_resources = 0i64;
     for p in 0..NUM_PLAYERS {
         let pl = &game.players[p];
-        let mut s = pl.tr + pl.forests;
+        let mut s = ScoreBreakdown {
+            tr: pl.tr,
+            forests: pl.forests,
+            ..ScoreBreakdown::default()
+        };
         if db.effects_on {
             for &c in &pl.played {
                 let (total, from_res) = card_points(db, pl, c);
-                s += total;
+                s.cards += total;
                 vp_from_resources += from_res;
             }
         }
         for slot in &game.milestones {
             if slot.achieved_by[p] {
-                s += 3;
+                s.milestones += 3;
             }
         }
-        s += awards[p];
+        s.awards = awards[p];
         out[p] = s;
     }
     (out, vp_from_resources, visionary)

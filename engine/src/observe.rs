@@ -20,7 +20,7 @@
 
 use crate::cards::{CardsDb, JOKER_TAG_CHOICES};
 use crate::choice::ChoiceContext;
-use crate::flow::score_parts;
+use crate::flow::{score_breakdown, ScoreBreakdown};
 use crate::policy::{ActionOpt, ConstructionBonus, Policy};
 use crate::state::{
     GameState, PlayerState, NUM_OCEANS, NUM_PLAYERS, OXYGEN_MAX, TEMPERATURE_MAX,
@@ -35,11 +35,15 @@ use serde_json::{json, Value};
 /// Rendu JSON d'un joueur : ressources, productions, TR, badges, corporation,
 /// main, cartes posées, score courant.
 ///
-/// `score` vient de [`crate::flow::score_parts`], le point de calcul UNIQUE du
-/// score : la vue ne tient pas de barème parallèle, elle rapporte ce que le
-/// moteur compte. (Un score « courant » est le score que la partie donnerait si
-/// elle s'arrêtait maintenant ; en cours de partie il n'est donc pas définitif.)
-fn player_view(game: &GameState, db: &CardsDb, p: usize, score: i64) -> Value {
+/// `score` et `score_parts` viennent tous deux de
+/// [`crate::flow::score_breakdown`], le point de calcul UNIQUE du score : la vue
+/// ne tient pas de barème parallèle, elle rapporte ce que le moteur compte, et
+/// `score` n'est rien d'autre que la somme des parts publiées à côté. (Un score
+/// « courant » est le score que la partie donnerait si elle s'arrêtait
+/// maintenant ; en cours de partie il n'est donc pas définitif — c'est
+/// précisément ce que la ventilation rend lisible : les parts `milestones` et
+/// `awards` peuvent encore basculer.)
+fn player_view(game: &GameState, db: &CardsDb, p: usize, parts: &ScoreBreakdown) -> Value {
     let pl: &PlayerState = &game.players[p];
 
     // Badges : `tag_counts` est indexé par `Tag::index`, c'est-à-dire dans le
@@ -93,7 +97,17 @@ fn player_view(game: &GameState, db: &CardsDb, p: usize, score: i64) -> Value {
         "chosen_phase": pl.chosen_phase,
         "previous_phase": pl.previous_phase,
         "phase_upgrades": pl.phase_upgrade_labels(),
-        "score": score,
+        "score": parts.total(),
+        // La VENTILATION du score, dans les cinq parts du livret. Rien n'est
+        // ajouté au décompte : ce sont les termes que `score_breakdown` vient
+        // d'additionner pour former `score` ci-dessus.
+        "score_parts": {
+            "tr": parts.tr,
+            "forests": parts.forests,
+            "cards": parts.cards,
+            "milestones": parts.milestones,
+            "awards": parts.awards,
+        },
     })
 }
 
@@ -105,7 +119,7 @@ fn player_view(game: &GameState, db: &CardsDb, p: usize, score: i64) -> Value {
 /// `score_parts`) : elle ne recalcule aucune valeur pour son propre compte, donc
 /// elle ne peut pas afficher juste et mentir sur ce que le moteur pense.
 pub fn state_view(game: &GameState, db: &CardsDb) -> Value {
-    let (scores, _, _) = score_parts(game, db);
+    let (parts, _, _) = score_breakdown(game, db);
     json!({
         "generation": game.generation,
         "first_player": game.first_player,
@@ -151,7 +165,7 @@ pub fn state_view(game: &GameState, db: &CardsDb) -> Value {
         })).collect::<Vec<_>>(),
         "awards": game.awards.iter().map(|a| format!("{a:?}")).collect::<Vec<_>>(),
         "players": (0..NUM_PLAYERS)
-            .map(|p| player_view(game, db, p, scores[p]))
+            .map(|p| player_view(game, db, p, &parts[p]))
             .collect::<Vec<_>>(),
     })
 }
