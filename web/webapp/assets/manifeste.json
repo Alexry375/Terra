@@ -1838,6 +1838,11 @@
    "source": "data/scans/base/img_d4e8c387b4fa.png"
   },
   {
+   "nom": "tuile-ocean-dos-orange",
+   "image": "plateau/tuile-ocean-dos-orange.webp",
+   "source": "data/scans/base/img_39e338afffd6.png"
+  },
+  {
    "nom": "tuile-ocean-terrain-aride-sans-bonus",
    "image": "plateau/tuile-ocean-terrain-aride-sans-bonus.webp",
    "source": "data/scans/base/img_39e338afffd6.png"

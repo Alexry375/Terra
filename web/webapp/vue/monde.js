@@ -13,6 +13,7 @@
 import { imageJalon, imageRecompense, titre } from "./materiel.js";
 import { ref, poser, poserValeur } from "./ecrire.js";
 import { construireMasqueVP } from "./plateau.js";
+import { construireArcs, majArcs, oublierArcs } from "./arcs.js";
 import { MOT } from "./mots.js";
 
 const CIEL_FROID = [[6, 10, 20], [16, 26, 42]];
@@ -52,6 +53,16 @@ export function construireMonde() {
   voile.dataset.voile = "";
   frag.appendChild(voile);
 
+  // LE BANDEAU TIENT SUR UNE LIGNE, et chaque chiffre touche son propre nom.
+  //
+  // Il portait jusqu'ici, sous chaque nom, une rangée de crans qui redisait le
+  // même compteur en petit : ces trois rangées demandaient 60 px de haut à une
+  // bande qui n'en offre que 44 dès que la fenêtre descend sous ~870 px de
+  // HAUT (la bande vaut `clamp(54px, 7.8vh, 78px)`), et tout débordait par le
+  // bas — les pastilles de récompense les premières. Les crans
+  // sont maintenant les deux ARCS des bords (`vue/arcs.js`) et la PLANCHE des
+  // océans (`vue/plateau.js`), là où le plateau imprimé les met ; la bande, elle,
+  // ne garde que les nombres, chacun collé à son nom.
   const h = document.createElement("header");
   h.id = "horizon";
   h.innerHTML = `
@@ -60,31 +71,29 @@ export function construireMonde() {
       <b class="manche__n" data-valeur="generation">—</b>
     </div>
 
+    <!-- LE BANDEAU DIT CE QUE DIT LE PLATEAU, en degrés. Le moteur, lui, compte
+         des CRANS : planet.temperature va de 0 à 19 et vaut deux degrés chacun,
+         à partir de -30 °C (engine/src/state.rs:19). Afficher le cran ici, alors
+         que l'arc du bord affiche le degré, donnait deux nombres différents pour
+         une seule et même chose — relevé par Alexis le 02-08 : « TEMPERATURE 4 /
+         19 » d'un côté, « -22 °C » de l'autre. -->
     <section class="param param--temp" id="param-temp">
-      <div class="param__tete">
-        <span class="param__nom">${MOT.temp}</span>
-        <b class="param__n" data-valeur="planet.temperature">0</b>
-        <span class="param__max">/<i id="temp-max" data-valeur="planet.temperature_max">0</i></span>
-      </div>
-      <div class="crans" id="crans-temp"></div>
+      <span class="param__nom">${MOT.temp}</span>
+      <b class="param__n" data-valeur="planet.temperature">-30</b>
+      <span class="param__unite">°C</span>
+      <span class="param__max">/<i id="temp-max" data-valeur="planet.temperature_max">+8</i></span>
     </section>
 
     <section class="param param--o2" id="param-o2">
-      <div class="param__tete">
-        <span class="param__nom">${MOT.oxygen}</span>
-        <b class="param__n" data-valeur="planet.oxygen">0</b>
-        <span class="param__max">/<i id="o2-max" data-valeur="planet.oxygen_max">0</i></span>
-      </div>
-      <div class="crans crans--o2" id="crans-o2"></div>
+      <span class="param__nom">${MOT.oxygen}</span>
+      <b class="param__n" data-valeur="planet.oxygen">0</b>
+      <span class="param__max">/<i id="o2-max" data-valeur="planet.oxygen_max">0</i></span>
     </section>
 
     <section class="param param--mer" id="param-mer">
-      <div class="param__tete">
-        <span class="param__nom">${MOT.ocean}</span>
-        <b class="param__n" data-valeur="planet.oceans">0</b>
-        <span class="param__max">/<i id="mer-max" data-valeur="planet.oceans_max">0</i></span>
-      </div>
-      <div class="crans crans--mer" id="crans-mer"></div>
+      <span class="param__nom">${MOT.ocean}</span>
+      <b class="param__n" data-valeur="planet.oceans">0</b>
+      <span class="param__max">/<i id="mer-max" data-valeur="planet.oceans_max">0</i></span>
     </section>
 
     <section class="tuiles-honneur">
@@ -106,6 +115,21 @@ export function construireMonde() {
   frag.appendChild(secousse);
 
   document.body.appendChild(frag);
+
+  // Les deux arcs gradués du plateau imprimé, sur les bords gauche et droit —
+  // la place que la mise en page leur réservait déjà.
+  construireArcs();
+}
+
+/**
+ * LE CRAN DU MOTEUR EN DEGRÉ DU PLATEAU. La piste de température porte vingt
+ * cases, de -30 °C à +8 °C, deux degrés par case : la case `n` vaut `-30 + 2n`.
+ * Une seule règle de conversion pour tout l'écran — `vue/arcs.js` applique la
+ * même (`lecture`), et c'est ce qui garantit que les deux disent le même chiffre.
+ */
+function degre(cran) {
+  const d = -30 + 2 * cran;
+  return d > 0 ? "+" + d : String(d);
 }
 
 /** Réécrit le monde à partir de l'état rendu par le moteur. */
@@ -124,16 +148,18 @@ export function majMonde(etat) {
   variable("--niveau-mer", (7 + mer * 13).toFixed(2) + "%");
 
   poserValeur("generation", etat.generation);
-  poserValeur("planet.temperature", p.temperature);
+  // Le CRAN devient le DEGRÉ — la seule échelle imprimée sur le carton, et celle
+  // que l'arc du bord gauche affiche déjà (`vue/arcs.js`, `lecture`). Le signe
+  // est écrit même quand il est positif : « +8 » se lit comme une température,
+  // « 8 » comme un compteur.
+  poserValeur("planet.temperature", degre(p.temperature));
   poserValeur("planet.oxygen", p.oxygen);
   poserValeur("planet.oceans", p.oceans);
-  poser(ref("#temp-max"), p.temperature_max);
+  poser(ref("#temp-max"), degre(p.temperature_max));
   poser(ref("#o2-max"), p.oxygen_max);
   poser(ref("#mer-max"), p.oceans_max);
 
-  crans("crans-temp", p.temperature, p.temperature_max);
-  crans("crans-o2", p.oxygen, p.oxygen_max);
-  crans("crans-mer", p.oceans, p.oceans_max);
+  majArcs(etat);
 
   honneurs(etat);
   ressentir(etat);
@@ -145,19 +171,6 @@ function variable(nom, valeur) {
   if (variables.get(nom) === valeur) return;
   variables.set(nom, valeur);
   document.documentElement.style.setProperty(nom, valeur);
-}
-
-/**
- * Les crans de température. Un cran gagné est irréversible : il se verrouille et
- * ne s'éteint plus jamais. C'est toute la tension du jeu, rendue physique.
- */
-function crans(id, v, max) {
-  const z = ref("#" + id);
-  if (z.childElementCount !== max) {
-    z.textContent = "";
-    for (let i = 0; i < max; i++) z.appendChild(document.createElement("span"));
-  }
-  [...z.children].forEach((c, i) => c.classList.toggle("acquis", i < v));
 }
 
 /** Objectifs et récompenses : les tuiles imprimées, éteintes tant qu'à prendre. */
@@ -236,4 +249,5 @@ function ressentir(etat) {
 export function oublier() {
   precedent = null;
   variables.clear();
+  oublierArcs();
 }

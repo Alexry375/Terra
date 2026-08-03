@@ -8,13 +8,17 @@
 // corporations, la carte concernée — jamais cliquable) et les CHOIX (un élément
 // `data-choix` par option, dans l'ordre des indices, « passer » en dernier).
 
-import { carte, normaliser } from "./cartes.js";
+import { carte, normaliser, cle } from "./cartes.js";
 import {
   imagePhase, imageAmelioration, phaseNom, imageBadge, nomBadge, imageCarte,
-  imageForet, imageOcean, imageReserve, dosDeCarte, EQUIPAGES, nomJoueur,
+  imageForet, imageOcean, imageReserve, dosProjet, EQUIPAGES, nomJoueur,
 } from "./materiel.js";
-import { survolable, cacher as cacherLoupe, figer } from "./loupe.js";
+import { survolable, survolableImage, cacher as cacherLoupe, figer } from "./loupe.js";
 import { MOT, question as questionAnglaise, libelleOption, sorteAction } from "./mots.js";
+import { decisionDeMain, LARGEUR as LARGEUR_MAIN } from "./mains.js";
+import { ouvrirGeste, fermerGeste, poserLaCarte } from "./geste.js";
+import { poserPhase } from "./table.js";
+import { voler } from "./anim.js";
 
 const RATIO = 569 / 409; // les images de cartes, telles qu'elles ont été découpées
 const ECART = 12;
@@ -33,19 +37,40 @@ const LEGENDE = 26;
 // `alternative_carte` et `alternative_action`, la case BONUS de la carte Phase
 // pour `bonus_selectionneur`. Dans une bande, cette carte tombe à 90 px de haut
 // et n'est plus lisible : la décision se prendrait à l'aveugle.
+//
+// LA VENTE POUR PAYER en fait partie depuis le 02-08. Elle demande, dans la même
+// vue, une phrase d'explication, jusqu'à neuf cartes qui vont partir, un cadran et
+// un bouton. Dans une bande de 240 px, les cartes débordaient sur le cadran et le
+// recouvraient — mesuré à l'écran, capture `outputs/work/vues/08-vendre.jpg`. Et
+// c'est justement la décision que le joueur n'a pas comprise : elle mérite qu'on
+// s'arrête dessus.
 const SUPERPOSITION = new Set([
   "corp_mulligan", "project_mulligan", "pick_corporation",
   "alternative_carte", "alternative_action", "bonus_selectionneur",
+  "discard_payment_count",
 ]);
 
 let resoudre = null; // la réponse attendue par le moteur, une fois cliquée
 let enCours = null; // la décision affichée, pour pouvoir la redessiner
+// Le nom de la carte qu'on construit, retenu de décision en décision : le
+// descripteur de la vente pour payer ne le porte pas, et l'écran doit pourtant
+// dire ce qu'on paie.
+let derniereConstruction = null;
+// Une carte Phase est en train de se poser : on n'en lance pas une seconde.
+let phaseEnVol = false;
 
-/** Le squelette de la scène. Appelé une fois. */
+/**
+ * Le squelette de la scène. Appelé une fois.
+ *
+ * Elle se pose DANS la table (`#milieu`, écrit en dur dans `index.html`) : c'est
+ * la même surface, entre les deux plateaux, qui reçoit la décision et les cartes
+ * qu'on y dépose. La table existe donc avant le premier octet de script — elle
+ * n'est pas un décor que le jeu fabrique, c'est le meuble.
+ */
 export function construireScene() {
   const m = document.createElement("main");
   m.id = "scene";
-  document.body.appendChild(m);
+  (document.getElementById("milieu") || document.body).appendChild(m);
 }
 
 /**
@@ -79,6 +104,10 @@ export function viderScene() {
   const m = document.getElementById("scene");
   if (m) m.textContent = "";
   enCours = null;
+  // Rien ne doit survivre à une partie : le nom de la dernière construction
+  // reparaîtrait dans l'écran de vente de la partie suivante.
+  derniereConstruction = null;
+  phaseEnVol = false;
   fermerScene();
 }
 
@@ -87,7 +116,10 @@ export function fermerScene() {
   const m = document.getElementById("scene");
   m.removeAttribute("data-decision-rang");
   m.removeAttribute("data-decision-forme");
+  m.removeAttribute("data-decision-type");
   m.removeAttribute("data-a-choisir");
+  // Plus aucune question posée : plus aucune carte de la main ne se pose.
+  fermerGeste();
   cacherLoupe();
   figer();
 }
@@ -97,8 +129,46 @@ export function fermerScene() {
  * (`?decide=programme`). La scène est posée comme pour un humain : on la voit se
  * remplir, puis la réponse tombe. Le chemin est le MÊME que celui du clic, à
  * l'origine du geste près.
+ *
+ * « LE MÊME CHEMIN » DOIT RESTER VRAI. Depuis que jouer une carte veut dire la
+ * POSER, répondre ici par un simple `repondre()` en ferait un troisième chemin
+ * vers le moteur — celui qu'aucun contrôle n'emprunte, et où l'on ne verrait
+ * jamais une carte se poser. Or c'est précisément ce mode qu'on ouvre pour
+ * REGARDER une intelligence artificielle jouer à sa place : un écran où rien ne
+ * bouge n'a plus d'objet. On repasse donc par le geste, exactement comme un
+ * clic — la carte de la main que l'indice désigne, ou la carte Phase choisie.
  */
-export function repondrePourLeSiege(reponse) {
+export async function repondrePourLeSiege(reponse) {
+  const d = enCours && enCours.d;
+  if (d && typeof reponse === "number") {
+    // Une carte de la main : on la pose, et `poserLaCarte` répond au bout.
+    if (decisionDeMain(d)) {
+      const carteDeLaMain = document.querySelector(
+        `[data-main-siege] [data-choix="${reponse}"]`
+      );
+      if (carteDeLaMain) {
+        await poserLaCarte(carteDeLaMain);
+        return;
+      }
+    }
+    // Une carte Phase : elle s'en va se poser sur la table, puis on répond.
+    if (d.type === "pick_phase") {
+      const bouton = document.querySelector(`#scene [data-choix="${reponse}"]`);
+      const o = (d.options || [])[reponse];
+      if (bouton && o && o.phase) {
+        bouton.click();
+        return;
+      }
+    }
+    // Une corporation : même chose, elle s'en va se poser à sa place.
+    if (d.type === "pick_corporation") {
+      const bouton = document.querySelector(`#scene [data-choix="${reponse}"]`);
+      if (bouton) {
+        bouton.click();
+        return;
+      }
+    }
+  }
   repondre(reponse);
 }
 
@@ -123,6 +193,17 @@ function dessiner(d, etat) {
   m.dataset.decisionForme = forme;
   m.dataset.mode = SUPERPOSITION.has(d.type) ? "superposition" : "bande";
   m.dataset.type = d.type;
+  // Le TYPE que le moteur donne, recopié tel quel à côté du rang : de dehors, on
+  // peut alors savoir de quelle question il s'agit sans la relire en anglais.
+  m.dataset.decisionType = d.type;
+
+  // La carte qu'on est en train de construire — le moteur la nomme dans les
+  // décisions intermédiaires, et l'écran de vente en a besoin pour dire ce qu'on
+  // paie. Rien n'est deviné : on retient le nom que le descripteur donne.
+  if (d.carte) {
+    const c = normaliser(d.carte);
+    if (c) derniereConstruction = c.nom;
+  }
   // Nombre libre (remplacement partiel des cartes de départ) : on ne pose pas
   // l'attribut du tout, plutôt que d'annoncer « undefined » à qui nous lit.
   if (forme === "multiple" && d.a_choisir !== undefined && d.a_choisir !== null) {
@@ -202,6 +283,10 @@ function optionsIllustrees(d) {
   const o = (d.options || [])[0];
   if (!o) return false;
   if (d.type === "pick_phase" || d.type === "pick_joker_tag") return true;
+  // LES DEUX CORPORATIONS SONT LE SUJET. Elles ne passent plus par la main : on
+  // les présente en grand au milieu, on en désigne une d'un clic, et elle s'en
+  // va se poser à sa place — exactement le chemin d'une carte Phase.
+  if (d.type === "pick_corporation") return true;
   // Une amélioration de carte Phase se CHOISIT sur l'image de la carte
   // améliorée : ce sont les options le sujet, elles prennent toute la place.
   if (d.type === "amelioration_carte_phase") return !!codeAmelioration(o);
@@ -266,6 +351,14 @@ function contexte(d) {
     if (im) return contextePhase(im, `${MOT.currentCard} · ${phaseNom(d.phase)}`);
   }
 
+  // VENDRE POUR PAYER : ce n'est pas un curseur, c'est une phrase et des cartes.
+  if (d.type === "discard_payment_count") return contexteVente(d);
+
+  // Choisir sa corporation n'a PLUS de contexte : les deux cartes sont les
+  // options elles-mêmes, montrées en grand au milieu. Les répéter ici les
+  // afficherait deux fois et volerait la place à celles qu'on doit choisir.
+  if (d.type === "pick_corporation") return null;
+
   if (d.carte) {
     cartes.push(d.carte);
     mot = MOT.currentCard;
@@ -297,15 +390,69 @@ function contexte(d) {
     r.appendChild(f);
   }
   z.appendChild(r);
-
-  if (d.type === "discard_payment_count") {
-    const n = document.createElement("p");
-    n.className = "scene__note";
-    // Trois nombres du descripteur du moteur, recopiés tels quels.
-    n.textContent = `cost ${d.cout} MC · you hold ${d.mc} MC · ${d.taux} MC per discard`;
-    z.appendChild(n);
-  }
   return z;
+}
+
+/**
+ * VENDRE DES CARTES POUR FINIR DE PAYER — ce que le joueur voyait le 02-08 : un
+ * curseur affichant « 5 », impossible à descendre, sans un mot d'explication et
+ * sans savoir quelles cartes partaient.
+ *
+ * Deux choses manquaient, les voici :
+ *
+ *   • la PHRASE. Ce qu'on construit, ce qu'il manque, ce que chaque carte
+ *     rapporte. Tous les nombres viennent du descripteur (`cout`, `mc`, `taux`),
+ *     aucun n'est recalculé ;
+ *   • les CARTES. Le moteur prend les DERNIÈRES de la main
+ *     (`engine/src/flow.rs:2354` : `hand.pop()`, autant de fois que le nombre
+ *     choisi). On montre donc exactement celles-là, et elles suivent le curseur.
+ *
+ * Ce qu'on ne fait PAS : laisser choisir LESQUELLES. Cela demanderait de modifier
+ * le moteur, ce que ce chantier n'a pas le droit de faire — et faire semblant de
+ * l'offrir serait pire que de ne pas l'offrir.
+ */
+function contexteVente(d) {
+  const main = d.main || [];
+  const taux = d.taux ?? 0;
+  const manque = Math.max(0, (d.cout ?? 0) - (d.mc ?? 0));
+  const quoi = derniereConstruction ? `“${derniereConstruction}”` : MOT.thatCard;
+
+  const z = document.createElement("div");
+  z.className = "scene__contexte vente";
+  z.dataset.vente = "";
+
+  const p = document.createElement("p");
+  p.className = "vente__phrase";
+  p.textContent =
+    `${quoi} costs ${d.cout} MC and you only hold ${d.mc} MC: ${manque} MC are missing. ` +
+    `Each project card you discard pays ${taux} MC. ` +
+    `The cards below leave your hand — the engine always takes them from the end.`;
+  z.appendChild(p);
+
+  const r = document.createElement("div");
+  r.className = "vente__rang";
+  r.id = "vente-rang";
+  z.appendChild(r);
+
+  // Le premier dessin montre le minimum, qui est aussi la valeur du cadran.
+  montrerLesVendues(r, main, d.minimum ?? 0);
+  return z;
+}
+
+/** Les `n` dernières cartes de la main : celles qui partiront, et elles seules. */
+function montrerLesVendues(rang, main, n) {
+  if (!rang) return;
+  rang.textContent = "";
+  const combien = Math.max(0, Math.min(n, main.length));
+  for (const c of main.slice(main.length - combien)) {
+    const f = carte(c, { classe: "carte--vente" });
+    const id = normaliser(c);
+    if (id && id.id !== null && id.id !== undefined) {
+      f.dataset.venteCarte = String(id.id);
+    }
+    survolable(f, c);
+    rang.appendChild(f);
+  }
 }
 
 /** Un contexte fait d'une seule carte Phase imprimée, montrée telle quelle. */
@@ -327,6 +474,7 @@ function contextePhase(src, mot) {
   im.alt = mot;
   im.draggable = false;
   f.appendChild(im);
+  survolableImage(f, src, mot);
   r.appendChild(f);
   z.appendChild(r);
   return z;
@@ -360,12 +508,32 @@ function remplirContexte(z, maitre) {
 /** Choix simple : un élément cliquable par option, « passer » en dernier. */
 function simple(d, zone, etat) {
   const options = d.options || [];
-  const total = options.length + (d.passer ? 1 : 0);
 
+  // LA DÉCISION SE JOUE DEPUIS LA MAIN. La liste au milieu n'a plus lieu d'être :
+  // les cartes à jouer sont celles qu'on tient, en bas, et c'est là qu'on les
+  // attrape (`vue/mains.js` pose `data-choix` dessus, `vue/geste.js` les arme).
+  // La scène ne garde ici que ce qui n'est pas une carte : la question, et
+  // « passer », qui n'est dans aucune main.
+  if (decisionDeMain(d)) {
+    ouvrirGeste(d.rang, (i) => {
+      noterConstruction(d, i);
+      repondre(i);
+    });
+    zone.dataset.sorte = "geste";
+    zone.style.gridTemplateColumns = "";
+    const mot = document.createElement("p");
+    mot.className = "scene__geste";
+    mot.textContent = MOT.dropHere;
+    zone.appendChild(mot);
+    if (d.passer) zone.appendChild(boutonPasser(options.length));
+    return;
+  }
+
+  const total = options.length + (d.passer ? 1 : 0);
   const largeur = mesurer(d, zone, total);
   options.forEach((o, i) => {
     const b = choix(d, o, i, largeur, etat);
-    b.addEventListener("click", () => repondre(i));
+    brancherChoix(b, d, o, i);
     zone.appendChild(b);
   });
 
@@ -378,6 +546,95 @@ function simple(d, zone, etat) {
     b.addEventListener("click", () => repondre(options.length));
     zone.appendChild(b);
   }
+}
+
+/**
+ * LE BOUTON « PASSER » NE DÉPASSE JAMAIS UNE CARTE À JOUER. Le joueur l'a relevé
+ * le 02-08 : « il est plus grand que les cartes qu'on nous propose, il dépasse un
+ * peu ». Maintenant que les cartes à jouer sont celles de la main, la comparaison
+ * est directe — on lui donne la taille d'une carte de main, en un peu plus
+ * petit, et il ne la reprend jamais à la grille des choix.
+ */
+function boutonPasser(indice) {
+  const b = slab(MOT.pass, "passer");
+  b.dataset.choix = String(indice);
+  b.classList.add("choix--passer", "choix--passer-carte");
+  b.setAttribute("aria-label", "pass");
+  // ON MESURE LA CARTE, ON NE LA SUPPOSE PAS. La largeur d'une carte de main suit
+  // la hauteur de la fenêtre : un bouton taillé sur une constante deviendrait plus
+  // grand qu'elle dès que l'écran raccourcit — exactement le défaut qu'on répare.
+  const im = document.querySelector("[data-main-siege] .carte--main img");
+  const r = im ? im.getBoundingClientRect() : null;
+  const l = r && r.width > 1 ? r.width : LARGEUR_MAIN;
+  const h = r && r.height > 1 ? r.height : LARGEUR_MAIN * RATIO;
+  b.style.width = Math.floor(l * 0.94) + "px";
+  b.style.height = Math.floor(h * 0.82) + "px";
+  b.style.minHeight = "0";
+  b.addEventListener("click", () => repondre(indice));
+  return b;
+}
+
+/**
+ * Le clic d'une option qui reste au milieu. Une carte Phase ne se contente pas de
+ * répondre : elle se POSE sur la table, en tournant, et la réponse ne part
+ * qu'ensuite — sinon l'écran se réécrirait sous la carte en vol.
+ */
+function brancherChoix(b, d, o, i) {
+  if (d.type === "pick_phase" && o.phase) {
+    b.addEventListener("click", async () => {
+      // UNE SEULE CARTE PART. Le test `resoudre` ne suffit pas : il est relu
+      // AVANT le vol, et `repondre` n'éteint la décision qu'APRÈS. Deux clics
+      // pendant les 700 ms du vol franchiraient donc tous deux la garde, et le
+      // second répondrait à la décision SUIVANTE — celle du choix de phase de la
+      // manche d'après, voire une tout autre question. Le rang capturé ici
+      // interdit ce report, et le verrou interdit le second vol.
+      if (phaseEnVol || !resoudre) return;
+      const rang = d.rang;
+      phaseEnVol = true;
+      const manche = (enCours && enCours.etat.generation) || 0;
+      try {
+        await poserPhase(b, o.phase, d.joueur, manche);
+      } finally {
+        phaseEnVol = false;
+      }
+      if (enCours && enCours.d.rang !== rang) return; // la question a changé
+      repondre(i);
+    });
+    return;
+  }
+
+  // LA CORPORATION QU'ON DÉSIGNE S'EN VA SE POSER. Même chemin, même verrou et
+  // même garde que la carte Phase ci-dessus — un seul vol, et la réponse ne part
+  // qu'une fois la carte arrivée, sinon l'écran se réécrirait sous elle.
+  //
+  // OÙ ELLE SE POSE : la case de corporation de son propriétaire, dans la barre
+  // d'équipage (`vue/joueurs.js`, `#corpo-carte-<siège>`). C'est là que le moteur
+  // la fera paraître au rendu suivant : la carte va donc là où elle sera.
+  if (d.type === "pick_corporation") {
+    b.addEventListener("click", async () => {
+      if (phaseEnVol || !resoudre) return;
+      const rang = d.rang;
+      phaseEnVol = true;
+      try {
+        const place = document.getElementById("corpo-carte-" + d.joueur);
+        if (place) await voler(b, place, { ms: 700, tour: 360, grossir: 1.1 });
+      } finally {
+        phaseEnVol = false;
+      }
+      if (enCours && enCours.d.rang !== rang) return; // la question a changé
+      repondre(i);
+    });
+    return;
+  }
+
+  b.addEventListener("click", () => repondre(i));
+}
+
+/** Ce qu'on vient de décider de construire, pour l'écran de vente qui suivra. */
+function noterConstruction(d, i) {
+  if (d.type !== "choose_build") return;
+  const c = normaliser((d.options || [])[i]);
+  derniereConstruction = c ? c.nom : null;
 }
 
 /** Choix multiple : on sélectionne, puis on valide. */
@@ -455,9 +712,19 @@ function montant(d, zone, barre) {
   zone.appendChild(c);
 
   const borne = (v) => Math.max(min, Math.min(max, v));
+  // LE CURSEUR MONTRE CE QU'IL COÛTE. Tant qu'on bouge le nombre, les cartes qui
+  // partiront changent sous les yeux : c'est ce qui distingue un choix d'un
+  // chiffre nu. `input` couvre la frappe comme les deux boutons.
+  const suivre = () => {
+    if (d.type !== "discard_payment_count") return;
+    const rang = document.getElementById("vente-rang");
+    montrerLesVendues(rang, d.main || [], borne(Number(champ.value || min)));
+  };
+  champ.addEventListener("input", suivre);
   for (const b of c.querySelectorAll("[data-pas]")) {
     b.addEventListener("click", () => {
       champ.value = String(borne(Number(champ.value || min) + Number(b.dataset.pas)));
+      suivre();
     });
   }
 
@@ -496,10 +763,14 @@ function choix(d, o, i, largeur, etat) {
     b = document.createElement("button");
     b.type = "button";
     b.className = "choix choix--phase";
+    const src = imagePhase(o.phase);
     const im = document.createElement("img");
-    im.src = imagePhase(o.phase);
+    im.src = src;
     im.alt = "Phase card " + phaseNom(o.phase);
+    im.draggable = false;
     b.appendChild(im);
+    // Une carte Phase est une carte : elle s'agrandit au survol comme les autres.
+    survolableImage(b, src, `Phase card ${phaseNom(o.phase)}`);
     const t = document.createElement("span");
     t.className = "choix__mot";
     t.textContent = mot;
@@ -520,11 +791,15 @@ function choix(d, o, i, largeur, etat) {
       b = document.createElement("button");
       b.type = "button";
       b.className = "choix choix--phase choix--amelioration";
+      const src = imageAmelioration(code);
       const im = document.createElement("img");
-      im.src = imageAmelioration(code);
+      im.src = src;
       im.alt = `upgraded Phase card ${phaseNom(o.phase)} ${o.variante}`;
       im.draggable = false;
       b.appendChild(im);
+      // « Lors d'améliorations de cartes phases, quand on passe le curseur
+      // dessus, ça ne fait pas de zoom comme d'habitude » (02-08). Voilà.
+      survolableImage(b, src, `upgraded Phase card ${phaseNom(o.phase)} ${o.variante}`);
       const t = document.createElement("span");
       t.className = "choix__mot";
       t.textContent = mot;
@@ -543,18 +818,48 @@ function choix(d, o, i, largeur, etat) {
     b = document.createElement("button");
     b.type = "button";
     b.className = "choix choix--carte";
-    b.appendChild(carte(o, { classe: "carte--choix" }));
-    // Au choix de la corporation la carte est déjà affichée en très grand :
-    // la loupe n'ajoute rien et gêne. On la débranche là, et là seulement.
-    if (d.type !== "pick_corporation") survolable(b, o);
+    // La corporation est le sujet même de sa question : on la montre GRANDE,
+    // pas en vignette, et la loupe n'a plus rien à ajouter par-dessus.
+    const grande = d.type === "pick_corporation";
+    b.appendChild(carte(o, { classe: grande ? "carte--choix carte--corpo-choix" : "carte--choix" }));
+    if (!grande) survolable(b, o);
     const t = document.createElement("span");
     t.className = "choix__mot";
     t.textContent = mot;
     b.appendChild(t);
     // Une option QUI EST une carte porte son identifiant, et se déclare jouable :
     // c'est le moteur qui vient de l'énumérer, la page ne fait que le recopier.
+    //
+    // LEQUEL DES DEUX IDENTIFIANTS ? `data-carte-id` désigne une carte qu'on
+    // TIENT, `data-carte-en-jeu` une carte déjà POSÉE — c'est la répartition que
+    // ce dépôt emploie depuis toujours (`vue/mains.js` et `vue/plateau.js`).
+    // Toute carte de la main se joue désormais depuis la main : une option-carte
+    // qui arrive jusqu'ici, sur une décision simple, est nécessairement une carte
+    // en jeu (prendre ou poser une ressource, rejouer une production). Elle porte
+    // donc la marque des cartes en jeu. Les décisions à choix multiple, elles,
+    // parlent bien de cartes qu'on tient ou qu'on vient de piocher.
+    //
+    // UNE CORPORATION N'EST NI L'UN NI L'AUTRE : elle n'est pas tenue, elle
+    // n'est pas posée, elle est PRÉSENTÉE. Elle porte donc sa propre marque,
+    // `data-corpo-choix`, et jamais celle des cartes qu'on tient — sans quoi une
+    // machine qui pilote la page confondrait son numéro avec celui d'une carte
+    // projet, les deux comptages étant distincts (voir `vue/cartes.js`).
+    // COUTURE — le contrôle `23` (banc `verif/identifiants.py`, commun aux trois
+    // chantiers) prend l'écran EN DÉFAUT ici, et lui seul : sur la graine 31337,
+    // pendant la mise en place, la corporation « Inventrix » est présentée au
+    // milieu sous le numéro 7 pendant que la main tient la carte projet
+    // « Arctic Algae », numéro 7 elle aussi. Deux cartes, un seul numéro à
+    // l'écran — exactement ce que le paragraphe ci-dessus dit qu'il ne faut pas.
+    // La règle était écrite, l'attribut ne la portait pas : il reçoit donc le
+    // COUPLE que `vue/cartes.js` fabrique déjà pour la main (`data-carte-cle`),
+    // au lieu du numéro nu. Rien de neuf n'est ajouté — c'est l'identifiant que
+    // ce dépôt emploie partout ailleurs, appliqué au dernier endroit qui l'avait
+    // manqué. `verif/corporation.py` (contrôle `22`) lit cet attribut comme une
+    // valeur opaque et clique dessus : il s'accommode du couple sans retouche.
     if (c.id !== null && c.id !== undefined) {
-      b.dataset.carteId = String(c.id);
+      if (grande) b.dataset.corpoChoix = cle(o) ?? String(c.id);
+      else if (d.multiple) b.dataset.carteId = String(c.id);
+      else b.dataset.carteEnJeu = String(c.id);
       b.dataset.jouable = "oui";
     }
   } else {
@@ -592,7 +897,8 @@ function matiereAction(brut) {
   if (s.jeton === "foret") return { src: imageForet(), sorte: "jeton" };
   if (s.jeton === "ocean") return { src: imageOcean(0), sorte: "jeton" };
   if (s.jeton === "chaleur") return { src: imageReserve("heat"), sorte: "jeton" };
-  if (s.jeton === "dos") return { src: dosDeCarte(), sorte: "carte" };
+  // « Défausser 1 carte pour du MC » : c'est une carte PROJET qui part.
+  if (s.jeton === "dos") return { src: dosProjet(), sorte: "carte" };
   return null;
 }
 

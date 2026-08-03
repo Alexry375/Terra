@@ -5,6 +5,20 @@
 // de découpe. Ce module fait la jointure, et RIEN d'autre : il ne décide rien,
 // ne calcule rien, n'invente aucune valeur.
 
+// COUTURE — deux chantiers ont écrit dans ce fichier, en deux endroits qui ne
+// se touchent pas, et les deux apports sont repris entiers :
+//
+//   · `bandeau-et-monde` — la section des neuf océans : `NB_OCEANS`, `dosOcean`,
+//     `faceOcean`, `cleOcean`. Elle REMPLACE l'ancienne table `TUILES_OCEAN` et
+//     l'ancien `imageOcean(i)`, qui distribuaient une face par rang sans jamais
+//     demander au moteur laquelle était révélée. `imageOcean()` survit sous le
+//     même nom, sans argument : `vue/scene.js` (chantier `table-vivante`)
+//     l'appelle encore pour illustrer une action, et il rend désormais le dos.
+//   · `table-vivante` — les deux dos, en bas de fichier : `dosDeCarte` se scinde
+//     en `dosProjet` et `dosCorporation`. Plus aucun appelant ne demande
+//     `dosDeCarte` : `vue/cartes.js`, `vue/mains.js` et `vue/scene.js` sont eux
+//     aussi repris de `table-vivante`, qui les avait déjà mis à jour.
+
 import { STAGES, BADGE_EN, MOT } from "./mots.js";
 
 const MANIFESTE = "./assets/manifeste.json";
@@ -178,28 +192,88 @@ export function imageReserve(cle) {
   return RESERVES[cle] ? piece(RESERVES[cle]) : null;
 }
 
-// Les neuf océans du jeu : neuf tuiles réellement imprimées, dans l'ordre où
-// elles se posent. Aucune n'est décorative — chacune est un océan gagné.
-export const TUILES_OCEAN = [
-  "tuile-ocean-bonus-2-plantes",
-  "tuile-ocean-bonus-1-carte",
-  "tuile-ocean-bonus-4-mc",
-  "tuile-ocean-bonus-1-plante-et-1-mc",
-  "tuile-ocean-terrain-aride-sans-bonus",
-  "tuile-ocean-bonus-1-mc",
-  "tuile-ocean-bonus-1-carte-et-1-plante",
-  "tuile-ocean-bonus-1-plante-et-2-mc",
-  "tuile-ocean-bonus-2-plantes",
-];
+// ------------------------------------------------------------- les neuf océans
 
-export function imageOcean(i) {
-  return piece(TUILES_OCEAN[i % TUILES_OCEAN.length]);
+/** Le nombre d'emplacements de la planche. C'est `state::NUM_OCEANS`. */
+export const NB_OCEANS = 9;
+
+/**
+ * LE DOS DES TUILES — la face orange du livret (l. 72 : « choisissez une tuile
+ * Océan dont la face orange est visible »). C'est le scan
+ * `tuile-ocean-terrain-aride-sans-bonus`, recopié sous un nom NEUTRE : aucune
+ * des neuf tuiles du moteur n'a un bonus nul, cette image ne peut donc pas être
+ * une face — et son nom de découpe contient le mot « bonus », qui aurait
+ * suffi à faire fuiter une tuile encore retournée par son seul `src`.
+ */
+export function dosOcean() {
+  return piece("tuile-ocean-dos-orange");
+}
+
+/**
+ * LA FACE D'UNE TUILE RÉVÉLÉE, par son bonus tel que le moteur le publie
+ * (`oceans_revealed_tiles[] = {id, cards, mc, plants}`). On ne devine pas :
+ * la clef est le triplet exact, et les sept triplets de `state::OCEAN_TILES`
+ * ont chacun leur scan.
+ *
+ * Deux noms de découpe trompent, et c'est le scan qui tranche :
+ * `…bonus-1-mc` porte une carte ET un MC (1/1/0), pas un MC seul ; c'est la
+ * seule tuile du jeu à mêler les deux.
+ */
+const FACES_OCEAN = {
+  "0-0-2": "tuile-ocean-bonus-2-plantes",
+  "0-4-0": "tuile-ocean-bonus-4-mc",
+  "1-1-0": "tuile-ocean-bonus-1-mc",
+  "0-2-1": "tuile-ocean-bonus-1-plante-et-2-mc",
+  "1-0-1": "tuile-ocean-bonus-1-carte-et-1-plante",
+  "1-0-0": "tuile-ocean-bonus-1-carte",
+  "0-1-1": "tuile-ocean-bonus-1-plante-et-1-mc",
+};
+
+/** La clef d'un bonus publié par le moteur. */
+export function cleOcean(t) {
+  return `${t.cards | 0}-${t.mc | 0}-${t.plants | 0}`;
+}
+
+/**
+ * L'image de la face d'une tuile révélée, ou `null` si le moteur publie un
+ * bonus dont aucun scan ne rend compte. On rend `null` plutôt qu'une image
+ * approchante : montrer « terrain aride » pour « 1 carte et 1 MC » serait
+ * afficher un bonus qui n'est pas celui du moteur.
+ */
+export function faceOcean(tuile) {
+  const nom = FACES_OCEAN[cleOcean(tuile)];
+  return nom ? piece(nom) : null;
+}
+
+/**
+ * LE JETON OCÉAN GÉNÉRIQUE — l'image qui dit « un océan », sans en désigner un.
+ * C'est la tuile face orange : celle qu'on prend sur la planche pour la
+ * retourner. Elle sert d'illustration aux actions du jeu (« reveal an ocean »),
+ * là où montrer une face précise annoncerait un bonus que personne n'a encore
+ * gagné.
+ */
+export function imageOcean() {
+  return dosOcean();
 }
 
 export function imageForet() {
   return piece("tuile-foret-compteur-hexagone-arbre");
 }
 
-export function dosDeCarte() {
+// DEUX DOS, ET CHACUN LE SIEN. Le jeu imprime deux dos différents, et les
+// confondre fait mentir l'écran : une main d'adversaire couverte de dos de
+// corporation annonce des corporations qu'il ne tient pas. L'attribution vient du
+// joueur, qui a la boîte en main (02-08).
+//
+//   campement martien sur Mars aride -> les cartes PROJET
+//   cité verte sous un dôme          -> les cartes CORPORATION
+
+/** Le dos d'une carte projet — celui des mains, des pioches, des défausses. */
+export function dosProjet() {
+  return piece("dos-de-carte-campement-martien-et-dirigeables");
+}
+
+/** Le dos d'une carte corporation — et de rien d'autre. */
+export function dosCorporation() {
   return piece("dos-de-carte-cite-sous-dome-et-dirigeables");
 }

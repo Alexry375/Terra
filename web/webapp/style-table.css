@@ -1,0 +1,334 @@
+/* LA TABLE VIVANTE — le geste, la table des phases, l'agrandissement.
+ *
+ * Cette feuille est chargée APRÈS `style.css` et ne la remplace pas : elle pose
+ * ce que ce chantier ajoute, et surcharge le strict minimum de l'ancienne mise en
+ * page. Deux chantiers écrivent en parallèle sur cet écran ; c'est la raison
+ * d'être de ce fichier séparé.
+ *
+ * Trois règles de `style.css` sont reprises ici, et rien d'autre :
+ *   • `#scene` change de case : il vit désormais DANS la table (`#milieu`) ;
+ *   • `#phases` n'existe plus : la colonne de gauche porte la table des phases ;
+ *   • la loupe reçoit sa largeur du script, elle ne la reçoit plus de la feuille.
+ */
+
+/* ============================================== LES ANIMATIONS SE COUPENT */
+
+/* `?animations=non` : les durées tombent à zéro, les résultats ne changent pas.
+   `1ms` plutôt que `0s` — une durée nulle empêche certains navigateurs de
+   déclencher l'événement de fin, et un `await` qui n'aboutit pas bloque la
+   partie. Un millième de seconde aboutit toujours et ne se voit pas. */
+body[data-animations="non"] *,
+body[data-animations="non"] *::before,
+body[data-animations="non"] *::after {
+  animation-duration: 1ms !important;
+  animation-delay: 0s !important;
+  transition-duration: 1ms !important;
+  transition-delay: 0s !important;
+}
+
+/* ==================================================== LA TABLE DU MILIEU */
+
+/* La bande entre les deux plateaux EST la table : la question s'y pose, et c'est
+   là qu'on dépose une carte pour la jouer. Elle occupe la case que `style.css`
+   donnait à la scène ; la scène, elle, s'installe dedans. */
+#milieu {
+  grid-column: 2;
+  grid-row: 5;
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}
+#scene {
+  grid-column: auto;
+  grid-row: auto;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* LA ZONE D'ACCUEIL. Elle ne s'allume que lorsqu'il y a une carte à poser, et
+   elle ne reçoit jamais un clic : c'est un repère, pas une cible. La cible, c'est
+   la table entière — on lâche la carte où l'on veut dessus. */
+/* Elle est DEVANT la scène — la scène n'est qu'un voile sombre, et une zone
+   d'accueil qu'on ne voit pas n'accueille personne. Elle ne reçoit jamais un
+   clic (`pointer-events: none`), elle ne peut donc rien intercepter. */
+#depot {
+  position: absolute;
+  inset: 8px;
+  z-index: 8;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 10px;
+  pointer-events: none;
+  opacity: 0;
+  border: 2px dashed transparent;
+  transition: opacity 240ms ease, border-color 240ms ease, background 240ms ease;
+}
+body[data-geste="main"] #depot {
+  opacity: 1;
+  border-color: rgba(237, 181, 78, .55);
+}
+/* La carte survole la table : elle est PRÊTE à se poser, et ça se voit. Le fond
+   ne s'allume qu'à cet instant — le reste du temps il teinterait la question. */
+body[data-geste="main"] #milieu[data-survolee="oui"] #depot {
+  border-color: var(--or);
+  border-style: solid;
+  box-shadow: inset 0 0 70px rgba(237, 181, 78, .28), 0 0 26px rgba(237, 181, 78, .22);
+}
+#depot-mot { display: none; }
+
+/* La scène d'une décision qui se joue depuis la main : plus de liste, une
+   consigne et le bouton « passer ». Le milieu reste vide — c'est là que la carte
+   arrive. */
+.scene__choix[data-sorte="geste"] {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 0 18px;
+}
+.scene__geste {
+  margin: 0;
+  flex: 1 1 auto;
+  text-align: center;
+  font-size: 13px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--os-faible);
+  text-shadow: 0 1px 4px #000;
+}
+body[data-geste="main"] .scene__geste { color: var(--or); }
+
+/* LE BOUTON « PASSER » NE DÉPASSE PLUS. Sa taille est posée par le script, à
+   partir de la largeur d'une carte de main ; la feuille ne fait que l'empêcher de
+   reprendre la hauteur minimale des plaques. */
+.choix--passer-carte {
+  flex: 0 0 auto;
+  min-height: 0;
+  padding: 10px;
+  justify-content: center;
+  border-left-width: 3px;
+  background:
+    linear-gradient(155deg, rgba(239, 228, 212, .14), rgba(239, 228, 212, .03) 62%),
+    linear-gradient(0deg, rgba(6, 8, 14, .82), rgba(6, 8, 14, .82));
+}
+.choix--passer-carte .choix__mot { font-size: 15px; letter-spacing: .16em; }
+
+/* ============================================== LA MAIN, ET SON GESTE */
+
+/* LA CARTE EST EN L'AIR : sa place reste vide dans la main, le temps du voyage.
+   Ce n'est pas un masquage — c'est exactement ce qu'on voit sur une table quand
+   une main soulève une carte de son éventail. Le fac-similé, lui, voyage dans la
+   couche de vol (`#vol`), au-dessus de tout et coupé par rien. */
+.carte--main[data-en-main="oui"] { opacity: .12; filter: grayscale(1); }
+.main--mienne .carte--main[data-choix] { cursor: grab; }
+body[data-geste="main"] .main--mienne .carte--main[data-en-main="oui"] { cursor: grabbing; }
+
+/* Ce qu'on peut jouer se soulève déjà un peu, sans attendre le survol : la main
+   montre d'elle-même où sont les cartes vivantes. */
+.main--mienne .carte--main[data-choix] { transform: translateY(-6px); }
+.main--mienne .carte--main[data-choix]:hover { transform: translateY(-16px); }
+
+/* LA MAIN NE SE FAIT PLUS COUPER. `style.css` fixe la carte de main à 116 px de
+   large, soit 162 px de haut, alors que la bande vaut `clamp(146px, 18vh, 182px)`
+   moins sa ligne de titre : à 1000 px de fenêtre ça tient à 2 px près, à 900 px
+   la carte est rognée de 16 px, à 800 px de 32 px. Tant que la main n'était qu'un
+   rappel, c'était laid ; maintenant qu'on y ATTRAPE les cartes, c'est le bas du
+   texte imprimé et le bord de la cible qui disparaissent.
+
+   La largeur suit donc la bande, avec le même `18vh`, et ne descend jamais sous
+   92 px — le plancher de lisibilité du coût imprimé retenu par `vue/mains.js`.
+   Sur les 1600 x 1000 des contrôles, la valeur reste 116 px, inchangée. */
+.main--mienne .carte--main img {
+  width: clamp(92px, calc((18vh - 18px) / 1.3927), 116px);
+}
+
+.main__geste {
+  font-size: 8.5px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--or);
+  opacity: .85;
+}
+
+/* ================================================ LA CARTE QUI VOYAGE */
+
+#vol {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  pointer-events: none;
+}
+.vol__carte {
+  position: fixed;
+  will-change: transform;
+}
+.vol__carte img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 4px;
+  box-shadow: 0 22px 46px rgba(0, 0, 0, .85), 0 0 0 1px rgba(239, 228, 212, .2);
+}
+
+/* ============================================= LA TABLE DES CARTES PHASE */
+
+/* Une case par joueur, l'adversaire en haut, moi en bas — le même ordre que le
+   reste de l'écran. La moitié HAUTE de cette colonne reste libre : elle est
+   réservée aux jauges, qui font l'objet d'un autre chantier. */
+/* TOUT TIENT DANS LA COLONNE. Les quatre emplacements et leurs cartes sont
+   mesurés en hauteur de FENÊTRE, pas en pixels fixes : à 1000 px de haut la
+   colonne offre 413 px et le contenu en demandait 429 — le titre passait au-dessus
+   du bord et disparaissait, et sur un écran plus bas c'était une carte entière qui
+   se coupait. Une carte Phase coupée, c'est justement l'information que cette
+   colonne existe pour donner. */
+#table-phases {
+  grid-column: 1;
+  grid-row: 5 / 8;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  padding: 3px 2px;
+}
+.table-phases__mot {
+  font-size: 8px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--os-faible);
+  text-shadow: 0 1px 3px #000;
+}
+.dock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 3px 2px;
+  border-left: 3px solid var(--teinte);
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--teinte) 12%, rgba(6, 8, 14, .5)), rgba(6, 8, 14, .28));
+}
+/* Mon siège en bas, l'autre en haut : c'est `body[data-siege]` qui tranche, comme
+   pour les plateaux et les barres. */
+#dock-1 { order: 1; }
+#dock-0 { order: 2; }
+body[data-siege="1"] #dock-0 { order: 1; }
+body[data-siege="1"] #dock-1 { order: 2; }
+
+.dock__qui {
+  font-family: "TerraChiffre", monospace;
+  font-size: 10px;
+  color: var(--teinte);
+  text-shadow: 0 1px 3px #000;
+}
+/* La case garde sa place même vide : sans cela, la carte de l'adversaire ferait
+   sauter toute la colonne au moment de la révélation. */
+/* `width: 100%` n'est pas décoratif : une case VIDE doit garder une boîte. Sans
+   elle, `getBoundingClientRect()` rend une largeur nulle, et l'animation de pose
+   n'a plus de destination — la carte Phase se posait donc sans qu'on la voie
+   jamais voyager. Relevé : 0 fac-similé sur 12 relevés pendant le vol. */
+.dock__courante {
+  width: 100%;
+  height: clamp(54px, 9.8vh, 104px);
+  display: flex; align-items: center; justify-content: center;
+}
+.dock__precedente {
+  width: 100%;
+  height: clamp(34px, 5.8vh, 62px);
+  display: flex; align-items: center; justify-content: center;
+}
+
+.phase-posee { position: relative; width: clamp(36px, 5.9vh, 62px); line-height: 0; }
+.phase-posee img {
+  width: 100%;
+  border-radius: 3px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .7);
+}
+.phase-posee__mot {
+  display: block;
+  margin-top: 2px;
+  font-size: 7.5px;
+  line-height: 1.1;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--os-faible);
+  text-shadow: 0 1px 3px #000;
+}
+.phase-posee[data-phase-en-cours="oui"] img {
+  box-shadow: 0 0 0 2px var(--or), 0 0 24px rgba(237, 181, 78, .55);
+}
+.phase-posee[data-phase-en-cours="oui"] .phase-posee__mot { color: var(--or); }
+
+/* LA CARTE DE LA MANCHE PRÉCÉDENTE EST COUCHÉE. Elle dit ce que ce joueur ne peut
+   pas rejouer (livret p. 10) : elle est mise de côté, à plat, sous la carte
+   courante — et elle y est avant que quiconque ne choisisse. C'est une VRAIE
+   rotation, pas une image plus large : sa boîte à l'écran est plus large que
+   haute, comme une carte réellement posée à plat sur une table. */
+.phase-posee--couchee {
+  width: clamp(26px, 4.4vh, 46px);
+  transform: rotate(90deg);
+  transform-origin: center center;
+  filter: grayscale(.5) brightness(.68);
+}
+.phase-posee--couchee .phase-posee__mot { display: none; }
+.phase-posee--couchee img { box-shadow: 0 4px 12px rgba(0, 0, 0, .8); }
+
+/* Elle arrive : elle se pose, elle n'apparaît pas. */
+.phase-posee--arrive { animation: phase-arrive 420ms cubic-bezier(.2, .8, .2, 1); }
+@keyframes phase-arrive {
+  from { opacity: 0; transform: translateY(-14px) scale(1.18) rotate(-8deg); }
+}
+
+/* ==================================================== VENDRE POUR PAYER */
+
+/* Une phrase, puis les cartes qui partent. Plus jamais un curseur nu. */
+.vente { gap: 6px; }
+.vente__phrase {
+  margin: 0 0 10px;
+  max-width: 78ch;
+  align-self: center;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.35;
+  letter-spacing: .01em;
+  color: var(--os);
+  text-shadow: 0 1px 6px #000;
+}
+.vente__rang {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-wrap: wrap;
+}
+.vente__rang .carte--vente img {
+  width: clamp(64px, 11vh, 116px);
+  border-radius: 3px;
+  box-shadow: 0 0 0 2px var(--braise), 0 6px 18px rgba(0, 0, 0, .7);
+}
+.vente__rang .carte--vente { position: relative; opacity: .92; }
+.vente__rang:empty::after {
+  content: "no card leaves your hand";
+  font-size: 11px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--os-faible);
+}
+
+/* ========================================================= L'AGRANDISSEMENT */
+
+/* La loupe reçoit désormais un rendu complet de carte (image, et nom en clair
+   pour les deux cartes que les planches officielles n'ont pas découpées) : c'est
+   le contenu qui prend la largeur que le script lui donne. */
+#loupe .carte { width: 100%; }
+#loupe .carte img { width: 100%; height: auto; display: block; }
+#loupe .carte__plaque { font-size: 15px; padding: 8px 10px; }

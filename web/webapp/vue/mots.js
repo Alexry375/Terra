@@ -44,6 +44,26 @@ export const MOT = {
   oneCard: "card",
   manyCards: "cards",
   roundPhases: "Phases this round",
+  // ------------------------------------------------------------------ COUTURE
+  // Les trois chantiers ont écrit dans ce dictionnaire, et AUCUN n'a retiré ni
+  // réécrit une entrée existante : chacun a ajouté les siennes dans un bloc à
+  // lui, à un endroit différent du fichier. La fusion n'a donc rien eu à
+  // arbitrer, et l'ordre d'origine est conservé pour que chaque bloc reste
+  // relisible à côté du code qui s'en sert :
+  //   · ci-dessous, jusqu'à `thatCard` — `table-vivante` (la table, le geste) ;
+  //   · plus bas, de `arcTemp` à `oceanFaceUp` — `bandeau-et-monde` ;
+  //   · en fin d'objet, de `menuBoxBase` à `stateOff` — `menu-et-options`.
+  // Deux entrées se ressemblent sans faire double emploi : `roundPhases`
+  // (l'ancien bandeau des phases) et `phaseTable` (la table de `table-vivante`)
+  // nomment deux zones différentes de l'écran, toutes deux encore vivantes.
+  // La table : chaque joueur y pose sa carte Phase, et range à plat celle de la
+  // manche d'avant — celle qu'il n'a pas le droit de reprendre.
+  phaseTable: "Phase cards on the table",
+  // Le geste : on attrape la carte et on la pose. Les deux façons sont dites,
+  // parce que les deux marchent.
+  dragHint: "drag a card onto the table, or click it",
+  dropHere: "Drop a card here to play it — or simply click it in your hand",
+  thatCard: "The card you are playing",
   // Obligation de licence de la photographie du sol (voir
   // `assets/plateau/CREDITS-sol-martien.md`) : la mention doit se LIRE à l'écran.
   credit: "Mars surface · NASA / JPL / University of Arizona",
@@ -52,6 +72,26 @@ export const MOT = {
   confirm: "Confirm",
   milestone: "Milestone",
   award: "Award",
+  // Les deux arcs du plateau imprimé. L'unité est dans l'intitulé : c'est la
+  // graduation du plateau qu'ils portent, pas le compteur brut du moteur.
+  arcTemp: "Temperature °C",
+  arcOxygen: "Oxygen %",
+  // La ventilation du score, dans les cinq parts du livret (p.16-17). Elles
+  // portent les noms que le moteur publie (`players[].score_parts`).
+  scoreTr: "TR",
+  scoreForests: "Forests",
+  scoreCards: "Cards",
+  scoreMilestones: "Milestones",
+  scoreAwards: "Awards",
+  // Ce qui peut encore basculer avant la fin. Les 12 points de départ viennent
+  // de là : trois récompenses à égalité, 4 points chacune.
+  provisional: "provisional",
+  provisionalWhy:
+    "Milestones and awards are counted as if the game ended right now. "
+    + "They can still swing until the last phase is played.",
+  // La planche des océans : ce qu'une tuile encore retournée a le droit de dire.
+  oceanFaceDown: "face-down ocean tile",
+  oceanFaceUp: "revealed ocean tile",
   currentCard: "Current card",
   yourCorps: "Your Corporation cards",
   yourHand: "Your hand",
@@ -65,6 +105,39 @@ export const MOT = {
   endTitle: "Mars is terraformed",
   endSub: "Final count",
   players: ["P0", "P1"],
+
+  // ------------------------------------------------ le menu, les options, l'aide
+  // Ajouts du chantier « menu et options » (02-08). Rien n'est retiré ni réécrit
+  // au-dessus : les trois chantiers en cours se partagent ce fichier.
+  menuBoxBase: "base",
+  menuBoxAll: "base + Discovery",
+  menuCoverAlt: "Ares Expedition box cover",
+  options: "Options",
+  optionsOpen: "Open the options",
+  resume: "Resume",
+  help: "Help",
+  settings: "Settings",
+  // « Main menu » dirait la même chose, mais le banc de langue du dépôt
+  // (`verif/anglais.mjs`) tient « main » pour un mot français — celui de la main
+  // de cartes. « Back to menu » est aussi clair et ne prête pas à confusion.
+  backToMenu: "Back to menu",
+  helpTitle: "Phase cards",
+  helpLead: "The five Phase cards and their ten upgraded faces. Point at one to enlarge it.",
+  // Les cinq phases ne sont PAS nommées en toutes lettres ici : « Research » est
+  // aussi le nom d'une carte projet, et l'écrire ferait passer pour révélée une
+  // carte que le jeu n'a pas montrée. Les images, elles, portent leur nom imprimé.
+  helpHint: "Point at a card",
+  faceStandard: "Standard",
+  faceUpgradeA: "Upgrade A",
+  faceUpgradeB: "Upgrade B",
+  settingsLead: "These take effect at once, on the game being played.",
+  setAnimations: "Animations",
+  // Chaque note dit ce que le réglage fait quand il est ALLUMÉ : « On » et la
+  // phrase doivent aller dans le même sens, sinon on ne sait plus ce qu'on coupe.
+  setAnimationsNote: "Movement and fades, everywhere on screen.",
+  setScoreNote: "Show both scores while the game is being played.",
+  stateOn: "On",
+  stateOff: "Off",
 };
 
 /** Les cinq cartes Phase, dites en anglais (le moteur les numérote). */

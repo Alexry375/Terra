@@ -10,9 +10,33 @@
      Le dossier se suffit à lui-même, où qu'on le pose. -->
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="./style.css">
+<!-- COUTURE DES TROIS CHANTIERS. Chacun a écrit SA feuille à côté de `style.css`
+     plutôt que dedans, précisément pour que la fusion n'ait rien à arbitrer :
+     les trois se chargent APRÈS la feuille commune, et aucune ne réécrit une
+     règle d'une autre.
+       · `style-table.css`  (table-vivante)    la table, le geste, les docks
+       · `style-monde.css`  (bandeau-et-monde) le bandeau, les arcs, les océans
+       · `style-menu.css`   (menu-et-options)  l'accueil, les options, l'aide
+     `style-menu.css` vient en DERNIER : c'est lui qui porte le coupe-circuit des
+     animations (`html[data-animations="non"] *`), et un coupe-circuit doit
+     pouvoir éteindre ce que les deux autres feuilles ont allumé. -->
+<link rel="stylesheet" href="./style-table.css">
+<link rel="stylesheet" href="./style-monde.css">
+<link rel="stylesheet" href="./style-menu.css">
 </head>
 <body data-phase="chargement">
-<!-- Le décor, les deux équipages, les deux mains et la scène sont bâtis par
+<!-- LA TABLE — apport de `table-vivante`, seul chantier à écrire quelque chose
+     en dur dans la page (les deux autres ne bâtissent qu'en JavaScript) : il n'y
+     a donc rien à arbitrer ici, le bloc est repris tel quel.
+     C'est le meuble, pas un décor : elle existe avant le premier octet
+     de script, elle ne dépend d'aucun chargement, et c'est sur elle qu'on dépose
+     une carte pour la jouer. `interface.js` y pose ensuite la scène de la
+     décision — la question s'affiche donc SUR la table, à l'endroit même où la
+     carte vient se poser. -->
+<div id="milieu" data-table-siege>
+  <div id="depot" aria-hidden="true"><span id="depot-mot"></span></div>
+</div>
+<!-- Le décor, les deux équipages, les deux mains et le reste sont bâtis par
      `interface.js` à partir de l'état que le moteur rend. La page ne contient
      aucun nombre écrit d'avance. -->
 <script type="module" src="./interface.js"></script>

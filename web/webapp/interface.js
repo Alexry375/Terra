@@ -24,6 +24,34 @@
 // point 26-bis). L'adversaire, lui, est toujours tenu par un programme
 // (`fournisseurs.js`) et reste opaque.
 
+// ---------------------------------------------------------------------------
+// LA COUTURE DES TROIS CHANTIERS — ce fichier est le seul que deux d'entre eux
+// ont réécrit au même endroit. Qui a apporté quoi, et pourquoi cet arrangement :
+//
+//   · `table-vivante` — la table remplace la liste de cartes Phase
+//     (`construireTable` / `majTable` / `oublierTable` au lieu de
+//     `construirePhases`), et la pause locale disparaît au profit de celle de
+//     `vue/anim.js`, qui sait la mettre à zéro quand `?animations=non` est là.
+//     `majPhases` reste appelé AVANT `majTable` : c'est lui qui sait où en est
+//     la planification, et la table lit sa réponse.
+//   · `menu-et-options` — l'écran d'accueil sort d'ici pour aller dans
+//     `vue/menu.js`, et tout le coupe-circuit de la partie (`ABANDON`,
+//     `coupeCircuit`, `sousCoupeCircuit`, `retourAuMenu`) s'y ajoute.
+//   · `bandeau-et-monde` — n'a pas touché ce fichier.
+//
+// Les deux chantiers ne se croisent qu'à deux lignes, et sans se contredire :
+// dans `lancer`, l'oubli de la table (`table-vivante`) précède la pose du
+// coupe-circuit (`menu-et-options`) ; dans les imports, chacun ajoute les siens.
+//
+// DEUX ARBITRAGES ONT ÉTÉ NÉCESSAIRES, et ils sont commentés là où ils vivent :
+//   · le réglage des animations, écrit deux fois, chacun de son côté — note en
+//     tête de `vue/anim.js` ;
+//   · la respiration de l'adversaire (`PAS_ADVERSE`), que `table-vivante` rend
+//     zérotable et dont le contrôle `20` de `menu-et-options` a besoin — note
+//     dans `adversaire()`, plus bas. C'est la seule contradiction franche des
+//     trois livraisons.
+// ---------------------------------------------------------------------------
+
 import { ouvrirPontDepuis } from "./pont.js";
 import { creerPartie, jouerJusquAuBout } from "./partie.js";
 import { fournisseurHumain, fournisseurAleatoire } from "./fournisseurs.js";
@@ -34,9 +62,9 @@ import { construireJoueurs, majJoueurs, replacerBarres } from "./vue/joueurs.js"
 import {
   construireMains, majMains, adversaireAgit, replacerMains, oublierMains,
 } from "./vue/mains.js";
-import {
-  construirePhases, majPhases, enPlanification, oublierPhases,
-} from "./vue/phases.js";
+import { majPhases, enPlanification, oublierPhases } from "./vue/phases.js";
+import { construireTable, majTable, oublierTable } from "./vue/table.js";
+import { reglerAnimations, pause } from "./vue/anim.js";
 import {
   construirePlateaux, majPlateaux, replacerPlateaux, oublierPlateaux,
 } from "./vue/plateau.js";
@@ -45,6 +73,10 @@ import {
 } from "./vue/scene.js";
 import { construireLoupe } from "./vue/loupe.js";
 import { oublierRefs } from "./vue/ecrire.js";
+import { montrerAccueil, cacherAccueil } from "./vue/menu.js";
+import {
+  installerOptions, montrerBoutonOptions, fermerOptions, viderTable,
+} from "./vue/options.js";
 import { construireAnnonce, annonceManche, annoncePhases, ecranFinal } from "./vue/annonce.js";
 import * as son from "./vue/son.js";
 import { MOT, SIMULTANEES, actionAdverse } from "./vue/mots.js";
@@ -56,7 +88,20 @@ import { MOT, SIMULTANEES, actionAdverse } from "./vue/mots.js";
 const PAS_ADVERSE = 180;
 const PAS_PROGRAMME = 320;
 
-const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+// `PAS_PROGRAMME` est une DURÉE au sens de `table-vivante` : `?animations=non`
+// la met à zéro comme le reste (`pause`, importé de `vue/anim.js`), sans changer
+// d'un iota ce qui est décidé.
+//
+/**
+ * `PAS_ADVERSE`, LUI, N'EN EST PAS UNE — c'est le temps que met l'adversaire à
+ * répondre, la seule chose de ce fichier que `?animations=non` ne doit pas
+ * escamoter : à zéro, l'adversaire disparaît de l'écran au lieu d'y agir.
+ *
+ * COUTURE : c'est le seul endroit où deux livraisons se contredisent vraiment.
+ * La note complète est dans `adversaire()`, plus bas, avec l'arbitrage et ce
+ * qu'il coûte.
+ */
+const attendreAdversaire = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ------------------------------------------------------------------ l'adresse
 
@@ -86,6 +131,11 @@ function lireCadre() {
   return {
     siege: p.get("siege") === "1" ? 1 : 0,
     decide: p.get("decide") === "programme" ? "programme" : "humain",
+    // `?animations=non` coupe les DURÉES, jamais les résultats : la carte part
+    // du même endroit, arrive au même endroit, et la réponse rendue au moteur est
+    // la même. Sans ce réglage, aucun contrôle automatique ne pourrait jouer une
+    // partie entière — il mesurerait l'animation au lieu du jeu.
+    animations: p.get("animations") !== "non",
   };
 }
 
@@ -98,7 +148,7 @@ function batir() {
   construirePlateaux();
   construireJoueurs();
   construireMains();
-  construirePhases();
+  construireTable();
   construireScene();
   construireAnnonce();
   construireLoupe();
@@ -106,6 +156,7 @@ function batir() {
   // plateau se pose en haut et lequel se pose en bas.
   document.body.dataset.siege = String(cadre.siege);
   document.body.dataset.decide = cadre.decide;
+  reglerAnimations(cadre.animations);
   // TOUT ce qui est mesuré en pixels doit être remesuré quand la fenêtre change
   // de taille : les deux plateaux, les deux barres de joueur, et la grille des
   // choix de la décision en cours. On attend la fin du geste plutôt que de tout
@@ -180,7 +231,10 @@ function rendre(etat, decision) {
   majPlateaux(etat, decision, cadre.siege);
   majJoueurs(etat, decision, cadre.siege);
   majMains(etat, decision, cadre.siege);
+  // `majPhases` d'abord : c'est lui qui sait où en est la planification et quelle
+  // phase se résout, et la table lit ces deux réponses.
   majPhases(etat, decision);
+  majTable(etat, decision, cadre.siege);
   theatre(etat);
 }
 
@@ -211,7 +265,7 @@ function siegeHumain() {
  * posée comme pour un humain, ma main reste en clair, et la réponse arrive par
  * le même chemin qu'un clic (`vue/scene.js`).
  */
-function siegeProgramme(graine) {
+function siegeProgramme(graine, arret) {
   const cerveau = fournisseurAleatoire(graine * 2 + 1, "programme au siège");
   return {
     nom: cerveau.nom,
@@ -221,6 +275,10 @@ function siegeProgramme(graine) {
       const attente = poserDecision(d, etat);
       const reponse = cerveau.decider(d, etat);
       await pause(PAS_PROGRAMME);
+      // La partie a pu être abandonnée pendant cette pause. Répondre malgré
+      // tout résoudrait la décision de la partie SUIVANTE — c'est exactement la
+      // réponse fantôme que le retour au menu doit rendre impossible.
+      if (arret.abandonne) return attente;
       repondrePourLeSiege(reponse);
       adversaireAgit(null);
       return attente;
@@ -249,7 +307,32 @@ function adversaire(graine) {
       // trois moments n'est jamais le dernier de la partie.
       if (SIMULTANEES.has(d.type)) {
         adversaireAgit(actionAdverse(d));
-        return pause(PAS_ADVERSE).then(() => cerveau.decider(d, etat));
+        // COUTURE — LE SEUL ENDROIT OÙ DEUX LIVRAISONS SE CONTREDISENT.
+        //
+        // `table-vivante` a remplacé la pause locale par celle de `vue/anim.js`,
+        // qui met TOUTE durée à zéro sous `?animations=non` (sa note en tête de
+        // fichier : « les deux respirations ci-dessous sont des DURÉES »).
+        // `menu-et-options`, lui, a écrit son contrôle `20` contre l'écran de
+        // départ, où cette respiration-ci durait vraiment : sa boucle de mise en
+        // route avance décision par décision et ne sait sortir que sur un écran
+        // momentanément sans question — celui, précisément, que l'adversaire
+        // laisse pendant qu'il répond. À zéro, la boucle atteint la deuxième
+        // décision de la partie, qui est un choix MULTIPLE, et un clic sur une
+        // seule carte ne la résout pas : le contrôle `20` s'y bloque.
+        //
+        // L'arrangement retenu : `attendreAdversaire` ne passe PAS par `duree`.
+        // Ce n'est pas une animation, c'est le temps qu'un adversaire met à
+        // répondre — la seule chose que `?animations=non` ne doit pas escamoter,
+        // sous peine de faire disparaître l'adversaire de l'écran. Tout le reste
+        // de la règle de `table-vivante` est intact : les vols de cartes, la
+        // pose des phases et la respiration du siège tenu par un programme
+        // (`PAS_PROGRAMME`, ligne plus haut) restent zérotables.
+        //
+        // Ce que ça coûte : `SIMULTANEES` ne compte que trois types de décision,
+        // soit une quinzaine de moments par partie — environ 2,5 s ajoutées à
+        // une partie complète, mesurées sans effet sur les contrôles `01`, `02`
+        // et `24`, qui jouent des parties entières.
+        return attendreAdversaire(PAS_ADVERSE).then(() => cerveau.decider(d, etat));
       }
 
       // PARTOUT AILLEURS, IL RÉPOND TOUT DE SUITE, dans le même tour de boucle
@@ -265,6 +348,47 @@ function adversaire(graine) {
   };
 }
 
+// ------------------------------------------------------- interrompre la partie
+//
+// LE POINT DÉLICAT DU RETOUR AU MENU. La boucle de jeu (`jouerJusquAuBout`)
+// attend la réponse du joueur : une promesse posée par `vue/scene.js`, qui ne se
+// résout QUE sur un clic. Quitter en plein milieu, c'est donc la laisser en
+// suspens — et une boucle restée vivante répondrait à la place du joueur dans la
+// partie suivante.
+//
+// On ne peut pas résoudre cette promesse : il faudrait inventer une réponse, et
+// le moteur la refuserait. On ne touche pas non plus à `scene.js`. On COURT donc
+// les deux : chaque décision est une course entre la réponse du fournisseur et
+// un coupe-circuit qui ne sait que rejeter. Au retour au menu, la boucle remonte
+// par l'exception sans avoir rien répondu, et meurt pour de bon.
+const ABANDON = Symbol("retour au menu");
+let arretCourant = null;
+
+function coupeCircuit() {
+  const c = { abandonne: false, attente: null, couper: null };
+  c.attente = new Promise((_, rejeter) => {
+    c.couper = () => {
+      c.abandonne = true;
+      rejeter(ABANDON);
+    };
+  });
+  // Une promesse rejetée que plus personne n'attend est une erreur de console :
+  // le rattrapage muet est posé ici, une fois pour toutes.
+  c.attente.catch(() => {});
+  return c;
+}
+
+/** Le même fournisseur, mais qui rend la main dès que la partie est abandonnée. */
+function sousCoupeCircuit(f, arret) {
+  return {
+    nom: f.nom,
+    decider: (d, etat) => Promise.race([
+      (async () => f.decider(d, etat))(),
+      arret.attente,
+    ]),
+  };
+}
+
 async function lancer({ graine, boites }) {
   document.body.dataset.phase = "chargement";
   etatDuChargement(MOT.waking);
@@ -277,19 +401,35 @@ async function lancer({ graine, boites }) {
   oublierPlateaux();
   oublierMains();
   oublierPhases();
+  oublierTable();
   dejaVu = { manche: null, phases: null };
 
   const partie = creerPartie(pont, { graine, boites });
+
+  // Le bouton d'options n'apparaît qu'ici : sur l'accueil, il n'aurait rien à
+  // ouvrir. Il est posé AVANT la première décision, pour être là dès la première.
+  const arret = coupeCircuit();
+  arretCourant = arret;
+  montrerBoutonOptions(true);
 
   // Un fournisseur par siège, posé à sa place : le siège regardé reçoit celui
   // que `?decide=` désigne, l'autre reçoit toujours le programme adverse. Rien
   // d'autre dans la page ne dépend de « qui est le joueur 0 ».
   const fournisseurs = [];
   fournisseurs[cadre.siege] =
-    cadre.decide === "programme" ? siegeProgramme(graine) : siegeHumain();
+    cadre.decide === "programme" ? siegeProgramme(graine, arret) : siegeHumain();
   fournisseurs[1 - cadre.siege] = adversaire(graine);
 
-  await jouerJusquAuBout(partie, fournisseurs);
+  try {
+    await jouerJusquAuBout(partie, fournisseurs.map((f) => sousCoupeCircuit(f, arret)));
+  } catch (e) {
+    // La partie a été abandonnée : `retourAuMenu` a déjà vidé la table et remis
+    // l'accueil. Il n'y a ni score à montrer ni fin à annoncer.
+    if (e === ABANDON) return;
+    throw e;
+  } finally {
+    if (arretCourant === arret) arretCourant = null;
+  }
 
   viderScene();
   adversaireAgit(null);
@@ -301,31 +441,33 @@ async function lancer({ graine, boites }) {
 
 // ------------------------------------------------------------- l'écran d'entrée
 
+/**
+ * L'accueil, et ce qu'on fait quand on le quitte. Le dessin vit dans
+ * `vue/menu.js` ; ici ne restent que les deux gestes qui touchent la partie.
+ */
 function ecranEntree() {
-  const z = document.createElement("section");
-  z.id = "entree";
-  z.innerHTML = `
-    <h1>Terra</h1>
-    <p class="entree__sous">${MOT.subtitle}</p>
-    <div class="entree__reglages">
-      <label>${MOT.seed} <input id="entree-graine" type="number" value="7"></label>
-      <label>${MOT.boxes}
-        <select id="entree-boites">
-          <option value="base">base</option>
-          <option value="base,decouverte" selected>base + Discovery</option>
-        </select>
-      </label>
-    </div>
-    <button id="entree-go" type="button">${MOT.start}</button>`;
-  document.body.appendChild(z);
-
-  document.getElementById("entree-go").addEventListener("click", () => {
-    const graine = Number.parseInt(document.getElementById("entree-graine").value, 10) || 1;
-    const boites = document.getElementById("entree-boites").value;
-    z.remove();
+  montrerAccueil((reglage) => {
+    cacherAccueil();
     son.eveiller();
-    lancer({ graine, boites }).catch(panne);
+    lancer(reglage).catch(panne);
   });
+}
+
+/**
+ * LE RETOUR AU MENU. Trois gestes, dans cet ordre : on coupe la boucle de jeu,
+ * on vide la table, on remontre l'accueil. La partie précédente est alors morte
+ * — pas cachée : plus une carte à l'écran, plus une décision en attente, et
+ * aucune promesse qui pourrait répondre à la partie suivante.
+ */
+function retourAuMenu() {
+  const arret = arretCourant;
+  arretCourant = null;
+  arret?.couper();
+  fermerOptions();
+  montrerBoutonOptions(false);
+  viderTable();
+  document.body.dataset.phase = "accueil";
+  ecranEntree();
 }
 
 // ---------------------------------------------------------------- le démarrage
@@ -340,6 +482,7 @@ async function demarrer() {
     return;
   }
   batir();
+  installerOptions({ auMenu: retourAuMenu });
   const adresse = lireAdresse();
   if (adresse) await lancer(adresse);
   else ecranEntree();

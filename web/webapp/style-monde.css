@@ -1,0 +1,254 @@
+/* TERRA — L'ÉTAT DE LA PLANÈTE : le bandeau, les deux arcs, la planche des
+ * océans, et la ventilation du score.
+ *
+ * Cette feuille est chargée APRÈS `style.css` et ne la remplace pas : elle
+ * corrige ce qui déborde du bandeau, et pose ce que `style.css` ne connaît pas
+ * encore — les deux arcs gradués des bords, les neuf tuiles Océan et leur
+ * retournement, le détail du score sous le chiffre de chaque joueur.
+ *
+ * Deux chantiers écrivent en parallèle sur cet écran : rien de ce qui touche
+ * aux mains, aux cartes projet, aux cartes Phase ou au milieu de l'écran n'est
+ * écrit ici.
+ *
+ * Aucun chargement extérieur, comme partout dans ce dossier : pas de police,
+ * pas d'image distante. Tout ce qui est dessiné l'est en CSS ou en SVG.
+ */
+
+/* ============================================================== LE BANDEAU */
+
+/* CE QUI DÉBORDAIT. Le bandeau posait sous chaque nom une rangée de crans :
+ * ses blocs réclamaient 60 px de haut. Or la bande vaut `clamp(54px, 7.8vh,
+ * 78px)` : elle se règle sur la HAUTEUR de la fenêtre, et sous ~870 px de haut
+ * elle tombe à son plancher de 54 px, dont 10 de marge — 44 px utiles pour un
+ * contenu qui en réclame 60. Tout sortait alors par le bas, les trois pastilles
+ * de récompense les premières, coupées à mi-hauteur. (Mesuré rouge à 1366×768,
+ * 1280×720 et 1280×640 ; vert au-dessus.)
+ *
+ * Deux corrections, et rien de masqué : les crans sont partis là où le plateau
+ * imprimé les met (les deux arcs, la planche des océans), et ce qui reste est
+ * DIMENSIONNÉ PAR LA HAUTEUR DE LA BANDE — les pastilles comme les chiffres
+ * rétrécissent avec elle au lieu de la percer.
+ */
+#horizon {
+  /* Une pastille d'honneur, deux rangées empilées, dans la hauteur utile. */
+  --pastille: clamp(11px, calc((var(--h-bandeau) - 20px) / 2), 30px);
+  grid-template-columns: auto auto auto auto 1fr auto auto;
+  align-items: center;
+  column-gap: clamp(12px, 1.9vw, 34px);
+  padding: 3px 14px;
+}
+
+.manche { flex-direction: row; align-items: baseline; gap: 8px; }
+.manche__n { font-size: clamp(17px, calc(var(--h-bandeau) * .46), 30px); }
+
+/* CHAQUE CHIFFRE CONTRE SON PROPRE NOM. Le nom prenait `flex: 1` et poussait sa
+ * valeur à l'autre bout de sa colonne : on lisait « OXYGEN » juste à côté du
+ * chiffre de la température. Le bloc se réduit maintenant à son contenu, et les
+ * trois blocs sont séparés par une gouttière plus large que leur propre écart
+ * interne — la proximité dit à qui appartient le nombre. */
+.param {
+  flex-direction: row; align-items: baseline; gap: 6px;
+  white-space: nowrap;
+}
+.param__nom { flex: 0 0 auto; }
+.param__n { font-size: clamp(15px, calc(var(--h-bandeau) * .34), 24px); }
+
+.tuiles-honneur { justify-self: end; gap: 3px; }
+.tuiles-honneur__rang { gap: 4px; }
+.honneur { width: var(--pastille); height: var(--pastille); }
+
+/* ====================================================== LES DEUX ARCS */
+
+/* Le plateau imprimé pose la température à gauche du disque de Mars et
+ * l'oxygène à droite, en deux arcs de cercle gradués case par case. La mise en
+ * page réservait déjà la moitié haute des deux bords : les arcs s'y installent,
+ * l'un en face de l'autre, et laissent le milieu de l'écran aux cartes. */
+#arc-temperature { grid-column: 1; grid-row: 2 / 5; }
+#arc-oxygen      { grid-column: 3; grid-row: 2 / 5; }
+
+.arc {
+  position: relative; min-width: 0; min-height: 0; overflow: hidden;
+  padding: 2px 0 0;
+}
+.arc__dessin {
+  position: absolute; inset: 0 0 15px;
+  width: 100%; height: calc(100% - 15px);
+}
+
+/* La gorge de la piste : le carton sombre sur lequel les cases sont imprimées.
+   Sans elle, les cases encore à gagner se perdent dans la photographie du sol. */
+.arc__gorge {
+  fill: none;
+  stroke: rgba(6, 8, 14, .72);
+  stroke-linecap: butt;
+}
+
+/* Une case de la piste. TOUTES portent la couleur du plateau imprimé, comme sur
+ * le carton : violet, rouge, jaune, blanc d'un bout à l'autre de la piste.
+ *
+ * La première version éteignait la couleur des cases non gagnées pour qu'on lise
+ * d'un coup d'œil le chemin qui reste. L'intention était juste, le résultat non :
+ * Alexis, le 02-08, « les arcs ne portent les couleurs du plateau que sur les
+ * cases déjà parcourues, le reste est gris ». Les quatre zones de couleur SONT
+ * l'information du plateau — elles disent où l'on va, pas seulement où l'on est.
+ *
+ * Ce qui distingue donc l'acquis du reste n'est plus la couleur mais la LUMIÈRE :
+ * une case à venir est la même case, en sourdine. Le cube, lui, dit sans
+ * ambiguïté où l'on en est. */
+.cran {
+  stroke-linecap: butt;
+  stroke: var(--teinte-cran);
+  /* 03-08 : la sourdine était trop forte — Alexis, deux fois, « les couleurs des
+     jauges ne sont pas suffisamment visibles lorsque non allumées ». Sur le fond
+     brun de Mars, .38 d'opacité avec la luminosité à .62 rendait le gris et le
+     vert-de-gris indiscernables du décor. Remontée à un niveau où la case à
+     venir se LIT (sa couleur, sa position) tout en restant clairement en
+     retrait de l'acquis, qui garde sa pleine lumière et son ombre portée. */
+  opacity: .68;
+  filter: saturate(.92) brightness(.88);
+  transition: opacity 420ms ease, filter 420ms ease;
+}
+/* Une case gagnée l'est pour toujours — c'est la règle du jeu, rendue visible :
+   le cube ne redescend jamais. Elle reprend sa pleine lumière. */
+.cran--acquis {
+  opacity: 1;
+  filter: drop-shadow(0 0 3px rgba(0, 0, 0, .8));
+}
+
+/* Le cube transparent du plateau (livret l. 201), qui marque la valeur
+   courante et glisse d'une case à l'autre. */
+.arc__repere { transition: transform 620ms cubic-bezier(.2, .8, .2, 1); }
+.arc__repere-halo { fill: rgba(239, 228, 212, .16); stroke: rgba(239, 228, 212, .5); stroke-width: 1.1; }
+.arc__repere-oeil { fill: #fff; }
+.arc--temperature .arc__repere-oeil { fill: #ffd7c0; }
+.arc--oxygen .arc__repere-oeil { fill: #ddf3ff; }
+
+/* La valeur courante, en chiffres, posée dans la concavité de l'arc — du côté
+   de la table, là où le disque de Mars se trouve sur le plateau. */
+.arc__n {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  text-align: center;
+  font-family: "TerraChiffre", monospace;
+  font-size: clamp(14px, 1.7vw, 24px); line-height: 1;
+  color: var(--os); text-shadow: 0 2px 10px #000;
+}
+.arc--temperature .arc__n { left: 34%; right: 3%; color: #ffb08a; }
+.arc--oxygen      .arc__n { left: 3%; right: 34%; color: #cfe9f5; }
+
+/* L'intitulé de l'arc. Le panneau est posé à même la photographie du sol, qui
+   est claire par endroits : une ombre portée n'y suffit pas, il lui faut son
+   propre fond — sinon le mot disparaît sur les crêtes éclairées. */
+.arc__mot {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  text-align: center; padding: 2px 2px 3px;
+  font-size: 8px; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--os);
+  background: linear-gradient(180deg, rgba(4, 6, 11, 0), rgba(4, 6, 11, .82) 45%);
+}
+
+/* ================================================== LA PLANCHE DES OCÉANS */
+
+/* NEUF HEXAGONES EN NID D'ABEILLE, comme au centre du plateau. La tuile
+ * imprimée est un hexagone pointu à gauche et à droite (mesuré sur le scan :
+ * pleine largeur à mi-hauteur, arêtes plates en haut et en bas). Des hexagones
+ * de cette orientation s'imbriquent PAR COLONNES : le pas horizontal vaut les
+ * trois quarts de la largeur d'une tuile, et une colonne sur deux descend d'une
+ * demi-tuile. C'est ce décalage, et lui seul, qui fait le nid d'abeille.
+ */
+.oceans__grille {
+  /* `minmax(0, …)` : sans lui, la largeur minimale d'une tuile fait gonfler sa
+     colonne et la planche déborde du panneau par la droite. */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  padding: 0 6% 8%;
+}
+.ocean {
+  perspective: 460px;
+  /* Le rapport du scan (451 × 404), pour que l'hexagone reste régulier. */
+  aspect-ratio: 451 / 404;
+  /* Quatre tiers de sa colonne : le recouvrement d'un quart entre voisines. */
+  width: 133.33%;
+  margin-left: -16.67%;
+}
+.oceans__grille > .ocean:nth-child(3n + 2) { transform: translateY(50%); }
+
+/* Le scan est un hexagone posé sur un fond blanc : on le découpe à sa forme,
+   sinon la planche est une grille de carrés blancs. */
+.ocean__dos img, .ocean__face img {
+  clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+}
+
+.ocean__pivot {
+  position: relative; width: 100%; height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 620ms cubic-bezier(.3, .85, .3, 1);
+}
+/* Le retournement : la tuile pivote d'un demi-tour, le dos s'efface au passage
+   et la face arrive. `?animations=non` n'en change que la DURÉE — la tuile est
+   révélée au même instant, avec le même contenu. */
+.ocean--retournee .ocean__pivot { transform: rotateY(180deg); }
+/* Le réglage vaut pour TOUT ce que ce chantier anime : le retournement des
+   tuiles, le glissement du repère d'un arc, et l'allumage d'une case gagnée.
+   Une seule de ces trois durées laissée en place suffirait à faire mesurer un
+   état intermédiaire à un contrôle automatique. */
+html[data-animations="non"] .ocean__pivot,
+html[data-animations="non"] .arc__repere,
+html[data-animations="non"] .cran { transition-duration: 0s; }
+
+.ocean__dos, .ocean__face {
+  position: absolute; inset: 0;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+.ocean__face { transform: rotateY(180deg); }
+.ocean__dos img, .ocean__face img {
+  width: 100%; height: 100%; object-fit: contain;
+}
+.ocean__dos img { filter: brightness(.72) saturate(.85); }
+.ocean--retournee .ocean__face img { filter: drop-shadow(0 0 6px rgba(80, 190, 230, .55)); }
+
+/* Un bonus que le moteur annonce sans qu'aucun scan ne le porte : on l'écrit
+   plutôt que de montrer une tuile qui dirait autre chose. */
+.ocean__sansscan {
+  font-size: 8px; text-align: center; line-height: 1.15; color: var(--os);
+  padding: 2px;
+}
+
+#oceans.oceans--grande .oceans__grille { padding: 0 18%; gap: 8px 4px; }
+
+/* ================================================ LA VENTILATION DU SCORE */
+
+/* « Pourquoi mon score est 17 dès le début ? » Le chiffre est juste — il compte
+ * les récompenses comme si la partie s'arrêtait là — mais il ne s'expliquait
+ * pas. Il s'explique maintenant : cinq parts lues sur le moteur, dont la somme
+ * EST le grand chiffre, et une mention pour celles qui peuvent encore basculer.
+ */
+.jauge--vp { flex-direction: row; align-items: center; gap: 8px; }
+.ventil { display: flex; align-items: center; gap: 3px; }
+.ventil__part {
+  display: flex; flex-direction: column; align-items: center;
+  min-width: 30px; padding: 1px 4px;
+  background: rgba(239, 228, 212, .06);
+}
+.ventil__part i {
+  font-style: normal; font-size: 7.5px; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--os-faible);
+}
+.ventil__part b { font-family: "TerraChiffre", monospace; font-size: 14px; color: var(--os); }
+
+/* Ce qui n'est pas encore acquis se lit tout de suite : trait pointillé sous
+   les deux parts concernées, et la mention juste à côté. */
+.ventil__part--provisoire { border-bottom: 1px dashed var(--or); }
+.ventil__part--provisoire b { color: var(--or); }
+.ventil__dit {
+  font-size: 7.5px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--or); cursor: help;
+  /* 03-08 : 56px ne suffisaient pas. « PROVISIONAL » est un mot de onze lettres
+     que rien ne peut couper : il débordait et se faisait rogner en
+     « PROVISIONA » sur les deux barres de joueur, à toutes les tailles d'écran.
+     Mesure du besoin réel : 11 lettres × (7,5px en capitales + .1em d'écart)
+     ≈ 62px. On laisse une marge, et le retour à la ligne reste possible. */
+  max-width: 74px; line-height: 1.15;
+}
+.ventil__dit[hidden] { display: none; }

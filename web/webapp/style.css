@@ -243,6 +243,12 @@ img { display: block; user-select: none; -webkit-user-drag: none; }
 .param__max {
   font-family: "TerraChiffre", monospace; font-size: 12px; color: var(--os-tres-faible);
 }
+/* L'unité, collée à son nombre : un degré Celsius s'écrit avec son symbole,
+   sinon « -22 » se lit comme un compteur et non comme une température. */
+.param__unite {
+  font-family: "TerraChiffre", monospace; font-size: 12px;
+  color: var(--os-faible); margin-left: 1px;
+}
 .param--temp .param__n { color: #ffb08a; text-shadow: 0 0 22px rgba(226, 84, 43, .5); }
 .param--o2 .param__n   { color: #cfe9f5; text-shadow: 0 0 22px rgba(127, 200, 232, .4); }
 .param--mer .param__n  { color: #a8dcf0; text-shadow: 0 0 22px rgba(90, 180, 220, .45); }

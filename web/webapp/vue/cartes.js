@@ -5,7 +5,7 @@
 // Une option de construction emballe même la carte dans `option.carte`. Ce module
 // absorbe ces trois formes et rend toujours le même objet d'affichage.
 
-import { imageCarte, dosDeCarte } from "./materiel.js";
+import { imageCarte, dosProjet, dosCorporation } from "./materiel.js";
 import { MOT } from "./mots.js";
 
 /** Ramène les trois formes du moteur à une seule. Ne calcule rien. */
@@ -16,6 +16,14 @@ export function normaliser(c) {
   if (!nom) return null;
   return {
     nom,
+    // LA SORTE. Le moteur range ses cartes dans deux tables séparées et le
+    // numéro publié est un rang DANS l'une ou DANS l'autre : le numéro 7
+    // désigne aussi bien la carte projet « Arctic Algae » que la corporation
+    // « Inventrix ». Le pont dit désormais laquelle (`wasm/src/lib.rs`,
+    // `carte_json` / `corpo_json`). L'état, lui, ne rend que des cartes projet
+    // (`observe.rs`, `players[].hand` et `players[].played`) : son silence vaut
+    // donc « projet », et c'est le seul défaut admis ici.
+    sorte: carte.sorte ?? "projet",
     couleur: carte.couleur ?? null,
     prix: carte.prix ?? carte.price ?? null,
     pv: carte.pv ?? null,
@@ -26,6 +34,21 @@ export function normaliser(c) {
 }
 
 /**
+ * LE SEUL IDENTIFIANT QUI DÉSIGNE UNE CARTE SANS AMBIGUÏTÉ : sa sorte et son
+ * numéro, ensemble. Un numéro seul n'en désigne aucune — voir `normaliser`.
+ *
+ * Mesuré le 02-08 sur 70 parties : 3 fois, comparer les numéros seuls faisait
+ * disparaître une corporation de la main du joueur comme doublon d'une carte
+ * projet, et reportait sur cette carte projet la réponse « joue cette
+ * corporation ». Rend `null` pour une carte sans numéro.
+ */
+export function cle(c) {
+  const n = normaliser(c);
+  if (n === null || n.id === null || n.id === undefined) return null;
+  return n.sorte + "#" + n.id;
+}
+
+/**
  * Fabrique une carte affichée.
  *
  * @param {object} c      carte, dans n'importe laquelle des formes du moteur
@@ -33,17 +56,23 @@ export function normaliser(c) {
  * @param {string} o.classe  classes supplémentaires
  * @param {boolean} o.muette pas de plaque de nom sous l'image
  * @param {string}  o.chemin  chemin dans `etat` des ressources posées, s'il est connu
+ * @param {string}  o.dos     quel dos montrer quand la face manque :
+ *                            « projet » (défaut) ou « corporation »
  */
-export function carte(c, { classe = "", muette = true, chemin = null } = {}) {
+export function carte(c, { classe = "", muette = true, chemin = null, dos = "projet" } = {}) {
   const n = normaliser(c);
   const f = document.createElement("figure");
   f.className = "carte " + classe;
   if (n && n.couleur) f.dataset.couleur = n.couleur;
+  // Le dos d'une carte projet n'est pas celui d'une corporation : celui qu'on
+  // montre dit de quelle SORTE est la carte cachée, et c'est une information
+  // publique. Se tromper de dos, c'est annoncer la mauvaise sorte.
+  const leDos = dos === "corporation" ? dosCorporation() : dosProjet();
 
   if (!n) {
     f.classList.add("carte--dos");
     const im = document.createElement("img");
-    im.src = dosDeCarte();
+    im.src = leDos;
     im.alt = MOT.faceDown;
     im.draggable = false;
     f.appendChild(im);
@@ -60,7 +89,7 @@ export function carte(c, { classe = "", muette = true, chemin = null } = {}) {
     // Deux cartes du jeu n'ont pas été découpées des planches officielles. On ne
     // les invente pas : on montre le dos réel et on nomme la carte en clair.
     f.classList.add("carte--sans-image");
-    im.src = dosDeCarte();
+    im.src = leDos;
   }
   f.appendChild(im);
 

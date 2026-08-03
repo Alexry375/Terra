@@ -54,6 +54,16 @@ LECTURE = """
   return {
     montrees: montrees.map(e => Number(e.getAttribute('data-phase-choisie'))),
     allumees: montrees.filter(e => e.getAttribute('data-phase-en-cours') === 'oui').length,
+    // (table vivante, 02-08) On compte desormais les PHASES allumees distinctes,
+    // pas les cartes. Depuis que chaque joueur pose SA carte, deux cartes
+    // portent la meme phase quand les deux joueurs l'ont choisie -- c'est
+    // precisement ce que le joueur a demande le 02-08, et ce que le controle 05
+    // exige de voir. « Deux cartes allumees pour la phase III » est juste ;
+    // « la phase III et la phase V allumees ensemble » ne l'est pas, et c'est
+    // cela seul que ce banc doit interdire.
+    phasesAllumees: [...new Set(montrees
+      .filter(e => e.getAttribute('data-phase-en-cours') === 'oui')
+      .map(e => Number(e.getAttribute('data-phase-choisie'))))].length,
     annonce: document.querySelector('.annonce__phases') !== null
              && document.getElementById('annonce').classList.contains('annonce--vive'),
     adverse: z ? z.innerHTML : null,
@@ -225,8 +235,10 @@ with serveur(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")) as 
                     if m["allumees"] == 0:
                         vu["eteintes"] += 1
                         eteintes_par_type[type_] = eteintes_par_type.get(type_, 0) + 1
-                if m["allumees"] > 1:
-                    fautes.append(f"decision {rang} : {m['allumees']} phases allumees")
+                if m["phasesAllumees"] > 1:
+                    fautes.append(f"decision {rang} : {m['phasesAllumees']} phases "
+                                  f"DIFFERENTES allumees en meme temps "
+                                  f"({m['allumees']} cartes)")
 
             # 2. La zone adverse reste muette, vue de l'autre siege aussi.
             if m["adverse"] is None:

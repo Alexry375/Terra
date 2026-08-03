@@ -24,7 +24,7 @@
 
 import { carte } from "./cartes.js";
 import {
-  EQUIPAGES, nomJoueur, imageOcean, TUILES_OCEAN,
+  EQUIPAGES, nomJoueur, faceOcean, dosOcean, cleOcean, NB_OCEANS,
 } from "./materiel.js";
 import { survolable } from "./loupe.js";
 import { ref } from "./ecrire.js";
@@ -45,6 +45,14 @@ const COULEURS = ["verte", "bleue", "rouge"]; // l'ordre des piles sur la table
 
 /** Les deux plateaux, la carte des océans et la case des VP. Une seule fois. */
 export function construirePlateaux() {
+  // L'animation de retournement se coupe par l'adresse (`?animations=non`),
+  // sans quoi aucune mesure automatique ne peut travailler proprement. Le
+  // réglage ne change QUE des durées : la tuile est révélée au même instant,
+  // avec le même contenu, dans les deux cas.
+  if (new URLSearchParams(location.search).get("animations") === "non") {
+    document.documentElement.dataset.animations = "non";
+  }
+
   for (const j of [0, 1]) {
     const s = document.createElement("section");
     s.className = "plateau";
@@ -74,18 +82,32 @@ export function construirePlateaux() {
     o.classList.toggle("oceans--grande");
   });
 
+  // LES NEUF EMPLACEMENTS, TOUS RETOURNÉS AU DÉPART. Une tuile encore
+  // retournée ne porte QUE son dos : pas d'identité, pas de bonus, pas de
+  // chiffre, et pas même le nom de fichier de sa face — le scan de la face
+  // n'entre dans le document qu'au moment où le moteur la révèle
+  // (`revelerTuile`). C'est la seule façon de ne rien laisser deviner : une
+  // information cachée mais présente reste une information donnée.
   const g = o.querySelector("#oceans-grille");
-  TUILES_OCEAN.forEach((_, i) => {
+  for (let i = 0; i < NB_OCEANS; i++) {
     const d = document.createElement("div");
     d.className = "ocean";
-    d.dataset.oceanRevele = "non";
+    d.dataset.oceanTuile = "";
+    d.dataset.oceanRevelee = "non";
+
+    const pivot = document.createElement("div");
+    pivot.className = "ocean__pivot";
+    const dos = document.createElement("div");
+    dos.className = "ocean__dos";
     const im = document.createElement("img");
-    im.src = imageOcean(i);
-    im.alt = "";
+    im.src = dosOcean();
+    im.alt = MOT.oceanFaceDown;
     im.draggable = false;
-    d.appendChild(im);
+    dos.appendChild(im);
+    pivot.appendChild(dos);
+    d.appendChild(pivot);
     g.appendChild(d);
-  });
+  }
 }
 
 /**
@@ -128,7 +150,7 @@ export function majPlateaux(etat, decision, siege = 0) {
     }
     piles(j, p, j !== siege);
   }
-  oceans(etat.planet.oceans);
+  oceans(etat.planet.oceans_revealed_tiles || []);
 }
 
 /**
@@ -271,18 +293,91 @@ export function replacerPlateaux() {
 }
 
 /**
- * La carte des océans. Le moteur ne rend qu'un COMPTE (`planet.oceans`) : les
- * `n` premières tuiles de la planche sont donc celles qui sont retournées. On
- * ne choisit pas lesquelles, on n'en invente aucune.
+ * LA PLANCHE DES OCÉANS. Neuf emplacements en permanence ; le moteur publie les
+ * tuiles DÉJÀ retournées, dans l'ordre où elles l'ont été
+ * (`planet.oceans_revealed_tiles` : `{id, cards, mc, plants}`). On retourne donc
+ * le i-ième emplacement quand le moteur annonce une i-ième tuile, et on lui
+ * donne EXACTEMENT le bonus qu'il annonce.
+ *
+ * Ce que le moteur ne publie pas — les tuiles encore retournées — n'entre pas
+ * dans le document : c'est ce qui rend la fuite impossible plutôt que
+ * seulement improbable.
  */
-function oceans(combien) {
+function oceans(revelees) {
   const g = ref("#oceans-grille");
   if (!g) return;
-  if (g.dataset.combien === String(combien)) return;
-  g.dataset.combien = String(combien);
+  const signature = revelees.map((t) => `${t.id}:${cleOcean(t)}`).join("|");
+  if (g.dataset.revelees === signature) return;
+  g.dataset.revelees = signature;
+
   [...g.children].forEach((d, i) => {
-    d.dataset.oceanRevele = i < combien ? "oui" : "non";
+    const t = revelees[i];
+    if (!t) {
+      if (d.dataset.oceanRevelee === "oui") retournerFaceCachee(d);
+      return;
+    }
+    if (d.dataset.oceanRevelee === "oui") return; // déjà retournée, rien à refaire
+    revelerTuile(d, t);
   });
+}
+
+/** Retourne un emplacement face visible, avec le bonus que le moteur annonce. */
+function revelerTuile(d, t) {
+  const pivot = d.querySelector(".ocean__pivot");
+  if (!pivot) return;
+  let face = pivot.querySelector(".ocean__face");
+  if (!face) {
+    face = document.createElement("div");
+    face.className = "ocean__face";
+    // EN TÊTE, avant le dos : « la première image de cette tuile » doit être
+    // celle qu'on voit — le dos tant qu'elle est retournée, la face après.
+    pivot.prepend(face);
+  }
+  face.textContent = "";
+
+  const src = faceOcean(t);
+  if (src) {
+    const im = document.createElement("img");
+    im.src = src;
+    im.alt = `${MOT.oceanFaceUp} — ${bonusEnMots(t)}`;
+    im.draggable = false;
+    face.appendChild(im);
+  } else {
+    // Aucun scan ne rend ce bonus-là : on écrit ce que le moteur annonce
+    // plutôt que de montrer une tuile qui annoncerait autre chose.
+    const s = document.createElement("span");
+    s.className = "ocean__sansscan";
+    s.textContent = bonusEnMots(t);
+    face.appendChild(s);
+  }
+
+  d.dataset.oceanId = String(t.id);
+  d.dataset.oceanBonus = `cards=${t.cards | 0},mc=${t.mc | 0},plants=${t.plants | 0}`;
+  d.title = `${MOT.oceanFaceUp} — ${bonusEnMots(t)}`;
+  d.dataset.oceanRevelee = "oui";
+  // La classe est posée au tour d'après pour que le navigateur ait vu l'état
+  // « retournée » : sans ce délai, il n'y a pas de transition à animer.
+  requestAnimationFrame(() => d.classList.add("ocean--retournee"));
+}
+
+/** Remet un emplacement face cachée (nouvelle partie). */
+function retournerFaceCachee(d) {
+  d.classList.remove("ocean--retournee");
+  d.dataset.oceanRevelee = "non";
+  delete d.dataset.oceanId;
+  delete d.dataset.oceanBonus;
+  d.removeAttribute("title");
+  const face = d.querySelector(".ocean__face");
+  if (face) face.remove();
+}
+
+/** Le bonus d'une tuile, dit en toutes lettres, tel que le moteur le publie. */
+function bonusEnMots(t) {
+  const parts = [];
+  if (t.cards) parts.push(`${t.cards} ${t.cards > 1 ? MOT.manyCards : MOT.oneCard}`);
+  if (t.mc) parts.push(`${t.mc} ${MOT.mc}`);
+  if (t.plants) parts.push(`${t.plants} ${MOT.plants}`);
+  return parts.join(" + ") || MOT.oceanFaceUp;
 }
 
 /** Remet la mémoire à zéro (nouvelle partie). */
@@ -295,5 +390,8 @@ export function oublierPlateaux() {
     }
   }
   const g = ref("#oceans-grille");
-  if (g) delete g.dataset.combien;
+  if (g) {
+    delete g.dataset.revelees;
+    [...g.children].forEach(retournerFaceCachee);
+  }
 }

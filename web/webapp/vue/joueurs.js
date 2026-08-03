@@ -8,6 +8,20 @@
 // au-dessus du sien. Les cartes en jeu, elles, ne sont plus ici — elles sont
 // posées sur le plateau (`plateau.js`).
 
+// COUTURE — deux chantiers ont écrit dans ce fichier, sans se rencontrer :
+//
+//   · `bandeau-et-monde` — la ventilation du score (`PARTS_SCORE`,
+//     `ventilation`, et sa mise à jour) : cinq parts lues chez le moteur, plus
+//     la mention « provisional » qui s'efface à la fin de la partie.
+//   · `table-vivante` — le dos des corporations encore cachées, tout en bas :
+//     la mémoire du dessin passe de `data-corpo` à `data-etat-corpo`, pour que
+//     `data-corpo` ne porte jamais un nom qu'on n'a pas le droit de lire.
+//
+// Les deux vivent dans la même barre mais pas dans le même bloc : la
+// ventilation est dans la jauge de score, le dos dans la case de corporation.
+// Aucun arbitrage n'a été nécessaire ; le seul point à retenir pour la suite est
+// que `vue/options.js` doit effacer les DEUX attributs quand il vide la table.
+
 import {
   imageEquipage, imageReserve, imageBadge, nomBadge, ORDRE_BADGES,
   imageForet, EQUIPAGES, nomJoueur,
@@ -30,6 +44,38 @@ const PRODUCTIONS = [
   ["plants", MOT.plants],
   ["cards", MOT.cards],
 ];
+
+/**
+ * LES CINQ PARTS DU SCORE, dans l'ordre du décompte du livret (p.16-17) et sous
+ * les noms exacts que le moteur publie (`players[].score_parts`).
+ *
+ * Les deux dernières sont PROVISOIRES tant que la partie n'est pas finie : le
+ * moteur les compte comme si elle s'arrêtait à l'instant. C'est de là que
+ * viennent les douze points qui surprennent au premier tour — trois récompenses,
+ * deux joueurs à égalité sur chacune, quatre points chacun.
+ */
+const PARTS_SCORE = [
+  ["tr", MOT.scoreTr, false],
+  ["forests", MOT.scoreForests, false],
+  ["cards", MOT.scoreCards, false],
+  ["milestones", MOT.scoreMilestones, true],
+  ["awards", MOT.scoreAwards, true],
+];
+
+/**
+ * La ventilation affichée sous le score d'un joueur. Aucun de ces nombres n'est
+ * calculé ici : chacun porte son chemin dans l'état, et leur somme est le score
+ * que le moteur publie juste à côté — il n'existe qu'un point de calcul du
+ * score, et ce n'est pas la page.
+ */
+function ventilation(j) {
+  const cases = PARTS_SCORE.map(([cle, mot, provisoire]) =>
+    `<span class="ventil__part${provisoire ? " ventil__part--provisoire" : ""}">` +
+    `<i>${mot}</i><b data-valeur="players.${j}.score_parts.${cle}">0</b></span>`).join("");
+  return cases +
+    `<span class="ventil__dit" id="provisoire-${j}" data-provisoire ` +
+    `title="${MOT.provisionalWhy}">${MOT.provisional}</span>`;
+}
 
 /** Construit les deux barres. Appelé une fois par partie. */
 export function construireJoueurs() {
@@ -73,6 +119,7 @@ export function construireJoueurs() {
       <div class="jauge jauge--vp" data-role="vp">
         <span class="jauge__mot">${MOT.vp}</span>
         <b class="jauge__n" data-valeur="players.${j}.score">0</b>
+        <div class="ventil" id="ventil-${j}">${ventilation(j)}</div>
       </div>
       </div>`;
 
@@ -176,6 +223,19 @@ export function majJoueurs(etat, decision, siege) {
 
     poserValeur(`players.${j}.tr`, p.tr);
     poserValeur(`players.${j}.score`, p.score);
+
+    // LA VENTILATION DU SCORE. Elle vient du moteur, part par part
+    // (`engine::observe`, lu sur `flow::score_breakdown` — le même parcours qui
+    // forme le total affiché au-dessus). La page ne fait que la recopier : un
+    // second barème calculé ici finirait par diverger de celui qui compte.
+    for (const [cle] of PARTS_SCORE) {
+      poserValeur(`players.${j}.score_parts.${cle}`, p.score_parts[cle]);
+    }
+    // « Provisoire » ne se dit que tant que ça peut encore basculer. Une
+    // étiquette collée en permanence ne dirait plus rien : à la fin de la
+    // partie, les jalons et les récompenses sont acquis, la mention s'en va.
+    const dit = ref("#provisoire-" + j);
+    if (dit) dit.hidden = !!etat.game_over;
     poserValeur(`players.${j}.forests`, p.forests);
     poserValeur(`players.${j}.steel_capacity`, p.steel_capacity);
     poserValeur(`players.${j}.titanium_capacity`, p.titanium_capacity);
@@ -210,14 +270,26 @@ export function majJoueurs(etat, decision, siege) {
     // (`data-corpo`, l'`alt` de l'image, et le nom de fichier du scan), et une
     // information cachée mais présente reste une information donnée.
     const nom = corporationRevelee(etat, siege, j) ? (p.corporation || "") : "";
+    // Tant qu'elle est cachée mais qu'il en a une, on montre le DOS DES
+    // CORPORATIONS — la cité sous dôme, et jamais le campement martien, qui est
+    // le dos des cartes projet. Un dos ne dit rien de la carte : il dit sa
+    // sorte, ce qui est public, et il évite une case vide qui laisserait croire
+    // que l'adversaire n'a pas encore de corporation.
+    const cache = !nom && !!p.corporation;
+    const etiquette = nom || (cache ? "dos" : "");
     const z = ref("#corpo-carte-" + j);
-    if (z.dataset.corpo !== nom) {
+    // La mémoire du dessin est tenue à part : `data-corpo` ne porte JAMAIS un nom
+    // qu'on n'a pas le droit de lire, elle ne peut donc pas servir de mémoire.
+    if (z.dataset.etatCorpo !== etiquette) {
+      z.dataset.etatCorpo = etiquette;
       z.dataset.corpo = nom;
       z.textContent = "";
       if (nom) {
         const f = carte({ nom }, { classe: "carte--corpo" });
         survolable(f, { nom });
         z.appendChild(f);
+      } else if (cache) {
+        z.appendChild(carte(null, { classe: "carte--corpo", dos: "corporation" }));
       }
     }
 
