@@ -920,14 +920,26 @@ body[data-siege="1"][data-actif="0"] #scene { opacity: .42; }
 }
 .choix--plaque:hover::before { transform: translateX(120%); }
 .choix--plaque .choix__mot {
-  font-size: clamp(15px, calc(var(--hp, 90px) / 4.2), 30px);
+  /* La taille du mot suit les DEUX dimensions de la plaque, pas seulement sa
+     hauteur. 04-08 : liee a la seule hauteur, elle donnait 21 px a une plaque de
+     150 points de large, et « Building (you have 0) » s'y coupait en « Buildin /
+     g » — dix badges cote a cote, c'est la plaque la plus etroite du jeu. Le
+     diviseur 8 est mesure : le plus long mot d'un libelle du jeu tient alors sur
+     sa ligne a toutes les tailles balayees. */
+  font-size: clamp(12px, min(calc(var(--hp, 90px) / 4.2), calc(var(--w, 260px) / 9.4)), 30px);
   font-weight: 700; color: var(--os); white-space: normal;
   letter-spacing: .01em; line-height: 1.12; max-width: none;
-  /* Le mot se plie à la plaque, la plaque ne se plie pas au mot : sans ces deux
-     lignes, « Standard project » impose sa largeur au bouton et le fait
-     déborder sur sa voisine. `anywhere` — et non `break-word` — parce que lui
-     seul compte dans la largeur minimale que le navigateur calcule. */
-  min-width: 0; overflow-wrap: anywhere;
+  /* Le mot se plie à la plaque, la plaque ne se plie pas au mot : sans
+     `min-width: 0`, « Standard project » impose sa largeur au bouton et le fait
+     déborder sur sa voisine.
+     04-08 : la coupure était `anywhere`, qui casse un mot N'IMPORTE OÙ. À
+     l'écran, cela donnait « Buildin / g (you have 0) » et « Microb / e (you have
+     0) » sur la décision qui présente les dix badges — vu de mes yeux sur une
+     capture, jamais signalé par aucune mesure. `break-word` ne coupe un mot que
+     s'il ne tient pas seul sur sa ligne, ce qui n'arrive à aucun libellé du jeu.
+     La largeur minimale reste tenue par `min-width: 0`, qui est ce qui compte
+     réellement dans une cellule de grille. */
+  min-width: 0; overflow-wrap: break-word;
 }
 .choix--plaque:hover {
   background: linear-gradient(155deg, rgba(127, 200, 232, .26), rgba(239, 228, 212, .07));
