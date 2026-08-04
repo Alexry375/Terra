@@ -59,11 +59,13 @@ function duree(ms) {
   return document.documentElement.dataset.animations === "non" ? 0 : ms;
 }
 
-// L'ÉCRAN PARLE ANGLAIS AU JOUEUR. Ces deux phrases-ci ne sont pas dans
-// `vue/mots.js` : ce chantier n'a pas le droit d'y écrire. Elles y remonteront
-// avec le reste du vocabulaire de la planche.
-const CONSIGNE = "Pick a tile";
-const ANNONCE_CHOIX = "An ocean tile is revealed — pick which one flips";
+// L'ÉCRAN PARLE ANGLAIS AU JOUEUR, et tout son vocabulaire vit dans
+// `vue/mots.js` — un seul endroit, pour qu'aucune phrase ne se retrouve écrite
+// deux fois de deux façons. Ces deux-là y sont remontées le 04-08 : le chantier
+// des océans n'avait pas le droit d'écrire dans ce fichier, il les avait donc
+// laissées ici en attendant.
+const CONSIGNE = MOT.oceanPick;
+const ANNONCE_CHOIX = MOT.oceanRevealPick;
 
 // LA MÉMOIRE DU CHOIX. L'écran est réécrit à chaque décision, et une partie en
 // compte plusieurs centaines : sans cette table, la tuile choisie sauterait

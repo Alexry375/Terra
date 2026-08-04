@@ -28,6 +28,10 @@ export const MOT = {
   oceanMap: "Ocean tiles",
   // Le paquet de cartes projet et sa defausse, dans le bandeau.
   deck: "Deck",
+  // La planche des océans quand une tuile est due : la consigne posée sur la
+  // planche, et l'annonce qui traverse l'écran.
+  oceanPick: "Pick a tile",
+  oceanRevealPick: "An ocean tile is revealed — pick which one flips",
   tr: "TR",
   production: "Production",
   steel: "Steel",

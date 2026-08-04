@@ -119,7 +119,19 @@ Alexis n'a donc « pas eu de chance », au sens propre. Ce qui change quand mêm
 pour lui : depuis le point C, le gain apparaît maintenant en « +X » sur ses
 compteurs — il verra qu'il s'est passé quelque chose, même sans question posée.
 
-### F3 — L'Action améliorée ne montre pas les cartes tirées
+### F3 — ✅ FAIT [VÉRIFIÉ 04-08] L'Action améliorée ne montre pas les cartes tirées
+Le défaut était dans le **moteur** : il tirait bien trois cartes, mais ne
+présentait que les prenables — et quand aucune n'était bleue ou rouge, aucune
+décision n'était posée du tout, donc rien ne s'affichait. Les trois cartes sont
+maintenant montrées à chaque fois ; celle qu'on ne peut pas prendre est éteinte
+et cerclée de gris avec « CANNOT BE TAKEN », celle qu'on peut prendre garde ses
+couleurs et porte un liseré vert. Le choix entre plusieurs prenables existait
+déjà dans le moteur, il est maintenant visible.
+Mesure : cinq parties entières, **13 révélations vues, 33 cartes montrées dont
+19 NON prenables** — c'est précisément ce qui n'apparaissait jamais. Moteur :
+830 tests, 830 verts. Aucune règle ne change.
+
+### F3 (énoncé d'origine)
 Elle est censée montrer 3 cartes de la pioche et permettre d'en prendre une
 bleue ou une rouge. Alexis a l'impression de ne rien récupérer.
 Demandé au minimum : **montrer les trois cartes tirées**, même quand aucune
@@ -155,7 +167,12 @@ Reste à vérifier : que l'écran le montre au joueur.
 Il a demandé : « J'avais pas mentionné d'autres choses ? » Voici ce que je tiens
 au catalogue et qu'il n'a pas cité ce matin.
 
-### I1 — 🔴 BLOQUANT : la partie se bloque à plusieurs tailles de fenêtre
+### I1 — ✅ RÉGLÉ [VÉRIFIÉ 04-08] La partie se bloquait à plusieurs tailles
+Après correction : **dix-neuf tailles balayées, 3 780 écrans mesurés, zéro écran
+fautif**, et la partie entière (233 décisions, mêmes scores) à chacune d'elles —
+y compris les quatre qui bloquaient. Énoncé d'origine ci-dessous.
+
+### I1 (énoncé d'origine) — la partie se bloquait à plusieurs tailles de fenêtre
 [VÉRIFIÉ 04-08] Balayage de **quatorze** tailles, même partie, même graine.
 **Quatre bloquent pour de bon** — plus aucun bouton de choix n'est atteignable
 au 7ᵉ écran :
