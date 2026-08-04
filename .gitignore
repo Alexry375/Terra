@@ -19,3 +19,4 @@ __pycache__/
 # Note : le dossier workspaces/ (ateliers des sous-agents) est exclu par
 # .git/info/exclude, pose par l'outil `aw`. Les livrables y sont promus
 # manuellement dans engine/ ou data/ apres audit.
+.claude/worktrees/
