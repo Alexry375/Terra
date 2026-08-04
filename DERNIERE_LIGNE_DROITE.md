@@ -233,25 +233,39 @@ les ressources valent des points.
 [VÉRIFIÉ 04-08 · Q4 — décision à prendre] L'agrandissement au survol existe.
 Corentin le veut **plus gros**, et les images sont alors floues.
 
-**J'ai trouvé pourquoi.** La source est une **unique photo de téléphone de
-1 200 × 1 600 points** contenant toutes les tuiles à la fois
-(`data/cartes-imprimees/objectifs-recompenses/photo-objectifs-27-07.jpeg`).
-Chaque tuile y occupe donc environ 370 × 290 points réels, alors que les
-découpes livrées font **745 × 583** : elles ont déjà été agrandies du double.
-Le flou ne vient pas de l'affichage, il vient de la source — il n'y a jamais eu
-assez de détail.
+**D'où viennent vraiment ces images** [VÉRIFIÉ 04-08 · Alexis avait raison,
+je m'étais trompé de source]. Le manifeste le dit noir sur blanc :
+`web/webapp/assets/manifeste.json` → `"source":
+"data/scans/decouverte-tabletop/img_9c88384b7936.png"`. Ce ne sont **pas** les
+photos d'Alexis, ce sont les ressources du module de plateau virtuel. Ce fichier
+mesure **745 × 583** et notre image livrée mesure **745 × 583** : il n'y a eu
+**aucun agrandissement**, c'est la taille d'origine de la ressource.
+
+Le plafond est donc net : **745 points de large**. Au-delà, quoi qu'on fasse,
+c'est flou. C'est peu pour un agrandissement plein écran, et cela explique
+exactement ce que Corentin voit.
 
 **Trois voies, mon avis sur chacune :**
-1. **Reprendre les photos, une tuile à la fois** — gratuit, dix minutes, et
-   c'est le seul moyen d'obtenir du vrai détail. **Ma recommandation.**
+1. **Chercher une ressource de meilleure définition** — les modules de plateau
+   virtuel existent souvent en plusieurs qualités, et les planches complètes
+   sont parfois bien plus fines que les découpes. **À tenter en premier : c'est
+   gratuit et sans risque.**
 2. **Réécrire le texte par-dessus** — on connaît déjà le texte exact de chaque
-   tuile (`objectifs-recompenses.json`). Le nom et la condition seraient alors
-   parfaitement nets quelle que soit la photo. À faire **en plus** du point 1.
-3. **Agrandissement par intelligence artificielle** — déconseillé ici : ces
-   outils **inventent** le détail manquant. Sur un dessin, c'est sans
-   conséquence ; sur un chiffre de règle (« 6 badges espace », « 12 cartes »),
-   un chiffre inventé affiche une règle fausse. À réserver au fond décoratif, et
-   seulement si le texte est réécrit par-dessus.
+   tuile (`data/cartes-imprimees/objectifs-recompenses/objectifs-recompenses.json`).
+   Le nom et la condition seraient alors parfaitement nets à n'importe quelle
+   taille, l'image ne servant plus que de fond. **La solution la plus sûre**, et
+   elle se cumule avec les deux autres.
+3. **Agrandissement par intelligence artificielle** — déconseillé seul : ces
+   outils ne récupèrent pas le détail perdu, ils l'**inventent**. Sur un dessin,
+   sans conséquence ; sur un chiffre de règle (« 6 badges espace »), un chiffre
+   inventé affiche une règle fausse. Acceptable **uniquement** sur le fond, avec
+   le texte réécrit net par-dessus (voie 2).
+
+Les photos d'Alexis
+(`data/cartes-imprimees/objectifs-recompenses/photo-objectifs-27-07.jpeg`,
+1 200 × 1 600 pour toutes les tuiles à la fois) ne servent que de référence de
+lecture du texte — elles ne sont pas assez propres pour l'affichage, il l'a dit
+lui-même.
 
 ### LIS-5 (Corentin, ligne 13) — La disposition des tuiles océan change toute seule
 [DEMANDÉ] Quand une tuile est révélée, la planche de droite passe de trois
@@ -295,6 +309,11 @@ l'Action améliorée montre désormais les trois cartes tirées, dont celles qu'
 ne peut pas prendre, éteintes et marquées « CANNOT BE TAKEN ». C'était une
 demande explicite d'Alexis. Il ne faut pas défaire cela par erreur.
 
+### LIS-13 (Alexis, 04-08) — Ne pas pouvoir agrandir le dos des cartes adverses
+[DEMANDÉ] La main de l'adversaire est faite de dos de cartes, tous identiques.
+Les agrandir ne montre rien et n'a aucun intérêt : retirer la loupe sur ces
+cartes-là.
+
 ### LIS-10 (ancien J3) — Les logos Océan et Forêt ne sont pas détourés
 [DÉCLARÉ 04-08] Dans les décisions, ces deux jetons s'affichent sur un carré
 blanc, alors que le logo de la défausse est proprement détouré.
@@ -324,10 +343,17 @@ Reste seulement à le **montrer** au joueur quand cela arrive.
    à sa droite (première ligne, deuxième colonne), et ainsi de suite. On voit
    donc immédiatement ce qui vient de partir.
 
-Point à trancher pendant la réalisation : la défausse est-elle **commune** aux
-deux joueurs ou une par joueur ? Le moteur remélange une seule pile
-(`engine/src/flow.rs:32-42`), ce qui laisse penser qu'elle est commune. À
-confirmer avant de dessiner la fenêtre.
+**Précisions d'Alexis, 04-08 (secondes réponses) :**
+- la défausse est **commune** aux deux joueurs, et c'est **voulu** : le but est
+  justement de voir ce que l'adversaire a jeté ;
+- **cinq cartes par ligne**, à peu près la taille d'une carte Phase au moment où
+  l'on en choisit une — donc **assez grandes pour être lues sans agrandissement**.
+  Pas de loupe à prévoir dans cette fenêtre ;
+- ce n'est **pas une règle officielle** : ce sera une **option de partie**,
+  activable ou non.
+
+Conséquence à ne pas oublier quand viendra l'intelligence artificielle : cette
+option lui profite bien plus qu'à un humain. Voir GRO-1.
 
 ### CNF-3 (Corentin, ligne 34 · optionnel) — Un bouton « passer définitivement »
 [DEMANDÉ] En plus du bouton qui passe une fois pendant la phase Action, un
@@ -351,6 +377,20 @@ recopier à la main la liste des décisions, ce qu'on a dû faire une fois le 04
 **C'est l'objectif du projet.** Non commencé. Tout ce qui précède existe pour que
 le jeu soit jouable et juste ; l'adversaire artificiel, lui, reste entièrement à
 construire.
+
+**Point à retenir dès maintenant — la défausse visible (CNF-2).** Alexis a
+demandé si cette option avantagerait la machine. Réponse : **oui, nettement**,
+et pour une raison simple. Voir la défausse ne dit rien de la main adverse, mais
+elle dit ce qui **reste dans le paquet**. Un humain ne mémorise pas cent
+soixante-dix cartes ; une machine, si — et elle le fait sans effort ni erreur.
+Cette option ne crée donc pas un avantage partagé : elle en crée un pour celui
+qui sait compter.
+
+Deux conséquences pratiques :
+1. l'option doit rester **désactivable**, et l'être par défaut quand on compare
+   la machine à un humain, sinon la comparaison ne veut rien dire ;
+2. si on l'active, il faudra décider explicitement si la machine y a droit. Ce
+   n'est pas une décision d'affichage, c'est une décision de règle du jeu.
 
 ### GRO-2 (ancien I4) — Les effets sonores
 Jamais commencés.
