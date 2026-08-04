@@ -470,6 +470,23 @@ impl<P: Policy> Policy for ObservingPolicy<'_, P> {
         self.inner.research_keep(rng, player, drawn, keep)
     }
 
+    /// Transmise TELLE QUELLE, comme toutes les autres : un enrobage qui
+    /// oublierait cette méthode laisserait le corps par défaut répondre à la
+    /// place de la politique enrobée — l'écran ne verrait plus jamais une
+    /// révélation.
+    fn reveal_pick(
+        &mut self,
+        rng: &mut StdRng,
+        player: usize,
+        revealed: &[u16],
+        candidates: &[u16],
+        keep: usize,
+        filter: crate::effects::RevealFilter,
+    ) -> Vec<usize> {
+        self.inner
+            .reveal_pick(rng, player, revealed, candidates, keep, filter)
+    }
+
     fn discard_down(
         &mut self,
         rng: &mut StdRng,

@@ -14,6 +14,7 @@ import {
   imageForet, imageOcean, imageReserve, dosProjet, EQUIPAGES, nomJoueur,
 } from "./materiel.js";
 import { survolable, survolableImage, cacher as cacherLoupe, figer } from "./loupe.js";
+import { contexteRevelation } from "./revelation.js";
 import { MOT, question as questionAnglaise, libelleOption, sorteAction } from "./mots.js";
 import { decisionDeMain, LARGEUR as LARGEUR_MAIN } from "./mains.js";
 import { ouvrirGeste, fermerGeste, poserLaCarte } from "./geste.js";
@@ -68,6 +69,10 @@ const CTX_MINI = 56;
 const SUPERPOSITION = new Set([
   "corp_mulligan", "project_mulligan", "pick_corporation",
   "alternative_carte", "alternative_action", "bonus_selectionneur",
+  // Une révélation du dessus de la pioche EST un moment où l'on regarde des
+  // cartes : les trois retournées doivent se lire, y compris quand aucune n'est
+  // prenable et qu'il n'y a rien d'autre à faire que les voir.
+  "revelation_pioche",
 ]);
 
 let resoudre = null; // la réponse attendue par le moteur, une fois cliquée
@@ -435,6 +440,11 @@ function imageSelectionneur(d) {
 
 /** Ce que la décision donne à voir sans qu'on ait à le choisir. */
 function contexte(d) {
+  // Les cartes RÉVÉLÉES (dessus de pioche) se montrent toutes, prenables ou
+  // non : c'est `vue/revelation.js` qui les compose, et lui seul.
+  const revelation = contexteRevelation(d);
+  if (revelation) return revelation;
+
   const cartes = [];
   let mot = "";
 

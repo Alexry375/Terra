@@ -415,6 +415,18 @@ impl Policy for ProbePolicy {
     ) -> Vec<usize> {
         self.inner.research_keep(rng, p, drawn, keep)
     }
+    /// Transmise telle quelle : la sonde enrobe, elle ne décide pas à la place.
+    fn reveal_pick(
+        &mut self,
+        rng: &mut StdRng,
+        p: usize,
+        revealed: &[u16],
+        candidates: &[u16],
+        keep: usize,
+        filter: crate::effects::RevealFilter,
+    ) -> Vec<usize> {
+        self.inner.reveal_pick(rng, p, revealed, candidates, keep, filter)
+    }
     fn discard_down(&mut self, rng: &mut StdRng, p: usize, hand: &[u16], n: usize) -> Vec<usize> {
         self.inner.discard_down(rng, p, hand, n)
     }

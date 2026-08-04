@@ -3,6 +3,7 @@
 //! paramètre — la politique elle-même ne possède pas de RNG.
 
 use crate::choice::ChoiceContext;
+use crate::effects::RevealFilter;
 use crate::state::GameState;
 use rand::rngs::StdRng;
 use rand::Rng;
@@ -274,6 +275,54 @@ pub trait Policy {
     /// Recherche : garder `keep` cartes parmi `drawn` — renvoie les indices gardés.
     fn research_keep(&mut self, rng: &mut StdRng, player: usize, drawn: &[u16], keep: usize)
         -> Vec<usize>;
+
+    /// **Révélation du dessus de la pioche** (`flow::reveal_top`, brique du lot
+    /// 6 : « Révélez les 3 premières cartes… ajoutez-en une bleue ou rouge à
+    /// votre main… défaussez les autres »).
+    ///
+    /// Pourquoi cette méthode existe alors que `research_keep` suffisait à
+    /// TRANCHER : parce qu'une révélation n'est pas seulement un choix, c'est
+    /// un GESTE PUBLIC. Les trois cartes sont retournées face visible sur la
+    /// table ; un joueur humain doit les voir, y compris — surtout — quand
+    /// aucune n'est prenable et qu'il n'a rien à choisir. `research_keep` ne
+    /// recevait que les candidates, et n'était pas appelée du tout à zéro
+    /// candidate : les cartes révélées disparaissaient alors sans que rien ne
+    /// paraisse à l'écran. C'est le défaut que cette méthode corrige.
+    ///
+    /// - `revealed` : les cartes réellement retournées, dans l'ordre où elles
+    ///   ont quitté la pioche. **Toutes** sont montrables au joueur : le geste
+    ///   est public par les règles du jeu (et elles finiront à la défausse, qui
+    ///   l'est aussi).
+    /// - `candidates` : la sous-suite de `revealed` que le filtre imprimé rend
+    ///   PRENABLE, dans le même ordre.
+    /// - `keep` : combien il faut en prendre — **zéro** quand aucune ne l'est.
+    /// - `filter` : le filtre IMPRIMÉ, tel quel. C'est lui qui dit *pourquoi*
+    ///   une carte révélée n'est pas prenable (« elle est verte », « elle n'a
+    ///   ni badge science ni badge plante ») ; une politique qui a un écran doit
+    ///   pouvoir l'expliquer sans réinventer la règle.
+    ///
+    /// Rend des indices **dans `candidates`**, comme `research_keep` : la forme
+    /// de la réponse ne change pas, aucune politique existante n'a à être
+    /// réécrite, et aucune réponse valide hier ne devient invalide aujourd'hui.
+    ///
+    /// Le corps par défaut REDIT exactement l'ancien comportement du moteur :
+    /// rien à prendre → rien à décider et **pas un tirage** consommé sur le
+    /// générateur ; sinon, la question est `research_keep` sur les candidates,
+    /// mot pour mot. Les empreintes de parties sont donc inchangées.
+    fn reveal_pick(
+        &mut self,
+        rng: &mut StdRng,
+        player: usize,
+        _revealed: &[u16],
+        candidates: &[u16],
+        keep: usize,
+        _filter: RevealFilter,
+    ) -> Vec<usize> {
+        if keep == 0 {
+            return Vec::new();
+        }
+        self.research_keep(rng, player, candidates, keep)
+    }
 
     /// Fin de ronde : défausser `n` cartes (limite de main) — indices à défausser.
     fn discard_down(&mut self, rng: &mut StdRng, player: usize, hand: &[u16], n: usize)

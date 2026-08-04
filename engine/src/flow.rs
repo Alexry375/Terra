@@ -3333,13 +3333,37 @@ fn reveal_top(
     // demande, jamais lui qui décide (convention du lot 3 pour les CIBLES,
     // `choose_res_target`). La règle « on ne demande rien à une seule option »
     // ne vaut que pour les ALTERNATIVES du texte imprimé (`choose_option`).
+    //
+    // Et elle est consultée **à chaque révélation**, y compris quand rien n'est
+    // prenable (`take == 0`) : retourner trois cartes face visible est un geste
+    // du jeu, pas un calcul interne. Une politique qui a des yeux (l'écran) doit
+    // pouvoir les montrer ; une politique qui n'en a pas garde le corps par
+    // défaut de `Policy::reveal_pick`, qui ne décide rien et ne consomme pas le
+    // générateur dans ce cas. Le déroulement du jeu, lui, ne bouge pas d'un
+    // point : mêmes cartes gardées, mêmes cartes défaussées, même hasard.
+    //
+    // FUSION 04-08 : `avant_decision` et non `policy.observe` seul. Le chantier
+    // de la révélation était parti d'une base antérieure, où l'observation
+    // s'écrivait à la main. `avant_decision` fait DEUX choses — offrir
+    // l'occasion de vendre, puis observer — et c'est la correction du défaut où
+    // l'écran recevait, pendant une vente, un état de fin de manche. La perdre
+    // ici aurait rouvert ce défaut sur toutes les révélations.
+    // Et l'OCCASION DE VENDRE ne s'ouvre que quand il y a vraiment quelque chose
+    // à décider. Mesuré le 04-08 pendant la fusion : l'ouvrir aussi quand rien
+    // n'est prenable changeait le déroulement de la partie (graine 77 : 223
+    // décisions et 66 points devenaient 200 et 62). Montrer trois cartes n'est
+    // pas une décision — c'est un affichage —, et un affichage n'a pas à offrir
+    // une vente. On observe alors seulement, pour que l'écran ait de quoi
+    // dessiner.
     if take > 0 {
         avant_decision(game, db, p, policy);
-        let idx = policy.research_keep(&mut game.rng, p, &cands, take);
-        for &i in idx.iter().take(take) {
-            if i < cands.len() {
-                kept.push(cands[i]);
-            }
+    } else {
+        policy.observe(game, p);
+    }
+    let idx = policy.reveal_pick(&mut game.rng, p, &revealed, &cands, take, r.keep);
+    for &i in idx.iter().take(take) {
+        if i < cands.len() {
+            kept.push(cands[i]);
         }
     }
     for c in revealed {
