@@ -22,6 +22,7 @@ import { viderScene } from "./scene.js";
 import { adversaireAgit, oublierMains } from "./mains.js";
 import { oublier } from "./monde.js";
 import { oublierPlateaux } from "./plateau.js";
+import { oublierGains } from "./joueurs.js";
 import { oublierPhases } from "./phases.js";
 // COUTURE : la table des phases est un apport de `table-vivante`, que ce
 // chantier-ci n'avait pas sous les yeux. Vider la table sans elle laisserait les
@@ -315,6 +316,10 @@ export function viderTable() {
   // `vue/phases.js` pour les poser sur la table (`vue/table.js`) ; oublier les
   // phases ne suffit donc plus à vider les deux docks.
   oublierTable();
+  // Sans cet oubli, la premiere reserve de la partie suivante serait lue
+  // comme un GAIN par rapport a la partie precedente : un « +38 » au premier
+  // ecran, sur un compteur qui n'a rien recu.
+  oublierGains();
   oublierRefs();
 
   document.getElementById("final")?.remove();

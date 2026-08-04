@@ -216,6 +216,50 @@ export function replacerBarres() {
   }
 }
 
+// ------------------------------------------------------- CE QUI VIENT D'ENTRER
+//
+// 04-08, Alexis : « il faudrait que lors de la phase de production que l'on voie
+// au moins ses compteurs de MC et de chaleur et de plantes avoir un +X / +Y / +Z
+// et qui dure un peu de temps pour qu'on comprenne que les compteurs ont
+// augmenté. Là c'est instantané. »
+//
+// Rien n'est CALCULÉ ici, et surtout pas une production : on compare l'état
+// d'avant et l'état d'après, exactement comme `vue/monde.js` le fait déjà pour
+// la planète, et on affiche l'écart que le moteur vient de créer. Jamais un
+// nombre inventé, jamais un nombre attendu — celui qui a eu lieu.
+//
+// Les BAISSES ne s'affichent pas : dépenser est un geste qu'on vient de faire
+// soi-même, on sait ce qu'on a payé. C'est ce qui ARRIVE sans qu'on l'ait
+// demandé qui a besoin d'être vu.
+const avant = new Map(); // "joueur.cle" -> dernière valeur rendue
+
+/** Efface la mémoire des réserves (nouvelle partie, table vidée). */
+export function oublierGains() {
+  avant.clear();
+}
+
+function montrerGain(a, j, cle, valeur) {
+  const memoire = `${j}.${cle}`;
+  const precedent = avant.get(memoire);
+  avant.set(memoire, valeur);
+  // Premier rendu : il n'y a pas d'avant, donc pas d'écart. Sans cette garde,
+  // toute la mise en place de la partie s'annoncerait comme un gain.
+  if (precedent === undefined || valeur <= precedent) return;
+  const bac = a.querySelector(".reserve--" + cle);
+  if (!bac) return;
+  const d = document.createElement("span");
+  d.className = "gain";
+  d.textContent = "+" + (valeur - precedent);
+  // Le gain précédent, s'il tient encore, s'en va : deux nombres superposés sur
+  // le même bac ne se lisent ni l'un ni l'autre.
+  bac.querySelector(".gain")?.remove();
+  bac.appendChild(d);
+  // 1 900 ms : « qui dure un peu de temps », demandé le 04-08. Assez long pour
+  // qu'on lève les yeux dessus, assez court pour ne pas suivre la décision
+  // suivante. L'animation, elle, se coupe par le réglage habituel.
+  setTimeout(() => d.remove(), 1900);
+}
+
 /**
  * Réécrit les deux barres à partir de l'état.
  *
@@ -229,6 +273,7 @@ export function majJoueurs(etat, decision, siege) {
     const a = ref("#equipage-" + j);
     if (!a) continue;
     a.classList.toggle("equipage--actif", !!decision && decision.joueur === j);
+    for (const [cle] of RESERVES) montrerGain(a, j, cle, p[cle] ?? 0);
 
     poserValeur(`players.${j}.tr`, p.tr);
     // (regles-de-la-vente) **LE GRAND NOMBRE NE COMPTE QUE L'ACQUIS.**

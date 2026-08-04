@@ -292,3 +292,46 @@ html[data-animations="non"] .cran { transition-duration: 0s; }
    est rogné au premier parent qui découpe. */
 .tuiles-honneur, .tuiles-honneur__rang { overflow: visible; }
 html[data-animations="non"] .honneur { transition-duration: 1ms; }
+
+/* ═══ CE QUI VIENT D'ENTRER DANS LA RÉSERVE ═══════════════════════════════════
+ *
+ * 04-08, Alexis : à la phase de production, les compteurs montaient
+ * INSTANTANÉMENT — on voyait le nombre d'après sans avoir vu le mouvement. Un
+ * « +4 » monte maintenant du bac et s'efface, et il dure assez pour être lu.
+ *
+ * Le bac de réserve était en `overflow: hidden` : le nombre y serait né coupé.
+ * Rien ne débordait de ce bac auparavant (l'image de fond est calée sur ses
+ * quatre bords et recadrée par `object-fit`), le rendre visible ne laisse donc
+ * rien s'échapper d'autre. */
+.reserve { overflow: visible; }
+.gain {
+  position: absolute; left: 50%; top: -2px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  font-family: "TerraChiffre", monospace;
+  font-size: 15px; line-height: 1; white-space: nowrap;
+  color: #8ff2a6;
+  text-shadow: 0 0 8px rgba(0, 0, 0, .95), 0 1px 3px #000;
+  animation: gain-monte 1900ms cubic-bezier(.2, .7, .3, 1) forwards;
+  z-index: 40;
+}
+.reserve--heat  .gain { color: #ffb27a; }
+.reserve--plants .gain { color: #9ff09a; }
+.reserve--mc    .gain { color: #ffdf8a; }
+
+@keyframes gain-monte {
+  0%   { opacity: 0; transform: translate(-50%, 8px) scale(.7); }
+  12%  { opacity: 1; transform: translate(-50%, -4px) scale(1.15); }
+  22%  { opacity: 1; transform: translate(-50%, -2px) scale(1); }
+  74%  { opacity: 1; transform: translate(-50%, -8px) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -22px) scale(.92); }
+}
+
+/* Le coupe-circuit des animations ne fait pas DISPARAÎTRE le gain : il le rend
+   immobile. Une mesure automatique doit pouvoir le lire, sinon on ne prouverait
+   jamais qu'il a été affiché. Une durée de 1 ms et non de 0 s : une durée nulle
+   empêche certains navigateurs de signaler la fin d'une animation. */
+html[data-animations="non"] .gain {
+  animation: none;
+  opacity: 1; transform: translate(-50%, -6px);
+}
