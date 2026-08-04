@@ -28,6 +28,26 @@ const MAX_CARTE = 340; // au-delà, une carte mange la scène sans rien ajouter
 // bande et se posent sur les plateaux.
 const LEGENDE = 26;
 
+// ---------------------------------------------------------- LE PLANCHER DE 40
+//
+// Aucun bouton de choix ne descend sous 40 points de côté, à aucune taille de
+// fenêtre : c'est la seule mesure qui rende un bouton atteignable par une main
+// comme par un programme. Tout ce qui partage la hauteur de la scène s'y plie —
+// c'est le contexte qui cède, jamais les choix.
+const MINI = 40;
+// Ce que la bande des choix demande quand la place le permet : le double du
+// plancher. En dessous, on ne dessine pas « petit », on dessine « juste ».
+const AISE = 80;
+// LA HAUTEUR QUE DEMANDE UN CONTEXTE DE RAPPEL — une vignette de 68 points de
+// large, son intitulé et sa marge. Elle est CALCULÉE et non mesurée : la hauteur
+// réelle d'une carte dont l'image n'est pas encore décodée vaut zéro, et le
+// contexte se verrait alors accorder zéro point pour toujours.
+const CTX_VIGNETTE = 68;
+const CTX_CHROME = 23;
+// Et la hauteur sous laquelle il ne descend pas tant que les choix ont leur
+// plancher : un contexte réduit à rien n'informe plus personne.
+const CTX_MINI = 56;
+
 // Les moments qui méritent de couvrir la table : on y regarde des cartes en
 // grand, et le plateau reste visible dessous. Partout ailleurs la scène est une
 // bande, et les deux plateaux gardent leur place.
@@ -251,17 +271,53 @@ function dessiner(d, etat) {
   if (forme !== "simple") barre.dataset.reservee = "";
   m.appendChild(barre);
 
-  // En composition « contexte », les choix ne sont que des mots : on leur
-  // réserve leur hauteur AVANT de mesurer le contexte, sinon les deux zones se
-  // disputent la place et les cartes débordent. Cette hauteur ne peut pas être
-  // écrite en dur : la bande de décision fait 292 px sur un grand écran et 168
-  // sur un petit, et des choix trop hauts déborderaient sur les plateaux.
-  if (!riche && ctx) {
-    const n = (d.options || []).length + (d.passer ? 1 : 0);
-    const voulue = forme === "montant" ? 108 : n <= 4 ? 172 : 312;
-    const dispo = m.clientHeight - tete.offsetHeight - barre.offsetHeight;
-    zone.style.height = Math.max(56, Math.min(voulue, Math.floor(dispo * 0.6))) + "px";
+  // LA HAUTEUR SE PARTAGE AVANT QUE QUOI QUE CE SOIT SOIT POSÉ.
+  //
+  // C'est ici que le défaut d'origine vivait : le contexte et les choix étaient
+  // tous deux `flex: 1 1 auto` avec `min-height: 0`, donc rien ne garantissait
+  // un plancher à la bande des choix. En 1440 × 810, au rang 9 (dix badges), le
+  // contexte prenait ses 117 points naturels et il en restait 32 aux choix —
+  // d'où des boutons taillés pour une bande qui n'existait pas, et empilés.
+  //
+  // On mesure donc la place disponible sur la SOMME des deux zones (leur total
+  // ne dépend pas du partage, il est donc juste même avant qu'elles soient
+  // remplies), puis on l'attribue : les choix d'abord, le contexte ensuite.
+  const geste = forme === "simple" && decisionDeMain(d);
+  const nChoix = geste || forme === "montant"
+    ? 0
+    : (d.options || []).length + (forme === "simple" && d.passer ? 1 : 0);
+  const dispo = zone.clientHeight + (ctx ? ctx.offsetHeight : 0);
+  if (!geste && dispo > 1) {
+    const images = choixSontDesImages(d);
+    // Le mot sous une carte s'efface dès qu'elle est serrée (`data-dense`) —
+    // sauf sous une carte Phase améliorée, seule à garder le sien. C'est donc la
+    // seule pour qui la ligne de nom compte encore dans le calcul du plancher.
+    const legende = images && d.type === "amelioration_carte_phase";
+    const L = zone.clientWidth || 1040;
+    const plancher = nChoix
+      ? hauteurPourTenir(L, nChoix, images, legende, MINI)
+      : CTX_MINI;
+    let hChoix;
+    if (!riche && ctx) {
+      // LE CONTEXTE EST LE SUJET (les options ne sont que des mots) : il garde le
+      // gros de la bande. Les choix, eux, ne descendent plus sous leur plancher.
+      const voulue = forme === "montant" ? 108 : nChoix <= 4 ? 172 : 312;
+      hChoix = Math.max(plancher, Math.min(voulue, Math.floor(dispo * 0.6)));
+      hChoix = Math.min(hChoix, Math.max(plancher, dispo - CTX_MINI));
+    } else if (ctx) {
+      // LE CONTEXTE N'EST QU'UN RAPPEL : il cède la place aux choix.
+      const aise = nChoix ? hauteurPourTenir(L, nChoix, images, legende, AISE) : 108;
+      hChoix = dispo - partDuContexte(dispo, plancher, aise);
+    } else {
+      hChoix = dispo;
+    }
+    hChoix = Math.max(1, Math.min(hChoix, dispo));
     zone.style.flex = "0 0 auto";
+    zone.style.height = hChoix + "px";
+    if (ctx) {
+      ctx.style.flex = "0 0 auto";
+      ctx.style.height = (dispo - hChoix) + "px";
+    }
   }
 
   if (ctx) remplirContexte(ctx, !riche);
@@ -312,6 +368,23 @@ function ameliorationPossedee(etat, joueur, phase) {
   const liste = p && p.phase_upgrades;
   if (!Array.isArray(liste)) return null;
   return liste.find((code) => Number(String(code)[0]) === Number(phase)) || null;
+}
+
+/**
+ * LES BOUTONS SERONT-ILS DES CARTES ? Ce n'est pas la question à laquelle
+ * `optionsIllustrees` répond : celle-là dit « l'option est-elle le SUJET de
+ * l'écran ? », et c'est elle qui décide de la composition.
+ *
+ * Les deux réponses divergent sur un seul cas, et il coûtait cher : un badge de
+ * joker (`pick_joker_tag`) est bien le sujet, mais il se pose sur une PLAQUE,
+ * avec son jeton dedans. `planImages` le taillait donc en carte — 4 points de
+ * large en 1440 × 810 au rang 9 — alors qu'une plaque ne se serre pas sous une
+ * cinquantaine de points : dix-sept paires de boutons empilées, et la partie
+ * bloquée (mesuré le 04-08).
+ */
+function choixSontDesImages(d) {
+  if (d.type === "pick_joker_tag") return false;
+  return optionsIllustrees(d);
 }
 
 /**
@@ -439,22 +512,28 @@ function contextePhase(src, mot) {
 /**
  * Le contexte prend la taille que la composition lui laisse. Quand c'est LUI le
  * sujet (les options ne sont que des mots), il occupe la scène.
+ *
+ * SES CARTES SUIVENT LA HAUTEUR QU'ON LUI A DONNÉE, dans les deux compositions.
+ * La vignette de 68 points écrite en dur ne tenait pas dans une bande basse : le
+ * contexte gardait ses 117 points quoi qu'il arrive, et c'est la bande des choix
+ * qui payait. Une carte de rappel a le droit d'être petite ; un bouton qu'on
+ * doit cliquer, non.
  */
 function remplirContexte(z, maitre) {
   const r = z.querySelector(".scene__contexte-rang");
   if (!r) return;
   const n = Number(r.dataset.combien) || 1;
-  if (!maitre) {
-    r.style.setProperty("--w", "68px");
-    r.style.setProperty("--serrage", "-22px");
-    return;
-  }
+  // Sous cette hauteur, l'intitulé posé AU-DESSUS des cartes leur prendrait le
+  // quart de la bande : il passe à côté d'elles, et la carte récupère la place.
+  // Ce choix est fait EN PREMIER — il change la hauteur qu'aura le rang.
+  z.dataset.compact = z.getBoundingClientRect().height < 84 ? "oui" : "non";
   const L = r.clientWidth || 1040;
-  const H = r.clientHeight || 300;
+  const H = r.getBoundingClientRect().height || (maitre ? 300 : CTX_VIGNETTE * RATIO);
   // Les cartes du contexte peuvent se chevaucher : on ne clique pas dessus.
   const pas = n > 6 ? 0.62 : n > 3 ? 0.82 : 1;
-  let w = Math.min((L - 24) / (1 + (n - 1) * pas), H / RATIO, 300);
-  w = Math.max(60, Math.floor(w));
+  const plafond = maitre ? 300 : CTX_VIGNETTE;
+  let w = Math.min((L - 24) / (1 + (n - 1) * pas), H / RATIO, plafond);
+  w = Math.max(maitre ? 60 : 18, Math.floor(w));
   r.style.setProperty("--w", w + "px");
   r.style.setProperty("--serrage", Math.round(-w * (1 - pas)) + "px");
 }
@@ -887,10 +966,23 @@ function slabAction(o, mot) {
  * calculé, et l'on vérifie que les rangs tiennent en hauteur.
  */
 function mesurer(d, zone, n) {
-  const illustre = optionsIllustrees(d);
+  const illustre = choixSontDesImages(d);
   const L = zone.clientWidth || 1040;
   const H = hauteurDeLaZone(zone);
-  const plan = illustre ? planImages(L, H, n) : planPlaques(L, H, n);
+  let plan;
+  if (!illustre) {
+    plan = planPlaques(L, H, n);
+  } else {
+    // La ligne de nom est réservée d'abord ; si les cartes tombent malgré tout
+    // sous 170 points, `data-dense` efface le mot et la place qu'il retenait
+    // revient aux cartes. Une carte Phase améliorée, elle, garde son mot — la
+    // variante A ou B n'est écrite nulle part ailleurs — donc sa ligne aussi.
+    plan = planImages(L, H, n, true);
+    if (plan.w < 170 && d.type !== "amelioration_carte_phase") {
+      const sansMot = planImages(L, H, n, false);
+      if (sansMot.w < 170) plan = sansMot;
+    }
+  }
 
   zone.style.gridTemplateColumns = `repeat(${plan.c}, ${plan.w}px)`;
   zone.style.setProperty("--w", plan.w + "px");
@@ -936,28 +1028,103 @@ function colonne(L, c) {
   return Math.floor((L - (c - 1) * ECART - 2) / c);
 }
 
+/**
+ * LA HAUTEUR DE RANGÉE qu'exige un bouton de `cote` points de côté. Une plaque
+ * fait exactement sa hauteur ; une carte y ajoute ses proportions, et sa ligne
+ * de nom quand elle en garde une.
+ */
+function rangeePour(cote, images, legende) {
+  return images ? cote * RATIO + (legende ? LEGENDE : 0) : cote;
+}
+
+/**
+ * LA HAUTEUR MINIMALE d'une bande qui tient `n` boutons de `cote` points de
+ * côté sur `L` points de large. On essaie toutes les découpes en colonnes et on
+ * garde la moins haute — c'est ce nombre que `dessiner` réserve à la bande des
+ * choix AVANT de laisser le contexte prendre le reste.
+ */
+function hauteurPourTenir(L, n, images, legende, cote) {
+  if (n <= 0) return 0;
+  const hRang = rangeePour(cote, images, legende);
+  let mieux = null;
+  for (let c = 1; c <= n; c++) {
+    if (colonne(L, c) < cote) continue;
+    const r = Math.ceil(n / c);
+    const h = r * hRang + (r - 1) * ECART;
+    if (mieux === null || h < mieux) mieux = h;
+  }
+  // Même une colonne unique est trop étroite : la largeur ne se négocie pas
+  // ici, on rend la hauteur d'une rangée plutôt qu'un nombre infini.
+  return Math.ceil(mieux === null ? hRang : mieux);
+}
+
+/**
+ * CE QUI RESTE AU CONTEXTE quand il n'est qu'un rappel. Trois règles, dans cet
+ * ordre : les choix ont leur plancher quoi qu'il arrive ; ils ont leur aise si
+ * la place le permet ; et le contexte ne descend pas sous `CTX_MINI` tant que
+ * les deux premières sont tenues.
+ */
+function partDuContexte(dispo, plancher, aise) {
+  const disponible = Math.max(0, dispo - plancher);
+  const naturelle = Math.round(CTX_VIGNETTE * RATIO) + CTX_CHROME;
+  let h = Math.min(naturelle, Math.max(0, dispo - aise));
+  h = Math.max(h, Math.min(naturelle, CTX_MINI, disponible));
+  return Math.min(h, disponible);
+}
+
+/**
+ * DERNIER RECOURS — la bande est plus basse que le plancher du contrat.
+ *
+ * Il ne doit plus se produire : `dessiner` réserve à la bande la hauteur que
+ * `hauteurPourTenir` exige avant de la remplir. S'il se produisait quand même,
+ * l'ancienne branche empilait plusieurs rangées dans une bande qui n'en tenait
+ * qu'une — d'où les 24 paires de boutons recouvertes en 1450 × 800. On préfère
+ * désormais la découpe la MOINS haute qui respecte les 40 points : des boutons
+ * qui dépassent un peu de leur bande restent cliquables, des boutons empilés
+ * les uns sur les autres, non.
+ *
+ * CE QU'IL NE PEUT PAS FAIRE, ET POURQUOI. Il prend le plus grand nombre de
+ * colonnes qui tiennent encore 40 points de large, donc le plus petit nombre de
+ * rangées possible, donc la disposition la moins haute qui respecte le contrat.
+ * Si cette hauteur-là dépasse encore la bande, la grille déborde : c'est la
+ * situation que la clause ASK du contrat décrit, et aucune mise en page ne s'en
+ * sort — « tous les choix visibles », « 40 points minimum » et « dans la bande »
+ * sont alors contradictoires. Elle demande beaucoup de choix sur une fenêtre
+ * basse : en 1100 × 620, la plus petite du contrat, la bande vaut 104 points et
+ * la largeur utile 858, soit jusqu'à 19 colonnes de 45 points ; il faudrait plus
+ * de 38 choix sur un seul écran pour que deux rangées ne tiennent plus. Le
+ * balayage des quatorze tailles sur des parties entières (2 912 écrans,
+ * `outputs/work/balayage-complet.py`) en a rencontré QUINZE au plus. Et comme
+ * `dessiner` réserve exactement `hauteurPourTenir`, la boucle ci-dessus trouve
+ * toujours au moins la découpe que cette réservation a payée : sous 38 choix,
+ * cette branche est inatteignable. Elle reste écrite parce qu'un plan qui rend
+ * `null` serait un écran blanc.
+ */
+function planSerre(L, n, cote, hRang) {
+  let c = 1;
+  for (let k = n; k >= 1; k--) {
+    if (colonne(L, k) >= cote) { c = k; break; }
+  }
+  return { c, utile: cote, w: cote, h: Math.ceil(hRang) };
+}
+
 /** Des cartes : elles gardent leurs proportions, et le rang doit tenir en hauteur. */
-function planImages(L, H, n) {
+function planImages(L, H, n, legende) {
+  const leg = legende ? LEGENDE : 0;
   let mieux = null;
   for (let c = 1; c <= n; c++) {
     const r = Math.ceil(n / c);
     const w = Math.min(colonne(L, c), MAX_CARTE);
     // hauteur d'une rangée = la carte + sa ligne de nom
-    const h = (H - (r - 1) * ECART) / r - LEGENDE;
+    const h = (H - (r - 1) * ECART) / r - leg;
     if (h <= 0 || w <= 0) continue;
     const utile = Math.min(w, h / RATIO);
+    if (utile < MINI) continue; // sous le plancher du contrat : refusé
     if (!mieux || utile > mieux.utile) {
-      mieux = { c, utile, w: Math.floor(utile), h: Math.floor(utile * RATIO + LEGENDE) };
+      mieux = { c, utile, w: Math.floor(utile), h: Math.floor(utile * RATIO + leg) };
     }
   }
-  if (!mieux) {
-    // DERNIER RECOURS, et rien d'autre : aucune disposition ne tenait en
-    // hauteur. Un seul rang, aussi large que la largeur le permet. Sans lui, un
-    // écran très bas rendrait un plan qui déborde sur les plateaux.
-    const w = Math.max(18, Math.min(colonne(L, n), Math.floor((H - LEGENDE) / RATIO) || 18));
-    mieux = { c: n, w, h: Math.floor(w * RATIO + LEGENDE) };
-  }
-  return mieux;
+  return mieux || planSerre(L, n, MINI, rangeePour(MINI, true, legende));
 }
 
 /** Des plaques : pas de proportion imposée, on cherche à REMPLIR la scène. */
@@ -967,18 +1134,9 @@ function planPlaques(L, H, n) {
     const r = Math.ceil(n / c);
     const w = colonne(L, c);
     const h = Math.min((H - (r - 1) * ECART) / r, 176);
-    if (w < 200 || h < 62) continue;
+    if (w < MINI || h < MINI) continue; // sous le plancher du contrat : refusé
     const aire = w * h;
     if (!mieux || aire > mieux.aire) mieux = { c, w, h: Math.floor(h), aire };
   }
-  if (!mieux) {
-    // Cas extrême : on serre en autant de colonnes qu'il faut pour tenir. La
-    // hauteur d'une plaque descend alors aussi bas qu'il le faut — une plaque
-    // basse se lit encore, une plaque qui déborde sur le plateau, non.
-    const rmax = Math.max(1, Math.floor(H / (44 + ECART)));
-    const c = Math.max(1, Math.ceil(n / rmax));
-    const r = Math.ceil(n / c);
-    mieux = { c, w: colonne(L, c), h: Math.max(18, Math.floor((H - (r - 1) * ECART) / r)) };
-  }
-  return mieux;
+  return mieux || planSerre(L, n, MINI, MINI);
 }

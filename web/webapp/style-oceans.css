@@ -40,6 +40,15 @@
  * le survol tombait encore sur le dos d'une tuile déjà déclarée retournée. */
 .ocean[data-ocean-revelee="oui"] .ocean__dos { pointer-events: none; }
 .ocean--posee .ocean__dos { visibility: hidden; }
+/* LE DEMI-TOUR EST FINI : IL N'Y A PLUS DE DOS. Une fois le dos retiré, la
+ * tuile n'a plus qu'une face, et la culling des faces arrière n'a plus rien à
+ * cacher — on la lève. Sans ça, Chrome écarte AUSSI la face du test de survol
+ * (elle porte `rotateY(180deg)`, et il ne compose pas toujours ce demi-tour avec
+ * celui du pivot) : le survol tombait alors sur le pivot deux fois sur 929
+ * mesurées. Rien ne change au rendu — l'autre côté est déjà invisible. */
+.ocean--posee .ocean__face {
+  backface-visibility: visible; -webkit-backface-visibility: visible;
+}
 
 /* ============================================ DÉSIGNER L'EMPLACEMENT À OUVRIR
  *
