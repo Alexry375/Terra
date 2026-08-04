@@ -431,6 +431,57 @@ const MULLIGAN = {
   Garder: "Keep",
 };
 
+// (04-08, signalé en partie à deux) CE QUE FAIT CHAQUE BRANCHE, ÉCRIT EN TOUTES
+// LETTRES. Les alternatives « … ou … » s'affichaient « Printed option 1 » /
+// « Printed option 2 » : deux plaques qui ne disent RIEN. Le joueur devait lire
+// le texte imprimé sur l'image de la carte et compter les propositions lui-même.
+// Sur « Biomedical Imports » (augmenter l'oxygène OU améliorer une carte Phase),
+// c'est un choix de partie tranché à l'aveugle.
+//
+// La clé est le NOM DE LA CARTE, la valeur la liste de ses branches DANS L'ORDRE
+// IMPRIMÉ. On ne lit donc pas l'indice de l'option — le moteur retire les
+// branches injouables avant de poser la question (`engine/src/flow.rs`,
+// `apply_choice` et `Action::Res`), et le premier bouton n'est pas toujours la
+// première proposition du carton. On lit `rang_imprime`, que le pont porte
+// exactement pour cela (`wasm/src/lib.rs`, `printed_rank`).
+//
+// La table est CLOSE et vérifiée : le moteur ne contient que onze cartes à
+// branches multiples (recensées sur `ResStep::Choose`, `TrigGain::Choose` et
+// `Action::Res` dans `engine/src/effects.rs`), et chaque phrase ci-dessous est
+// recopiée des effets que le moteur applique réellement, pas du texte du carton.
+// Une carte absente retombe sur le rang imprimé et le signale en console.
+const BRANCHES = {
+  // Alternatives résolues à la POSE de la carte.
+  "Biomedical Imports": ["Increase the oxygen 1 step", "Upgrade a phase card"],
+  "Imported Hydrogen": ["Gain 3 plants", "Add 3 microbes or 2 animals to ANOTHER card"],
+  "Large Convoy": ["Gain 5 plants", "Add 3 animals to ANOTHER card"],
+  // Alternatives offertes par un déclencheur de pose.
+  "Viral Enhancers": ["Gain 1 plant", "Add 1 animal or microbe to ANOTHER card"],
+  "Decomposers": [
+    "Add a microbe to this card",
+    "Remove a microbe from this card to draw a card",
+  ],
+  // Alternatives de l'ACTION d'une carte bleue (phase III).
+  "Nitrite Reducting Bacteria": [
+    "Add 1 microbe to this card",
+    "Remove 3 microbes to flip an ocean tile",
+  ],
+  "Fibrous Composite Material": [
+    "Add 1 science to this card",
+    "Remove 3 science to upgrade a phase card",
+  ],
+  "GHG Production Bacteria": [
+    "Add 1 microbe to this card",
+    "Remove 2 microbes to raise the temperature 1 step",
+  ],
+  "Regolith Eaters": [
+    "Add 1 microbe to this card",
+    "Remove 2 microbes to raise the oxygen 1 step",
+  ],
+  "Extreme-Cold Fungus": ["Gain 1 plant", "Add a microbe to ANOTHER card"],
+  "Conserved Biome": ["Add a microbe to ANOTHER card", "Add an animal to ANOTHER card"],
+};
+
 /**
  * Le libellé anglais d'une option.
  *
@@ -533,16 +584,25 @@ export function libelleOption(d, o, i, carte, etat) {
       return carte ? `${carte.nom}${gainsProduction(o.production)}` : "Replay";
 
     case "alternative_carte":
-    case "alternative_action":
+    case "alternative_action": {
       // Le moteur ne décrit ces branches qu'en français, sans champ structuré
-      // équivalent (voir `outputs/blocked.md`). On désigne donc la branche par
-      // le rang IMPRIMÉ sur la carte — `rang_imprime`, que le descripteur
-      // porte justement pour pouvoir dire « la deuxième proposition DE LA
-      // CARTE » et non « la deuxième de celles qui restent ». La carte est
-      // montrée en grand : son texte imprimé, lui, est anglais.
-      return o.rang_imprime === undefined || o.rang_imprime === null
+      // équivalent (voir `outputs/blocked.md`). La table `BRANCHES` dit donc en
+      // anglais ce que chaque proposition FAIT, désignée par son rang imprimé.
+      const nom = d.carte?.nom ?? d.carte?.name ?? null;
+      const rang = o.rang_imprime;
+      if (nom && BRANCHES[nom] && rang !== undefined && rang !== null) {
+        const dit = BRANCHES[nom][rang];
+        if (dit) return dit;
+      }
+      // Repli : on désigne la branche par le rang IMPRIMÉ sur la carte, pour
+      // pouvoir dire « la deuxième proposition DE LA CARTE » et non « la
+      // deuxième de celles qui restent ». La carte est montrée en grand : son
+      // texte imprimé, lui, est anglais.
+      console.warn("mots.js : alternative sans phrase anglaise —", nom, rang);
+      return rang === undefined || rang === null
         ? `Branch ${i + 1}`
-        : `Printed option ${o.rang_imprime + 1}`;
+        : `Printed option ${rang + 1}`;
+    }
 
     case "bonus_selectionneur":
       // Ici le descripteur ne porte RIEN d'autre qu'un libellé français : pas
