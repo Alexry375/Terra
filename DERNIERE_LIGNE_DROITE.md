@@ -283,6 +283,31 @@ ne peut pas lire une liste hébergée ailleurs sans les fichiers.
 
 ## Troisieme liste, dictee par Alexis le 04-08 pendant la partie a deux
 
+### Ordre de bataille — CE QUI SE FAIT QUAND
+
+**Deja livre pendant la partie** (ecran seul, aucun indice de decision deplace,
+un simple rechargement suffit) : K1, K2, K3 (moitie), K7.
+
+**A FAIRE EN UN SEUL LOT, APRES LA PARTIE — et surtout pas avant.** K3 (seconde
+moitie), K5, K6 et K8 touchent tous la liste des points de decision ou la liste
+des options. Chacun, pris seul, detruit une partie en cours au rejeu : les
+reponses enregistrees sont des INDICES, pas des noms.
+
+Il y a une raison de plus de les grouper : ils se recouvrent.
+
+| | Ce qu'il faut changer | Ce que ca reglera aussi |
+|---|---|---|
+| K8 | poser la question meme quand la liste est vide (`wasm/src/lib.rs:1269`) | la seconde moitie de K3 — la phase ne passera plus en silence |
+| K5 | ne pas proposer une action qui ne peut rien produire (`flow.rs:3123`) | le joueur ne perd plus son activation pour rien |
+| K6 | trancher le bonus Construction APRES la premiere pose (`flow.rs:3994`) | rend le bonus conforme au livret p.12 |
+
+Une seule recompilation, une seule rupture de compatibilite, une seule campagne
+de controles. Les faire un par un multiplierait les trois par quatre.
+
+**Ordre recommande** : K8 d'abord (c'est celui qui a coute des coups reels aux
+deux joueurs et il regle la moitie de K3 au passage), puis K5, puis K6 qui est le
+plus lourd. K4 (voir la defausse) est independant et peut se faire a tout moment.
+
 ### K1 — Deux ventes de suite arretent la partie
 [CORRIGE 04-08 COTE ECRAN, VERIFIE — verif_vente.py, vert sur la livraison et
 ROUGE sur une copie sabotee]
