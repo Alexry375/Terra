@@ -84,11 +84,21 @@ des deux côtés ; vente 423 occasions, 3 753 cartes désignables, mains jusqu'�
 pouvait voir** : vendre pendant une partie à distance. Sur 63 tentatives, 31
 aboutissent et 32 restent en attente au-delà de dix secondes ; la partie va au bout
 et les deux écrans restent d'accord (523 décisions, scores identiques), donc ce
-n'est pas un blocage. Cause lue dans `web/webapp/distant.js` : une vente n'est
-remise au moteur que par le fournisseur de décisions local, **qui ne s'exécute que
-quand c'est à moi de jouer**. Si l'on clique « vendre » pendant que l'adversaire
-réfléchit, le panneau reste ouvert jusqu'à ce qu'il ait joué. Mesure du délai réel
-en cours. [VÉRIFIÉ 04-08 pour le comptage, délai NON ENCORE MESURÉ]
+n'est pas un blocage.
+
+**Mon explication était fausse, la mesure l'a réfutée.** J'avais écrit — et dit à
+Alexis — que la vente attendait le tour de l'adversaire et se concluait ensuite.
+La mesure des délais montre l'inverse : c'est **tout ou rien**. Les ventes qui
+aboutissent le font en 0,1 à 0,2 seconde ; les autres sont encore ouvertes après
+trente secondes. Il n'existe aucune attente intermédiaire, donc aucune file
+d'attente. Il se passe autre chose. [VÉRIFIÉ 04-08 : neuf ventes à 0,1-0,2 s,
+onze au-delà de 30 s, aucune entre les deux]
+
+À noter : `vue/vente.js` traite explicitement le cas « vente validée pendant que
+l'adversaire joue » — elle est abandonnée et le mode se referme si l'occasion se
+ferme. Le mécanisme existe donc ; reste à savoir pourquoi il ne se déclenche pas
+ici. Mesure en cours (le mode se referme-t-il, la carte quitte-t-elle la main, le
+joueur peut-il continuer). [NON ENCORE MESURÉ]
 
 ## 🔁 LA VENTE CHOISIE — ROUND 2 SCELLÉ ET LANCÉ (03-08 soir) — historique
 
