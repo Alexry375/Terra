@@ -147,8 +147,23 @@ function montrerBandeau(texte) {
     bandeau = document.createElement("div");
     bandeau.id = "en-ligne";
     bandeau.setAttribute("data-en-ligne-bandeau", "");
+    // (04-08, mesuré en 1920×1080) LE BANDEAU NE S'ASSIED PLUS DANS LE COIN.
+    // À `bottom: 12px` il occupait exactement la place du panneau de vente
+    // (`style-vente.css` : `left: 12px; bottom: 10px`, mesuré à y 1043→1070) et
+    // le recouvrait — avec `z-index: 9999` contre 96, c'est le bandeau qui
+    // gagnait. Le bouton restait cliquable (`pointer-events: none`) mais
+    // INVISIBLE : signalé en partie à deux, « le bouton pour vendre est toujours
+    // caché », y compris après un rechargement complet.
+    //
+    // La hauteur de départ n'est qu'un repli : `placerBandeau` mesure la bande
+    // libre au-dessus de ma barre à chaque affichage. Une première tentative
+    // s'était contentée de `--h-mienne` (la hauteur de ma main) et recouvrait
+    // alors mes jauges — la barre du joueur est une ligne `auto` de la grille,
+    // elle n'a AUCUNE variable de hauteur, donc aucune constante ne peut la
+    // décrire. On la mesure.
     bandeau.style.cssText = [
-      "position:fixed", "left:12px", "bottom:12px", "z-index:9999",
+      "position:fixed", "left:12px",
+      "bottom:calc(var(--h-mienne, 182px) + 80px)", "z-index:9999",
       "max-width:min(46ch,60vw)", "padding:8px 12px", "border-radius:8px",
       "background:rgba(12,14,20,.86)", "color:#e8eef7",
       "font:500 13px/1.35 system-ui,sans-serif", "letter-spacing:.01em",
@@ -157,9 +172,32 @@ function montrerBandeau(texte) {
       "pointer-events:none", "user-select:none",
     ].join(";");
     document.body.appendChild(bandeau);
+    // La fenêtre qui change de taille déplace la barre : le bandeau la suit.
+    addEventListener("resize", placerBandeau);
   }
   bandeau.textContent = texte;
   bandeau.style.display = texte ? "block" : "none";
+  if (texte) placerBandeau();
+}
+
+/**
+ * Pose le bandeau JUSTE AU-DESSUS de ma barre de jauges.
+ *
+ * Le bas de l'écran est entièrement pris : ma main tout en bas, ma barre de
+ * jauges au-dessus, et le panneau de vente dans le coin. La seule bande libre
+ * est celle qui sépare ma barre de la scène où l'on répond — et sa position ne
+ * s'écrit pas en dur, la barre étant une ligne `auto` de la grille (`style.css`)
+ * dont la hauteur dépend de son contenu. On la MESURE donc, à chaque affichage
+ * et à chaque changement de taille de la fenêtre. Si la barre n'est pas encore
+ * dessinée, le repli en dur du `cssText` tient jusqu'au prochain affichage.
+ */
+function placerBandeau() {
+  if (!bandeau || !REGLAGE) return;
+  const barre = document.querySelector(`.equipage[data-joueur="${REGLAGE.siege}"]`);
+  if (!barre) return;
+  const r = barre.getBoundingClientRect();
+  if (!r.height) return;
+  bandeau.style.bottom = `${Math.round(innerHeight - r.top + 10)}px`;
 }
 
 function rafraichirBandeau(canal) {
