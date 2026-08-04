@@ -1395,12 +1395,12 @@
   {
    "nom": "carte-phase-3-action-amelioree-a",
    "image": "plateau/carte-phase-3-action-amelioree-a.webp",
-   "source": "data/scans/decouverte-tabletop/img_988c9278d90e.jpg ligne 0 colonne 0"
+   "source": "data/scans/decouverte-tabletop/img_988c9278d90e.jpg ligne 0 colonne 1"
   },
   {
    "nom": "carte-phase-3-action-amelioree-b",
    "image": "plateau/carte-phase-3-action-amelioree-b.webp",
-   "source": "data/scans/decouverte-tabletop/img_988c9278d90e.jpg ligne 0 colonne 1"
+   "source": "data/scans/decouverte-tabletop/img_988c9278d90e.jpg ligne 0 colonne 0"
   },
   {
    "nom": "carte-phase-3-action-face-normale-planche-decouverte",
@@ -1415,12 +1415,12 @@
   {
    "nom": "carte-phase-4-production-amelioree-a",
    "image": "plateau/carte-phase-4-production-amelioree-a.webp",
-   "source": "data/scans/decouverte-tabletop/img_988c9278d90e.jpg ligne 1 colonne 4"
+   "source": "data/scans/decouverte-tabletop/img_988c9278d90e.jpg ligne 2 colonne 0"
   },
   {
    "nom": "carte-phase-4-production-amelioree-b",
    "image": "plateau/carte-phase-4-production-amelioree-b.webp",
-   "source": "data/scans/decouverte-tabletop/img_988c9278d90e.jpg ligne 2 colonne 0"
+   "source": "data/scans/decouverte-tabletop/img_988c9278d90e.jpg ligne 1 colonne 4"
   },
   {
    "nom": "carte-phase-4-production-face-normale-planche-decouverte",
@@ -1796,6 +1796,16 @@
    "nom": "tuile-foret-compteur-hexagone-arbre",
    "image": "plateau/tuile-foret-compteur-hexagone-arbre.webp",
    "source": "data/scans/base/img_54c8d253e67c.png"
+  },
+  {
+   "nom": "jeton-foret-detoure",
+   "image": "plateau/jeton-foret-detoure.webp",
+   "source": "plateau/tuile-foret-compteur-hexagone-arbre.webp, blanc rendu transparent et recadre sur l'hexagone (04-08)"
+  },
+  {
+   "nom": "jeton-ocean-detoure",
+   "image": "plateau/jeton-ocean-detoure.webp",
+   "source": "plateau/tuile-ocean-dos-orange.webp, blanc rendu transparent et recadre sur l'hexagone (04-08)"
   },
   {
    "nom": "tuile-foret-compteur-valeur-5-decouverte",

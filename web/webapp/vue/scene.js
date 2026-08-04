@@ -11,7 +11,8 @@
 import { carte, normaliser, cle } from "./cartes.js";
 import {
   imagePhase, imageAmelioration, phaseNom, imageBadge, nomBadge, imageCarte,
-  imageForet, imageOcean, imageReserve, dosProjet, EQUIPAGES, nomJoueur,
+  imageReserve, dosProjet, EQUIPAGES, nomJoueur,
+  jetonForetDetoure, jetonOceanDetoure,
 } from "./materiel.js";
 import { survolable, survolableImage, cacher as cacherLoupe, figer } from "./loupe.js";
 import { contexteRevelation } from "./revelation.js";
@@ -944,8 +945,10 @@ function matiereAction(brut) {
     const im = imageCarte(s.carte);
     return im ? { src: im, sorte: "carte" } : null;
   }
-  if (s.jeton === "foret") return { src: imageForet(), sorte: "jeton" };
-  if (s.jeton === "ocean") return { src: imageOcean(0), sorte: "jeton" };
+  // Les deux jetons hexagonaux sont pris DÉTOURÉS : sur une plaque de décision,
+  // le rectangle blanc du scan se voyait (04-08).
+  if (s.jeton === "foret") return { src: jetonForetDetoure(), sorte: "jeton" };
+  if (s.jeton === "ocean") return { src: jetonOceanDetoure(), sorte: "jeton" };
   if (s.jeton === "chaleur") return { src: imageReserve("heat"), sorte: "jeton" };
   // « Défausser 1 carte pour du MC » : c'est une carte PROJET qui part.
   if (s.jeton === "dos") return { src: dosProjet(), sorte: "carte" };

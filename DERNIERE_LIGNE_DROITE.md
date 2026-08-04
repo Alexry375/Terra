@@ -235,3 +235,48 @@ Le grand chantier final. Non commencé. C'est l'objectif du projet.
 
 **Autonomie totale accordée le 04-08 vers 05h30.** Plus aucune question ne
 bloque : je travaille jusqu'au bout sans rien lui redemander.
+
+---
+
+## Deuxième liste, dictée par Alexis le 04-08 vers 09h00 (écran de jeu ouvert)
+
+### J1 — Les cartes Phase améliorées III et IV : les DEUX IMAGES ÉTAIENT INVERSÉES
+[VÉRIFIÉ 04-08 · CORRIGÉ] Alexis a choisi « l'amélioration de production qui
+double une carte verte », et n'a rien vu se doubler ; une autre partie lui a
+donné +13 MC là où il en attendait +8.
+
+**Le moteur n'avait aucun tort.** Les deux découpes d'images étaient permutées :
+le fichier nommé `carte-phase-4-production-amelioree-a` portait le texte de la
+variante B (« Gain 7 MC »), et réciproquement. En cliquant sur l'image qui
+promet le doublement, Alexis installait donc la carte à 7 MC. Cela explique
+**les deux** observations d'un seul coup : aucun doublement (la variante B n'en
+accorde pas), et 5 de terraformation + 7 du bonus + 1 de production = **13 MC**.
+
+Les dix images ont été relues une par une et comparées au moteur :
+phases I, II et V justes ; **phases III et IV inversées**, toutes deux
+corrigées. Les fichiers ont été échangés et la trace de découpe du manifeste
+avec eux.
+
+Cause première : les découpes ont été nommées d'après leur position dans la
+planche scannée, en supposant partout un ordre A puis B — faux pour ces deux
+phases. **Aucune de mes mesures ne pouvait le voir** : elles vérifient qu'une
+image s'affiche, jamais ce qu'elle raconte. Deuxième défaut de la journée trouvé
+à l'œil et non par un contrôle.
+
+### J2 — La grande tuile océan se retourne et montre encore son dos
+[EN COURS 04-08] Sur la planche des neuf océans, les tuiles se retournent
+correctement. C'est la grande tuile rejouée au milieu de l'écran qui montre son
+dos des deux côtés.
+
+### J3 — Les logos Océan et achat de jeton Forêt ne sont pas détourés
+[DÉCLARÉ 04-08] Dans les décisions, ces deux jetons s'affichent sur un carré
+blanc, alors que le logo de défausse, lui, est proprement détouré.
+
+### J4 — Une liste de musiques en fond de partie
+[DÉCLARÉ 04-08] Demandé : les titres dans l'ordre, le nom du morceau affiché, un
+bouton pour passer au suivant, reprise au début à la fin de la liste, et de quoi
+tout couper. **Le lien de la liste n'est pas arrivé jusqu'à moi** — le message
+disait « cette playlist » sans que rien ne me parvienne. À redemander.
+Réserve déclarée par Alexis lui-même : si cela oblige à télécharger tous les
+morceaux, on laisse tomber pour aujourd'hui. C'est bien le cas — un navigateur
+ne peut pas lire une liste hébergée ailleurs sans les fichiers.

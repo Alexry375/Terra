@@ -260,6 +260,27 @@ export function imageForet() {
   return piece("tuile-foret-compteur-hexagone-arbre");
 }
 
+/**
+ * LES MÊMES DEUX JETONS, DÉTOURÉS — ceux qui illustrent une DÉCISION.
+ *
+ * Reproche du 04-08 : « les tuiles sont sur un fond blanc, contrairement au
+ * logo de défausse où la carte est bien détourée ». C'est vrai, et cela tenait
+ * au fichier lui-même : les deux scans sont un hexagone posé au milieu d'un
+ * rectangle blanc. Sur la planche, la feuille de style découpait ce blanc ; sur
+ * une plaque de décision, personne ne le faisait.
+ *
+ * Le blanc a donc été rendu transparent dans le fichier, et l'image recadrée
+ * sur l'hexagone. Les deux découpes d'origine restent intactes : la planche et
+ * les compteurs continuent de s'en servir, rien ne bouge de ce côté.
+ */
+export function jetonOceanDetoure() {
+  return piece("jeton-ocean-detoure");
+}
+
+export function jetonForetDetoure() {
+  return piece("jeton-foret-detoure");
+}
+
 // DEUX DOS, ET CHACUN LE SIEN. Le jeu imprime deux dos différents, et les
 // confondre fait mentir l'écran : une main d'adversaire couverte de dos de
 // corporation annonce des corporations qu'il ne tient pas. L'attribution vient du

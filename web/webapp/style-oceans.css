@@ -154,6 +154,48 @@
   display: flex; align-items: center; justify-content: center;
 }
 .annonce-ocean__face { transform: rotateY(180deg); }
+
+/* ON NE S'EN REMET PAS AU SEUL REGLAGE 3D POUR CACHER L'AUTRE CÔTÉ.
+ *
+ * Reproche du 04-08 : « la grande tuile se retourne, mais l'autre face est
+ * encore le dos ». Mesuré : sous Chrome le demi-tour est juste (trois images
+ * prises en partie réelle, la face bleue y est bien) ; sous Firefox, non — et
+ * c'est Firefox que le joueur emploie, il l'a confirmé.
+ *
+ * La cause est le `filter: drop-shadow` porté par les deux images juste
+ * dessous : un filtre APLATIT le contexte en trois dimensions de son parent, et
+ * Firefox cesse alors d'écarter la face arrière, que `backface-visibility`
+ * était pourtant censé cacher. La tuile montrait donc son dos des deux côtés.
+ *
+ * On ne retire pas l'ombre — elle est ce qui détache la tuile du fond. On cesse
+ * simplement de dépendre d'un seul mécanisme : le dos s'efface, et la face
+ * paraît, exactement à mi-parcours du demi-tour. `steps(1)` fait la bascule
+ * d'un coup, sans état intermédiaire où l'on verrait les deux. C'est vrai dans
+ * tous les navigateurs, celui-ci comme les autres. */
+.annonce-ocean__face { visibility: hidden; }
+#ocean-annonce.annonce-ocean--retournee .annonce-ocean__dos {
+  animation: oceans-effacer-dos 620ms steps(1) forwards;
+}
+#ocean-annonce.annonce-ocean--retournee .annonce-ocean__face {
+  animation: oceans-montrer-face 620ms steps(1) forwards;
+}
+@keyframes oceans-effacer-dos {
+  0% { visibility: visible; }
+  50%, 100% { visibility: hidden; }
+}
+@keyframes oceans-montrer-face {
+  0% { visibility: hidden; }
+  50%, 100% { visibility: visible; }
+}
+/* LES ANIMATIONS COUPÉES NE DOIVENT PAS ÉTEINDRE LA TUILE. Sans ces deux
+   lignes, une face déclarée cachée le resterait pour toujours faute
+   d'animation pour la révéler — le remède serait pire que le mal. */
+html[data-animations="non"] #ocean-annonce.annonce-ocean--retournee .annonce-ocean__dos {
+  animation: none; visibility: hidden;
+}
+html[data-animations="non"] #ocean-annonce.annonce-ocean--retournee .annonce-ocean__face {
+  animation: none; visibility: visible;
+}
 .annonce-ocean__dos img, .annonce-ocean__face img {
   width: 100%; height: 100%; object-fit: contain;
   /* Le scan est un hexagone sur fond blanc : on le découpe à sa forme, comme
