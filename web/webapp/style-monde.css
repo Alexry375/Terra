@@ -103,9 +103,15 @@
      brun de Mars, .38 d'opacité avec la luminosité à .62 rendait le gris et le
      vert-de-gris indiscernables du décor. Remontée à un niveau où la case à
      venir se LIT (sa couleur, sa position) tout en restant clairement en
-     retrait de l'acquis, qui garde sa pleine lumière et son ombre portée. */
-  opacity: .68;
-  filter: saturate(.92) brightness(.88);
+     retrait de l'acquis, qui garde sa pleine lumière et son ombre portée.
+
+     04-08 : troisième passe. Alexis, de nouveau, « les couleurs des jauges ne
+     sont pas les bonnes ». La sourdine assombrissait encore la case à venir au
+     point de la faire changer de couleur : le rouge devenait brique, le blanc
+     devenait gris. Une case à venir garde désormais sa couleur EXACTE — c'est
+     l'opacité seule, et légère, qui la met en retrait. La lumière de l'acquis
+     vient de son ombre portée, pas d'un assombrissement du reste. */
+  opacity: .8;
   transition: opacity 420ms ease, filter 420ms ease;
 }
 /* Une case gagnée l'est pour toujours — c'est la règle du jeu, rendue visible :
@@ -252,3 +258,37 @@ html[data-animations="non"] .cran { transition-duration: 0s; }
   max-width: 74px; line-height: 1.15;
 }
 .ventil__dit[hidden] { display: none; }
+
+/* ═══ LA LOUPE DES OBJECTIFS ET DES RÉCOMPENSES ═══════════════════════════════
+ *
+ * 04-08, Alexis : « il faudrait que passer le curseur sur les objectifs et
+ * récompenses fasse un zoom dessus pour les voir ». Les pastilles font une
+ * vingtaine de points de côté dans le bandeau : le dessin y est lisible comme
+ * une signature, pas comme une règle.
+ *
+ * La pastille survolée s'agrandit SUR PLACE, par-dessus le reste de l'écran.
+ * Trois précautions :
+ *   · l'agrandissement part du HAUT DROIT (`transform-origin`), pour que la
+ *     tuile grandisse vers le bas et vers la gauche, c'est-à-dire vers l'écran
+ *     et jamais hors du bord droit ;
+ *   · elle passe au-dessus de tout (`z-index`), sinon le bandeau la coupe ;
+ *   · le curseur ne la touche plus une fois agrandie (`pointer-events: none`
+ *     sur l'image), sinon elle clignote — la souris entre dans l'agrandissement,
+ *     quitte la pastille, l'agrandissement retombe, et ainsi de suite. */
+.honneur {
+  transition: transform 160ms cubic-bezier(.2, .8, .2, 1);
+  transform-origin: top right;
+}
+.honneur img { pointer-events: none; }
+.honneur:hover {
+  transform: scale(5.2);
+  z-index: 900;
+  /* Agrandie, la pastille reprend sa pleine lumière même quand elle n'est pas
+     prise : on la survole POUR LA LIRE. */
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, .9));
+}
+.honneur:hover img { filter: none; opacity: 1; }
+/* La rangée doit laisser sortir l'agrandissement : sans ceci, le débordement
+   est rogné au premier parent qui découpe. */
+.tuiles-honneur, .tuiles-honneur__rang { overflow: visible; }
+html[data-animations="non"] .honneur { transition-duration: 1ms; }

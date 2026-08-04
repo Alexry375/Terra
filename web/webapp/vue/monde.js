@@ -101,10 +101,18 @@ export function construireMonde() {
       <div class="tuiles-honneur__rang" id="recompenses"></div>
     </section>
 
-    <!-- La mention de la photographie du sol est une CONDITION D'USAGE de
-         l'image, pas une décoration : elle se lit à l'écran, en toutes lettres,
-         à tout instant de la partie. -->
-    <span class="credit" id="credit">${MOT.credit}</span>`;
+    <!-- La mention de la photographie du sol (« Mars surface · NASA / JPL /
+         University of Arizona ») est une CONDITION D'USAGE de l'image, pas une
+         décoration. Alexis a demandé son retrait du bandeau le 04-08 : elle
+         occupait, à tout instant de la partie, une place que les objectifs et
+         les récompenses réclamaient.
+         Elle N'A PAS DISPARU pour autant — elle se lit sur l'écran d'accueil
+         (vue/menu.js, classe accueil__credit), qui précède toute partie. La
+         condition reste donc tenue ; c'est sa place qui a changé.
+
+         Pas d'accent grave dans ce commentaire : il vit dans un gabarit de
+         texte JavaScript, et un seul accent grave y refermerait le gabarit —
+         c'est ce qui a éteint tout le bandeau pendant dix minutes le 04-08. -->`;
   frag.appendChild(h);
   // La case qui masque les points de victoire vit dans le bandeau : elle doit
   // rester atteignable à tout instant de la partie.

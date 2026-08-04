@@ -54,11 +54,19 @@ function point(fraction, rayon, sens) {
 // Les quatre zones du livret, chacune parcourue d'un bout à l'autre : violet →
 // rose, rouge → orange, jaune, gris clair. C'est la lecture de la photo du
 // plateau, du plus froid (en bas) au plus chaud (en haut).
+// 04-08 — Alexis : « les couleurs ne sont pas les bonnes ». Il a raison, et la
+// cause n'était pas le choix des teintes mais l'AMPLEUR du dégradé : chaque zone
+// parcourait un si grand chemin qu'elle changeait de nom en route. Le rouge
+// partait d'un bordeaux et finissait orange, le jaune partait olive, et la
+// quatrième zone était un gris de béton là où le plateau imprime du BLANC.
+// Le livret (l. 77) nomme quatre couleurs, pas huit : violet, rouge, jaune,
+// blanc. Chaque zone reste donc dans sa couleur, le dégradé ne servant plus qu'à
+// éclaircir légèrement du début vers la fin, comme l'encre du carton.
 const ZONES = [
-  { de: "#5f1a72", a: "#d63fa8" }, // violet → rose
-  { de: "#d8332a", a: "#f07a24" }, // rouge → orange
-  { de: "#e2c81f", a: "#f4ea63" }, // jaune
-  { de: "#cfcfcf", a: "#f6f6f6" }, // gris clair
+  { de: "#7b1f9b", a: "#b840c8" }, // violet
+  { de: "#d02a22", a: "#ec5a3a" }, // rouge
+  { de: "#e8c81c", a: "#f7e75f" }, // jaune
+  { de: "#eceaea", a: "#ffffff" }, // blanc
 ];
 
 const hex = (c) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16));
@@ -97,12 +105,22 @@ const CRANS_TEMP = piste(
   [6, 11, 16],
 );
 
-// Oxygène : 1 % … 14 %. Zones lues sur le plateau, où la case 0 % est violette
-// elle aussi mais n'est pas une case à gagner : violet 1-2, rouge 3-6,
-// jaune 7-11, gris 12-14.
+// Oxygène : 0 % … 14 %, QUINZE cases. La case 0 % est une case du plateau comme
+// les autres, violette, et le cube y part : la sauter ne donnait que QUATORZE
+// cases à l'écran et deux violettes au lieu de trois — relevé par Alexis le
+// 04-08, « 3 violettes, 4 rouges, 5 jaunes, 3 blanches ».
+//
+// Les frontières sont celles du MOTEUR, relues le 04-08 dans
+// `engine/src/effects.rs:30-36` : OXY_R_MIN = 3, OXY_Y_MIN = 7, OXY_W_MIN = 12.
+// Elles comptent : un requis d'oxygène se teste par la COULEUR atteinte
+// (`engine/src/flow.rs:1471`, `oxy_color`), pas par le numéro de case. Une
+// frontière fausse à l'écran ferait donc mentir la seule chose que le joueur
+// utilise pour décider s'il peut poser sa carte.
+//
+//   violet 0-2 (trois), rouge 3-6 (quatre), jaune 7-11 (cinq), blanc 12-14 (trois).
 const CRANS_O2 = piste(
-  Array.from({ length: 14 }, (_, i) => i + 1),
-  [2, 6, 11],
+  Array.from({ length: 15 }, (_, i) => i),
+  [3, 7, 12],
 );
 
 /**
@@ -139,8 +157,10 @@ const ARCS = {
     crans: CRANS_O2,
     max: 14,
     course: (pas) => pas / 14,
-    // La case i porte i+1 %, et le pas i+1 du moteur l'atteint.
-    fractionCran: (i) => (i + 1) / 14,
+    // La case i porte i %, et le pas i du moteur l'atteint. Quinze cases, donc
+    // quatorze intervalles : la première est au départ de l'arc, la dernière
+    // à son bout, comme pour la température.
+    fractionCran: (i) => i / 14,
     lecture: (pas) => pas,
   },
 };
@@ -178,8 +198,14 @@ export function construireArcs() {
 
     // La gorge : le carton sombre sur lequel les cases sont imprimées. Elle va
     // d'un bout à l'autre de la piste, cases gagnées ou non.
-    const [gx1, gy1] = point(a.fractionCran(0), RAYON, a.sens);
-    const [gx2, gy2] = point(a.fractionCran(a.crans.length - 1), RAYON, a.sens);
+    //
+    // Elle déborde d'une DEMI-case à chaque bout. Sans ce débord, elle s'arrête
+    // au milieu de la première et de la dernière case, dont la moitié pend alors
+    // dans le vide, hors du carton — visible en bas des deux arcs le 04-08, dès
+    // que l'oxygène a repris sa case 0 %.
+    const demi = pas / 2;
+    const [gx1, gy1] = point(a.fractionCran(0) - demi, RAYON, a.sens);
+    const [gx2, gy2] = point(a.fractionCran(a.crans.length - 1) + demi, RAYON, a.sens);
     dessin.appendChild(svg("path", {
       class: "arc__gorge",
       d: `M ${gx1.toFixed(2)} ${gy1.toFixed(2)} A ${RAYON} ${RAYON} 0 0 `
