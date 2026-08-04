@@ -17,18 +17,19 @@ Convention : `[VÉRIFIÉ JJ-MM]` = relu à la source ou mesuré, avec le
 Les identifiants sont neufs et parlants. L'ancien repère est rappelé entre
 parenthèses quand il existe.
 
-## 0. Ce qui attend une réponse d'Alexis
+## 0. Questions — état après les réponses d'Alexis du 04-08 au soir
 
-Rien de ce qui suit ne peut être fait juste : ce sont des choix, pas des défauts.
-
-| Repère | Ce que j'ai besoin de savoir |
+| Repère | Réponse |
 |---|---|
-| Q1 | « pas clair jauge temp » — qu'est-ce qui n'est pas clair, au juste ? |
-| Q2 | « retirer interface au milieu plutôt que griser » — quelle interface, dans quelle situation ? |
-| Q3 | Faut-il retirer des phases le choix « défausser une carte pour 3 MC » ? |
-| Q4 | Les objectifs et récompenses sont de mauvaise qualité d'image : a-t-on une meilleure source ? |
+| Q1 — « pas clair jauge temp » | **EN ATTENTE de Corentin.** Mis de côté, on n'y touche pas. |
+| Q2 — « retirer interface au milieu » | Lecture **(b)** confirmée, mais Alexis ne sait pas à quels cas précis son ami pense. **Mis de côté** lui aussi. |
+| Q3 — défausser pour 3 MC | **Tranché**, voir MOT-7 réécrit. |
+| Q4 — qualité des objectifs | Pas de meilleure source. Décision à prendre, voir LIS-4. |
+| Q5 — croix ou coche | **On désigne les cartes qu'on JETTE.** La croix est donc juste. |
+| Q6 — choix de phase | **Aucune fuite d'information** aujourd'hui. À corriger côté écran seulement, voir MOT-9 réécrit. |
+| Q7 — doublon des forêts | Garder l'hexagone, retirer la ligne du score, **et poser le jeton détouré**. |
 
-Le détail de chaque question est écrit dans la section correspondante.
+Seuls Q1 et Q2 restent ouverts, et ils sont volontairement gelés.
 
 ## 1. MOTEUR — les règles elles-mêmes
 
@@ -93,19 +94,30 @@ la seule issue offerte est « passer ». Il faut que « vendre des cartes » soi
 toujours une issue possible à ces moments-là. C'est le même correctif que MOT-1,
 étendu à la phase Action.
 
-### MOT-7 (Corentin, ligne 23) — Le choix « défausser une carte pour des MC » dans les phases
-[QUESTION Q3 · À VÉRIFIER] Livret `docs/regles/livret-base.md:96` : « à tout
+### MOT-7 (Corentin, ligne 23) — Vendre ne doit pas coûter un échange de la phase Action
+[TRANCHÉ PAR ALEXIS 04-08 · Q3] Livret `docs/regles/livret-base.md:96` : « à tout
 moment, vous pouvez défausser une carte Projet de votre main pour gagner 3 MC ».
-Corentin fait remarquer que ce choix, proposé explicitement dans plusieurs
-phases, fait double emploi avec le bouton de vente qui, lui, est censé être
-disponible en permanence.
 
-Enjeu pour l'intelligence artificielle : deux chemins qui mènent au même état
-gonflent l'arbre de recherche sans rien apporter — exactement ce qu'on a évité
-sur la vente multiple. **Mais** il faut d'abord vérifier que le taux est le même
-partout : certaines cartes modifient le gain de la défausse
-(`flow.rs:1555`, `discard_mc_rate`). Si les deux chemins ne rapportent pas la
-même chose, on ne peut pas en supprimer un.
+**Décision d'Alexis, mot pour mot** : on garde la possibilité, mais on la retire
+des **options de la phase Action**. Tout doit passer par le bouton de vente, qui
+doit :
+1. permettre de vendre **autant de cartes qu'on veut d'un coup** (déjà fait
+   côté écran le 04-08) ;
+2. **ne consommer aucun échange de la phase Action**.
+
+Précision d'Alexis sur ce dernier point : la phase Action est un aller-retour
+entre les deux joueurs, chacun agissant à son tour, et elle ne s'arrête que
+lorsque les deux veulent passer. Vendre ne doit pas compter comme l'un de ces
+allers-retours.
+
+**Reste à vérifier avant de coder** : le taux de la défausse n'est pas fixe —
+certaines cartes le modifient (`engine/src/flow.rs:1555`, `discard_mc_rate`).
+Il faut s'assurer que le bouton de vente applique bien le **même** taux que
+l'option qu'on retire, sinon on supprimerait un chemin plus rémunérateur que
+l'autre.
+
+Gain pour l'intelligence artificielle : deux chemins qui mènent au même état
+gonflent l'arbre de recherche sans rien apporter. Ici on en supprime un.
 
 ### MOT-8 (Corentin, ligne 8) — Le badge « ? » se choisit trop tard
 [DÉCLARÉ 04-08 · À VÉRIFIER] Corentin croit qu'on doit choisir le badge d'une
@@ -113,16 +125,18 @@ carte à badge « ? » **avant même de la jouer**, et voudrait que le choix se 
 **au moment où l'on décide de la jouer**. À vérifier dans le moteur : où le point
 de décision est-il posé par rapport à la pose ?
 
-### MOT-9 (Corentin, ligne 14) — Toujours le même joueur qui choisit sa phase en premier
-[VÉRIFIÉ 04-08 contre le livret, code à vérifier] Le livret est formel
-(`livret-base.md:268` et `:629`) : « chaque joueur choisit **simultanément** une
-carte Phase et la place **face cachée** devant lui ». Notre écran fait choisir
-l'un puis l'autre, et toujours dans le même ordre.
+### MOT-9 (Corentin, ligne 14) — Les deux joueurs doivent choisir leur phase en même temps
+[TRANCHÉ PAR ALEXIS 04-08 · Q6] Le livret demande un choix **simultané et face
+cachée** (`livret-base.md:268` et `:629`). Notre écran fait attendre le second.
 
-Deux conséquences : c'est contraire à la règle, et le second joueur peut déduire
-quelque chose du temps de réflexion du premier. Le moteur fait pourtant tourner
-le premier joueur à chaque manche (`engine/src/flow.rs:4881`) — le défaut est
-donc probablement dans l'ordre d'interrogation, pas dans la règle.
+**Alexis a écarté ma crainte** : dans l'état actuel, le choix du premier n'est
+pas révélé au second — il n'y a donc **aucune fuite d'information**, seulement
+une attente inutile. Ce n'est pas un défaut de règle mais de confort.
+
+**Correctif retenu** : les deux joueurs choisissent en même temps ; si le moteur
+exige de recevoir les réponses l'une après l'autre, l'écran garde la seconde de
+côté et l'envoie ensuite. Le travail est donc dans l'écran et le relais, **pas
+dans le moteur** — cela peut se faire hors du gros lot.
 
 ### MOT-10 (Corentin, lignes 18 et 20) — La production affichée ignore les cartes à badges
 [DÉCLARÉ 04-08 · À VÉRIFIER] Le compteur de production de MC affiché ne comprend
@@ -167,6 +181,15 @@ sa phase.
 ### ANI-4 (Corentin, ligne 24) — Le « +3 » de la défausse passe trop vite
 [DEMANDÉ] Rallonger la durée d'affichage du gain quand on défausse une carte.
 
+### ANI-6 (Alexis, 04-08) — Les pioches et les défausses doivent se voir
+[DEMANDÉ] Deux mouvements, visibles **chez soi et chez l'adversaire** :
+- **pioche** : la carte arrive par la **droite de l'écran** et rejoint la main ;
+- **défausse** : la carte quitte la main et rejoint la pile de défausse — c'est
+  le même mouvement en sens inverse, et il désigne du même coup l'endroit où
+  CNF-2 va poser la dernière carte défaussée face découverte.
+
+Ces deux animations et la fenêtre de défausse se tiennent : à faire ensemble.
+
 ### ANI-5 (Corentin, ligne 9 · anciens E1, E3, J2) — Les océans
 [CONFIRMÉ PAR ALEXIS 04-08 · TOUJOURS PAS RÉGLÉ] Trois choses, liées :
 1. au rechargement de la page, les tuiles océan **déjà retournées se
@@ -181,9 +204,10 @@ chargement et déclenche les animations du passé au lieu de partir de l'état f
 
 ## 3. LISIBILITÉ — comprendre ce qu'on voit
 
-### LIS-1 (Corentin, ligne 5) — « pas clair jauge temp » — QUESTION Q1
+### LIS-1 (Corentin, ligne 5) — « pas clair jauge temp » — GELÉ, on attend Corentin
+[EN ATTENTE 04-08] **Ne rien faire tant que sa réponse n'est pas arrivée.**
 Corentin trouve la jauge de température peu claire. Ni lui ni Alexis n'ont
-précisé en quoi. Trois lectures possibles, il faut trancher :
+précisé en quoi. Trois lectures possibles :
 - on ne voit pas **où en est** le marqueur (rejoint LIS-2, blanc sur blanc) ;
 - on ne comprend pas **ce que débloque** chaque palier de couleur ;
 - on ne voit pas **de combien** elle vient de monter (rejoint ANI-1).
@@ -205,11 +229,29 @@ voient pas. Demandé en plus : quand on agrandit une carte, afficher **le nombre
 de points de victoire que ses ressources rapportent déjà**, pour les cartes dont
 les ressources valent des points.
 
-### LIS-4 (Corentin, ligne 15) — Les objectifs et récompenses — QUESTION Q4
-[PARTIELLEMENT FAIT] L'agrandissement au survol existe. Corentin demande
-**plus gros**, et signale que les images sont alors **de mauvaise qualité**.
-Il faut donc savoir si l'on dispose d'une source d'image plus fine ; sinon
-l'agrandissement restera flou quoi qu'on fasse.
+### LIS-4 (Corentin, ligne 15) — Les objectifs et récompenses sont flous
+[VÉRIFIÉ 04-08 · Q4 — décision à prendre] L'agrandissement au survol existe.
+Corentin le veut **plus gros**, et les images sont alors floues.
+
+**J'ai trouvé pourquoi.** La source est une **unique photo de téléphone de
+1 200 × 1 600 points** contenant toutes les tuiles à la fois
+(`data/cartes-imprimees/objectifs-recompenses/photo-objectifs-27-07.jpeg`).
+Chaque tuile y occupe donc environ 370 × 290 points réels, alors que les
+découpes livrées font **745 × 583** : elles ont déjà été agrandies du double.
+Le flou ne vient pas de l'affichage, il vient de la source — il n'y a jamais eu
+assez de détail.
+
+**Trois voies, mon avis sur chacune :**
+1. **Reprendre les photos, une tuile à la fois** — gratuit, dix minutes, et
+   c'est le seul moyen d'obtenir du vrai détail. **Ma recommandation.**
+2. **Réécrire le texte par-dessus** — on connaît déjà le texte exact de chaque
+   tuile (`objectifs-recompenses.json`). Le nom et la condition seraient alors
+   parfaitement nets quelle que soit la photo. À faire **en plus** du point 1.
+3. **Agrandissement par intelligence artificielle** — déconseillé ici : ces
+   outils **inventent** le détail manquant. Sur un dessin, c'est sans
+   conséquence ; sur un chiffre de règle (« 6 badges espace », « 12 cartes »),
+   un chiffre inventé affiche une règle fausse. À réserver au fond décoratif, et
+   seulement si le texte est réécrit par-dessus.
 
 ### LIS-5 (Corentin, ligne 13) — La disposition des tuiles océan change toute seule
 [DEMANDÉ] Quand une tuile est révélée, la planche de droite passe de trois
@@ -221,11 +263,9 @@ la disposition en 4 et 5 plus lisible et voudrait qu'elle soit **la seule**.
 idéalement : **poser le badge choisi à l'emplacement du « ? »** sur la carte.
 
 ### LIS-7 (Corentin, ligne 4) — Une croix, pas une coche, pour le premier tri
-[DEMANDÉ] Au tout début de la partie, quand on choisit les cartes à garder, la
-marque affichée est une coche. Une croix serait plus juste — on désigne ce qu'on
-écarte.
-*(À confirmer en jouant : selon l'écran, on désigne peut-être ce qu'on garde,
-auquel cas la coche est correcte et c'est le libellé qui doit être plus clair.)*
+[CONFIRMÉ PAR ALEXIS 04-08 · Q5] À cet écran, **on désigne les cartes qu'on
+JETTE**. La coche actuelle dit donc le contraire de ce qui se passe. Mettre une
+croix.
 
 ### LIS-8 (Alexis, 04-08) — Le compteur de jetons Forêt est affiché deux fois
 [VÉRIFIÉ 04-08] Il apparaît bel et bien deux fois dans la même barre de joueur :
@@ -234,12 +274,15 @@ auquel cas la coche est correcte et c'est le libellé qui doit être plus clair.
 sont égaux, puisqu'une forêt vaut un point de victoire — d'où l'impression de
 doublon.
 
-À trancher à l'affichage : garder l'hexagone (le matériel) et retirer la ligne
-de la ventilation, ou l'inverse. Ma recommandation : garder l'hexagone, qui dit
-combien de forêts on possède, et retirer la ligne du score, qui répète le même
-nombre sous un autre nom.
+**Tranché par Alexis 04-08 (Q7)** : on **garde l'hexagone**, on retire la ligne
+« Forests » de la ventilation du score, et on remplace l'image par le **jeton
+détouré** — celui-ci existe déjà (`web/webapp/vue/materiel.js:281`,
+`jeton-foret-detoure`), alors que la barre utilise aujourd'hui
+`tuile-foret-compteur-hexagone-arbre` (`materiel.js:260`).
 
-### LIS-9 (Corentin, ligne 12) — « retirer interface au milieu » — QUESTION Q2
+### LIS-9 (Corentin, ligne 12) — « retirer interface au milieu » — GELÉ
+[EN ATTENTE 04-08 · Q2] Alexis confirme la lecture **(b)** ci-dessous, mais ne
+sait pas à quels cas précis son ami pense. **Ne rien faire pour l'instant.**
 Formulation d'origine : « retirer interface au milieu plutôt que griser retirer
 totalement ». Deux lectures possibles, opposées :
 - **(a)** les choix impossibles s'affichent éteints au centre de l'écran ; il
@@ -269,8 +312,22 @@ Reste seulement à le **montrer** au joueur quand cela arrive.
 ### CNF-1 (Corentin, ligne 6) — Trier sa main en déplaçant les cartes
 [DEMANDÉ] Pouvoir réordonner les cartes de sa main en les faisant glisser.
 
-### CNF-2 (ancien K4) — Voir la défausse
-[DEMANDÉ 04-08] Pouvoir consulter la pile des cartes défaussées.
+### CNF-2 (ancien K4) — Voir la défausse — SPÉCIFIÉE PAR ALEXIS
+[SPÉCIFIÉ 04-08, mot pour mot] Trois exigences, dans cet ordre :
+
+1. **La dernière carte défaussée est toujours visible, face découverte**, posée
+   sur la pile de défausse.
+2. **Cliquer dessus ouvre une fenêtre** montrant toutes les cartes défaussées,
+   avec un défilement.
+3. **L'ordre est le plus récent d'abord** : la dernière défaussée en haut à
+   gauche de la grille (première ligne, première colonne), l'avant-dernière juste
+   à sa droite (première ligne, deuxième colonne), et ainsi de suite. On voit
+   donc immédiatement ce qui vient de partir.
+
+Point à trancher pendant la réalisation : la défausse est-elle **commune** aux
+deux joueurs ou une par joueur ? Le moteur remélange une seule pile
+(`engine/src/flow.rs:32-42`), ce qui laisse penser qu'elle est commune. À
+confirmer avant de dessiner la fenêtre.
 
 ### CNF-3 (Corentin, ligne 34 · optionnel) — Un bouton « passer définitivement »
 [DEMANDÉ] En plus du bouton qui passe une fois pendant la phase Action, un
