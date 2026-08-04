@@ -18,7 +18,9 @@
 // `data-choix` — c'est-à-dire si le moteur vient de l'énumérer. On ne calcule
 // jamais qu'une carte est jouable ; on recopie.
 
-import { attraper, tenir, poserSur, relacher } from "./anim.js";
+import {
+  attraper, tenir, poserSur, relacher, fondre, attendrePlace, animationsActives,
+} from "./anim.js";
 import { cacher as cacherLoupe } from "./loupe.js";
 
 // En deçà, le pointeur n'a pas voyagé : c'est un clic, pas un glissement.
@@ -95,22 +97,60 @@ export async function poserLaCarte(figure, prise = null) {
   figure.dataset.enMain = "oui";
   cacherLoupe();
   const volante = prise || attraper(figure);
+  // Le nom porté par l'image est le seul lien entre la carte de la main et la
+  // carte posée : ni l'une ni l'autre ne portent d'identifiant commun, et deux
+  // cartes du paquet ne partagent jamais un nom.
+  const nom = figure.querySelector("img")?.alt || null;
   try {
-    await poserSur(volante, table(), { ms: 1100, tour: 5, grossir: 1.3 });
+    // LE PREMIER TEMPS : la carte quitte la main, monte, et se tient un instant
+    // au-dessus de la table, GRANDE ET DROITE.
+    //
+    // 04-08 — elle finissait ici inclinée de cinq degrés (`tour: 5`). Alexis,
+    // plusieurs fois : « les cartes sont en l'air quelques secondes comme prévu
+    // mais elles sont de travers ». L'inclinaison voulait dire « une main l'a
+    // lâchée » ; ce qu'elle disait, c'est que l'écran était de guingois. Une
+    // carte qu'on présente se présente droite. L'inclinaison reste, elle, dans
+    // le geste de la main qui PORTE la carte (`tenir`), où elle est juste.
+    // 820 ms et non 1 100 : le dépôt ajoute maintenant un second temps derrière
+    // celui-ci, et le geste entier doit rester sous une seconde et demie — au
+    // delà, ce n'est plus une pose, c'est une attente.
+    await poserSur(volante, table(), { ms: 820, tour: 0, grossir: 1.3 });
+
+    // LA QUESTION A-T-ELLE CHANGÉ PENDANT LE VOL ? Elle le peut : au siège tenu
+    // par un programme, celui-ci répond au bout de 320 ms alors que la carte vole
+    // encore 1 100 ms. Rendre l'indice sans vérifier, c'est répondre à la question
+    // SUIVANTE avec le choix de la précédente. Les cartes Phase ont la même garde
+    // (`vue/scene.js`).
+    if (!ouverte || ouverte.rang !== rang) {
+      delete figure.dataset.enMain;
+      return;
+    }
+    rendre(indice);
+
+    // LE SECOND TEMPS — LE DÉPÔT, qui manquait entièrement. La réponse est
+    // partie, le moteur va redessiner les plateaux ; la carte reste en l'air le
+    // temps que sa place existe, puis elle y descend, s'y ajuste exactement, et
+    // s'efface sur elle. C'est ce raccord qui fait qu'on VOIT la grande carte
+    // devenir la petite, au lieu de voir l'une disparaître et l'autre surgir.
+    // Animations coupées : pas de second temps du tout. `attendrePlace`
+    // attendrait jusqu'à 900 ms l'apparition d'une carte que personne ne
+    // regarde, et allongerait d'autant CHAQUE pose de tous les contrôles
+    // automatiques. Le réglage ne change que des durées : la réponse au moteur
+    // est déjà partie, à l'identique.
+    if (!nom || !animationsActives()) return;
+    const place = await attendrePlace(
+      () => document.querySelector(`.pile [data-carte-en-jeu] img[alt="${CSS.escape(nom)}"]`)
+        ?.closest("[data-carte-en-jeu]"),
+    );
+    // Aucune place : la carte ne se pose pas sur le plateau (une rouge à effet
+    // immédiat part à la défausse). Elle s'efface là où elle est.
+    if (!place) return void (await fondre(volante, 260));
+    await poserSur(volante, place, { ms: 460, tour: 0, grossir: 1.02, cadrer: "place" });
+    await fondre(volante, 180);
   } finally {
     relacher(volante);
     enVol = false;
   }
-  // LA QUESTION A-T-ELLE CHANGÉ PENDANT LE VOL ? Elle le peut : au siège tenu
-  // par un programme, celui-ci répond au bout de 320 ms alors que la carte vole
-  // encore 1 100 ms. Rendre l'indice sans vérifier, c'est répondre à la question
-  // SUIVANTE avec le choix de la précédente. Les cartes Phase ont la même garde
-  // (`vue/scene.js`).
-  if (!ouverte || ouverte.rang !== rang) {
-    delete figure.dataset.enMain;
-    return;
-  }
-  rendre(indice);
 }
 
 /**

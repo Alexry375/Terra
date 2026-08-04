@@ -106,7 +106,10 @@ export function attraper(source) {
     noeud.appendChild(im);
   }
   couche().appendChild(noeud);
-  return { noeud, depart, dx: 0, dy: 0 };
+  // `echelle` suit la taille COURANTE du fac-similé. Sans elle, un second vol
+  // repartait de `scale(1.1)` en dur alors que la carte venait de se poser à sa
+  // taille d'arrivée : elle regonflait d'un coup avant de repartir.
+  return { noeud, depart, dx: 0, dy: 0, echelle: 1 };
 }
 
 /** La carte suit la main : elle se tient un peu haut et un peu de travers. */
@@ -114,6 +117,7 @@ export function tenir(prise, dx, dy) {
   if (!prise) return;
   prise.dx = dx;
   prise.dy = dy;
+  prise.echelle = 1.1;
   prise.noeud.style.transform =
     `translate(${dx}px, ${dy}px) scale(1.1) rotate(${Math.max(-8, Math.min(8, dx * 0.02))}deg)`;
 }
@@ -136,25 +140,38 @@ export function relacher(prise) {
  * @param {number}  o.tour    rotation finale, en degrés
  * @param {number}  o.grossir agrandissement au sommet du voyage
  */
-export async function poserSur(prise, cible, { ms = 900, tour = 0, grossir = 1.22 } = {}) {
+export async function poserSur(prise, cible, { ms = 900, tour = 0, grossir = 1.22, cadrer = "boite" } = {}) {
   const arrivee = boite(cible);
   if (!prise || !arrivee) return;
-  const { noeud, depart, dx: dx0, dy: dy0 } = prise;
+  const { noeud, depart, dx: dx0, dy: dy0, echelle: e0 = 1.1 } = prise;
 
   const dx = arrivee.left + arrivee.width / 2 - (depart.left + depart.width / 2);
   const dy = arrivee.top + arrivee.height / 2 - (depart.top + depart.height / 2);
   // L'échelle d'arrivée : la carte prend la taille de la place qui l'attend.
-  const echelle = Math.min(arrivee.width / depart.width, arrivee.height / depart.height, 1.6);
+  //
+  // « boite » = la carte doit TENIR dans la cible (une grande zone d'accueil) :
+  // on prend la plus petite des deux échelles. « place » = la carte doit
+  // RECOUVRIR exactement la cible, qui est déjà une carte de même forme : on
+  // cale sur sa largeur. Sans cette seconde façon, une carte qui vient se poser
+  // sur son emplacement définitif s'y arrêtait plus petite que lui, et le
+  // raccord se voyait.
+  const echelle = cadrer === "place"
+    ? arrivee.width / depart.width
+    : Math.min(arrivee.width / depart.width, arrivee.height / depart.height, 1.6);
   const fin = `translate(${dx}px, ${dy}px) scale(${echelle}) rotate(${tour}deg)`;
+
+  // Le fac-similé se souvient d'où il est : un vol peut en suivre un autre.
+  const retenir = () => { prise.dx = dx; prise.dy = dy; prise.echelle = echelle; };
 
   if (!actives) {
     noeud.style.transform = fin;
+    retenir();
     return;
   }
   const trajet = noeud.animate(
     [
       {
-        transform: `translate(${dx0}px, ${dy0}px) scale(1.1) rotate(0deg)`,
+        transform: `translate(${dx0}px, ${dy0}px) scale(${e0}) rotate(0deg)`,
         offset: 0,
       },
       {
@@ -176,6 +193,55 @@ export async function poserSur(prise, cible, { ms = 900, tour = 0, grossir = 1.2
     // L'animation a été interrompue (page fermée, élément retiré) : le voyage
     // n'a plus d'objet, la réponse au moteur, si.
   }
+  retenir();
+}
+
+/**
+ * LE RACCORD. Le fac-similé vient de se poser EXACTEMENT sur la carte
+ * définitive : il s'efface, et c'est elle qu'on voit dessous. Sans ce fondu, la
+ * grande carte disparaissait d'un coup et la petite apparaissait ailleurs — le
+ * défaut qu'Alexis a signalé le 04-08, « il manque l'animation qui dépose ces
+ * cartes en suspension ».
+ */
+export async function fondre(prise, ms = 220) {
+  if (!prise) return;
+  if (!actives) return;
+  const a = prise.noeud.animate(
+    [{ opacity: 1 }, { opacity: 0 }],
+    { duration: duree(ms), easing: "ease-out", fill: "forwards" }
+  );
+  try {
+    await a.finished;
+  } catch {
+    // Interrompue : le fac-similé est retiré juste après, de toute façon.
+  }
+}
+
+/**
+ * ATTENDRE QU'UNE PLACE APPARAISSE à l'écran. Le moteur vient de recevoir la
+ * réponse ; la carte posée n'entre dans le document qu'au redessin suivant.
+ *
+ * Rend l'élément, ou `null` au bout de `patience` — et `null` est un cas NORMAL,
+ * pas une panne : une carte rouge à effet immédiat part à la défausse et n'a
+ * aucune place sur le plateau. L'appelant fait alors simplement disparaître le
+ * fac-similé sur place.
+ */
+export function attendrePlace(trouver, patience = 900) {
+  return new Promise((resoudre) => {
+    const fin = performance.now() + patience;
+    const essai = () => {
+      let el = null;
+      try {
+        el = trouver();
+      } catch {
+        el = null;
+      }
+      if (el && boite(el)) return resoudre(el);
+      if (performance.now() >= fin) return resoudre(null);
+      requestAnimationFrame(essai);
+    };
+    essai();
+  });
 }
 
 /**
