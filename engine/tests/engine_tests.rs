@@ -35,6 +35,11 @@ struct TestPolicy {
     /// Mémoire des corporations vues au moment du mulligan.
     corp_mulligan_offers: Vec<(usize, Vec<u16>)>,
     project_mulligan_hands: Vec<(usize, Vec<u16>)>,
+    /// (moteur-questions-manquantes) Ventes LIBRES que le joueur 0 fait encore :
+    /// une carte — la première de sa main — par occasion offerte. C'est le seul
+    /// chemin de vente depuis que l'action standard a été retirée de la phase
+    /// Action.
+    ventes_libres: usize,
 }
 
 impl TestPolicy {
@@ -51,6 +56,7 @@ impl TestPolicy {
             call_log: Vec::new(),
             corp_mulligan_offers: Vec::new(),
             project_mulligan_hands: Vec::new(),
+            ventes_libres: 0,
         }
     }
 }
@@ -120,6 +126,15 @@ impl Policy for TestPolicy {
                 idx
             }
             _ => None,
+        }
+    }
+
+    fn vendre_librement(&mut self, _rng: &mut StdRng, joueur: usize, main: &[u16]) -> Vec<usize> {
+        if joueur == 0 && self.ventes_libres > 0 && !main.is_empty() {
+            self.ventes_libres -= 1;
+            vec![0]
+        } else {
+            Vec::new()
         }
     }
 
@@ -527,6 +542,11 @@ fn standard_projects_costs_and_tr() {
     assert_eq!(game.players[0].hand.len(), hand0 + tile.cards as usize + 1);
 }
 
+/// (moteur-questions-manquantes) Même règle, autre chemin : la vente ne passe
+/// plus par une action de la phase Action (retirée — elle coûtait un échange et
+/// ne vendait qu'une carte), mais par l'occasion libre, ouverte avant chaque
+/// point de décision des phases dépensables. Le taux, lui, n'a pas bougé d'un
+/// MC : c'est le même service unique (`flow::discard_mc_rate`) qui crédite.
 #[test]
 fn sell_card_gives_3_mc() {
     let db = db();
@@ -537,7 +557,7 @@ fn sell_card_gives_3_mc() {
     let discard0 = game.discard.len();
 
     pol.phase_script = VecDeque::from(vec![3, 4]);
-    pol.action_script = VecDeque::from(vec![Some(ActionOpt::SellCard), None]);
+    pol.ventes_libres = 1;
     play_round(&mut game, &db, &mut pol);
 
     // +3 MC de la vente, puis production (prod 0 + TR).
@@ -948,9 +968,12 @@ impl Policy for VendeurScripte {
     fn action_choice(&mut self, r: &mut StdRng, p: usize, o: &[ActionOpt]) -> Option<usize> {
         self.base.action_choice(r, p, o)
     }
-    fn sell_card(&mut self, _r: &mut StdRng, _p: usize, hand: &[u16]) -> usize {
-        self.mains_vues.push(hand.to_vec());
-        self.indice.min(hand.len() - 1)
+    fn vendre_librement(&mut self, _r: &mut StdRng, joueur: usize, main: &[u16]) -> Vec<usize> {
+        if joueur != 0 || main.is_empty() {
+            return Vec::new();
+        }
+        self.mains_vues.push(main.to_vec());
+        vec![self.indice.min(main.len() - 1)]
     }
 }
 
@@ -959,6 +982,11 @@ fn selling_a_card_asks_the_policy_which_one() {
     // Alexis, 31-07 : « on ne peut même pas choisir la carte qu'on défausse ».
     // Le moteur tirait la carte au hasard ; il DEMANDE désormais à la politique,
     // en lui montrant la main entière. Preuve en partie réelle.
+    //
+    // (moteur-questions-manquantes) La question s'appelle désormais
+    // `vendre_librement` et se pose à un point d'OCCASION, pas comme une action
+    // de la phase Action : c'est le même « qui choisit la carte », par le seul
+    // chemin de vente qui reste.
     let db = db();
     let mut pol = VendeurScripte { base: RandomPolicy, indice: 0, mains_vues: Vec::new() };
     let _ = engine::sim::play_game(&db, 31, &mut pol);

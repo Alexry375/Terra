@@ -10,10 +10,11 @@
 //!   côtés (§2), pas en faisant confiance à une regex de proximité ;
 //! - « l'état RÉEL au moment de l'appel » est vérifié en recoupant l'observation
 //!   avec les ARGUMENTS que le moteur passe lui-même à la décision qui suit
-//!   (§3) : `sell_card` reçoit la main que `flow.rs` a clonée à cet instant,
-//!   `discard_down` reçoit la main à cet instant. Si
-//!   l'observation était un instantané périmé, ces valeurs divergeraient. Cet
-//!   oracle est entièrement disjoint du code observé ;
+//!   (§3) : `discard_down` reçoit la main que `flow.rs` lui passe à cet instant,
+//!   `choose_build` des indices dans cette même main, `pick_joker_tag` les
+//!   badges du joueur à cet instant. Si l'observation était un instantané
+//!   périmé, ces valeurs divergeraient. Cet oracle est entièrement disjoint du
+//!   code observé ;
 //! - « aucune décision changée » est vérifié en rejouant la MÊME partie avec et
 //!   sans enveloppe et en comparant l'empreinte (§1).
 
@@ -236,18 +237,12 @@ impl Policy for CountingPolicy {
         self.decision(p);
         self.inner.discard_down(r, p, h, n)
     }
-    /// (regles-de-la-vente) **`sell_card` entre dans le recensement.** C'était
-    /// le SEUL point de décision de `flow.rs` que rien n'observait — l'écran y
-    /// affichait donc « quelle carte vends-tu ? » sur l'état d'avant. Il reçoit
-    /// désormais son observation, comme les autres, et doit donc être compté ici
-    /// : sans cela le test verrait une observation orpheline et tomberait. Le
-    /// motif de la correction est la vente libre — le joueur peut vouloir vendre
-    /// avant de répondre à cette question-là aussi, et l'occasion se place au
-    /// même endroit que l'observation.
-    fn sell_card(&mut self, r: &mut StdRng, p: usize, main: &[u16]) -> usize {
-        self.decision(p);
-        self.inner.sell_card(r, p, main)
-    }
+    // (moteur-questions-manquantes) `sell_card` FIGURAIT ICI : c'était un point
+    // de décision de `flow.rs`, et il entrait donc dans le recensement « une
+    // observation par décision ». L'action standard de vente ayant été retirée
+    // de la phase Action, la question n'existe plus et n'est plus comptée. La
+    // vente passe par `vendre_librement`, qui n'est pas un point de décision
+    // mais un point d'OCCASION — le moteur ne l'observe pas, il l'offre.
 }
 
 /// **Exactement une observation par décision, et pas une de plus.**
@@ -296,6 +291,8 @@ struct FreshnessPolicy {
     inner: RandomPolicy,
     vu_mc: i64,
     vu_hand: usize,
+    /// La main OBSERVÉE, carte par carte (l'oracle de `discard_down`).
+    vu_main: Vec<u16>,
     vu_tags: [u32; 10],
     vu_temperature: u8,
     vu_snap_temperature: u8,
@@ -319,6 +316,7 @@ impl FreshnessPolicy {
             inner: RandomPolicy,
             vu_mc: 0,
             vu_hand: 0,
+            vu_main: Vec::new(),
             vu_tags: [0; 10],
             vu_temperature: 0,
             vu_snap_temperature: 0,
@@ -338,6 +336,7 @@ impl Policy for FreshnessPolicy {
         let pl = &game.players[player];
         self.vu_mc = pl.mc;
         self.vu_hand = pl.hand.len();
+        self.vu_main = pl.hand.clone();
         self.vu_tags = pl.tag_counts;
         self.vu_temperature = game.temperature;
         self.vu_snap_temperature = game.snap_temperature;
@@ -355,16 +354,37 @@ impl Policy for FreshnessPolicy {
     /// plutôt que laissé à zéro — un oracle vide qui passe est pire qu'un oracle
     /// absent.
     ///
-    /// Il est remplacé, à recouvrement égal, par la MAIN que le moteur soumet à
-    /// l'action standard de vente : `flow.rs` appelle
-    /// `policy.sell_card(&mut game.rng, p, &main)` où `main` est la main du
-    /// joueur à cet instant. Elle doit être celle qu'on vient d'observer.
-    fn sell_card(&mut self, r: &mut StdRng, p: usize, main: &[u16]) -> usize {
+    /// Il était remplacé, à recouvrement égal, par la main que le moteur
+    /// soumettait à l'action standard de vente (`sell_card`).
+    ///
+    /// (moteur-questions-manquantes) **Cette action-là a été retirée** : vendre
+    /// ne doit plus coûter un échange de la phase Action. L'oracle sur la MAIN
+    /// n'est pas perdu pour autant — il se déplace sur `discard_down`, à qui
+    /// `flow.rs` passe les cartes défaussables à cet instant, précédée elle
+    /// aussi de son observation.
+    ///
+    /// Le recoupement n'est pas une longueur mais une APPARTENANCE, multiplicité
+    /// comprise : les quatre sites de `discard_down` ne soumettent pas tous la
+    /// main entière (la défausse-après-pioche du lot 6 n'en soumet que les
+    /// cartes concernées), mais aucun ne peut soumettre une carte que le joueur
+    /// n'a pas en main à l'instant observé. Une observation périmée d'une manche
+    /// — main d'avant la défausse de fin de manche, ou d'avant une pose — ferait
+    /// tomber ce test.
+    fn discard_down(&mut self, r: &mut StdRng, p: usize, h: &[u16], n: usize) -> Vec<usize> {
         self.recoupes_hand += 1;
-        if main.len() != self.vu_hand {
-            self.ecarts_hand_paiement += 1;
+        let mut reste = self.vu_main.clone();
+        for c in h {
+            match reste.iter().position(|x| x == c) {
+                Some(i) => {
+                    reste.remove(i);
+                }
+                None => {
+                    self.ecarts_hand_paiement += 1;
+                    break;
+                }
+            }
         }
-        self.inner.sell_card(r, p, main)
+        self.inner.discard_down(r, p, h, n)
     }
 
     /// `flow.rs` appelle : `policy.choose_build(&mut game.rng, p, &opts)` où
@@ -413,9 +433,6 @@ impl Policy for FreshnessPolicy {
     }
     fn research_keep(&mut self, r: &mut StdRng, p: usize, d: &[u16], k: usize) -> Vec<usize> {
         self.inner.research_keep(r, p, d, k)
-    }
-    fn discard_down(&mut self, r: &mut StdRng, p: usize, h: &[u16], n: usize) -> Vec<usize> {
-        self.inner.discard_down(r, p, h, n)
     }
 }
 

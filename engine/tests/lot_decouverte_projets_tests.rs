@@ -1010,15 +1010,18 @@ fn les_cinq_compteurs_sont_nuls_en_boite_de_base_seule() {
 
 #[test]
 fn l_empreinte_de_la_boite_de_base_est_inchangee() {
-    // NEVER 4, mesuré : même graine, même empreinte. Repère REFIXÉ le 03-08
-    // (regles-de-la-vente) : une carte n'est plus payable que sur les MC réels,
-    // et le paiement par défausse d'office a disparu — les parties ne se
-    // déroulent donc plus pareil, ce que le prompt annonce explicitement
-    // (« les empreintes de référence du moteur vont changer, c'est attendu »).
-    // Repères précédents : c1c52fcbe4e057b0 (01-08), d6a7267472501b13 (31-07).
+    // NEVER 4, mesuré : même graine, même empreinte. Repère REFIXÉ le 04-08
+    // (moteur-questions-manquantes) : l'action standard de vente a été retirée
+    // de la phase Action, la liste d'options que `RandomPolicy` tire n'est donc
+    // plus la même, et le corps par défaut de `sell_card` — un tirage — a
+    // disparu avec elle. Les parties ne se déroulent plus pareil ; ce qui est
+    // vérifié à côté, c'est qu'elles vont toutes au bout sans casser
+    // d'invariant (`les_invariants_tiennent_avec_l_extension`).
+    // Repères précédents : 7dda3ea2e9b2901b (03-08), c1c52fcbe4e057b0 (01-08),
+    // d6a7267472501b13 (31-07).
     let db = CardsDb::load_boites(CARDS, BoiteSet::parse("base").unwrap()).expect("base");
     let s = run_simulation(&db, 1000, 2024, &mut RandomPolicy);
-    assert_eq!(format!("{:016x}", s.state_hash), "7dda3ea2e9b2901b");
+    assert_eq!(format!("{:016x}", s.state_hash), "bf70799ff3fee1d8");
 }
 
 #[test]
