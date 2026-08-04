@@ -62,6 +62,16 @@ export const MOT = {
   // Le geste : on attrape la carte et on la pose. Les deux façons sont dites,
   // parce que les deux marchent.
   dragHint: "drag a card onto the table, or click it",
+
+  // (regles-de-la-vente) VENDRE. Livret l. 96 : « à tout moment, vous pouvez
+  // défausser une carte Projet de votre main pour gagner 3 MC ». Les cinq mots
+  // du geste, ici comme le reste de ce que le joueur lit.
+  sell: "Sell cards",
+  sellPick: "Pick the cards to sell",
+  sellCount: (n) => `${n} card${n > 1 ? "s" : ""} selected`,
+  sellGoing: "Selling\u2026",
+  sellConfirm: "Confirm sale",
+  sellCancel: "Cancel",
   dropHere: "Drop a card here to play it — or simply click it in your hand",
   thatCard: "The card you are playing",
   // Obligation de licence de la photographie du sol (voir
@@ -222,9 +232,6 @@ const QUESTIONS = {
     `Keep ${d.a_choisir} card${s(d.a_choisir)} out of ${(d.options || []).length}`,
   action_choice: () => "Which action do you trigger?",
   discard_down: (d) => `Hand limit: discard ${d.a_choisir} card${s(d.a_choisir)}`,
-  discard_payment_count: (d) =>
-    `Cost ${d.cout} MC, you hold ${d.mc} MC: how many cards do you discard?` +
-    ` (${d.taux} MC each)`,
   choose_option: () => "Choose a branch of the card text (printed order)",
   sell_card: (d) => {
     // Le montant n'est dans aucun champ du descripteur : on le reprend du

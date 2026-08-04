@@ -106,6 +106,13 @@ pub fn setup_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameState
         draw_before_build: 0,
         draw_after_build: 0,
         discard_payments: 0,
+        // (regles-de-la-vente) 0 = hors phase : la partie commence par la mise
+        // en place, où l'on ne peut ni dépenser ni donc vendre.
+        phase_en_cours: 0,
+        vente_offerte: false,
+        occasion_ouverte: false,
+        mains_a_l_occasion: Vec::new(),
+        ventes_volontaires: 0,
         res_added: 0,
         res_removed: 0,
         res_targets_missing: 0,
@@ -172,7 +179,7 @@ pub fn setup_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameState
 
     // 2. Mulligan corporations — règle maison n°1 (avant les cartes projets).
     for p in 0..NUM_PLAYERS {
-        policy.observe(&game, p);
+        avant_decision(&mut game, db, p, policy);
         if policy.corp_mulligan(&mut game.rng, p, &corps[p]) {
             for c in corps[p].drain(..) {
                 game.corp_discard.push(c);
@@ -195,7 +202,7 @@ pub fn setup_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameState
     //    corporations, ce n'est PAS du tout ou rien.
     for p in 0..NUM_PLAYERS {
         let hand_snapshot = game.players[p].hand.clone();
-        policy.observe(&game, p);
+        avant_decision(&mut game, db, p, policy);
         let mut idx = policy.project_mulligan(&mut game.rng, p, &hand_snapshot);
         // Une politique peut rendre n'importe quoi : on assainit sans jamais
         // défausser deux fois la même carte ni sortir de la main.
@@ -219,7 +226,7 @@ pub fn setup_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameState
 
     // 5. Choix final de corporation, cartes projets en main.
     for p in 0..NUM_PLAYERS {
-        policy.observe(&game, p);
+        avant_decision(&mut game, db, p, policy);
         let pick = policy.pick_corporation(&mut game.rng, p, &corps[p]);
         assert!(pick < corps[p].len(), "choix de corporation hors bornes");
         let chosen = corps[p].remove(pick);
@@ -312,7 +319,7 @@ pub fn install_corporation_with(
     for e in spec.setup {
         match *e {
             ResEff::PhaseUpgrade(t) => {
-                apply_phase_upgrade(game, p, policy, t, UpgradeSource::Setup)
+                apply_phase_upgrade(game, db, p, policy, t, UpgradeSource::Setup)
             }
             ResEff::Gain(g) => apply_eff(game, db, p, g, policy),
             // Les variantes à ressources exigent une carte réceptacle, qu'une
@@ -455,7 +462,7 @@ pub fn ensure_joker_tag(
         return; // le badge est DÉFINITIF : jamais réécrit.
     }
     let counts = game.players[p].tag_counts;
-    policy.observe(&game, p);
+    avant_decision(game, db, p, policy);
     let i = policy.pick_joker_tag(&mut game.rng, p, card_id, &counts);
     // Un indice hors bornes est un manquement au contrat de `Policy`, pas un cas
     // de jeu : le moteur le SIGNALE au lieu de le raboter en silence sur EVENT.
@@ -807,7 +814,7 @@ pub fn gain_tr(game: &mut GameState, db: &CardsDb, p: usize, policy: &mut dyn Po
         return;
     }
     // Deux branches jouables : payer (0, l'option imprimée) ou renoncer (1).
-    policy.observe(&game, p);
+    avant_decision(game, db, p, policy);
     let ctx = ChoiceContext::CorpTrBoost {
         corporation: game.players[p].corporation,
         cost_mc: boost.cost_mc,
@@ -993,6 +1000,10 @@ pub enum UpgradeSource {
 
 fn apply_phase_upgrade(
     game: &mut GameState,
+    // (regles-de-la-vente) `db` traverse jusqu'ici : l'occasion de vendre
+    // offerte avant ce point de décision a besoin du taux de défausse, que
+    // seul le service unique `discard_mc_rate` sait calculer.
+    db: &CardsDb,
     p: usize,
     policy: &mut dyn Policy,
     // (decouverte-projets) Phase IMPOSÉE par le carton, `None` = au choix du
@@ -1043,7 +1054,7 @@ fn apply_phase_upgrade(
             imposed_phase: target,
             source: src,
         };
-        policy.observe(&game, p);
+        avant_decision(game, db, p, policy);
         policy.choose_option_ctx(&mut game.rng, p, &ctx)
     };
     let (phase, variant) = cands[i.min(cands.len() - 1)];
@@ -1145,7 +1156,7 @@ fn apply_res_eff(
         // choix du joueur. `src` dit d'où vient l'appel : `apply_res_eff` est
         // emprunté par la POSE et par `Action::Res`, et le compteur
         // `phase_upgrades_by_action` doit distinguer les deux.
-        ResEff::PhaseUpgrade(t) => apply_phase_upgrade(game, p, policy, *t, src),
+        ResEff::PhaseUpgrade(t) => apply_phase_upgrade(game, db, p, policy, *t, src),
         ResEff::Put(put) => {
             let cands = put_targets(game, db, p, self_card, put);
             if cands.is_empty() {
@@ -1156,7 +1167,7 @@ fn apply_res_eff(
             let target = if put.target == ResTarget::SelfCard {
                 self_card
             } else {
-                policy.observe(&game, p);
+                avant_decision(game, db, p, policy);
                 let i = policy.choose_res_target(&mut game.rng, p, &cands);
                 if i >= cands.len() {
                     return; // renoncement explicite (journal D4)
@@ -1187,7 +1198,7 @@ fn apply_res_eff(
             if cands.is_empty() {
                 return;
             }
-            policy.observe(&game, p);
+            avant_decision(game, db, p, policy);
             let i = policy.choose_res_source(&mut game.rng, p, &cands);
             if i >= cands.len() {
                 return; // renoncement explicite (journal D4)
@@ -1241,7 +1252,7 @@ fn apply_choice(
             source: src,
             branches: &options,
         };
-        policy.observe(&game, p);
+        avant_decision(game, db, p, policy);
         let c = policy.choose_option_ctx(&mut game.rng, p, &ctx);
         if c >= playable.len() {
             return; // renoncement explicite (journal D4)
@@ -1569,6 +1580,160 @@ fn discard_bonus_per_card(db: &CardsDb, pl: &PlayerState) -> u64 {
 }
 
 // =============================================================================
+// (regles-de-la-vente) VENDRE À TOUT MOMENT — livret l. 96, répété l. 310 :
+// « à tout moment, vous pouvez défausser une carte Projet de votre main pour
+// gagner 3 MC ».
+//
+// Le moteur n'offrait cette vente qu'à deux endroits : l'action standard de la
+// phase III et l'étape de fin de manche. Partout ailleurs il la prenait à la
+// place du joueur, en douce, pour compléter un paiement — le défaut supprimé
+// dans `build_card_with`.
+//
+// Le remplacement est un point d'OCCASION, pas un point de décision : le moteur
+// ne demande pas « voulez-vous vendre ? » (ce serait lui qui déciderait du
+// moment, et cela doublerait le nombre de décisions d'une partie) ; il fait
+// SAVOIR qu'ici, maintenant, une vente est recevable. Une politique qui n'a rien
+// à vendre répond la liste vide et rien ne se passe — pas même un tirage.
+// =============================================================================
+
+/// **Les phases où l'on peut dépenser**, donc celles où vendre a un sens :
+/// I Développement, II Construction, III Action. Ni IV Production ni V
+/// Recherche — le propriétaire du projet, mot pour mot : « pendant ces phases
+/// où l'on peut dépenser (toutes sauf production et recherche) ».
+///
+/// `0` n'est pas une phase : c'est la mise en place, la planification de la
+/// manche, ou l'étape de fin de manche. On n'y dépense pas non plus.
+pub fn phase_depensable(phase: u8) -> bool {
+    matches!(phase, 1 | 2 | 3)
+}
+
+/// **L'occasion de vendre, offerte AVANT chaque point de décision du moteur**,
+/// et aux DEUX joueurs — le livret ne réserve pas cette défausse au joueur dont
+/// c'est le tour.
+///
+/// Elle ne fait rien hors des phases dépensables, et elle y publie
+/// `game.vente_offerte` : l'écran lit ce drapeau pour offrir — ou non — son
+/// bouton de vente. Sans lui l'écran devrait deviner, et finirait par proposer
+/// une vente que le moteur refuserait.
+///
+/// Les indices rendus par la politique sont NETTOYÉS avant usage (bornes,
+/// doublons) plutôt qu'assérés : un point d'occasion est offert à un joueur qui
+/// peut être un cerveau distant, et une réponse fantaisiste doit valoir « je ne
+/// vends rien », jamais une panique du moteur.
+///
+/// Le taux est celui du service unique [`discard_mc_rate`] — livret l. 96,
+/// majorations de corporations comprises — lu UNE fois avant la boucle : il
+/// dépend des cartes en jeu, que vendre ne touche pas.
+pub fn occasion_de_vendre(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
+    let offerte = phase_depensable(game.phase_en_cours);
+    // On ARME le drapeau ; c'est `observer` qui le désarme en le publiant. Voir
+    // `GameState::occasion_ouverte` : écrire `vente_offerte` directement ici
+    // laissait sa valeur survivre à un point de décision dépourvu d'occasion.
+    game.occasion_ouverte = offerte;
+    if !offerte {
+        game.mains_a_l_occasion.clear();
+        return;
+    }
+    for p in 0..NUM_PLAYERS {
+        let main = game.players[p].hand.clone();
+        if main.is_empty() {
+            continue;
+        }
+        let mut idx = policy.vendre_librement(&mut game.rng, p, &main);
+        if idx.is_empty() {
+            continue;
+        }
+        idx.retain(|&i| i < main.len());
+        idx.sort_unstable();
+        idx.dedup();
+        if idx.is_empty() {
+            continue;
+        }
+        let taux = discard_mc_rate(db, &game.players[p]);
+        let bonus = discard_bonus_per_card(db, &game.players[p]);
+        // À rebours : retirer par indice décroissant laisse intacts les indices
+        // que le joueur a désignés sur la main qu'il avait sous les yeux.
+        for &i in idx.iter().rev() {
+            let carte = game.players[p].hand.remove(i);
+            game.discard.push(carte);
+            game.players[p].mc += taux;
+            game.discard_bonus_mc += bonus;
+            game.ventes_volontaires += 1;
+        }
+    }
+    // (round 2) LA MAIN SUR LAQUELLE L'OCCASION A ÉTÉ OFFERTE, gardée telle
+    // quelle. `observer` s'en sert pour ne publier `vente_offerte` que si le
+    // joueur verra exactement cette main-là : voir
+    // `GameState::mains_a_l_occasion`.
+    game.mains_a_l_occasion = (0..NUM_PLAYERS)
+        .map(|p| game.players[p].hand.clone())
+        .collect();
+}
+
+/// **Ce que le moteur fait juste avant de poser une question.**
+///
+/// Deux choses, dans cet ordre, et l'ordre est la moitié de l'affaire :
+///
+/// 1. [`occasion_de_vendre`] — une vente décidée au coup précédent s'applique
+///    ICI, avant que quoi que ce soit ne soit énuméré pour la décision qui
+///    vient. C'est ce qui fait que « le contour vert s'allume en direct » :
+///    l'énumération des cartes payables qui suit voit les MC de la vente.
+/// 2. `Policy::observe` — l'observateur reçoit alors un état où la vente a déjà
+///    eu lieu, donc exactement ce que l'écran affichera à côté de la question.
+///
+/// Cette fonction a REMPLACÉ les 31 appels nus à `policy.observe(&game, p)` de
+/// ce fichier. Un point d'occasion oublié serait invisible (l'écran offrirait
+/// une vente que le moteur refuserait) : le seul moyen sûr de n'en oublier
+/// aucun est qu'il n'existe plus aucun autre chemin vers `observe` —
+/// `grep 'policy.observe' src/flow.rs` ne doit rien rendre hors d'ici.
+fn avant_decision(game: &mut GameState, db: &CardsDb, p: usize, policy: &mut dyn Policy) {
+    occasion_de_vendre(game, db, policy);
+    observer(game, p, policy);
+}
+
+/// **L'observation SEULE**, sans l'occasion de vendre.
+///
+/// Réservée aux points de décision dont le MATÉRIEL dépend de la main — les
+/// options d'`affordable`, les instantanés de main de `discard_down`, les
+/// actions standard d'`action_options`. Là, l'occasion de vendre ne peut pas
+/// attendre l'observation : elle est hoistée à la main AU-DESSUS de
+/// l'énumération, faute de quoi le joueur recevrait une liste d'options
+/// calculée sur une main qu'il vient de vider — des indices qui ne désignent
+/// plus les mêmes cartes. Un point de décision reçoit donc l'occasion UNE fois,
+/// jamais deux : c'est la raison d'être de ce second chemin.
+///
+/// Ces deux fonctions sont les SEULS appelants de `Policy::observe` dans ce
+/// fichier — l'invariant se vérifie par `grep 'policy.observe(' src/flow.rs`,
+/// qui ne doit rendre que la ligne ci-dessous.
+///
+/// (round 2) **Publique parce que c'est ICI que le drapeau de l'écran naît.**
+/// Les deux temps — armer, puis publier — sont l'invariant que cette tâche a
+/// livré ; une mesure qui ne peut pas atteindre le second temps ne peut que
+/// regarder trop tôt et croire à une régression. C'est exactement ce qui est
+/// arrivé au test `c3_l_occasion_de_vendre_…`. L'invariant interne ne bouge pas :
+/// dans `flow.rs`, `observer` et `avant_decision` restent les seuls chemins vers
+/// `Policy::observe`.
+pub fn observer(game: &mut GameState, p: usize, policy: &mut dyn Policy) {
+    // (regles-de-la-vente) LE DRAPEAU SE CONSOMME ICI, et c'est tout l'intérêt :
+    // ce que l'écran lira (`vente_offerte`) ne vaut vrai que si une occasion a
+    // été ouverte POUR CE POINT DE DÉCISION-CI. Un point qu'on aurait oublié
+    // d'en pourvoir publie faux, l'écran n'y offre pas le bouton, et personne ne
+    // peut plus y glisser une vente que le rejeu ne saurait pas consommer.
+    let armee = std::mem::take(&mut game.occasion_ouverte);
+    // (round 2) ET LA MAIN DOIT ÊTRE CELLE DE L'OCCASION. Une occasion hoistée
+    // au-dessus de ce qui prépare la question peut voir une autre main que celle
+    // que le joueur aura sous les yeux — c'était le cas de `Eff::DrawDiscard`,
+    // hoistée au-dessus d'une pioche. Les indices que le joueur désigne à
+    // l'écran ne désigneraient alors pas les mêmes cartes au rejeu. On ne publie
+    // donc le drapeau que si les deux mains coïncident : au pire un bouton non
+    // offert, jamais une vente refusée en cours de partie.
+    let memes_mains = game.mains_a_l_occasion.len() == NUM_PLAYERS
+        && (0..NUM_PLAYERS).all(|q| game.mains_a_l_occasion[q] == game.players[q].hand);
+    game.vente_offerte = armee && memes_mains;
+    policy.observe(game, p);
+}
+
+// =============================================================================
 // (lot cartes-7) LA RÉDUCTION DES ACTIONS STANDARD — *Standard Technology*,
 // « You pay 4 MC less for standard actions that cost MC. »
 //
@@ -1614,19 +1779,22 @@ fn standard_mc_cost_with(base: i64, discount: i64) -> i64 {
 }
 
 /// (C3) Une carte de coût effectif `cost` est-elle payable par un joueur qui a
-/// `mc` MC et `hand_len` cartes en main (la carte à poser comprise) ? Livret
-/// p.13, l.348 : MC **et/ou** défausse de cartes à `rate` MC/carte. La carte
-/// posée ne pouvant pas se payer elle-même, la monnaie disponible est
-/// `hand_len - 1`.
+/// `mc` MC ? **Avec ses MC RÉELS, et rien d'autre.**
+///
+/// (regles-de-la-vente) Ce prédicat comptait naguère aussi la vente des cartes
+/// de la main, à `rate` MC pièce : une carte à 17 MC était annoncée jouable avec
+/// 13 MC en poche parce que le moteur comptait d'avance la vente de trois autres
+/// cartes — une vente que le joueur n'avait jamais décidée (défaut A, constaté
+/// manche 11). La vente reste entièrement possible (livret l. 96, « à tout
+/// moment »), mais elle est devenue un geste **antérieur et volontaire** :
+/// `flow::occasion_de_vendre`. Ce que le joueur n'a pas vendu ne paie rien.
+///
 /// Prédicat UNIQUE d'affordabilité : consommé par `affordable` (énumération des
 /// options du flux réel) et par la sonde. `build_card_with` en est la
 /// contrepartie exacte — il paie de la même façon et assère le résultat — de
 /// sorte que les deux ne peuvent pas diverger.
-///
-/// (lot cartes-7) `rate` vient du service unique [`discard_mc_rate`] : aucun
-/// appelant ne fabrique ce taux lui-même.
-pub fn payable(mc: i64, hand_len: usize, cost: i64, rate: i64) -> bool {
-    mc + rate * (hand_len as i64 - 1).max(0) >= cost
+pub fn payable(mc: i64, cost: i64) -> bool {
+    mc >= cost
 }
 
 /// Indices de main constructibles pour une couleur donnée : paiement (MC et/ou
@@ -1738,11 +1906,17 @@ fn drain_pending_builds(
         // (jokers-corpos) Les badges jokers de la main reçoivent leur jeton AVANT
         // l'énumération : `affordable` juge alors chaque carte joker sur son
         // badge réel, exactement comme le paiement le fera (I2).
+        // (regles-de-la-vente) L'occasion de vendre est hoistée AU-DESSUS de
+        // l'énumération : les options qui suivent doivent etre calculees sur la
+        // main d'APRÈS la vente, sinon leurs indices désigneraient d'autres
+        // cartes que celles que le joueur a sous les yeux. Le point de décision
+        // ne reçoit donc qu'une observation nue (voir `observer`).
         resolve_hand_jokers(game, db, p, policy);
+        occasion_de_vendre(game, db, policy);
         let opts = affordable(game, db, p, &grant, disc);
         // « You MAY play an additional card » : renoncer est une option, et
         // c'est `Policy` qui tranche — jamais le moteur (I4).
-        policy.observe(&game, p);
+        observer(game, p, policy);
         let Some(idx) = policy.choose_build(&mut game.rng, p, &opts) else {
             continue;
         };
@@ -1757,6 +1931,76 @@ fn drain_pending_builds(
 // (« affordabilité et paiement ne divergent jamais ») ne peut se démontrer
 // qu'en interrogeant CETTE fonction-là, celle que la phase de jeu emprunte —
 // pas une copie, pas le garde-fou de la sonde.
+/// **Le prix effectif d'une carte de la main, et les MC que son propriétaire
+/// peut y consacrer.** Point de calcul UNIQUE de l'affordabilité d'UNE carte, à
+/// la permission près.
+///
+/// Deux lecteurs, et c'est tout l'objet de cette extraction (I1) :
+/// [`affordable`] l'emploie pour énumérer les options d'une pose, une fois la
+/// couleur et le plafond de la permission écartés ; [`main_payable`] pour dire
+/// au joueur ce qu'il a les moyens de payer, hors de toute permission. Les deux
+/// ne peuvent donc pas annoncer deux prix différents pour la même carte — c'est
+/// exactement l'écart que le défaut A avait creusé, entre ce que l'écran
+/// affichait et ce que le paiement acceptait.
+///
+/// Les trois valeurs passées en paramètre (remise de permission, réduction en
+/// microbes, réduction en plantes déclarée) ne dépendent PAS de la carte
+/// examinée : l'appelant les calcule une fois pour toute la main.
+fn prix_et_bourse(
+    game: &GameState,
+    db: &CardsDb,
+    p: usize,
+    c: u16,
+    remise: i64,
+    remise_microbes: i64,
+    plant_red: Option<(i64, i64)>,
+) -> (i64, i64) {
+    // (lot cartes-7) Réduction payable en plantes : elle dépend de la carte
+    // visée (ses propres plantes réservées), d'où le calcul ici et pas chez
+    // l'appelant — même service que `build_card_with` (I2).
+    let plant_disc = plant_discount_with(game, db, p, c, plant_red).map_or(0, |(_, a)| a);
+    let cout = effective_cost(
+        db.projects[c as usize].price,
+        remise + card_discount(game, db, p, c) + remise_microbes + plant_disc,
+    );
+    // (corpo-1) Helion : la chaleur compte dans l'affordabilité, sinon une carte
+    // payable serait jugée hors budget — MOINS celle que la carte s'engage à
+    // dépenser à la pose. Sans Helion, vaut exactement `pl.mc`.
+    let bourse = spendable_mc_reserving(db, &game.players[p], heat_reserved_by(db, c));
+    (cout, bourse)
+}
+
+/// **(regles-de-la-vente) Ce que le joueur a LES MOYENS DE PAYER**, carte par
+/// carte de sa main, dans l'ordre de sa main.
+///
+/// Ce n'est PAS « ce qu'il peut jouer maintenant » : la couleur autorisée par la
+/// phase, les permissions et les prérequis n'entrent pas ici. C'est la réponse à
+/// une seule question — « ai-je de quoi payer cette carte, avec mes MC réels ? »
+/// — et c'est celle que le contour vert de l'écran pose au joueur.
+///
+/// Elle est publiée par `observe::state_view` parce que l'écran n'a pas le droit
+/// d'y répondre lui-même : il ne sait ni ce qu'une carte coûte, ni quelles
+/// réductions s'y appliquent. Il ne sait pas non plus qu'il vient d'y avoir une
+/// vente — il recopie ce que le moteur lui rend, et c'est ainsi que « les cartes
+/// devenues payables s'allument » sans que la page n'ait rien calculé.
+///
+/// Aucun compteur d'audit n'est touché : contrairement à [`affordable`], cette
+/// fonction ne relève pas les cartes bloquées par l'instantané de début de phase
+/// (`prereq_snapshot_blocks`). Elle ne juge pas les prérequis du tout.
+pub fn main_payable(game: &GameState, db: &CardsDb, p: usize) -> Vec<bool> {
+    let remise = next_card_discount(&game.players[p]);
+    let remise_microbes = microbe_discount(game, db, p).map_or(0, |(_, _, a)| a);
+    let plant_red = plant_reduction(db, &game.players[p]);
+    game.players[p]
+        .hand
+        .iter()
+        .map(|&c| {
+            let (cout, bourse) = prix_et_bourse(game, db, p, c, remise, remise_microbes, plant_red);
+            payable(bourse, cout)
+        })
+        .collect()
+}
+
 pub fn affordable(
     game: &mut GameState,
     db: &CardsDb,
@@ -1775,9 +2019,6 @@ pub fn affordable(
     // sinon une carte jouable serait jugée hors budget (contrat). Calculée une
     // fois par énumération : elle ne dépend pas de la carte examinée.
     let payable_disc = microbe_discount(game, db, p).map_or(0, |(_, _, a)| a);
-    // (lot cartes-7) Même taux de défausse que le paiement (I1/I2) : il ne
-    // dépend pas de la carte examinée, il est donc lu une fois.
-    let rate = discard_mc_rate(db, &game.players[p]);
     // (lot cartes-7) La réduction en plantes DÉCLARÉE ne dépend pas de la carte
     // examinée : lue une fois. Sa DISPONIBILITÉ, elle, en dépend — c'est
     // `plant_discount_with` qui la tranche, dans la boucle, exactement comme
@@ -1803,20 +2044,12 @@ pub fn affordable(
             }
             continue;
         }
-        // (lot cartes-7) Réduction payable en plantes : elle compte dans
-        // l'affordabilité, sinon une carte jouable serait jugée hors budget.
-        // Elle dépend de la carte visée (ses propres plantes réservées), d'où
-        // le calcul DANS la boucle — même service que `build_card_with`.
-        let plant_disc = plant_discount_with(game, db, p, c, plant_red).map_or(0, |(_, a)| a);
-        let cost = effective_cost(
-            card.price,
-            discount + card_discount(game, db, p, c) + payable_disc + plant_disc,
-        );
-        // (corpo-1) Helion : la chaleur compte dans l'affordabilité, sinon une
-        // carte payable serait jugée hors budget — MOINS celle que la carte
-        // s'engage à dépenser à la pose. Sans Helion, vaut exactement `pl.mc`.
-        let mc = spendable_mc_reserving(db, &game.players[p], heat_reserved_by(db, c));
-        if !payable(mc, hand_len, cost, rate) {
+        // (regles-de-la-vente) Prix et bourse par le point de calcul UNIQUE,
+        // partagé avec `main_payable` : le contour vert de l'écran et
+        // l'énumération des options ne peuvent pas juger la même carte
+        // différemment.
+        let (cost, mc) = prix_et_bourse(game, db, p, c, discount, payable_disc, plant_red);
+        if !payable(mc, cost) {
             continue;
         }
         if requirements_met(game, db, p, c) {
@@ -1959,9 +2192,29 @@ fn apply_eff(game: &mut GameState, db: &CardsDb, p: usize, eff: Eff, policy: &mu
                     drawn.push(c);
                 }
             }
+            // (regles-de-la-vente) L'OCCASION EST OFFERTE APRÈS LA PIOCHE, et
+            // c'est le round 2 qui l'y a déplacée. Elle était hoistée au-dessus
+            // de la pioche ; le joueur voyait alors une main de trois cartes
+            // fraîchement piochées, l'écran lui offrait le bouton de vente
+            // (`vente_offerte`, armé par cette occasion-ci), il désignait la
+            // première — et le rejeu replaçait sa vente sur la main d'AVANT la
+            // pioche, souvent vide. Le moteur refusait l'entrée (« aucune
+            // occasion de vendre n'est ouverte à ce point ») et la partie se
+            // figeait sur un écran de panne. Reproduit à l'identique, graine
+            // 2024, rang 174 (`outputs/work/reproduire-vente-bloquee.py`).
+            //
+            // Ce qui reste vrai, et qui était la raison d'être du hoistage : la
+            // défausse ne porte que sur ce qui est ENCORE en main après la
+            // vente — `cands` est calculé ci-dessous, donc après l'occasion, et
+            // le joueur ne peut pas défausser une carte qu'il vient de vendre.
+            occasion_de_vendre(game, db, policy);
             // « Keep one of THEM » restreint la défausse aux cartes piochées ;
             // « Then, discard N cards » porte sur la main entière.
             let cands: Vec<u16> = if from_drawn {
+                // Une carte piochée puis VENDUE à l'occasion ci-dessus n'est
+                // plus dans la main : la proposer à la défausse offrirait une
+                // option que `discard_from_hand` ne saurait pas honorer.
+                drawn.retain(|c| game.players[p].hand.contains(c));
                 drawn
             } else {
                 game.players[p].hand.clone()
@@ -1981,9 +2234,18 @@ fn apply_eff(game: &mut GameState, db: &CardsDb, p: usize, eff: Eff, policy: &mu
                 (discard as usize).min(cands.len())
             };
             if n == 0 {
+                // (round 2) ON SORT SANS AVOIR RIEN DEMANDÉ — et l'occasion
+                // ci-dessus a pourtant eu lieu. Elle a donc pu consommer la
+                // vente que le joueur destinait à la décision SUIVANTE (le pont
+                // consomme l'entrée à la première occasion offerte à ce joueur).
+                // C'est sans conséquence : la vente a bien lieu, une occasion
+                // plus tôt, sur la même main — plus rien ici ne la touche entre
+                // les deux. Ce serait faux le jour où l'on piocherait après ce
+                // point : la ceinture est alors `mains_a_l_occasion`, qui
+                // empêcherait l'écran d'offrir la vente (voir `flow::observer`).
                 return;
             }
-            policy.observe(&game, p);
+            observer(game, p, policy);
             let idx = policy.discard_down(&mut game.rng, p, &cands, n);
             for &i in idx.iter().take(n) {
                 if i >= cands.len() {
@@ -2158,14 +2420,15 @@ pub fn build_card(
     build_card_with(game, db, p, idx, discount, &mut default)
 }
 
-/// Construit la carte d'indice de main `idx` : paie le coût effectif en MC
-/// et/ou en défaussant des cartes (C3, livret p.13 l.348 — 3 MC par carte,
-/// surplus rendu), entre en jeu (tags/couleur), puis applique dépenses + effets
-/// du lot si les effets sont activés.
+/// Construit la carte d'indice de main `idx` : paie le coût effectif **en MC**
+/// (C3, livret p.13 l.348 — le surplus est rendu), entre en jeu (tags/couleur),
+/// puis applique dépenses + effets du lot si les effets sont activés.
 ///
-/// Renvoie le nombre de cartes défaussées pour payer CETTE carte (0 si les MC
-/// suffisaient). La carte posée est retirée de la main AVANT le choix des cartes
-/// à défausser : elle ne peut donc jamais se payer elle-même.
+/// (regles-de-la-vente) Renvoie le nombre de cartes défaussées pour payer CETTE
+/// carte : **toujours 0**, la vente d'office ayant disparu. La valeur reste
+/// rendue — et la sonde continue de la publier (`discarded`) — parce que c'est
+/// elle qui PROUVE que rien n'a quitté la main sans décision du joueur ; cesser
+/// de la rendre reviendrait à cesser de pouvoir le vérifier.
 pub fn build_card_with(
     game: &mut GameState,
     db: &CardsDb,
@@ -2198,7 +2461,6 @@ pub fn build_card_granted(
     grant: &BuildGrant,
     policy: &mut dyn Policy,
 ) -> usize {
-    let hand_len_before = game.players[p].hand.len();
     let card_id = game.players[p].hand.remove(idx);
     // (jokers-corpos) Le jeton Badge est posé AVANT tout calcul de prix : c'est
     // l'exemple du livret (« si vous choisissez le badge Espace, les
@@ -2241,16 +2503,11 @@ pub fn build_card_granted(
     // (corpo-1) Chaleur que CETTE carte s'engage à dépenser : Helion ne peut pas
     // la convertir en MC pour en payer le prix.
     let reserved_heat = heat_reserved_by(db, card_id);
-    // (lot cartes-7) Taux de défausse du joueur À CET INSTANT, service unique —
-    // le même que celui qu'a employé `affordable` pour proposer cette carte.
-    let rate = discard_mc_rate(db, &game.players[p]);
     if let Some((src, count, amount)) = microbe_discount(game, db, p) {
         let cost_without = effective_cost(price, total_discount);
         let can_decline = payable(
             spendable_mc_reserving(db, &game.players[p], reserved_heat),
-            hand_len_before,
             cost_without,
-            rate,
         );
         // Branche 0 = utiliser la réduction (l'option imprimée) ; branche 1 = y
         // renoncer.
@@ -2261,7 +2518,7 @@ pub fn build_card_granted(
                 count,
                 amount,
             };
-            policy.observe(&game, p);
+            avant_decision(game, db, p, policy);
             policy.choose_option_ctx(&mut game.rng, p, &ctx) == 0
         } else {
             true
@@ -2283,9 +2540,7 @@ pub fn build_card_granted(
         let cost_without = effective_cost(price, total_discount);
         let can_decline = payable(
             spendable_mc_reserving(db, &game.players[p], reserved_heat),
-            hand_len_before,
             cost_without,
-            rate,
         );
         let use_it = if can_decline {
             let ctx = ChoiceContext::PlantDiscount {
@@ -2293,7 +2548,7 @@ pub fn build_card_granted(
                 plants,
                 amount,
             };
-            policy.observe(&game, p);
+            avant_decision(game, db, p, policy);
             policy.choose_option_ctx(&mut game.rng, p, &ctx) == 0
         } else {
             true
@@ -2307,69 +2562,37 @@ pub fn build_card_granted(
     let cost = effective_cost(price, total_discount);
     assert!(cost >= 0, "prix payé négatif (réduction non plafonnée)");
 
-    // (corpo-1) Helion : « You MAY use heat as MC ». Ici — et ici seulement — le
-    // joueur a une vraie alternative, puisque le livret lui offre déjà de payer
-    // en défaussant des cartes à 3 MC. Le choix passe donc par le même chemin
-    // que tous les « ou » du moteur (`Policy::choose_option`, branche 0 =
-    // employer la chaleur, l'option imprimée ; branche 1 = y renoncer), et il
-    // n'est proposé QUE s'il en est un : si la carte n'est pas payable sans la
-    // chaleur, il n'y a pas d'alternative à présenter (convention du lot 3 —
-    // `choose_option` n'est appelée qu'à partir de 2 branches jouables).
+    // (corpo-1) Helion : « You MAY use heat as MC ».
     //
-    // Partout ailleurs (actions standard, actions de cartes bleues, pas de NT
-    // d'Unmi), aucune défausse n'est offerte : renoncer à la chaleur y
-    // reviendrait à renoncer à l'action, ce n'est pas une branche jouable.
+    // (regles-de-la-vente) Ce « may » n'est plus une alternative. Il n'en était
+    // une que tant que le moteur offrait, en face, de payer en défaussant des
+    // cartes : renoncer à la chaleur voulait alors dire « je paierai en vendant ».
+    // La vente d'office ayant disparu (D2), renoncer ici reviendrait à renoncer à
+    // une carte que le joueur vient de choisir de poser — ce n'est pas une
+    // branche jouable, et la convention du lot 3 interdit d'appeler la politique
+    // sur une seule branche. `affordable` a d'ailleurs déjà compté cette chaleur
+    // (`spendable_mc_reserving`) pour proposer la carte : le paiement doit la
+    // dépenser, sinon affordabilité et paiement divergeraient (I2).
     if heat_as_mc(db, &game.players[p]) && game.players[p].mc < cost {
-        // La carte à poser est déjà retirée de la main : la monnaie de défausse
-        // disponible est `hand.len()`, d'où le `+ 1` attendu par `payable`.
-        let can_decline =
-            payable(game.players[p].mc, game.players[p].hand.len() + 1, cost, rate);
-        let use_heat = if can_decline {
-            let ctx = ChoiceContext::HeatAsMc {
-                card: card_id,
-                cost,
-            };
-            policy.observe(&game, p);
-            policy.choose_option_ctx(&mut game.rng, p, &ctx) == 0
-        } else {
-            true
-        };
-        if use_heat {
-            top_up_mc_with_heat_reserving(game, db, p, cost, reserved_heat);
-        }
+        top_up_mc_with_heat_reserving(game, db, p, cost, reserved_heat);
     }
 
-    // (C3) Paiement : d'abord les MC, puis la défausse pour le reste. Le
-    // nombre de cartes vient de la politique (défaut du trait = minimum).
-    let mut discarded = 0usize;
-    if game.players[p].mc < cost {
-        let hand = game.players[p].hand.clone();
-        // (lot cartes-7) La politique décide COMBIEN de cartes défausser : elle
-        // reçoit donc le taux réel du joueur, sinon elle en défausserait trop
-        // (elle divise le manque par le taux).
-        policy.observe(&game, p);
-        let n =
-            policy.discard_payment_count(&mut game.rng, p, game.players[p].mc, cost, &hand, rate);
-        assert!(n <= game.players[p].hand.len(), "défausse-paiement hors main");
-        // Quelles cartes : les DERNIÈRES de la main. Le livret laisse le choix
-        // libre ; prendre par la fin est déterministe, en O(1), et préserve la
-        // tête de main — ce dont dépend la sonde séquence, qui pose toujours à
-        // l'indice 0.
-        // (jokers-corpos) Ce que le taux MAJORÉ verse au-delà du livret, compté
-        // à l'endroit exact du crédit.
-        let bonus = discard_bonus_per_card(db, &game.players[p]);
-        for _ in 0..n {
-            let card = game.players[p].hand.pop().expect("défausse-paiement hors main");
-            game.discard.push(card);
-            game.players[p].mc += rate;
-            game.discard_bonus_mc += bonus;
-        }
-        discarded = n;
-        game.discard_payments += n as u64;
-    }
+    // (regles-de-la-vente) LE PAIEMENT SE FAIT EN MC, ET EN MC SEULEMENT.
+    //
+    // Il y avait ici le bloc « (C3) Paiement » : quand les MC ne suffisaient pas,
+    // le moteur défaussait « les DERNIÈRES de la main » — un choix qu'il prenait
+    // à la place du joueur, et que `game.discard_payments` comptait (20 939 sur
+    // 1000 parties, mesuré le 03-08). Ce bloc est supprimé, pas neutralisé : le
+    // compteur reste publié et vaut désormais zéro parce que le chemin qu'il
+    // comptait n'existe plus. Vendre reste possible à tout moment, mais c'est un
+    // geste du joueur, antérieur (`occasion_de_vendre`).
+    //
+    // L'assertion est donc devenue exacte : `affordable` n'a proposé cette carte
+    // que parce que `payable(mc, cost)` était vrai, et rien depuis n'a fait
+    // baisser les MC.
     assert!(
         game.players[p].mc >= cost,
-        "construction sans le paiement requis (MC + défausse)"
+        "construction sans les MC requis (l'affordabilité et le paiement ont divergé)"
     );
     // Le surplus reste au joueur : « la différence vous est rendue » (p.13).
     game.players[p].mc -= cost;
@@ -2430,7 +2653,9 @@ pub fn build_card_granted(
     // dépend pas de l'ordre des déclencheurs, et le modificateur qu'elle arme
     // survit à l'effacement fait plus haut pour son propre compte.
     grant_from_card(game, db, p, card_id);
-    discarded
+    // (regles-de-la-vente) Aucune carte ne peut plus être défaussée pour payer :
+    // la valeur rendue est structurellement nulle, et c'est ce qu'elle atteste.
+    0
 }
 
 /// (B) Déclencheurs de pose : évalués à la pose de `played_id`, sur les tags de
@@ -2587,12 +2812,14 @@ fn apply_trig_gain(
                     draw_if,
                     draw_else,
                 };
-                policy.observe(&game, p);
+                avant_decision(game, db, p, policy);
                 if policy.choose_option_ctx(&mut game.rng, p, &ctx) != 0 {
                     continue;
                 }
+                // (regles-de-la-vente) Hoistée au-dessus de l'instantané de main.
+                occasion_de_vendre(game, db, policy);
                 let hand = game.players[p].hand.clone();
-                policy.observe(&game, p);
+                observer(game, p, policy);
                 let idx = policy.discard_down(&mut game.rng, p, &hand, 1);
                 let Some(&i) = idx.first() else { continue };
                 if i >= hand.len() {
@@ -3004,7 +3231,7 @@ fn apply_action_eff(
         // ACTION, qui est ce qui alimente `phase_upgrades_by_action`. Aucune
         // action du jeu n'impose la phase : le paramètre vaut `None`.
         ActionEff::PhaseUpgrade => {
-            apply_phase_upgrade(game, p, policy, None, UpgradeSource::Action)
+            apply_phase_upgrade(game, db, p, policy, None, UpgradeSource::Action)
         }
         // (decouverte-projets) « Action : Piochez deux cartes. Puis, défaussez
         // deux cartes. » Le corps de la règle est
@@ -3107,7 +3334,7 @@ fn reveal_top(
     // `choose_res_target`). La règle « on ne demande rien à une seule option »
     // ne vaut que pour les ALTERNATIVES du texte imprimé (`choose_option`).
     if take > 0 {
-        policy.observe(&game, p);
+        avant_decision(game, db, p, policy);
         let idx = policy.research_keep(&mut game.rng, p, &cands, take);
         for &i in idx.iter().take(take) {
             if i < cands.len() {
@@ -3238,6 +3465,24 @@ fn apply_action_spec(
             if !action_effs_possible(game, effect) {
                 return false;
             }
+            // (regles-de-la-vente) **L'OCCASION DE VENDRE PASSE AVANT LA
+            // PAYABILITÉ, pas après.** Une action qui se paie en CARTES pose une
+            // question au joueur (« lesquelles ? »), et il a le droit de vendre
+            // avant d'y répondre — c'est tout l'objet de cette tâche. Mais alors
+            // la payabilité ci-dessous, `hand.len() >= n`, doit être jugée sur la
+            // main d'APRÈS la vente : jugée avant, elle laissait prélever les
+            // autres coûts (chaleur, MC, plantes, NT) puis faisait sauter
+            // l'assertion « coût en cartes partiellement payé » sur une main que
+            // le joueur venait de vider. Défaut trouvé par la relecture
+            // adversariale ; le test qui le rattrape vit dans
+            // `tests/lot3_tests.rs` (I6 : aucun nom de carte ici).
+            //
+            // Offerte SEULEMENT si l'action se paie en cartes : ailleurs il n'y a
+            // pas de question à préparer, et une occasion de plus consommerait
+            // une vente que le joueur destinait au point de décision suivant.
+            if cost.iter().any(|c| matches!(c, ActionCost::DiscardCard(_))) {
+                occasion_de_vendre(game, db, policy);
+            }
             // Payabilité (Java : *ActionValidator).
             for c in cost {
                 let ok = match *c {
@@ -3283,8 +3528,12 @@ fn apply_action_spec(
                     // (lot 6, brique 3) Défausse-coût : QUELLES cartes est une
                     // décision du joueur, prise par la politique existante.
                     ActionCost::DiscardCard(n) => {
+                        // (regles-de-la-vente) L'occasion a déjà été offerte
+                        // au-dessus de la PAYABILITÉ (voir plus haut) : la main
+                        // clonée ici est donc bien celle d'après la vente, et
+                        // `hand.len() >= n` a été vérifié sur elle.
                         let hand = game.players[p].hand.clone();
-                        policy.observe(&game, p);
+                        observer(game, p, policy);
                         let idx = policy.discard_down(&mut game.rng, p, &hand, n as usize);
                         let mut paid = 0u8;
                         for &i in idx.iter().take(n as usize) {
@@ -3371,7 +3620,7 @@ fn apply_action_spec(
                     gain,
                     max: branches,
                 };
-                policy.observe(&game, p);
+                avant_decision(game, db, p, policy);
                 let c = policy.choose_option_ctx(&mut game.rng, p, &ctx);
                 if c >= branches as usize {
                     return false; // renoncement explicite (convention lot 3)
@@ -3387,7 +3636,7 @@ fn apply_action_spec(
         // inchangé — carte hors périmètre, I4.)
         Action::HeatToMc => {
             let max = game.players[p].heat;
-            policy.observe(&game, p);
+            avant_decision(game, db, p, policy);
             let amt = policy.action_amount(&mut game.rng, p, max).clamp(0, max);
             if amt <= 0 {
                 return false;
@@ -3434,14 +3683,27 @@ fn apply_action_spec(
         }
         // « Discard up to `cap` cards, draw that many. »
         Action::DiscardDraw(cap) => {
+            // (regles-de-la-vente) L'occasion D'ABORD, le plafond ENSUITE. Le
+            // plafond est le nombre de cartes en main : calculé avant la vente,
+            // il autorisait à en défausser plus qu'il n'en restait, et le tirage
+            // ci-dessous cassait sur une main vide (`cannot sample empty range`).
+            // Défaut trouvé par la relecture adversariale ; le test qui le
+            // rattrape vit dans `tests/lot3_tests.rs` (I6 : aucun nom de carte
+            // ici).
+            avant_decision(game, db, p, policy);
             let max = (game.players[p].hand.len() as i64).min(cap);
-            policy.observe(&game, p);
             let amt = policy.action_amount(&mut game.rng, p, max).clamp(0, max);
             if amt <= 0 {
                 return false;
             }
             for _ in 0..amt {
                 let n = game.players[p].hand.len();
+                // Ceinture ET bretelles : `max` a été calculé sur cette main-ci,
+                // mais une main vide ne se tire pas, et l'affirmer coûte moins
+                // cher qu'une panique irrattrapable en WebAssembly.
+                if n == 0 {
+                    break;
+                }
                 let i = game.rng.gen_range(0..n);
                 let card = game.players[p].hand.remove(i);
                 game.discard.push(card);
@@ -3486,7 +3748,7 @@ fn apply_action_spec(
                     card: card_id,
                     branches: &options,
                 };
-                policy.observe(&game, p);
+                avant_decision(game, db, p, policy);
                 let c = policy.choose_option_ctx(&mut game.rng, p, &ctx);
                 if c >= playable.len() {
                     return false; // renoncement explicite (journal D4)
@@ -3628,6 +3890,9 @@ fn selector_bonus_applied(
 /// (NEVER 4) — jamais par le moteur.
 fn selector_branch(
     game: &mut GameState,
+    // (regles-de-la-vente) même motif que `apply_phase_upgrade` : l'occasion de
+    // vendre qui précède ce choix a besoin du taux du service unique.
+    db: &CardsDb,
     b: &SelectorBonus,
     p: usize,
     policy: &mut dyn Policy,
@@ -3642,7 +3907,7 @@ fn selector_branch(
         card_name: b.spec.name,
         branches,
     };
-    policy.observe(&game, p);
+    avant_decision(game, db, p, policy);
     let i = policy.choose_option_ctx(&mut game.rng, p, &ctx);
     &branches[i.min(branches.len() - 1)]
 }
@@ -3665,14 +3930,20 @@ fn grant_selector_builds(game: &mut GameState, p: usize, g: &SelectorGrant) {
 fn phase_development(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
     for p in game.players_in_turn_order() {
         let bonus = selector_bonus_applied(game, db, p, 1);
-        let g = selector_branch(game, &bonus, p, policy);
+        let g = selector_branch(game, db, &bonus, p, policy);
         let discount = g.mc_discount;
         // (jokers-corpos) Les badges jokers de la main reçoivent leur jeton AVANT
         // l'énumération : `affordable` juge alors chaque carte joker sur son
         // badge réel, exactement comme le paiement le fera (I2).
+        // (regles-de-la-vente) L'occasion de vendre est hoistée AU-DESSUS de
+        // l'énumération : les options qui suivent doivent etre calculees sur la
+        // main d'APRÈS la vente, sinon leurs indices désigneraient d'autres
+        // cartes que celles que le joueur a sous les yeux. Le point de décision
+        // ne reçoit donc qu'une observation nue (voir `observer`).
         resolve_hand_jokers(game, db, p, policy);
+        occasion_de_vendre(game, db, policy);
         let opts = affordable(game, db, p, &GRANT_DEVELOPMENT, discount);
-        policy.observe(&game, p);
+        observer(game, p, policy);
         if let Some(idx) = policy.choose_build(&mut game.rng, p, &opts) {
             assert!(opts.contains(&idx), "choix de construction hors options");
             build_card_granted(game, db, p, idx, discount, &GRANT_DEVELOPMENT, policy);
@@ -3705,7 +3976,7 @@ fn phase_construction(game: &mut GameState, db: &CardsDb, policy: &mut dyn Polic
         // AMÉLIORÉES ont leur propre forme : II-A donne les deux à la fois,
         // II-B est un « ou » à deux branches tranché par `Policy::choose_option`.
         let bonus = if sb.is_selector && sb.upgraded.is_none() {
-            policy.observe(&game, p);
+            avant_decision(game, db, p, policy);
             Some(policy.construction_bonus(&mut game.rng, p))
         } else {
             None
@@ -3713,7 +3984,7 @@ fn phase_construction(game: &mut GameState, db: &CardsDb, policy: &mut dyn Polic
         // Bonus AMÉLIORÉ : la branche est arrêtée avant la pose, comme le
         // « ou » de la carte de base.
         let upgraded: Option<&'static SelectorGrant> = if sb.upgraded.is_some() {
-            Some(selector_branch(game, &sb, p, policy))
+            Some(selector_branch(game, db, &sb, p, policy))
         } else {
             None
         };
@@ -3745,9 +4016,15 @@ fn phase_construction(game: &mut GameState, db: &CardsDb, policy: &mut dyn Polic
         // (jokers-corpos) Les badges jokers de la main reçoivent leur jeton AVANT
         // l'énumération : `affordable` juge alors chaque carte joker sur son
         // badge réel, exactement comme le paiement le fera (I2).
+        // (regles-de-la-vente) L'occasion de vendre est hoistée AU-DESSUS de
+        // l'énumération : les options qui suivent doivent etre calculees sur la
+        // main d'APRÈS la vente, sinon leurs indices désigneraient d'autres
+        // cartes que celles que le joueur a sous les yeux. Le point de décision
+        // ne reçoit donc qu'une observation nue (voir `observer`).
         resolve_hand_jokers(game, db, p, policy);
+        occasion_de_vendre(game, db, policy);
         let opts = affordable(game, db, p, &GRANT_CONSTRUCTION, 0);
-        policy.observe(&game, p);
+        observer(game, p, policy);
         if let Some(idx) = policy.choose_build(&mut game.rng, p, &opts) {
             assert!(opts.contains(&idx), "choix de construction hors options");
             build_card_granted(game, db, p, idx, 0, &GRANT_CONSTRUCTION, policy);
@@ -3783,9 +4060,15 @@ fn phase_construction(game: &mut GameState, db: &CardsDb, policy: &mut dyn Polic
                 // (jokers-corpos) Les badges jokers de la main reçoivent leur jeton AVANT
                 // l'énumération : `affordable` juge alors chaque carte joker sur son
                 // badge réel, exactement comme le paiement le fera (I2).
+                // (regles-de-la-vente) L'occasion de vendre est hoistée AU-DESSUS de
+                // l'énumération : les options qui suivent doivent etre calculees sur la
+                // main d'APRÈS la vente, sinon leurs indices désigneraient d'autres
+                // cartes que celles que le joueur a sous les yeux. Le point de décision
+                // ne reçoit donc qu'une observation nue (voir `observer`).
                 resolve_hand_jokers(game, db, p, policy);
+                occasion_de_vendre(game, db, policy);
                 let opts = affordable(game, db, p, grant, 0);
-                policy.observe(&game, p);
+                observer(game, p, policy);
                 if let Some(idx) = policy.choose_build(&mut game.rng, p, &opts) {
                     assert!(opts.contains(&idx), "choix de construction hors options");
                     build_card_granted(game, db, p, idx, 0, grant, policy);
@@ -3831,7 +4114,7 @@ fn phase_action(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
     // de pioche est celui du tour.
     for p in order {
         let sb = selector_bonus_applied(game, db, p, 3);
-        let g = selector_branch(game, &sb, p, policy);
+        let g = selector_branch(game, db, &sb, p, policy);
         // Activations supplémentaires : la valeur vient de la table (base +1,
         // III-A +1, III-B +2) et c'est l'ÉTAT DU JOUEUR qui la porte pendant
         // toute la phase — la boucle d'actions ci-dessous la lit et la
@@ -3859,6 +4142,11 @@ fn phase_action(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
             if passed[p] {
                 continue;
             }
+            // (regles-de-la-vente) Hoistée au-dessus de l'énumération, comme aux
+            // points de pose : `action_options` n'offre la vente de carte que si
+            // la main n'est pas vide, et le joueur peut précisément être en train
+            // de la vider ici.
+            occasion_de_vendre(game, db, policy);
             action_options(
                 game,
                 db,
@@ -3867,7 +4155,7 @@ fn phase_action(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
                 corp_action_left[p],
                 &mut options,
             );
-            policy.observe(&game, p);
+            observer(game, p, policy);
             let Some(choice) = policy.action_choice(&mut game.rng, p, &options) else {
                 passed[p] = true;
                 continue;
@@ -3928,8 +4216,22 @@ fn phase_action(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
                     // La carte vendue est CHOISIE par la politique — le moteur
                     // ne la tire plus lui-même au hasard. Le corps par défaut de
                     // `sell_card` reproduit l'ancien tirage à l'identique.
+                    //
+                    // (regles-de-la-vente) `sell_card` est un point de décision à
+                    // part entière — l'écran l'affiche, et le joueur peut vouloir
+                    // vendre librement AVANT d'y répondre. Il lui faut donc son
+                    // occasion, hoistée au-dessus de l'instantané de main.
+                    occasion_de_vendre(game, db, policy);
                     let main = game.players[p].hand.clone();
                     let n = main.len();
+                    // Le joueur vient peut-être de vendre sa dernière carte à
+                    // l'occasion ci-dessus : l'action standard ne trouve alors
+                    // plus rien à vendre. Elle ne fait rien — il a déjà touché
+                    // ses MC — plutôt que d'indexer une main vide.
+                    if n == 0 {
+                        continue;
+                    }
+                    observer(game, p, policy);
                     let i = policy.sell_card(&mut game.rng, p, &main).min(n - 1);
                     let card = game.players[p].hand.remove(i);
                     game.discard.push(card);
@@ -3974,7 +4276,7 @@ fn phase_action(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
 pub(crate) fn phase_production(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
     for p in 0..NUM_PLAYERS {
         let sb = selector_bonus_applied(game, db, p, 4);
-        let g = selector_branch(game, &sb, p, policy);
+        let g = selector_branch(game, db, &sb, p, policy);
         let bonus = g.mc;
         // (lot 4) Production DÉRIVÉE : recalculée ICI, à chaque phase, à partir
         // des cartes en jeu et des badges du moment — jamais figée à la pose,
@@ -4061,7 +4363,7 @@ fn replay_green_production(
         let ctx = ChoiceContext::ReplayProduction {
             candidates: &options,
         };
-        policy.observe(&game, p);
+        avant_decision(game, db, p, policy);
         policy.choose_option_ctx(&mut game.rng, p, &ctx)
     };
     if i >= cands.len() {
@@ -4133,7 +4435,7 @@ fn phase_research(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
         // pioche épuisée en donnerait moins) — relevé au site de pioche.
         game.research_extra_draws += drawn.len().saturating_sub(base_n) as u64;
         let keep = keep.min(drawn.len());
-        policy.observe(&game, p);
+        avant_decision(game, db, p, policy);
         let kept_idx = policy.research_keep(&mut game.rng, p, &drawn, keep);
         assert_eq!(kept_idx.len(), keep, "recherche: mauvais nombre de cartes gardées");
         let mut kept_flags = vec![false; drawn.len()];
@@ -4354,6 +4656,22 @@ impl ScoreBreakdown {
     pub fn total(&self) -> i64 {
         self.tr + self.forests + self.cards + self.milestones + self.awards
     }
+
+    /// **Ce qui est ACQUIS** : niveau de terraformation + forêts + cartes posées
+    /// + jalons. Autrement dit le total MOINS les récompenses.
+    ///
+    /// (regles-de-la-vente) Le grand nombre de l'écran affichait 18 et 15 au
+    /// premier tour d'une partie où personne n'avait rien fait : 5 de niveau de
+    /// terraformation, plus 13 de récompenses que `award_points_split` distribue
+    /// d'avance alors qu'elles ne seront attribuées qu'à la fin.
+    ///
+    /// Les récompenses sont la SEULE part provisoire. Un jalon atteint l'est
+    /// pour de bon — il compte donc ici. Et `total()` ne bouge pas d'un point :
+    /// le classement, le simulateur et l'IA à venir s'appuient dessus. Ce qui
+    /// change, c'est ce que l'écran met en gros.
+    pub fn acquis(&self) -> i64 {
+        self.tr + self.forests + self.cards + self.milestones
+    }
 }
 
 /// Score final + deux compteurs d'audit tirés du MÊME parcours : les points de
@@ -4426,12 +4744,17 @@ pub fn play_round(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
     // même champ). Une entrée par manche réellement jouée.
     game.turn_order.push(game.first_player as u8);
 
+    // (regles-de-la-vente) La planification n'est pas une phase de jeu : on n'y
+    // dépense rien, donc on n'y vend pas. `0` le dit à l'écran comme à
+    // `occasion_de_vendre`, qui lisent tous deux ce champ-là et pas un autre.
+    game.phase_en_cours = 0;
+
     // A. Planification (simultanée et secrète dans le jeu réel ; l'ordre
     // d'appel n'influe pas sur l'information disponible en politique v1).
     let mut picked = [false; 6];
     for p in 0..NUM_PLAYERS {
         let allowed = allowed_phases(&game.players[p]);
-        policy.observe(&game, p);
+        avant_decision(game, db, p, policy);
         let phase = policy.pick_phase(&mut game.rng, p, &allowed);
         assert!(
             allowed.contains(&phase),
@@ -4461,6 +4784,11 @@ pub fn play_round(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
         if !picked[phase as usize] {
             continue;
         }
+        // (regles-de-la-vente) La phase que le moteur résout à partir d'ici.
+        // Écrite au SEUL endroit qui la connaisse, avant le premier point de
+        // décision de la phase, pour que l'écran et l'occasion de vendre en
+        // disent la même chose.
+        game.phase_en_cours = phase;
         game.snapshot_planet();
         // (corpo-1) Début de phase : « The FIRST TIME your TR is raised EACH
         // PHASE » (Unmi). Le drapeau se remet à zéro ici, à côté de l'instantané
@@ -4482,10 +4810,19 @@ pub fn play_round(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
         }
         assign_milestones(game);
         if game.all_parameters_maxed() {
+            // (regles-de-la-vente) La partie s'arrête : plus aucune phase n'est
+            // en cours, donc plus aucune vente n'est offerte.
+            game.phase_en_cours = 0;
             game.game_over = true;
             return;
         }
     }
+
+    // (regles-de-la-vente) L'étape de fin de manche n'est pas une phase : la
+    // défausse de limite de main y est une OBLIGATION, pas une dépense. Sans ce
+    // retour à zéro, l'écran garderait allumée la dernière phase résolue et
+    // offrirait un bouton de vente que le moteur refuserait.
+    game.phase_en_cours = 0;
 
     // C. Étape de fin : limite de main 10, 3 MC par carte défaussée
     // (livret « avslutningssteget » p.16).
@@ -4493,7 +4830,7 @@ pub fn play_round(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
         let over = game.players[p].hand.len().saturating_sub(HAND_LIMIT);
         if over > 0 {
             let hand_snapshot = game.players[p].hand.clone();
-            policy.observe(&game, p);
+            avant_decision(game, db, p, policy);
             let mut idx = policy.discard_down(&mut game.rng, p, &hand_snapshot, over);
             assert_eq!(idx.len(), over, "défausse de fin de ronde: mauvais nombre");
             idx.sort_unstable();

@@ -15,10 +15,29 @@
 // NOMBRE. Rendre une carte transparente ou la pousser hors de l'écran ne serait
 // pas la cacher — il suffirait d'ouvrir les outils du navigateur pour la lire.
 //
-// CE QUI EST JOUABLE. Une carte de ma main porte `data-jouable="oui"` si et
-// seulement si le moteur vient de l'énumérer parmi les options de la décision en
-// cours ET que cette décision est celle de mon siège. Recopie d'identifiants,
-// pas jugement : la page ne sait pas ce que coûte une carte.
+// CE QU'ON PEUT PAYER — et c'est bien de PAYER qu'il s'agit.
+//
+// (regles-de-la-vente) `data-jouable="oui"` disait jusqu'ici « le moteur vient
+// d'énumérer cette carte parmi les options de la décision en cours ». Il dit
+// désormais « le moteur dit que j'ai de quoi la payer » : c'est
+// `players[].main_payable`, rendu par `flow::main_payable` — le même point de
+// calcul que l'énumération des options d'une pose, réductions comprises.
+//
+// POURQUOI CE CHANGEMENT. Le contour vert est ce que le propriétaire du projet
+// regarde pour savoir ce qu'il peut s'offrir : c'est LUI qui annonçait jouable
+// une carte à 17 MC à un joueur qui en avait 13. Adossé aux options d'une
+// décision, il ne disait rien du tout hors des poses — main de onze cartes, 26
+// MC en poche, pas un contour — et il pouvait S'ÉTEINDRE en vendant, puisque
+// vendre change la décision en cours. Adossé aux MC réels, il ne peut que
+// grandir quand on vend, ce qui est la propriété qu'on veut voir.
+//
+// CE QUI EST JOUABLE MAINTENANT reste dit, et par le même moyen qu'avant :
+// `data-choix`, l'indice que le moteur attend, porté par la carte. Deux
+// attributs, deux faits distincts — « je peux la payer » et « je peux la jouer
+// à l'instant » — chacun avec une seule définition.
+//
+// Recopie, pas jugement, dans les deux cas : la page ne sait toujours pas ce
+// qu'une carte coûte.
 
 import { carte, cle, normaliser } from "./cartes.js";
 import { dosProjet, nomJoueur } from "./materiel.js";
@@ -155,7 +174,19 @@ export function majMains(etat, decision, siege) {
   const clesEnMain = new Set(cartes.map((c) => cle(c)).filter(Boolean));
   plan = active ? planDeLaDecision(decision, clesEnMain) : null;
 
-  maMain(siege, cartes, proposees, active);
+  // (regles-de-la-vente) CE QUE JE PEUX PAYER, carte par carte, tel que le
+  // moteur le rend (`main_payable`, dans l'ordre de `hand`). Les cartes que la
+  // question NOMME sans que l'état ne les montre encore (voir `cartesEnMain`)
+  // n'y figurent pas : le moteur vient de les proposer, elles sont donc
+  // payables, et c'est `proposees` qui répond pour elles.
+  const payables = new Set();
+  const dits = moi.main_payable || [];
+  moi.hand.forEach((c, i) => {
+    const k = cle(c);
+    if (k && dits[i]) payables.add(k);
+  });
+
+  maMain(siege, cartes, proposees, payables);
   mainAdverse(1 - siege, lui.hand.length);
 }
 
@@ -215,7 +246,7 @@ function cartesEnMain(etat, p, decision, active) {
 }
 
 /** Ma main, en bas, en clair — et c'est d'ici qu'on joue. */
-function maMain(j, cartes, proposees, active) {
+function maMain(j, cartes, proposees, payables) {
   const z = ref("#mienne-rang");
   if (!z) return;
   ref("#mienne-mot").textContent = `${MOT.hand} · ${nomJoueur(j)} · ${cartes.length}`;
@@ -251,8 +282,11 @@ function maMain(j, cartes, proposees, active) {
   }
   for (const f of z.children) {
     const k = f.dataset.carteCle;
-    if (active) f.dataset.jouable = proposees.has(k) ? "oui" : "non";
-    else delete f.dataset.jouable;
+    // (regles-de-la-vente) Le contour suit la BOURSE, à tout instant de la
+    // partie — pas seulement quand une question m'est posée. Une carte que la
+    // question nomme et que l'état ne montre pas encore est payable par
+    // construction : le moteur vient de la proposer.
+    f.dataset.jouable = (payables.has(k) || proposees.has(k)) ? "oui" : "non";
     // L'INDICE DE LA RÉPONSE, PORTÉ PAR LA CARTE. C'est le moteur qui vient de
     // l'énumérer ; la page ne fait que le recopier sur l'objet qu'on touche.
     const indice = plan ? plan.indices.get(k) : undefined;
@@ -261,7 +295,7 @@ function maMain(j, cartes, proposees, active) {
     // Une carte qui n'est plus en vol reprend sa place pleine.
     delete f.dataset.enMain;
   }
-  serrer(z, cartes.length, largeurReelle(z), ECART, SERRAGE_MAX);
+  serrer(z, cartes.length, ECART, SERRAGE_MAX, LARGEUR);
 }
 
 /**
@@ -270,11 +304,15 @@ function maMain(j, cartes, proposees, active) {
  * une constante périmée ferait recouvrir les cartes de plus que la moitié de leur
  * largeur réelle — c'est-à-dire cacher leur centre, celui qu'on vise pour les
  * attraper.
+ *
+ * C'est la largeur NATURELLE qu'on lit — celle que la feuille de style donne —
+ * et jamais celle d'un rétrécissement précédent : `serrer` efface son propre
+ * réglage avant de mesurer, sinon la main fondrait un peu plus à chaque rendu.
  */
-function largeurReelle(z) {
-  const im = z.querySelector(".carte--main img");
+function largeurReelle(z, defaut) {
+  const im = z.querySelector("img");
   const l = im ? im.getBoundingClientRect().width : 0;
-  return l > 1 ? l : LARGEUR;
+  return l > 1 ? l : defaut;
 }
 
 /**
@@ -311,29 +349,75 @@ function mainAdverse(j, combien) {
       z.appendChild(f);
     }
   }
-  serrer(z, combien, LARGEUR_DOS, ECART_DOS, SERRAGE_MAX);
+  serrer(z, combien, ECART_DOS, SERRAGE_MAX, LARGEUR_DOS);
 }
 
 /**
- * LES CARTES SE RECOUVRENT, ELLES NE RÉTRÉCISSENT PAS. Une main de quinze
- * cartes ne tient pas côte à côte dans la largeur de l'écran ; les réduire
- * rendrait le prix illisible, donc le jeu injouable. On calcule le recouvrement
- * nécessaire, borné pour que le centre de chaque carte reste découvert — c'est
- * lui qu'on vise pour l'attraper.
+ * LES CARTES SE RECOUVRENT, ELLES NE RÉTRÉCISSENT PAS — tant que la place le
+ * permet. Une main de quinze cartes ne tient pas côte à côte dans la largeur de
+ * l'écran ; les réduire rend le prix illisible. On calcule donc le recouvrement
+ * nécessaire, borné pour que le centre de chaque carte reste découvert : c'est
+ * lui qu'on vise pour l'attraper, et c'est lui que le contrat appelle
+ * « cliquable ».
+ *
+ * (round 2) LA BORNE NE SUFFISAIT PAS, PARCE QU'ELLE POUVAIT NE PAS TENIR. Le
+ * recouvrement était plafonné à `maximum` mais rien ne garantissait que n cartes
+ * ainsi serrées entrent dans la largeur disponible : au-delà, le rang débordait
+ * de sa zone, et les cartes de gauche s'en allaient sous ce qui vit dans le coin
+ * — le panneau de vente. Cette fonction rend maintenant une garantie COMPLÈTE,
+ * pour toute longueur de main et toute taille de fenêtre :
+ *
+ *   1. deux voisines ne se recouvrent jamais de plus de `maximum` (< 50 %), donc
+ *      chaque carte avance d'au moins (1 − `maximum`) de sa largeur et son
+ *      centre reste devant sa voisine ;
+ *   2. les n cartes ainsi posées TIENNENT dans `dispo`. Quand la largeur
+ *      naturelle ne le permet pas, c'est elle qui cède — la carte rétrécit,
+ *      jusqu'à ce que le compte tombe juste.
+ *
+ * L'ordre des deux est délibéré : une carte trop petite se lit mal, une carte
+ * qu'on ne peut pas désigner ne se joue pas du tout. La lisibilité cède la
+ * première. Mesuré : à 1280×720, une fois les deux gouttières réservées
+ * (`style-vente.css`), il reste 784 px pour des cartes de 92 — le rétrécissement
+ * ne commence donc qu'à QUINZE cartes, et les treize de la partie la plus longue
+ * mesurée gardent leurs 92 px.
+ *
+ * @param {Element} z        le rang de cartes
+ * @param {number} n         combien de cartes
+ * @param {number} ecart     l'écart entre deux cartes quand la place abonde
+ * @param {number} maximum   le recouvrement maximal, en part de la largeur
+ * @param {number} defaut    la largeur à supposer si aucune image n'est encore là
  */
-function serrer(z, n, largeur, ecart, maximum) {
+function serrer(z, n, ecart, maximum, defaut) {
+  // On repart TOUJOURS de la largeur naturelle : sans cela le rétrécissement
+  // d'un rendu servirait de base au suivant, et la main fondrait à chaque coup.
+  z.style.removeProperty("--largeur-carte");
+  if (n <= 0) return;
+  const dispo = z.clientWidth > 0 ? z.clientWidth : 1200;
+  const naturelle = largeurReelle(z, defaut);
+
+  // La largeur qui fait tenir n cartes au serrage maximal :
+  //   (n − 1) × pas × largeur + largeur ≤ dispo,  avec pas = 1 − maximum.
+  const pas = 1 - maximum;
+  const tenable = n > 1 ? dispo / (pas * (n - 1) + 1) : dispo;
+  const largeur = Math.min(naturelle, tenable);
+  if (largeur < naturelle) {
+    // En pixels fractionnaires, et non arrondis : l'arrondi mangerait la marge
+    // qui sépare le centre d'une carte du bord de sa voisine, et c'est
+    // précisément cette marge qui rend la carte cliquable.
+    z.style.setProperty("--largeur-carte", largeur.toFixed(2) + "px");
+  }
+
   if (n <= 1) {
     z.style.setProperty("--serrage", ecart + "px");
     return;
   }
-  const dispo = z.clientWidth || 1200;
   const naturel = n * largeur + (n - 1) * ecart;
   if (naturel <= dispo) {
     z.style.setProperty("--serrage", ecart + "px");
     return;
   }
   const chevauchement = Math.min(largeur * maximum, (naturel - dispo) / (n - 1) + ecart);
-  z.style.setProperty("--serrage", Math.round(-chevauchement) + "px");
+  z.style.setProperty("--serrage", (-chevauchement).toFixed(2) + "px");
 }
 
 /**
@@ -343,9 +427,9 @@ function serrer(z, n, largeur, ecart, maximum) {
  */
 export function replacerMains() {
   const m = ref("#mienne-rang");
-  if (m) serrer(m, m.childElementCount, largeurReelle(m), ECART, SERRAGE_MAX);
+  if (m) serrer(m, m.childElementCount, ECART, SERRAGE_MAX, LARGEUR);
   const a = ref("#adverse-rang");
-  if (a) serrer(a, a.childElementCount, LARGEUR_DOS, ECART_DOS, SERRAGE_MAX);
+  if (a) serrer(a, a.childElementCount, ECART_DOS, SERRAGE_MAX, LARGEUR_DOS);
 }
 
 /**

@@ -859,8 +859,8 @@ fn la_boite_de_base_est_intacte_et_l_extension_a_change() {
     let s = run_simulation(&base, 1000, 2024, &mut pol);
     assert_eq!(
         format!("{:016x}", s.state_hash),
-        "c1c52fcbe4e057b0",
-        "empreinte de la boîte de base, REFIXÉE le 01-08 : les cartes bleues sans action ne sont plus proposées à l'activation (repère précédent, 31-07 : d6a7267472501b13)"
+        "7dda3ea2e9b2901b",
+        "empreinte de la boîte de base, REFIXÉE le 03-08 (regles-de-la-vente) : la jouabilité ne compte plus la vente d'avance et le paiement par défausse d'office a disparu, les parties ne se déroulent donc plus pareil — le prompt l'annonce (« les empreintes de référence du moteur vont changer »). Repères précédents : c1c52fcbe4e057b0 (01-08), d6a7267472501b13 (31-07)"
     );
 
     let db = db();

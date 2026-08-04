@@ -624,15 +624,32 @@ fn les_natures_de_choix_sont_multiples_et_nommees() {
         play_game(&db, seed, &mut rec);
     }
     assert!(rec.total > 400, "échantillon trop maigre : {} choix", rec.total);
-    // Onze sites d'appel, onze natures — et les soixante parties (déterministes)
+    // Dix sites d'appel, dix natures — et les soixante parties (déterministes)
     // les atteignent toutes. Le seuil est donc l'exhaustivité, pas un minimum
     // prudent : si un site retombait dans une catégorie déjà employée, ce test
     // le verrait.
+    //
+    // (regles-de-la-vente) Onze → dix. La nature disparue est
+    // `paiement_chaleur` (Helion, « You MAY use heat as MC »). Ce « may »
+    // n'était une ALTERNATIVE que tant que le moteur offrait, en face, de payer
+    // en défaussant des cartes : renoncer à la chaleur voulait dire « je paierai
+    // en vendant ». La vente d'office supprimée, renoncer reviendrait à renoncer
+    // à une carte qu'on vient de choisir de poser — une seule branche jouable,
+    // et la convention du lot 3 interdit d'interroger la politique sur une
+    // branche unique. La variante `ChoiceContext::HeatAsMc` reste dans le
+    // vocabulaire de `choice.rs` : c'est le FLUX qui ne l'emprunte plus, pas le
+    // langage qui l'a perdue.
     assert_eq!(
         rec.natures.len(),
-        11,
-        "les onze sites de décision doivent donner onze natures distinctes, \
+        10,
+        "les dix sites de décision doivent donner dix natures distinctes, \
          rencontrées : {:?}",
+        rec.natures
+    );
+    assert!(
+        !rec.natures.contains("paiement_chaleur"),
+        "le choix « employer la chaleur ou payer en vendant » ne doit plus être \
+         posé : il n'a plus qu'une branche jouable ({:?})",
         rec.natures
     );
     // Les deux natures que le contrat cite nommément.

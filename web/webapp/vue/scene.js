@@ -38,24 +38,20 @@ const LEGENDE = 26;
 // pour `bonus_selectionneur`. Dans une bande, cette carte tombe à 90 px de haut
 // et n'est plus lisible : la décision se prendrait à l'aveugle.
 //
-// LA VENTE POUR PAYER en fait partie depuis le 02-08. Elle demande, dans la même
-// vue, une phrase d'explication, jusqu'à neuf cartes qui vont partir, un cadran et
-// un bouton. Dans une bande de 240 px, les cartes débordaient sur le cadran et le
-// recouvraient — mesuré à l'écran, capture `outputs/work/vues/08-vendre.jpg`. Et
-// c'est justement la décision que le joueur n'a pas comprise : elle mérite qu'on
-// s'arrête dessus.
+// (regles-de-la-vente) LA VENTE POUR PAYER en faisait partie depuis le 02-08 :
+// une phrase, jusqu'à neuf cartes qui allaient partir, un cadran et un bouton.
+// Cette décision n'existe plus — le moteur ne vend plus d'office pour compléter
+// un paiement, et le joueur vend désormais quand il veut, par le bouton de
+// `vue/vente.js`. Le contexte qui la dessinait est retiré avec elle : une vue
+// qu'aucune décision ne peut plus atteindre n'est pas du décor, c'est du code
+// mort qui prétend que la règle existe encore.
 const SUPERPOSITION = new Set([
   "corp_mulligan", "project_mulligan", "pick_corporation",
   "alternative_carte", "alternative_action", "bonus_selectionneur",
-  "discard_payment_count",
 ]);
 
 let resoudre = null; // la réponse attendue par le moteur, une fois cliquée
 let enCours = null; // la décision affichée, pour pouvoir la redessiner
-// Le nom de la carte qu'on construit, retenu de décision en décision : le
-// descripteur de la vente pour payer ne le porte pas, et l'écran doit pourtant
-// dire ce qu'on paie.
-let derniereConstruction = null;
 // Une carte Phase est en train de se poser : on n'en lance pas une seconde.
 let phaseEnVol = false;
 
@@ -99,14 +95,31 @@ export function replacerScene() {
   dessiner(enCours.d, enCours.etat);
 }
 
+/**
+ * (regles-de-la-vente) **Rendre une VENTE à la place de la réponse attendue.**
+ *
+ * Une vente n'est pas une réponse à la question posée : c'est une entrée de plus
+ * dans la liste des décisions, que le moteur consomme à son point d'occasion
+ * avant de reposer la MÊME question sur l'état d'après (`vue/vente.js`). Elle
+ * emprunte pourtant le même fil que la réponse — la promesse que la boucle de
+ * jeu attend — parce que c'est le seul par où quelque chose peut atteindre le
+ * moteur sans que la page invente un second chemin.
+ *
+ * Rend `false` si aucune question n'est posée à cet instant : la vente est alors
+ * gardée par `vue/vente.js` et rendue à la question suivante. Un `false` n'est
+ * pas un échec, c'est « pas maintenant ».
+ */
+export function venteImmediate(entree) {
+  if (!resoudre) return false;
+  repondre(entree);
+  return true;
+}
+
 /** Efface la scène : plus aucun `data-choix` ne subsiste (fin de partie). */
 export function viderScene() {
   const m = document.getElementById("scene");
   if (m) m.textContent = "";
   enCours = null;
-  // Rien ne doit survivre à une partie : le nom de la dernière construction
-  // reparaîtrait dans l'écran de vente de la partie suivante.
-  derniereConstruction = null;
   phaseEnVol = false;
   fermerScene();
 }
@@ -197,13 +210,6 @@ function dessiner(d, etat) {
   // peut alors savoir de quelle question il s'agit sans la relire en anglais.
   m.dataset.decisionType = d.type;
 
-  // La carte qu'on est en train de construire — le moteur la nomme dans les
-  // décisions intermédiaires, et l'écran de vente en a besoin pour dire ce qu'on
-  // paie. Rien n'est deviné : on retient le nom que le descripteur donne.
-  if (d.carte) {
-    const c = normaliser(d.carte);
-    if (c) derniereConstruction = c.nom;
-  }
   // Nombre libre (remplacement partiel des cartes de départ) : on ne pose pas
   // l'attribut du tout, plutôt que d'annoncer « undefined » à qui nous lit.
   if (forme === "multiple" && d.a_choisir !== undefined && d.a_choisir !== null) {
@@ -351,9 +357,6 @@ function contexte(d) {
     if (im) return contextePhase(im, `${MOT.currentCard} · ${phaseNom(d.phase)}`);
   }
 
-  // VENDRE POUR PAYER : ce n'est pas un curseur, c'est une phrase et des cartes.
-  if (d.type === "discard_payment_count") return contexteVente(d);
-
   // Choisir sa corporation n'a PLUS de contexte : les deux cartes sont les
   // options elles-mêmes, montrées en grand au milieu. Les répéter ici les
   // afficherait deux fois et volerait la place à celles qu'on doit choisir.
@@ -391,68 +394,6 @@ function contexte(d) {
   }
   z.appendChild(r);
   return z;
-}
-
-/**
- * VENDRE DES CARTES POUR FINIR DE PAYER — ce que le joueur voyait le 02-08 : un
- * curseur affichant « 5 », impossible à descendre, sans un mot d'explication et
- * sans savoir quelles cartes partaient.
- *
- * Deux choses manquaient, les voici :
- *
- *   • la PHRASE. Ce qu'on construit, ce qu'il manque, ce que chaque carte
- *     rapporte. Tous les nombres viennent du descripteur (`cout`, `mc`, `taux`),
- *     aucun n'est recalculé ;
- *   • les CARTES. Le moteur prend les DERNIÈRES de la main
- *     (`engine/src/flow.rs:2354` : `hand.pop()`, autant de fois que le nombre
- *     choisi). On montre donc exactement celles-là, et elles suivent le curseur.
- *
- * Ce qu'on ne fait PAS : laisser choisir LESQUELLES. Cela demanderait de modifier
- * le moteur, ce que ce chantier n'a pas le droit de faire — et faire semblant de
- * l'offrir serait pire que de ne pas l'offrir.
- */
-function contexteVente(d) {
-  const main = d.main || [];
-  const taux = d.taux ?? 0;
-  const manque = Math.max(0, (d.cout ?? 0) - (d.mc ?? 0));
-  const quoi = derniereConstruction ? `“${derniereConstruction}”` : MOT.thatCard;
-
-  const z = document.createElement("div");
-  z.className = "scene__contexte vente";
-  z.dataset.vente = "";
-
-  const p = document.createElement("p");
-  p.className = "vente__phrase";
-  p.textContent =
-    `${quoi} costs ${d.cout} MC and you only hold ${d.mc} MC: ${manque} MC are missing. ` +
-    `Each project card you discard pays ${taux} MC. ` +
-    `The cards below leave your hand — the engine always takes them from the end.`;
-  z.appendChild(p);
-
-  const r = document.createElement("div");
-  r.className = "vente__rang";
-  r.id = "vente-rang";
-  z.appendChild(r);
-
-  // Le premier dessin montre le minimum, qui est aussi la valeur du cadran.
-  montrerLesVendues(r, main, d.minimum ?? 0);
-  return z;
-}
-
-/** Les `n` dernières cartes de la main : celles qui partiront, et elles seules. */
-function montrerLesVendues(rang, main, n) {
-  if (!rang) return;
-  rang.textContent = "";
-  const combien = Math.max(0, Math.min(n, main.length));
-  for (const c of main.slice(main.length - combien)) {
-    const f = carte(c, { classe: "carte--vente" });
-    const id = normaliser(c);
-    if (id && id.id !== null && id.id !== undefined) {
-      f.dataset.venteCarte = String(id.id);
-    }
-    survolable(f, c);
-    rang.appendChild(f);
-  }
 }
 
 /** Un contexte fait d'une seule carte Phase imprimée, montrée telle quelle. */
@@ -515,10 +456,7 @@ function simple(d, zone, etat) {
   // La scène ne garde ici que ce qui n'est pas une carte : la question, et
   // « passer », qui n'est dans aucune main.
   if (decisionDeMain(d)) {
-    ouvrirGeste(d.rang, (i) => {
-      noterConstruction(d, i);
-      repondre(i);
-    });
+    ouvrirGeste(d.rang, repondre);
     zone.dataset.sorte = "geste";
     zone.style.gridTemplateColumns = "";
     const mot = document.createElement("p");
@@ -630,13 +568,6 @@ function brancherChoix(b, d, o, i) {
   b.addEventListener("click", () => repondre(i));
 }
 
-/** Ce qu'on vient de décider de construire, pour l'écran de vente qui suivra. */
-function noterConstruction(d, i) {
-  if (d.type !== "choose_build") return;
-  const c = normaliser((d.options || [])[i]);
-  derniereConstruction = c ? c.nom : null;
-}
-
 /** Choix multiple : on sélectionne, puis on valide. */
 function multiple(d, zone, barre, etat) {
   const options = d.options || [];
@@ -712,19 +643,14 @@ function montant(d, zone, barre) {
   zone.appendChild(c);
 
   const borne = (v) => Math.max(min, Math.min(max, v));
-  // LE CURSEUR MONTRE CE QU'IL COÛTE. Tant qu'on bouge le nombre, les cartes qui
-  // partiront changent sous les yeux : c'est ce qui distingue un choix d'un
-  // chiffre nu. `input` couvre la frappe comme les deux boutons.
-  const suivre = () => {
-    if (d.type !== "discard_payment_count") return;
-    const rang = document.getElementById("vente-rang");
-    montrerLesVendues(rang, d.main || [], borne(Number(champ.value || min)));
-  };
-  champ.addEventListener("input", suivre);
+  // (regles-de-la-vente) Le cadran ne montrait ce qu'il COÛTE que pour la vente
+  // d'office : les cartes qui allaient partir suivaient le nombre. Cette
+  // décision n'existe plus, et le seul montant qui reste (« spend any amount »)
+  // ne fait partir aucune carte. Les deux boutons se contentent donc de borner
+  // le nombre.
   for (const b of c.querySelectorAll("[data-pas]")) {
     b.addEventListener("click", () => {
       champ.value = String(borne(Number(champ.value || min) + Number(b.dataset.pas)));
-      suivre();
     });
   }
 
@@ -928,7 +854,7 @@ function slabAction(o, mot) {
 function mesurer(d, zone, n) {
   const illustre = optionsIllustrees(d);
   const L = zone.clientWidth || 1040;
-  const H = zone.clientHeight || 470;
+  const H = hauteurDeLaZone(zone);
   const plan = illustre ? planImages(L, H, n) : planPlaques(L, H, n);
 
   zone.style.gridTemplateColumns = `repeat(${plan.c}, ${plan.w}px)`;
@@ -937,6 +863,37 @@ function mesurer(d, zone, n) {
   zone.dataset.dense = illustre && plan.w < 170 ? "oui" : "non";
   zone.dataset.sorte = illustre ? "images" : "plaques";
   return plan.w;
+}
+
+/**
+ * (regles-de-la-vente, round 2) **LA HAUTEUR QU'A VRAIMENT LA ZONE DES CHOIX.**
+ *
+ * On mesure AVANT de poser les choix : la zone est donc vide, et comme elle
+ * grandit pour prendre la place libre (`flex: 1 1 auto`), sa hauteur d'alors est
+ * exactement la place qui lui reste. Zéro est une réponse JUSTE : elle veut dire
+ * que l'entête et le contexte ont déjà tout pris.
+ *
+ * Ce zéro était remplacé par 470 px. Mesuré à 1280×720, graine 2024, rang 352
+ * (`pick_joker_tag`, dix options) : bande de décision de 173 px, contexte de
+ * 116, zone des choix de **10 px** — et un plan calculé pour 470, donc des
+ * plaques de **229 px** posées deux rangées, débordant de y 207 à y 677. Ma main
+ * commence à y 566 : ses trois cartes étaient recouvertes par les boutons de la
+ * scène, donc INVENDABLES (contrôle 06), et le clic de Playwright était
+ * intercepté. Le nombre inventé faisait dessiner quarante-sept fois la place
+ * disponible.
+ *
+ * On ne garde donc le repli que pour le seul cas où la mesure ne veut vraiment
+ * rien dire : une zone qui n'est pas encore dans une page mise en page. Sinon on
+ * rend 1 px, et ce sont les branches de DERNIER RECOURS de `planImages` et
+ * `planPlaques` qui répondent — des choix serrés, illisibles peut-être, mais
+ * DANS leur bande. Un choix trop petit reste cliquable ; un choix qui déborde
+ * sur la main rend deux gestes impossibles au lieu d'un.
+ */
+function hauteurDeLaZone(zone) {
+  const h = zone.clientHeight;
+  if (h > 0) return h;
+  const parent = zone.parentElement;
+  return parent && parent.clientHeight > 0 ? 1 : 470;
 }
 
 /** La largeur utile d'une colonne, marge de sûreté comprise. */

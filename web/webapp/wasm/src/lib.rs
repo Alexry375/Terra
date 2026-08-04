@@ -817,6 +817,20 @@ impl<'a> Harnais<'a> {
             return None; // décisions suivantes : réponse par défaut, jetée
         }
         if self.curseur < self.reponses.len() {
+            // (regles-de-la-vente) Une vente est une entrée d'OCCASION : elle se
+            // consomme à un point d'occasion, jamais comme réponse à une
+            // question. Si elle arrive jusqu'ici, c'est que la page l'a inscrite
+            // à un endroit où le moteur n'offrait pas de vente — la faute est
+            // DÉCLARÉE, et la page retire l'entrée, plutôt que de la voir
+            // interprétée comme un indice de choix et d'empoisonner le rejeu.
+            if self.reponses[self.curseur].get("vendre").is_some() {
+                self.faute_vente(
+                    "une vente est proposée là où le moteur attend une réponse : \
+                     aucune occasion de vendre n'est ouverte à ce point"
+                        .to_string(),
+                );
+                return None;
+            }
             let r = self.reponses[self.curseur].clone();
             self.curseur += 1;
             return Some(r);
@@ -830,6 +844,16 @@ impl<'a> Harnais<'a> {
     fn faute(&mut self, quoi: String) {
         if self.erreur.is_none() {
             self.erreur = Some(format!("décision n°{} : {}", self.curseur - 1, quoi));
+        }
+    }
+
+    /// (regles-de-la-vente) Faute sur une ENTRÉE de vente. Elle porte son propre
+    /// libellé parce qu'une vente n'est pas une décision numérotée : la page a
+    /// besoin de savoir laquelle retirer, et `self.curseur` peut valoir 0 —
+    /// `faute` y soustrairait 1 et déborderait.
+    fn faute_vente(&mut self, quoi: String) {
+        if self.erreur.is_none() {
+            self.erreur = Some(format!("entrée n°{} (vente) : {}", self.curseur, quoi));
         }
     }
 
@@ -1344,48 +1368,68 @@ impl Policy for Harnais<'_> {
         }
     }
 
-    fn discard_payment_count(
-        &mut self,
-        rng: &mut StdRng,
-        player: usize,
-        mc: i64,
-        cost: i64,
-        hand: &[u16],
-        rate: i64,
-    ) -> usize {
-        // Minimum imposé par le moteur : de quoi couvrir le coût. Ce n'est pas
-        // une règle réécrite — c'est le corps par défaut du trait `Policy`, que
-        // le moteur applique lui-même quand la politique ne répond pas.
-        let taux = rate.max(1);
-        let manque = cost - mc;
-        let mini = if manque <= 0 {
-            0
-        } else {
-            (((manque + taux - 1) / taux) as usize).min(hand.len())
-        };
-        let desc = json!({
-            "type": "discard_payment_count",
-            "joueur": player,
-            "question": format!(
-                "Coût {cost} MC, vous avez {mc} MC : combien de cartes défausser ({taux} MC par carte) ?"
-            ),
-            "mc": mc, "cout": cost, "taux": taux,
-            "minimum": mini, "maximum": hand.len(),
-            "main": self.cartes(hand),
-            "montant": true,
-        });
-        match self.prendre(desc) {
-            Some(r) => match r.as_u64() {
-                Some(x) if (x as usize) >= mini && (x as usize) <= hand.len() => x as usize,
-                _ => {
-                    self.faute(format!("nombre de cartes {r} hors de {mini}..={}", hand.len()));
-                    mini
-                }
-            },
-            None => self
-                .defaut
-                .discard_payment_count(rng, player, mc, cost, hand, rate),
+    /// **(regles-de-la-vente) La vente libre : une ENTRÉE de la liste de
+    /// décisions, jamais une réponse à une question.**
+    ///
+    /// Le moteur n'interroge pas le joueur (« voulez-vous vendre ? ») : il fait
+    /// savoir, avant chacun de ses points de décision, qu'ici une vente est
+    /// recevable (`flow::occasion_de_vendre`). Ce point d'occasion ne peut donc
+    /// pas mettre la partie en attente comme le fait [`Harnais::prendre`] — il
+    /// n'y a pas de question à poser à la page.
+    ///
+    /// La page inscrit son geste dans la liste des décisions, sous la forme :
+    ///
+    /// ```json
+    /// {"vendre": {"joueur": 0, "cartes": [3]}}
+    /// ```
+    ///
+    /// et l'entrée est consommée à la PREMIÈRE occasion offerte au joueur
+    /// nommé. Comme la page l'ajoute au moment où une décision l'attend, cette
+    /// occasion est exactement celle qui précède cette décision-là : le rejeu
+    /// replace la vente à l'instant où le joueur l'a faite, et l'énumération qui
+    /// suit (cartes payables, contour vert) est refaite sur la main d'après.
+    ///
+    /// Une entrée qui n'est pas une vente n'est PAS consommée : c'est la réponse
+    /// à la décision qui vient, et elle sera lue par `prendre`.
+    fn vendre_librement(&mut self, _rng: &mut StdRng, joueur: usize, main: &[u16]) -> Vec<usize> {
+        // Passé le point d'attente, plus rien n'est décidé : les décisions
+        // suivantes prennent leur réponse par défaut et sont jetées.
+        if self.attente.is_some() || self.curseur >= self.reponses.len() {
+            return Vec::new();
         }
+        let Some(vente) = self.reponses[self.curseur].get("vendre").cloned() else {
+            return Vec::new(); // réponse ordinaire : elle appartient à `prendre`
+        };
+        // Une vente adressée à l'AUTRE joueur attend son occasion à lui.
+        if vente.get("joueur").and_then(Value::as_u64) != Some(joueur as u64) {
+            return Vec::new();
+        }
+        // L'entrée est VALIDÉE avant d'avancer le curseur : une entrée
+        // malformée qui aurait quand même consommé sa place décalerait toutes
+        // les réponses suivantes d'un cran, et le rejeu répondrait à côté de
+        // chaque question. La faute est déclarée, la page retire l'entrée, et
+        // rien n'a bougé entre-temps.
+        let Some(cartes) = vente.get("cartes").and_then(Value::as_array) else {
+            self.faute_vente("« cartes » attendu : une liste d'indices de main".to_string());
+            return Vec::new();
+        };
+        let mut idx: Vec<usize> = Vec::with_capacity(cartes.len());
+        for x in cartes {
+            match x.as_u64() {
+                Some(i) if (i as usize) < main.len() && !idx.contains(&(i as usize)) => {
+                    idx.push(i as usize)
+                }
+                _ => {
+                    self.faute_vente(format!(
+                        "indice de vente {x} invalide ou en double (0..{})",
+                        main.len()
+                    ));
+                    return Vec::new();
+                }
+            }
+        }
+        self.curseur += 1;
+        idx
     }
 
     /// **(choix-parlants) La voie anonyme, rendue BRUYANTE.**

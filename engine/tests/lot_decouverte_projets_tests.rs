@@ -1010,13 +1010,15 @@ fn les_cinq_compteurs_sont_nuls_en_boite_de_base_seule() {
 
 #[test]
 fn l_empreinte_de_la_boite_de_base_est_inchangee() {
-    // NEVER 4, mesuré : même graine, même empreinte. Repère REFIXÉ le 01-08 :
-    // les cartes bleues SANS action ne sont plus proposées à l'activation
-    // (`flow.rs`, constitution de `remaining_blue`), ce qui change la suite des
-    // tirages. Repère précédent, du 31-07 : d6a7267472501b13.
+    // NEVER 4, mesuré : même graine, même empreinte. Repère REFIXÉ le 03-08
+    // (regles-de-la-vente) : une carte n'est plus payable que sur les MC réels,
+    // et le paiement par défausse d'office a disparu — les parties ne se
+    // déroulent donc plus pareil, ce que le prompt annonce explicitement
+    // (« les empreintes de référence du moteur vont changer, c'est attendu »).
+    // Repères précédents : c1c52fcbe4e057b0 (01-08), d6a7267472501b13 (31-07).
     let db = CardsDb::load_boites(CARDS, BoiteSet::parse("base").unwrap()).expect("base");
     let s = run_simulation(&db, 1000, 2024, &mut RandomPolicy);
-    assert_eq!(format!("{:016x}", s.state_hash), "c1c52fcbe4e057b0");
+    assert_eq!(format!("{:016x}", s.state_hash), "7dda3ea2e9b2901b");
 }
 
 #[test]

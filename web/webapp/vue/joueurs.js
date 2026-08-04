@@ -49,16 +49,25 @@ const PRODUCTIONS = [
  * LES CINQ PARTS DU SCORE, dans l'ordre du décompte du livret (p.16-17) et sous
  * les noms exacts que le moteur publie (`players[].score_parts`).
  *
- * Les deux dernières sont PROVISOIRES tant que la partie n'est pas finie : le
- * moteur les compte comme si elle s'arrêtait à l'instant. C'est de là que
- * viennent les douze points qui surprennent au premier tour — trois récompenses,
- * deux joueurs à égalité sur chacune, quatre points chacun.
+ * (regles-de-la-vente) UNE SEULE EST PROVISOIRE : les RÉCOMPENSES.
+ * `award_points_split` les distribue d'avance, comme si la partie s'arrêtait à
+ * l'instant, alors qu'elles ne seront attribuées qu'à la fin — ce sont les
+ * treize points qui faisaient afficher 18 et 15 au premier écran d'une partie où
+ * personne n'avait rien fait.
+ *
+ * Les JALONS ne le sont pas, et ils l'étaient à tort : « un jalon atteint l'est
+ * pour de bon ». Ils comptent donc dans l'acquis.
+ *
+ * Le troisième terme n'est plus une nuance de style : il porte `data-provisoire`
+ * sur la part elle-même, et c'est de LUI que se déduit le grand nombre — la
+ * somme des parts qui ne sont pas provisoires. Une seule liste, deux lectures
+ * qui ne peuvent pas diverger.
  */
 const PARTS_SCORE = [
   ["tr", MOT.scoreTr, false],
   ["forests", MOT.scoreForests, false],
   ["cards", MOT.scoreCards, false],
-  ["milestones", MOT.scoreMilestones, true],
+  ["milestones", MOT.scoreMilestones, false],
   ["awards", MOT.scoreAwards, true],
 ];
 
@@ -222,18 +231,39 @@ export function majJoueurs(etat, decision, siege) {
     a.classList.toggle("equipage--actif", !!decision && decision.joueur === j);
 
     poserValeur(`players.${j}.tr`, p.tr);
-    poserValeur(`players.${j}.score`, p.score);
+    // (regles-de-la-vente) **LE GRAND NOMBRE NE COMPTE QUE L'ACQUIS.**
+    // `score_acquis` = niveau de terraformation + forêts + cartes posées +
+    // jalons ; c'est le moteur qui l'additionne (`ScoreBreakdown::acquis`), la
+    // page ne recalcule rien. Le TOTAL, lui, ne bouge pas d'un point et reste ce
+    // que lisent le classement et le simulateur — quand la partie est finie, les
+    // récompenses sont attribuées pour de vrai et le grand nombre vaut le total.
+    poserValeur(`players.${j}.score`, etat.game_over ? p.score : p.score_acquis);
 
     // LA VENTILATION DU SCORE. Elle vient du moteur, part par part
     // (`engine::observe`, lu sur `flow::score_breakdown` — le même parcours qui
     // forme le total affiché au-dessus). La page ne fait que la recopier : un
     // second barème calculé ici finirait par diverger de celui qui compte.
-    for (const [cle] of PARTS_SCORE) {
+    //
+    // ET CHAQUE PART DIT SI ELLE EST PROVISOIRE, sur elle-même. Sans cela on
+    // pouvait lire le grand nombre et la ventilation à côté sans jamais savoir
+    // lequel des cinq termes il laissait dehors.
+    for (const [cle, , provisoire] of PARTS_SCORE) {
       poserValeur(`players.${j}.score_parts.${cle}`, p.score_parts[cle]);
+      const e = document.querySelector(
+        `[data-valeur="players.${j}.score_parts.${cle}"]`
+      );
+      if (!e) continue;
+      // « Provisoire » cesse de l'être quand la partie est finie : les
+      // récompenses sont alors attribuées, et plus rien ne peut basculer.
+      if (provisoire && !etat.game_over) e.dataset.provisoire = "";
+      else delete e.dataset.provisoire;
     }
     // « Provisoire » ne se dit que tant que ça peut encore basculer. Une
     // étiquette collée en permanence ne dirait plus rien : à la fin de la
-    // partie, les jalons et les récompenses sont acquis, la mention s'en va.
+    // partie les récompenses sont attribuées pour de bon, la mention s'en va.
+    // (regles-de-la-vente : les JALONS, eux, ne sont plus provisoires du tout —
+    // un jalon atteint l'est pour de bon, il compte dans l'acquis dès qu'il
+    // tombe.)
     const dit = ref("#provisoire-" + j);
     if (dit) dit.hidden = !!etat.game_over;
     poserValeur(`players.${j}.forests`, p.forests);

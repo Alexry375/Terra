@@ -15,28 +15,22 @@
 // manche précédente pour celui qui n'a pas répondu : on ne montre rien plutôt
 // que d'annoncer une phase que personne n'a choisie.
 //
-// LA PHASE EN COURS N'EST PAS DANS L'ÉTAT. `observe::state_view` rend la phase
-// CHOISIE de chaque joueur, pas celle qui se résout à l'instant, et ce chantier
-// n'a pas le droit de faire dire autre chose au pont. On la déduit donc du
-// `type` de la décision, par la table explicite ci-dessous — et quand le type ne
-// suffit pas à trancher, ON N'ALLUME RIEN. Un écran qui se tait vaut mieux qu'un
-// écran qui devine.
-
-// Le type de décision → la phase que le moteur est en train de résoudre. Chaque
-// ligne se lit sur le NOM de la décision, jamais sur une règle du jeu :
-// « bonus du sélectionneur de la phase Construction » EST la phase II.
-const PHASE_DU_TYPE = {
-  construction_bonus: 2,
-  action_choice: 3,
-  action_amount: 3,
-  rejouer_production: 4,
-  research_keep: 5,
-};
-
-// `choose_build` se pose aussi bien en I (développement) qu'en II
-// (construction) et le descripteur ne dit pas laquelle : on ne tranche que
-// lorsqu'une seule des deux a été choisie dans la manche.
-const PHASES_DE_POSE = [1, 2];
+// LA PHASE EN COURS EST DÉSORMAIS DANS L'ÉTAT — et elle n'y était pas.
+//
+// (regles-de-la-vente) `observe::state_view` publie `phase_en_cours`, écrite par
+// `flow::play_round` au seul endroit qui la connaisse : 1 à 5, ou 0 hors phase
+// (mise en place, planification, étape de fin de manche). On la LIT.
+//
+// Ce qu'il y avait ici : une déduction à partir du `type` de la décision reçue,
+// par une table explicite (`construction_bonus` = II, `action_choice` = III…),
+// avec une règle de non-recul pour trancher `choose_build`, qui se pose aussi
+// bien en I qu'en II. Cette déduction était JUSTE — elle a tenu des centaines
+// d'écrans — mais elle n'avait aucun moyen de s'accorder avec le moteur sur
+// l'étape de fin de manche : n'y voyant qu'une défausse, elle y gardait allumée
+// la dernière phase résolue. Tant que personne ne lisait la phase que pour
+// l'allumer, cela ne coûtait rien. Depuis que le BOUTON DE VENTE en dépend, cela
+// coûte une vente offerte là où le moteur la refuse : la table des phases et le
+// bouton doivent dire la même chose, donc lire la même source.
 
 let courante = 0; // 0 = aucune phase en cours (planification, mise en place)
 // Vrai tant que le moteur pose des `pick_phase` : les cartes ne sont pas encore
@@ -66,54 +60,13 @@ export function majPhases(etat, decision) {
   // manche d'avant). Attendre « deux valeurs non nulles » ne prouve donc rien.
   planification = estPlanification(decision);
 
-  const choix = etat.players.map((p) => p.chosen_phase || 0);
-  const revelees = !planification && choix.every((n) => n > 0);
-  suivre(decision, new Set(revelees ? choix : []));
-}
-
-/**
- * Suit la phase en cours à partir du type de la décision. Elle n'avance jamais
- * à reculons dans une manche : les phases se résolvent dans l'ordre I → V.
- */
-function suivre(decision, choisies) {
-  if (!decision) return;
-  const t = decision.type;
-
-  // La planification rouvre la manche : plus aucune phase ne se résout.
-  if (t === "pick_phase") {
-    courante = 0;
-    return;
-  }
-
-  // UNE PHASE QUE LA MANCHE N'A PAS CHOISIE NE SE RÉSOUT PAS. Le nom d'une
-  // décision ne suffit donc pas : `research_keep` est aussi la question posée
-  // par une carte qui fait piocher et garder, hors de toute phase Recherche —
-  // mesuré graine 1515, rang 27 : `research_keep` alors que les phases choisies
-  // sont II et III. Sans ce garde-fou, la phase en cours sautait à V et, ne
-  // pouvant plus reculer, laissait la manche entière sans carte allumée (73
-  // écrans sur 331).
-  const connue = PHASE_DU_TYPE[t];
-  if (connue) {
-    if (connue > courante && choisies.has(connue)) courante = connue;
-    return;
-  }
-
-  if (t === "choose_build") {
-    const possibles = PHASES_DE_POSE.filter(
-      (n) => choisies.has(n) && n >= Math.max(courante, 1)
-    );
-    // LA PLUS PETITE QUI RESTE. Les phases d'une manche se résolvent dans
-    // l'ordre où elles sont numérotées et la phase en cours n'a jamais reculé
-    // ici : une pose qui arrive alors que I et II ont toutes deux été choisies
-    // appartient donc à I tant que rien n'a nommé II. Et II SE NOMME — son
-    // sélectionneur reçoit `construction_bonus` avant que quiconque n'y pose
-    // (relevé graine 333, rangs 13-14 et 23-24), ce qui pousse `courante` à 2
-    // avant la première pose de cette phase.
-    if (possibles.length) courante = possibles[0];
-    return;
-  }
-  // Tout autre type (vente, défausse, branche de carte…) se pose À L'INTÉRIEUR
-  // de la phase en cours : elle ne change pas.
+  // (regles-de-la-vente) LA SOURCE UNIQUE. Plus aucune déduction : le moteur dit
+  // lui-même quelle phase il résout. Pendant la planification il n'en résout
+  // aucune, et il l'écrit — mais on garde la garde ci-dessous, parce que
+  // `estPlanification` se lit sur la décision qui vient, alors que l'état, lui,
+  // est celui de l'observation qui l'a précédée.
+  const n = Number(etat.phase_en_cours);
+  courante = planification || !Number.isFinite(n) ? 0 : n;
 }
 
 /**

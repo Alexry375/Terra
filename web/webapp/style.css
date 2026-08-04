@@ -539,7 +539,16 @@ html[data-pv-masques="oui"] [data-role="vp"] { display: none; }
   flex: 1 1 auto; min-height: 0;
   display: flex; align-items: flex-start; justify-content: center;
 }
-.main__rang > * + * { margin-left: var(--serrage, 10px); }
+/* (round 2) LE SÉLECTEUR NOMME LA CARTE, ET CE N'EST PAS DE LA COQUETTERIE.
+   Écrit `> * + *`, il pesait autant que le `.carte { margin: 0 }` de plus bas
+   dans cette même feuille — donc il PERDAIT, et `--serrage` n'a jamais rien
+   décalé. Mesuré (`outputs/work/mesure-disposition.py`, 1280×720, graine 2024) :
+   des cartes de 92 px posées tous les 92 px, bord à bord, quelle que soit la
+   valeur calculée. L'éventail ne se resserrait pas, le rang débordait de sa
+   zone, et les cartes de gauche s'en allaient sous le panneau de vente : c'est
+   la cause réelle des cartes invendables du défaut B. Nommer `.carte` des deux
+   côtés donne à la règle une classe de plus, donc le dernier mot. */
+.main__rang > .carte + .carte { margin-left: var(--serrage, 10px); }
 
 /* ---- ma main, en bas ---- */
 .main--mienne {
@@ -555,7 +564,7 @@ html[data-pv-masques="oui"] [data-role="vp"] { display: none; }
   border-bottom: 1px solid var(--trait);
   background: linear-gradient(180deg, rgba(4, 6, 11, .9), rgba(4, 6, 11, .54));
 }
-.main--adverse .carte--adverse img { width: 62px; border-radius: 3px; opacity: .92; }
+.main--adverse .carte--adverse img { width: var(--largeur-carte, 62px); border-radius: 3px; opacity: .92; }
 
 /* IL AGIT, ET ON NE SAIT PAS QUOI. Le mot dit la NATURE de sa décision ; les dos
    respirent tant qu'elle dure. Rien d'autre ne sort de cette zone. */
@@ -583,9 +592,30 @@ html[data-pv-masques="oui"] [data-role="vp"] { display: none; }
   50% { transform: translateY(-5px); }
 }
 
-/* CE QU'ON PEUT JOUER : un contour vert franc, et rien d'autre ne l'a. Ce que
-   ce contour désigne est exactement ce que le moteur vient d'énumérer. */
+/* (regles-de-la-vente) DEUX FAITS, DEUX MARQUES — et il en fallait deux.
+
+   `data-jouable="oui"` disait « le moteur vient d'énumérer cette carte » ; il dit
+   désormais « j'ai de quoi la payer » (`main_payable`). C'est ce que le contour
+   vert doit suivre : c'est LUI qui annonçait jouable une carte à 17 MC à un
+   joueur qui en avait 13. Mais payable ne veut pas dire jouable à l'instant : en
+   phase III on ne pose aucune carte de sa main, et une main de quinze cartes
+   toutes payables se serait allumée en entier sans qu'une seule réponde au clic.
+   Un écran qui allume quinze cartes mortes ment autant que celui d'avant.
+
+   D'où deux marques, l'une dans l'autre :
+     · PAYABLE (`[data-jouable="oui"]`) — un liseré vert calme. « Tu as les
+       moyens. » C'est ce qui s'allume quand on vend.
+     · JOUABLE MAINTENANT (`[data-choix]`, posé par le moteur sur les seules
+       options de la question en cours) — le contour vert franc et le halo. « Et
+       c'est maintenant. » S'y ajoute le soulèvement de `style-table.css`.
+   Ce qu'on ne peut pas payer reste grisé, comme avant. */
 .carte--main[data-jouable="oui"] img {
+  box-shadow:
+    0 0 0 2px rgba(70, 255, 163, .55),
+    0 0 10px 1px rgba(70, 255, 163, .22),
+    0 6px 18px rgba(0, 0, 0, .6);
+}
+.carte--main[data-jouable="oui"][data-choix] img {
   box-shadow:
     0 0 0 3px #46ffa3,
     0 0 20px 5px rgba(70, 255, 163, .72),

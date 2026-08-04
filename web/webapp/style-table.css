@@ -140,8 +140,13 @@ body[data-geste="main"] .main--mienne .carte--main[data-en-main="oui"] { cursor:
    La largeur suit donc la bande, avec le même `18vh`, et ne descend jamais sous
    92 px — le plancher de lisibilité du coût imprimé retenu par `vue/mains.js`.
    Sur les 1600 x 1000 des contrôles, la valeur reste 116 px, inchangée. */
+/* (round 2) `--largeur-carte` est posé par `vue/mains.js`, et SEULEMENT quand la
+   largeur naturelle ne laisse pas tenir la main dans la place qui lui reste :
+   une carte qu'on ne peut pas désigner ne se joue pas du tout, une carte un peu
+   plus petite se lit encore. Absent — le cas ordinaire — la valeur de repli
+   ci-dessous s'applique, inchangée. */
 .main--mienne .carte--main img {
-  width: clamp(92px, calc((18vh - 18px) / 1.3927), 116px);
+  width: var(--largeur-carte, clamp(92px, calc((18vh - 18px) / 1.3927), 116px));
 }
 
 .main__geste {
@@ -288,41 +293,12 @@ body[data-siege="1"] #dock-1 { order: 2; }
 
 /* ==================================================== VENDRE POUR PAYER */
 
-/* Une phrase, puis les cartes qui partent. Plus jamais un curseur nu. */
-.vente { gap: 6px; }
-.vente__phrase {
-  margin: 0 0 10px;
-  max-width: 78ch;
-  align-self: center;
-  text-align: center;
-  font-size: 13px;
-  line-height: 1.35;
-  letter-spacing: .01em;
-  color: var(--os);
-  text-shadow: 0 1px 6px #000;
-}
-.vente__rang {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 8px;
-  flex: 1 1 auto;
-  min-height: 0;
-  flex-wrap: wrap;
-}
-.vente__rang .carte--vente img {
-  width: clamp(64px, 11vh, 116px);
-  border-radius: 3px;
-  box-shadow: 0 0 0 2px var(--braise), 0 6px 18px rgba(0, 0, 0, .7);
-}
-.vente__rang .carte--vente { position: relative; opacity: .92; }
-.vente__rang:empty::after {
-  content: "no card leaves your hand";
-  font-size: 11px;
-  letter-spacing: .16em;
-  text-transform: uppercase;
-  color: var(--os-faible);
-}
+/* (regles-de-la-vente) Il y avait ici la vue de la vente D'OFFICE : une phrase,
+   puis les cartes que le moteur allait prendre à la fin de la main. Cette
+   décision n'existe plus — le joueur vend quand il veut et désigne ses cartes
+   lui-même (`vue/vente.js`, `style-vente.css`). Les règles qui l'habillaient
+   sont retirées avec elle : plus aucun élément de la page ne les porte. */
+
 
 /* ========================================================= L'AGRANDISSEMENT */
 

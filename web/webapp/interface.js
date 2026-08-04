@@ -77,7 +77,11 @@ import {
 } from "./vue/plateau.js";
 import {
   construireScene, poserDecision, viderScene, replacerScene, repondrePourLeSiege,
+  venteImmediate,
 } from "./vue/scene.js";
+import {
+  construireVente, majVente, venteAEcrire, oublierVente,
+} from "./vue/vente.js";
 import { construireLoupe } from "./vue/loupe.js";
 import { oublierRefs } from "./vue/ecrire.js";
 import { montrerAccueil, cacherAccueil } from "./vue/menu.js";
@@ -161,6 +165,10 @@ function batir() {
   construireMains();
   construireTable();
   construireScene();
+  // (regles-de-la-vente) Le bouton de vente est posé APRÈS la scène : il vit
+  // au-dessus d'elle, et une main comme un programme doivent pouvoir l'atteindre
+  // à tout instant d'une phase où l'on peut dépenser.
+  construireVente(venteImmediate);
   construireAnnonce();
   construireLoupe();
   // Le siège regardé est écrit sur le document : c'est lui qui décide quel
@@ -238,6 +246,14 @@ function theatre(etat) {
  */
 function rendre(etat, decision) {
   document.body.dataset.actif = decision ? String(decision.joueur) : "";
+  // (regles-de-la-vente) **LA PAGE DÉCLARE LA FIN AU MÊME INSTANT QUE LE
+  // MOTEUR.** Elle ne le déclarait nulle part : `data-phase="fin"` n'est posé
+  // qu'après la boucle de jeu, une fois l'écran final dessiné, alors que le
+  // moteur, lui, a rendu `game_over` au dernier coup. Entre les deux, l'écran
+  // savait la partie finie et ne le disait pas — et c'est précisément l'instant
+  // où les récompenses cessent d'être provisoires (`vue/joueurs.js`, qui lit le
+  // même `etat.game_over`). Un seul fait, déclaré une fois, lu par les deux.
+  if (etat.game_over) document.body.dataset.fin = "oui";
   majMonde(etat);
   majPlateaux(etat, decision, cadre.siege);
   majJoueurs(etat, decision, cadre.siege);
@@ -246,6 +262,12 @@ function rendre(etat, decision) {
   // phase se résout, et la table lit ces deux réponses.
   majPhases(etat, decision);
   majTable(etat, decision, cadre.siege);
+  // (regles-de-la-vente) EN DERNIER : le bouton de vente lit la phase que le
+  // moteur résout (`etat.phase_en_cours`), la même source que la table
+  // ci-dessus — les deux ne peuvent donc pas se contredire — et c'est ici que
+  // le mode de vente se referme, une fois l'écran refait sur l'état d'APRÈS la
+  // vente.
+  majVente(etat, cadre.siege);
   theatre(etat);
 }
 
@@ -261,6 +283,13 @@ function rendre(etat, decision) {
 function siegeHumain() {
   return fournisseurHumain(async (d, etat) => {
     rendre(etat, d);
+    // (regles-de-la-vente) UNE VENTE VALIDÉE PENDANT QUE L'ADVERSAIRE JOUAIT.
+    // Elle n'avait alors aucune question où se glisser ; elle prend sa place
+    // ici, AVANT la réponse à celle-ci. Le moteur la consomme à son point
+    // d'occasion et repose la même question sur l'état d'après — c'est le
+    // rendu suivant qui allumera les cartes devenues payables.
+    const vente = venteAEcrire();
+    if (vente) return vente;
     adversaireAgit(SIMULTANEES.has(d.type) ? actionAdverse(d) : null);
     const reponse = await poserDecision(d, etat);
     son.eveiller();
@@ -413,6 +442,10 @@ async function lancer({ graine, boites }) {
   oublierMains();
   oublierPhases();
   oublierTable();
+  oublierVente();
+  // Une partie neuve n'est pas finie : la déclaration de la précédente ne doit
+  // pas lui survivre.
+  delete document.body.dataset.fin;
   dejaVu = { manche: null, phases: null };
 
   const partie = creerPartie(pont, { graine, boites });

@@ -323,38 +323,43 @@ fn helion_corporation_paie_une_carte_avec_sa_chaleur() {
 }
 
 #[test]
-fn helion_le_may_est_un_vrai_choix_quand_il_en_est_un() {
-    // « You MAY use heat as MC ». Là où le livret offre déjà de payer en
-    // défaussant des cartes, le joueur a une vraie alternative : elle passe par
-    // `Policy::choose_option`, comme tous les « ou » du moteur.
+fn helion_le_may_n_est_plus_une_alternative() {
+    // (regles-de-la-vente) « You MAY use heat as MC ». Ce « may » n'était une
+    // ALTERNATIVE que parce que le moteur offrait, en face, de payer en
+    // défaussant des cartes : renoncer à la chaleur voulait dire « je paierai en
+    // vendant ». Cette vente d'office est le défaut B, et elle a disparu.
+    // Renoncer à la chaleur reviendrait maintenant à renoncer à une carte que le
+    // joueur vient de choisir de poser : une seule branche jouable, et la
+    // convention du lot 3 interdit d'interroger la politique là-dessus.
+    //
+    // Le test est donc inversé, mise en place gardée : main garnie ou main vide,
+    // scriptée sur la branche 0 ou sur la branche 1, la chaleur paie toujours et
+    // aucune carte ne quitte la main. Le script sur la branche 1 est le cas qui
+    // compte : il prouve que la question n'est PLUS posée — si elle l'était
+    // encore, le « 1 » serait consommé et la chaleur resterait intacte.
     let db = db();
-    let opts = ProbeOptions { mc: 0, filler: 6, ..ProbeOptions::default() };
-    // Branche 0 (l'option imprimée) : la chaleur paie, aucune carte défaussée.
-    let script = ProbeScript { choices: vec![0], targets: Vec::new(), joker_tag: None };
-    let avec = run_probe_seq_corp(
-        &db, &["Mohole Area"], opts, &script, false, Some("Helion Corporation"),
-    );
-    assert!(avec.played);
-    assert_eq!(avec.delta.heat, -18);
-    assert_eq!(avec.discarded, vec![0]);
-    // Branche 1 : le joueur renonce à la chaleur et paie en défaussant.
-    let script = ProbeScript { choices: vec![1], targets: Vec::new(), joker_tag: None };
-    let sans = run_probe_seq_corp(
-        &db, &["Mohole Area"], opts, &script, false, Some("Helion Corporation"),
-    );
-    assert!(sans.played);
-    assert_eq!(sans.delta.heat, 0, "la chaleur est intacte");
-    assert_eq!(sans.discarded, vec![6], "payée par défausse à la place");
-    // Sans monnaie de défausse, renoncer n'est pas une branche jouable : le
-    // moteur ne pose pas la question et emploie la chaleur (convention du lot 3,
-    // `choose_option` n'est appelée qu'à partir de 2 branches jouables).
-    let opts = ProbeOptions { mc: 0, ..ProbeOptions::default() };
-    let script = ProbeScript { choices: vec![1], targets: Vec::new(), joker_tag: None };
-    let force = run_probe_seq_corp(
-        &db, &["Mohole Area"], opts, &script, false, Some("Helion Corporation"),
-    );
-    assert!(force.played);
-    assert_eq!(force.delta.heat, -18, "aucune alternative : la chaleur paie");
+    for filler in [0usize, 6] {
+        for branche in [0usize, 1] {
+            let opts = ProbeOptions { mc: 0, filler, ..ProbeOptions::default() };
+            let script = ProbeScript {
+                choices: vec![branche],
+                targets: Vec::new(),
+                joker_tag: None,
+            };
+            let r = run_probe_seq_corp(
+                &db, &["Mohole Area"], opts, &script, false, Some("Helion Corporation"),
+            );
+            assert!(r.played, "main {filler}, branche {branche} : la carte est posée");
+            assert_eq!(
+                r.delta.heat, -18,
+                "main {filler}, branche {branche} : la chaleur paie, sans qu'on demande rien"
+            );
+            assert_eq!(
+                r.discarded, vec![0],
+                "main {filler}, branche {branche} : aucune carte vendue d'office"
+            );
+        }
+    }
 }
 
 #[test]

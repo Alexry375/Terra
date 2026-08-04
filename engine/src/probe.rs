@@ -683,6 +683,13 @@ fn probe_state_base(db: &CardsDb, ids: &[u16], opts: ProbeOptions) -> GameState 
         draw_before_build: 0,
         draw_after_build: 0,
         discard_payments: 0,
+        // (regles-de-la-vente) 0 = hors phase : la partie commence par la mise
+        // en place, où l'on ne peut ni dépenser ni donc vendre.
+        phase_en_cours: 0,
+        vente_offerte: false,
+        occasion_ouverte: false,
+        mains_a_l_occasion: Vec::new(),
+        ventes_volontaires: 0,
         res_added: 0,
         res_removed: 0,
         res_targets_missing: 0,
@@ -986,11 +993,12 @@ pub fn run_probe_seq_corp(
         // un état volontairement impayable via `--probe-mc`).
         // (corpo-1) Helion : la chaleur compte dans l'affordabilité, par le
         // service unique du moteur.
+        // (regles-de-la-vente) La sonde interroge le prédicat UNIQUE
+        // d'affordabilité, qui ne compte plus que les MC réels : la main du
+        // joueur n'est plus une monnaie, elle ne se vend que sur décision.
         if !payable(
             spendable_mc_reserving(db, &game.players[0], heat_reserved_by(db, id)),
-            game.players[0].hand.len(),
             cost_min,
-            discard_mc_rate(db, &game.players[0]),
         ) {
             break;
         }
@@ -1247,11 +1255,12 @@ pub fn run_probe_action_target(
             - card_discount(&game, db, 0, id)
             - plant_discount(&game, db, 0, id).map_or(0, |(_, a)| a))
         .max(0);
+        // (regles-de-la-vente) La sonde interroge le prédicat UNIQUE
+        // d'affordabilité, qui ne compte plus que les MC réels : la main du
+        // joueur n'est plus une monnaie, elle ne se vend que sur décision.
         if !payable(
             spendable_mc_reserving(db, &game.players[0], heat_reserved_by(db, id)),
-            game.players[0].hand.len(),
             cost_min,
-            discard_mc_rate(db, &game.players[0]),
         ) {
             break;
         }

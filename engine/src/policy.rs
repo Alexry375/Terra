@@ -119,39 +119,37 @@ pub trait Policy {
         }
     }
 
-    /// Nombre de cartes de la main à défausser pour compléter le paiement d'une
-    /// carte Projet (livret p.13, l.348 : « des cubes MC **et/ou** défausser
-    /// d'autres cartes Projet de votre main à raison de 3 MC par carte ; si le
-    /// total payé est supérieur au coût, la différence vous est rendue »).
+    /// **Vendre, à tout moment, parce qu'on le veut.**
     ///
-    /// `mc` = MC disponibles, `cost` = coût effectif (réductions appliquées),
-    /// `hand` = main APRÈS retrait de la carte posée (elle ne peut donc jamais
-    /// se payer elle-même). Méthode par DÉFAUT : le MINIMUM de cartes, c'est-à-
-    /// dire qu'on paie d'abord avec les MC, puis `ceil((cost - mc) / rate)`
-    /// cartes. Aucune politique du moteur ne la surcharge dans ce lot.
+    /// Livret l. 96, répété l. 310 : « à tout moment, vous pouvez défausser une
+    /// carte Projet de votre main pour gagner 3 MC ». Le moteur pose cette
+    /// question — par `flow::occasion_de_vendre` — AVANT chacun de ses points de
+    /// décision, aux deux joueurs, et seulement dans les phases où l'on peut
+    /// dépenser (I Développement, II Construction, III Action : ni production ni
+    /// recherche).
     ///
-    /// (lot cartes-7) `rate` est le taux RÉEL du joueur, rendu par le service
-    /// unique `flow::discard_mc_rate` (3 MC du livret, plus le supplément de
-    /// *Composting Factory*). Sans lui, la politique diviserait par 3 alors que
-    /// chaque carte rapporte 4 : elle en défausserait trop.
-    fn discard_payment_count(
+    /// C'est la question qui a remplacé `discard_payment_count`. Celle-là
+    /// demandait COMBIEN de cartes le moteur devait prendre pour compléter un
+    /// paiement, et il prenait « les dernières de la main » : le joueur ne
+    /// choisissait ni le moment, ni les cartes. Ici il choisit les deux.
+    ///
+    /// `main` est la main du joueur `joueur` à cet instant. La réponse est une
+    /// liste d'indices dans cette main — libre, éventuellement VIDE. Le moteur
+    /// la nettoie (bornes, doublons) puis défausse ces cartes-là, au taux du
+    /// service unique `flow::discard_mc_rate`.
+    ///
+    /// Corps par DÉFAUT : **la liste vide**, et pas un tirage. Une politique qui
+    /// ne connaît pas cette question ne vend rien, ne consomme pas le RNG de la
+    /// partie, et joue donc exactement comme avant : c'est ce qui permet à ce
+    /// nouveau point d'occasion d'être posé 34 fois par décision sans déplacer
+    /// d'un cran le déroulement des parties simulées.
+    fn vendre_librement(
         &mut self,
         _rng: &mut StdRng,
-        _player: usize,
-        mc: i64,
-        cost: i64,
-        hand: &[u16],
-        rate: i64,
-    ) -> usize {
-        let missing = cost - mc;
-        if missing <= 0 {
-            return 0;
-        }
-        // Un taux nul n'existe pas dans le moteur (`SELL_CARD_MC` en est le
-        // plancher) ; la garde supprime la classe de bug, pas seulement le cas.
-        let rate = rate.max(1);
-        // Arrondi supérieur : `rate` MC par carte, le surplus est rendu.
-        (((missing + rate - 1) / rate) as usize).min(hand.len())
+        _joueur: usize,
+        _main: &[u16],
+    ) -> Vec<usize> {
+        Vec::new()
     }
 
     // ------------------------------------- lot 3 : ressources sur les cartes

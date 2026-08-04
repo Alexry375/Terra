@@ -442,60 +442,82 @@ fn composting_factory_never_changes_the_opponents_rate() {
 }
 
 #[test]
-fn composting_factory_changes_the_payment_by_discard() {
-    // Mesure du contrat (fait n° 4) : Commercial District (25 MC), 0 MC en
-    // poche, monnaie de défausse à volonté. Au taux du livret il faut
-    // ceil(25/3) = 9 cartes ; au taux de Composting Factory, ceil(25/4) = 7.
+fn composting_factory_ne_paie_plus_aucune_carte_d_office() {
+    // (regles-de-la-vente) Ce test mesurait le NOMBRE de cartes que le moteur
+    // défaussait d'office pour compléter un paiement (10 au taux du livret, 13
+    // au taux majoré). C'est précisément le défaut B : le joueur ne choisissait
+    // ni le moment ni les cartes. Le paiement d'office a été supprimé — la
+    // mesure devient donc : à 0 MC, AUCUNE carte ne quitte la main, et la carte
+    // n'est pas posée, quel que soit le taux.
     let db = db();
     let sans = seq(
         &db,
         &["Commercial District"],
         ProbeOptions { mc: 0, filler: 12, ..ProbeOptions::default() },
     );
-    assert_eq!(sans.delta.hand, -10, "1 posée + 9 défaussées (taux 3)");
+    assert!(!sans.played, "0 MC : Commercial District (25 MC) n'est pas payable");
+    assert_eq!(sans.delta.hand, 0, "aucune carte ne quitte la main sans décision");
 
     let avec = seq(
         &db,
         &["Composting Factory", "Commercial District"],
         ProbeOptions { mc: 0, filler: 20, ..ProbeOptions::default() },
     );
-    // Composting Factory (13 MC) est payée au taux du livret — elle n'est pas
-    // encore en jeu quand on la paie : 5 cartes, surplus 2 MC rendu.
-    // Commercial District (25 MC) : 2 MC en poche, manque 23, au taux 4 →
-    // 6 cartes. Total : 2 posées + 5 + 6 = 13 cartes qui quittent la main.
-    assert_eq!(avec.delta.hand, -13, "le taux de 4 MC réduit la défausse");
+    assert!(!avec.played, "le taux majoré ne rend rien payable : il n'est plus une monnaie");
+    assert_eq!(avec.delta.hand, 0, "aucune carte ne quitte la main sans décision");
 }
 
 #[test]
-fn composting_factory_does_not_pay_for_itself() {
-    // Une carte ne se réduit jamais elle-même : le taux qui paie Composting
-    // Factory est celui d'AVANT sa mise en jeu.
+fn composting_factory_majore_toujours_le_taux_du_service_unique() {
+    // (regles-de-la-vente) Ce test mesurait le taux À TRAVERS le paiement par
+    // défausse, qui n'existe plus. Le TAUX, lui, doit rester intact : le prompt
+    // le demande mot pour mot (« le taux reste celui du livret, majorations de
+    // corporations comprises, par le service unique existant »). On le mesure
+    // donc là où il vit désormais — le service unique — au lieu de le déduire
+    // d'un paiement supprimé.
     let db = db();
-    let r = seq(
-        &db,
-        &["Composting Factory"],
-        ProbeOptions { mc: 0, filler: 12, ..ProbeOptions::default() },
+    let mut pol = Scriptee::new();
+    let mut g = jeu(&db);
+    assert_eq!(
+        discard_mc_rate(&db, &g.players[0]),
+        SELL_CARD_MC,
+        "sans Composting Factory : le taux du livret"
     );
-    assert_eq!(r.delta.hand, -6, "1 posée + ceil(13/3) = 5 défaussées");
+    poser(&mut g, &db, "Composting Factory", &mut pol);
+    assert_eq!(
+        discard_mc_rate(&db, &g.players[0]),
+        SELL_CARD_MC + 1,
+        "avec Composting Factory : un MC de plus par carte vendue"
+    );
+    // Et une carte ne se majore jamais elle-même : le taux qui aurait payé
+    // Composting Factory était celui d'AVANT sa mise en jeu — c'est ce que
+    // mesure l'ordre des deux assertions ci-dessus.
 }
 
 #[test]
-fn composting_factory_is_seen_by_affordability_and_by_payment_alike() {
-    // I2 : le prédicat qui propose la carte et le code qui la paie lisent le
-    // MÊME taux. À 0 MC et 7 cartes de monnaie, une carte à 25 MC est payable
-    // au taux 4 (7 × 4 = 28 ≥ 25) et ne l'est pas au taux 3 (21 < 25).
-    assert!(!payable(0, 8, 25, SELL_CARD_MC), "taux 3 : hors budget");
-    assert!(payable(0, 8, 25, SELL_CARD_MC + 1), "taux 4 : payable");
+fn le_taux_de_defausse_n_entre_plus_dans_l_affordabilite() {
+    // (regles-de-la-vente) Ce test affirmait l'inverse : à 0 MC et 7 cartes en
+    // main, une carte à 25 MC était payable au taux 4 (7 × 4 = 28 ≥ 25) et ne
+    // l'était pas au taux 3. C'est le défaut A, mot pour mot — le moteur
+    // comptait d'avance la vente d'une main que le joueur n'avait pas décidé de
+    // vendre. `payable` ne connaît plus que les MC réels, et n'a donc plus de
+    // paramètre de taux à recevoir : l'invariant I2 tient désormais par
+    // construction, il n'y a plus deux lectures possibles d'un taux.
+    assert!(!payable(0, 25), "0 MC : rien n'est payable, la main n'est pas une monnaie");
+    assert!(!payable(24, 25), "24 MC : il manque 1 MC, aucune carte ne le comble");
+    assert!(payable(25, 25), "25 MC : payable, au MC près");
 
-    // Et le moteur applique bien cette bascule sur le chemin réel : la même
-    // sonde échoue à poser la carte sans Composting Factory, y parvient avec.
+    // Et le moteur applique bien cette règle sur le chemin réel : main garnie
+    // ou main vide, sans les MC la carte n'est pas posée.
     let db = db();
-    let sans = seq(
-        &db,
-        &["Commercial District"],
-        ProbeOptions { mc: 0, filler: 7, ..ProbeOptions::default() },
-    );
-    assert!(!sans.played, "7 cartes au taux 3 : 21 MC < 25, pose impossible");
+    for filler in [0usize, 7, 12] {
+        let r = seq(
+            &db,
+            &["Commercial District"],
+            ProbeOptions { mc: 0, filler, ..ProbeOptions::default() },
+        );
+        assert!(!r.played, "{filler} cartes en main : elles ne paient rien (0 MC)");
+    }
 }
 
 #[test]
@@ -879,11 +901,11 @@ fn restructured_resources_is_seen_by_affordability_too() {
     let (p, a) = plant_discount(&g, &db, 0, cible).expect("réduction disponible");
     assert_eq!((p, a), (1, 5));
     assert!(
-        !payable(20, 1, 25, SELL_CARD_MC),
-        "sans la réduction : 20 MC < 25, aucune monnaie de défausse"
+        !payable(20, 25),
+        "sans la réduction : 20 MC < 25"
     );
     assert!(
-        payable(20, 1, 25 - a, SELL_CARD_MC),
+        payable(20, 25 - a),
         "avec la réduction : 20 MC = 20"
     );
 }

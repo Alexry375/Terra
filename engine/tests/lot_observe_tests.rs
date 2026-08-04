@@ -10,8 +10,8 @@
 //!   côtés (§2), pas en faisant confiance à une regex de proximité ;
 //! - « l'état RÉEL au moment de l'appel » est vérifié en recoupant l'observation
 //!   avec les ARGUMENTS que le moteur passe lui-même à la décision qui suit
-//!   (§3) : `discard_payment_count` reçoit `game.players[p].mc` calculé par
-//!   `flow.rs` à cet instant, `discard_down` reçoit la main à cet instant. Si
+//!   (§3) : `sell_card` reçoit la main que `flow.rs` a clonée à cet instant,
+//!   `discard_down` reçoit la main à cet instant. Si
 //!   l'observation était un instantané périmé, ces valeurs divergeraient. Cet
 //!   oracle est entièrement disjoint du code observé ;
 //! - « aucune décision changée » est vérifié en rejouant la MÊME partie avec et
@@ -184,17 +184,14 @@ impl Policy for CountingPolicy {
         self.decision(p);
         self.inner.action_amount(r, p, max)
     }
-    fn discard_payment_count(
-        &mut self,
-        r: &mut StdRng,
-        p: usize,
-        mc: i64,
-        cost: i64,
-        hand: &[u16],
-        rate: i64,
-    ) -> usize {
-        self.decision(p);
-        self.inner.discard_payment_count(r, p, mc, cost, hand, rate)
+    // (regles-de-la-vente) `discard_payment_count` a disparu avec la vente
+    // d'office qu'elle dosait ; `vendre_librement` est la question qui l'a
+    // remplacée. Ce n'est PAS un point de décision mais un point d'OCCASION :
+    // il ne compte donc pas dans le recensement des décisions (`self.decision`
+    // n'est pas appelé), sans quoi le §2 compterait une occasion par décision
+    // en plus de la décision elle-même.
+    fn vendre_librement(&mut self, r: &mut StdRng, p: usize, main: &[u16]) -> Vec<usize> {
+        self.inner.vendre_librement(r, p, main)
     }
     fn choose_option(&mut self, r: &mut StdRng, p: usize, n: usize) -> usize {
         self.decision(p);
@@ -219,6 +216,18 @@ impl Policy for CountingPolicy {
     fn discard_down(&mut self, r: &mut StdRng, p: usize, h: &[u16], n: usize) -> Vec<usize> {
         self.decision(p);
         self.inner.discard_down(r, p, h, n)
+    }
+    /// (regles-de-la-vente) **`sell_card` entre dans le recensement.** C'était
+    /// le SEUL point de décision de `flow.rs` que rien n'observait — l'écran y
+    /// affichait donc « quelle carte vends-tu ? » sur l'état d'avant. Il reçoit
+    /// désormais son observation, comme les autres, et doit donc être compté ici
+    /// : sans cela le test verrait une observation orpheline et tomberait. Le
+    /// motif de la correction est la vente libre — le joueur peut vouloir vendre
+    /// avant de répondre à cette question-là aussi, et l'occasion se place au
+    /// même endroit que l'observation.
+    fn sell_card(&mut self, r: &mut StdRng, p: usize, main: &[u16]) -> usize {
+        self.decision(p);
+        self.inner.sell_card(r, p, main)
     }
 }
 
@@ -273,12 +282,10 @@ struct FreshnessPolicy {
     vu_snap_temperature: u8,
     /// Recoupements RÉELLEMENT effectués (le test échoue s'ils sont nuls : un
     /// oracle qui ne se déclenche jamais ne prouve rien).
-    recoupes_mc: u64,
     recoupes_hand: u64,
     recoupes_tags: u64,
     recoupes_build: u64,
     /// Désaccords, un compteur par recoupement.
-    ecarts_mc: u64,
     ecarts_hand_paiement: u64,
     ecarts_build: u64,
     ecarts_tags: u64,
@@ -296,11 +303,9 @@ impl FreshnessPolicy {
             vu_tags: [0; 10],
             vu_temperature: 0,
             vu_snap_temperature: 0,
-            recoupes_mc: 0,
             recoupes_hand: 0,
             recoupes_tags: 0,
             recoupes_build: 0,
-            ecarts_mc: 0,
             ecarts_hand_paiement: 0,
             ecarts_build: 0,
             ecarts_tags: 0,
@@ -322,30 +327,25 @@ impl Policy for FreshnessPolicy {
         }
     }
 
-    /// `flow.rs` appelle : `policy.discard_payment_count(&mut game.rng, p,
-    /// game.players[p].mc, …)`. Le troisième argument est donc le MC du joueur
-    /// à cet instant précis, lu par le moteur. Il doit être celui qu'on vient
-    /// d'observer.
-    fn discard_payment_count(
-        &mut self,
-        r: &mut StdRng,
-        p: usize,
-        mc: i64,
-        cost: i64,
-        hand: &[u16],
-        rate: i64,
-    ) -> usize {
-        self.recoupes_mc += 1;
-        if mc != self.vu_mc {
-            self.ecarts_mc += 1;
-        }
-        // La main passée ici est celle du joueur à cet instant (la carte posée
-        // en a déjà été retirée AVANT l'observation) : même longueur.
+    /// (regles-de-la-vente) **L'oracle sur les MC a disparu avec la décision qui
+    /// les portait.** `discard_payment_count` recevait `game.players[p].mc` en
+    /// troisième argument ; cette question n'existe plus, parce que payer en
+    /// défaussant d'office est exactement le défaut que cette tâche supprime.
+    /// Plus aucune décision du moteur ne reçoit les MC du joueur : l'oracle
+    /// n'est pas affaibli, il est devenu sans objet, et `recoupes_mc` est retiré
+    /// plutôt que laissé à zéro — un oracle vide qui passe est pire qu'un oracle
+    /// absent.
+    ///
+    /// Il est remplacé, à recouvrement égal, par la MAIN que le moteur soumet à
+    /// l'action standard de vente : `flow.rs` appelle
+    /// `policy.sell_card(&mut game.rng, p, &main)` où `main` est la main du
+    /// joueur à cet instant. Elle doit être celle qu'on vient d'observer.
+    fn sell_card(&mut self, r: &mut StdRng, p: usize, main: &[u16]) -> usize {
         self.recoupes_hand += 1;
-        if hand.len() != self.vu_hand {
+        if main.len() != self.vu_hand {
             self.ecarts_hand_paiement += 1;
         }
-        self.inner.discard_payment_count(r, p, mc, cost, hand, rate)
+        self.inner.sell_card(r, p, main)
     }
 
     /// `flow.rs` appelle : `policy.choose_build(&mut game.rng, p, &opts)` où
@@ -410,26 +410,22 @@ fn l_observation_porte_l_etat_vivant() {
         play_game(&db, seed, &mut pol);
     }
     println!(
-        "recoupements : mc={} main={} badges={} indices-de-pose={}",
-        pol.recoupes_mc, pol.recoupes_hand, pol.recoupes_tags, pol.recoupes_build
+        "recoupements : main-vente={} badges={} indices-de-pose={}",
+        pol.recoupes_hand, pol.recoupes_tags, pol.recoupes_build
     );
     assert!(
-        pol.recoupes_mc > 0
-            && pol.recoupes_hand > 0
-            && pol.recoupes_tags > 0
-            && pol.recoupes_build > 0,
-        "oracle vide : mc={} hand={} tags={} build={}",
-        pol.recoupes_mc,
+        pol.recoupes_hand > 0 && pol.recoupes_tags > 0 && pol.recoupes_build > 0,
+        "oracle vide : main-vente={} tags={} build={}",
         pol.recoupes_hand,
         pol.recoupes_tags,
         pol.recoupes_build
     );
     assert_eq!(
-        (pol.ecarts_mc, pol.ecarts_hand_paiement, pol.ecarts_tags, pol.ecarts_build),
-        (0, 0, 0, 0),
+        (pol.ecarts_hand_paiement, pol.ecarts_tags, pol.ecarts_build),
+        (0, 0, 0),
         "écarts entre l'état observé et celui que le moteur passe à la décision \
-         (mc, main-paiement, badges, indices de pose) sur {} / {} / {} / {} recoupements",
-        pol.recoupes_mc, pol.recoupes_hand, pol.recoupes_tags, pol.recoupes_build
+         (main-vente, badges, indices de pose) sur {} / {} / {} recoupements",
+        pol.recoupes_hand, pol.recoupes_tags, pol.recoupes_build
     );
     assert!(
         pol.vivant_different_du_snapshot > 0,
@@ -834,7 +830,7 @@ const NOMS: [&str; 15] = [
     "construction_bonus",
     "action_choice",
     "action_amount",
-    "discard_payment_count",
+    "vendre_librement",
     "choose_option",
     "choose_res_target",
     "choose_res_source",
@@ -887,17 +883,9 @@ impl Policy for TallyPolicy {
         self.calls[7] += 1;
         self.inner.action_amount(r, p, max)
     }
-    fn discard_payment_count(
-        &mut self,
-        r: &mut StdRng,
-        p: usize,
-        mc: i64,
-        cost: i64,
-        hand: &[u16],
-        rate: i64,
-    ) -> usize {
+    fn vendre_librement(&mut self, r: &mut StdRng, p: usize, main: &[u16]) -> Vec<usize> {
         self.calls[8] += 1;
-        self.inner.discard_payment_count(r, p, mc, cost, hand, rate)
+        self.inner.vendre_librement(r, p, main)
     }
     fn choose_option(&mut self, r: &mut StdRng, p: usize, n: usize) -> usize {
         self.calls[9] += 1;

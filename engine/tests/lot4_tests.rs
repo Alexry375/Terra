@@ -652,7 +652,13 @@ fn earlier_lot_counters_are_untouched() {
     let s = run_simulation(&db, 400, 7, &mut pol);
     assert!(s.res_added > 0 && s.res_removed > 0);
     assert!(s.blue_actions > 0);
-    assert!(s.discard_payments > 0);
+    // (regles-de-la-vente) `discard_payments` comptait les cartes que le moteur
+    // vendait D'OFFICE pour compléter un paiement. Ce chemin a été supprimé : le
+    // compteur reste publié — il est la preuve chiffrée qu'aucune carte ne
+    // quitte plus la main sans décision du joueur — et il vaut zéro. L'attente
+    // « > 0 » est donc inversée, pas retirée : un compteur qu'on cesserait de
+    // regarder ne prouverait plus rien.
+    assert_eq!(s.discard_payments, 0, "aucune vente d'office sur 400 parties");
 }
 
 // ====================================================== intégrité de la table

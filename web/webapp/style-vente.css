@@ -1,0 +1,130 @@
+/* VENDRE — le bouton, et la barre qui conclut.
+   (chantier `regles-de-la-vente`)
+
+   Une feuille à part, comme les trois précédentes : elle ne réécrit aucune règle
+   des autres, et elle se charge AVANT `style-menu.css` pour que le coupe-circuit
+   des animations (`html[data-animations="non"] *`) puisse encore l'éteindre.
+
+   UN BOUTON QU'ON PEUT ATTEINDRE. Le contrat est explicite et la raison est
+   simple : un bouton hors écran, transparent, désactivé ou RECOUVERT par un
+   autre élément, une main humaine le rate autant qu'un programme.
+
+   (round 2) LA PLACE EST RÉSERVÉE, ELLE N'EST PLUS ESPÉRÉE. Ce qui précède
+   disait « sa place est libre — la main du joueur est centrée dans sa bande ».
+   C'était un espoir, pas une garantie, et la main l'a démenti dès qu'elle s'est
+   allongée. Mesuré (`outputs/work/mesure-disposition.py`, graine 2024) :
+
+     · 1280×720, main de 13 cartes — le panneau occupe x 12→358, y 636→710 ; les
+       centres des trois premières cartes tombent dedans. Elles sont invendables,
+       et ce n'est PAS le chevauchement en éventail (le pas vaut 92 px pour une
+       carte de 92 px : la borne des 44 % de `vue/mains.js` ne mord même pas).
+     · 1600×1000, main de 11 cartes — l'inverse du même fait : une carte survolée
+       monte à `z-index: 999` (`style.css`, `.main--mienne .carte--main:hover`),
+       donc AU-DESSUS du panneau, et recouvre à son tour le bouton qui conclut.
+       La partie se bloque, sans issue et sans message.
+
+   Les deux défauts sont le même : le panneau et la main partagent la même zone.
+   La correction ne déplace donc rien « là où la main ne va jamais » — ce serait
+   à nouveau un espoir. Elle BORNE ce que la main peut occuper : `--l-vente` est
+   la largeur de la gouttière, elle habille le panneau ET se retire de la largeur
+   du rang de cartes (`.main--mienne .main__rang`, plus bas). Une seule valeur,
+   deux lecteurs, aucune façon qu'ils divergent — et la garantie ne dépend ni de
+   la taille de la fenêtre ni de la longueur de la main.
+
+   LES DEUX COINS, ET PAS SEULEMENT CELUI-CI. La gouttière est symétrique : le
+   coin bas-droit porte le bouton d'options (`style-menu.css`, `z-index: 94`,
+   44 px), et une main centrée dans une bande amputée d'un seul côté ne serait
+   plus centrée à l'écran. On réserve donc autant à droite qu'à gauche.
+
+   ABSENT VEUT DIRE ABSENT. Hors des phases où l'on peut dépenser, le panneau
+   est RETIRÉ du document (`vue/vente.js`, `z.remove()`) — pas caché. `hidden` ou
+   l'opacité laisseraient un bouton qu'un programme trouve encore et qu'une main
+   ne voit plus : c'est-à-dire un écran qui ment. Aucune règle de cette feuille
+   ne sert donc à le masquer. La gouttière, elle, reste réservée même quand le
+   panneau n'est pas là : la main ne saute pas d'une phase à l'autre, et rien ne
+   dépend de l'ordre dans lequel `interface.js` redessine ses morceaux. */
+
+:root {
+  /* La gouttière réservée à chaque coin bas. 236 = 12 (bord) + 212 (panneau)
+     + 12 (écart au premier carton de la main). Le panneau est tenu à cette
+     largeur : c'est ce qui rend la réservation exacte plutôt qu'estimée. */
+  --l-vente: 236px;
+}
+
+#vente {
+  position: fixed;
+  left: 12px;
+  bottom: 10px;
+  width: calc(var(--l-vente) - 24px);
+  z-index: 96;
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* LA MAIN NE S'ÉTALE PLUS SOUS LES COINS. Le rang de cartes rend les deux
+   gouttières ; `vue/mains.js` mesure la largeur qui reste (`z.clientWidth`, qui
+   exclut les marges) et y fait tenir la main quoi qu'il arrive. */
+.main--mienne .main__rang {
+  margin-left: var(--l-vente);
+  margin-right: var(--l-vente);
+}
+
+
+#vente button {
+  font: inherit;
+  font-size: 10px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--os);
+  background: rgba(4, 6, 11, .92);
+  border: 1px solid rgba(239, 228, 212, .28);
+  border-radius: 3px;
+  padding: 7px 11px;
+  cursor: pointer;
+}
+
+#vente button:hover { border-color: var(--or); color: var(--or); }
+#vente button:focus-visible { outline: 1px solid var(--or); outline-offset: 3px; }
+#vente button:disabled { opacity: .45; cursor: default; }
+
+/* La barre de conclusion n'existe que pendant la désignation. Elle se REPLIE
+   dans la gouttière au lieu de s'étaler : rien de ce panneau ne dépasse de la
+   largeur réservée, sans quoi la réservation ne vaudrait plus rien. */
+.vente__conclure { display: none; }
+html[data-mode="vente"] .vente__conclure {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: rgba(4, 6, 11, .94);
+  border: 1px solid rgba(239, 228, 212, .2);
+  border-radius: 3px;
+  padding: 6px 8px;
+}
+
+.vente__dit {
+  font-size: 9px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--os-faible);
+  /* Le mot se met à la ligne plutôt que de sortir de la gouttière : un texte
+     qui déborde recouvrirait la main, c'est-à-dire exactement le défaut que
+     cette feuille corrige. */
+  flex: 1 1 100%;
+}
+
+/* CE QUE LE JOUEUR A DÉSIGNÉ. La marque est portée par la carte elle-même
+   (`data-a-vendre="oui"`, imposé par le contrat) : ce qu'on voit et ce que la
+   page déclare sont le même fait, pas deux. */
+html[data-mode="vente"] #mienne-rang .carte--main { cursor: pointer; }
+#mienne-rang .carte--main[data-a-vendre="oui"] {
+  transform: translateY(-18px);
+  filter: drop-shadow(0 0 10px rgba(226, 84, 43, .85));
+}
+#mienne-rang .carte--main[data-a-vendre="oui"] img {
+  outline: 2px solid rgba(226, 84, 43, .9);
+  outline-offset: 1px;
+}

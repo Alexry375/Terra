@@ -584,6 +584,65 @@ pub struct GameState {
     /// (C3) Compteur d'audit : nombre TOTAL de cartes défaussées pour payer des
     /// cartes Projet (3 MC / carte). Règle, donc actif aussi en `--effects off`.
     pub discard_payments: u64,
+    /// (regles-de-la-vente) **La phase que le moteur résout à cet instant**, 1 à
+    /// 5, ou **0 hors phase** : mise en place, planification de la manche, étape
+    /// de fin de manche. Écrite par `flow::play_round`, le seul endroit qui
+    /// connaisse la phase en cours.
+    ///
+    /// Elle existe parce que deux consommateurs doivent en dire la MÊME chose :
+    /// l'écran, qui allume la carte Phase en cours, et l'occasion de vendre, qui
+    /// n'est offerte que dans les phases où l'on peut dépenser. L'écran la
+    /// déduisait naguère du TYPE de la décision reçue — une déduction juste mais
+    /// qui n'avait aucun moyen de s'accorder avec le moteur sur l'étape de fin de
+    /// manche, où elle gardait la dernière phase résolue.
+    pub phase_en_cours: u8,
+    /// (regles-de-la-vente) Une vente volontaire est-elle offerte au point de
+    /// décision où le moteur se trouve ? Écrit par `flow::occasion_de_vendre`,
+    /// juste avant chaque décision, et publié par `observe::state_view` : c'est
+    /// ce drapeau que l'écran lit pour offrir — ou non — son bouton de vente.
+    /// Sans lui, l'écran devrait deviner, et offrirait une vente que le moteur
+    /// refuserait.
+    pub vente_offerte: bool,
+    /// (regles-de-la-vente) **Une occasion vient-elle d'être OUVERTE, et pas
+    /// encore observée ?** Drapeau de passage, écrit par
+    /// `flow::occasion_de_vendre` et CONSOMMÉ par `flow::observer` — qui le vide
+    /// en le recopiant dans `vente_offerte`.
+    ///
+    /// Ce détour d'un seul champ est ce qui rend l'invariant impossible à
+    /// oublier. `vente_offerte` était naguère écrit par la seule
+    /// `occasion_de_vendre` : à un point de décision qui n'avait pas reçu son
+    /// occasion, il gardait la valeur du point PRÉCÉDENT, c'est-à-dire vrai.
+    /// L'écran offrait alors le bouton en toute bonne foi, la page inscrivait sa
+    /// vente, et le rejeu ne rencontrait aucune occasion pour la consommer :
+    /// elle tombait dans un point de décision, le pont la refusait, et la partie
+    /// se figeait. Consommé, le drapeau vaut faux à tout point de décision qui
+    /// n'a pas SON occasion : l'écran n'y offre rien, et une omission coûte au
+    /// pire une vente non proposée — jamais une partie perdue.
+    pub occasion_ouverte: bool,
+    /// (regles-de-la-vente, round 2) **Les mains telles qu'elles étaient à la
+    /// dernière occasion offerte**, une par joueur.
+    ///
+    /// Le drapeau de passage ci-dessus dit « une occasion a été ouverte pour ce
+    /// point de décision-ci ». Il ne disait pas encore « et les indices que le
+    /// joueur lira à l'écran désigneront les mêmes cartes ». Or plusieurs
+    /// occasions sont hoistées au-dessus de ce qui prépare la question, et l'une
+    /// d'elles — `Eff::DrawDiscard` — passait par-dessus une PIOCHE : le joueur
+    /// voyait trois cartes neuves, l'écran lui offrait le bouton, et le rejeu
+    /// replaçait sa vente sur la main d'avant la pioche. Le moteur refusait
+    /// l'entrée et la partie se figeait.
+    ///
+    /// La cause a été corrigée à sa source (l'occasion suit la pioche), mais
+    /// l'invariant est désormais VÉRIFIÉ plutôt que raisonné : `flow::observer`
+    /// ne publie `vente_offerte` que si la main de chaque joueur est encore
+    /// celle sur laquelle l'occasion a été offerte. Une occasion qu'on hoisterait
+    /// demain au-dessus d'une pioche coûterait au pire un bouton non offert —
+    /// jamais une partie perdue.
+    pub mains_a_l_occasion: Vec<Vec<u16>>,
+    /// (regles-de-la-vente) Compteur d'audit : cartes vendues VOLONTAIREMENT,
+    /// hors phase III (l'action standard de vente a son propre chemin). C'est le
+    /// pendant positif de `discard_payments` — celui-là doit valoir zéro,
+    /// celui-ci prouve que la vente reste possible.
+    pub ventes_volontaires: u64,
     // --------------------------------------- lot 3 (ressources sur les cartes)
     /// Ressources posées sur des cartes, comptées EN UNITÉS, incrémentées dans
     /// le service unique `flow::add_resources`, au moment exact de l'ajout.

@@ -88,6 +88,18 @@ fn player_view(game: &GameState, db: &CardsDb, p: usize, parts: &ScoreBreakdown)
         // Mode bac à sable : les DEUX mains sont visibles. C'est le propre de
         // cette vue — elle sert un moteur, pas encore un joueur humain.
         "hand": pl.hand.iter().map(|&id| card(id)).collect::<Vec<_>>(),
+        // (regles-de-la-vente) **CE QUE CE JOUEUR A LES MOYENS DE PAYER**, carte
+        // par carte de `hand`, dans le même ordre. C'est le moteur qui répond —
+        // `flow::main_payable`, le même point de calcul que l'énumération des
+        // options d'une pose — parce que l'écran ne sait ni ce qu'une carte
+        // coûte ni quelles réductions s'y appliquent.
+        //
+        // C'est de là que vient le contour vert. Il annonçait naguère jouable
+        // une carte à 17 MC à un joueur qui en avait 13, parce que le moteur
+        // comptait d'avance la vente de trois autres cartes de sa main ; il suit
+        // désormais les MC RÉELS, et il s'allume tout seul dès qu'une vente en
+        // ajoute — la page ne recalcule rien, elle recopie ce champ-ci.
+        "main_payable": crate::flow::main_payable(game, db, p),
         "played": pl.played.iter().map(|&id| {
             let mut v = card(id);
             // Ressources posées SUR la carte (lot 3), lues sur le joueur.
@@ -98,6 +110,12 @@ fn player_view(game: &GameState, db: &CardsDb, p: usize, parts: &ScoreBreakdown)
         "previous_phase": pl.previous_phase,
         "phase_upgrades": pl.phase_upgrade_labels(),
         "score": parts.total(),
+        // (regles-de-la-vente) **Le score ACQUIS** : le total moins les
+        // récompenses, qui ne seront attribuées qu'à la fin de la partie. C'est
+        // ce nombre-là que l'écran met en gros tant que la partie n'est pas
+        // finie ; `score` ci-dessus ne bouge pas d'un point, et reste ce que
+        // lisent le classement et le simulateur.
+        "score_acquis": parts.acquis(),
         // La VENTILATION du score, dans les cinq parts du livret. Rien n'est
         // ajouté au décompte : ce sont les termes que `score_breakdown` vient
         // d'additionner pour former `score` ci-dessus.
@@ -124,6 +142,17 @@ pub fn state_view(game: &GameState, db: &CardsDb) -> Value {
         "generation": game.generation,
         "first_player": game.first_player,
         "game_over": game.game_over,
+        // (regles-de-la-vente) La phase que le moteur résout à cet instant (1 à
+        // 5), ou 0 hors phase : mise en place, planification, étape de fin de
+        // manche. Écrite par `flow::play_round`, lue telle quelle. L'écran en
+        // déduisait naguère la valeur du TYPE de la décision reçue ; les deux
+        // doivent en dire la même chose, sinon le bouton de vente s'offre là où
+        // le moteur ne l'accepte pas.
+        "phase_en_cours": game.phase_en_cours,
+        // Une vente volontaire est-elle recevable au point où le moteur se
+        // trouve ? (`flow::occasion_de_vendre`.)
+        "vente_offerte": game.vente_offerte,
+        "ventes_volontaires": game.ventes_volontaires,
         // Paramètres planétaires, avec leurs plafonds : sans eux, « oxygène 7 »
         // ne dit pas à quelle distance on est de la fin de partie.
         "planet": {
@@ -382,17 +411,8 @@ impl<P: Policy> Policy for ObservingPolicy<'_, P> {
         self.inner.action_amount(rng, player, max)
     }
 
-    fn discard_payment_count(
-        &mut self,
-        rng: &mut StdRng,
-        player: usize,
-        mc: i64,
-        cost: i64,
-        hand: &[u16],
-        rate: i64,
-    ) -> usize {
-        self.inner
-            .discard_payment_count(rng, player, mc, cost, hand, rate)
+    fn vendre_librement(&mut self, rng: &mut StdRng, joueur: usize, main: &[u16]) -> Vec<usize> {
+        self.inner.vendre_librement(rng, joueur, main)
     }
 
     fn choose_option(&mut self, rng: &mut StdRng, player: usize, n: usize) -> usize {
