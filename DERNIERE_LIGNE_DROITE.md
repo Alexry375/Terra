@@ -432,3 +432,41 @@ lu la valeur CALCULEE dans un vrai navigateur. Relire la feuille ne prouve rien.
 Au passage, `#vente button:hover` a recu `:not(:disabled)` : le panneau se replie
 apres une vente et le bouton passe sous le curseur tout seul, donc un bouton
 desarme s'allumait sans que la main ait bouge.
+
+### K8 — Une question sautee quand rien n'est payable, donc AUCUNE occasion de vendre
+[VERIFIE 04-08 sur la partie en cours, A CORRIGER APRES LA PARTIE]
+
+Signale par Alexis en direct : son ami a choisi le bonus « poser une carte
+bleue/rouge supplementaire » et n'a pose qu'une seule carte.
+
+**Ce que le rejeu montre** (partie mars2, graine 210055, rangs 144 a 146) :
+rang 144 il choisit bien « Poser une carte bleue/rouge supplementaire » ; rang
+145 il pose Business Contracts (une seule option offerte) ; rang 146 le moteur
+passe DIRECTEMENT a la limite de main. Aucune question de seconde pose.
+
+**Pourquoi.** Le moteur fait tout ce qu'il faut : `flow.rs:4079-4095`, branche
+`ConstructionBonus::SecondBuild`, appelle `occasion_de_vendre` PUIS `affordable`
+PUIS `observer` PUIS `choose_build`. Le droit est accorde et l'occasion de vendre
+est ouverte. C'est le harnais de l'ecran qui l'escamote :
+`web/webapp/wasm/src/lib.rs:1269` — `if affordable.is_empty() { return None; }`.
+Aucun point de decision n'est cree, donc la page n'a jamais l'occasion ni de
+poser la question, ni d'offrir le bouton de vente que le moteur venait pourtant
+d'ouvrir.
+
+**Etat mesure a ce moment-la** : 8 MC, 10 cartes en main, trois bleues/rouges —
+Solarpunk 15 MC, Plantation 22 MC, Interplanetary Relations 35 MC. Aucune
+payable a 8 MC. Mais vendre 3 cartes (+9 MC = 17 MC) mettait **Solarpunk a
+portee**. Il pouvait donc bel et bien poser une seconde carte. Alexis a raison.
+
+**Correctif** : poser la question meme quand la liste est vide (uniquement
+« passer »), pour que le point de decision existe et que la vente y soit
+offerte. C'est le MEME defaut que la seconde moitie de K3 (« aucune carte
+constructible cette phase » dit en silence) — un seul correctif reglera les deux.
+
+**PAS PENDANT UNE PARTIE EN COURS** : cela AJOUTE des entrees dans la liste des
+decisions, ce qui decale toutes les reponses enregistrees. Destruction certaine
+au rejeu.
+
+**Contournement utilisable tout de suite** : vendre PENDANT la question de la
+premiere pose, ou le bouton existe. Les MC gagnes comptent pour la seconde pose,
+qui sera alors proposee.
