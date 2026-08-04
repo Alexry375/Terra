@@ -346,13 +346,29 @@ export function replacerPlateaux() {
 /**
  * LA PLANCHE DES OCÉANS. Neuf emplacements en permanence ; le moteur publie les
  * tuiles DÉJÀ retournées, dans l'ordre où elles l'ont été
- * (`planet.oceans_revealed_tiles` : `{id, cards, mc, plants}`). On retourne donc
- * le i-ième emplacement quand le moteur annonce une i-ième tuile, et on lui
- * donne EXACTEMENT le bonus qu'il annonce.
+ * (`planet.oceans_revealed_tiles` : `{id, cards, mc, plants}`), et on leur donne
+ * EXACTEMENT le bonus qu'il annonce.
+ *
+ * QUEL EMPLACEMENT SE RETOURNE ? Ce n'était pas une question : la r-ième tuile
+ * révélée allait sur le r-ième emplacement, et le joueur regardait faire. Le
+ * propriétaire du projet a demandé le 04-08 à CHOISIR, et a autorisé
+ * explicitement que ce choix soit PUREMENT VISUEL — le bonus reste celui que le
+ * moteur a tiré, seul l'emplacement change. Alors :
+ *
+ *   1. le moteur annonce une révélation → elle entre dans `fileRevelations` ;
+ *   2. la planche s'ouvre, les emplacements encore face cachée deviennent
+ *      désignables, et une grande tuile paraît au milieu de l'écran — pour que
+ *      l'événement ne se rate pas depuis son siège ;
+ *   3. le joueur désigne un emplacement, ou ne fait rien : au bout de
+ *      `DELAI_CHOIX` c'est le premier emplacement libre qui se retourne. LA
+ *      PARTIE N'ATTEND JAMAIS CE CHOIX — rien, dans la boucle de jeu, ne dépend
+ *      de cette file ; elle vit sur des minuteurs, à côté.
  *
  * Ce que le moteur ne publie pas — les tuiles encore retournées — n'entre pas
  * dans le document : c'est ce qui rend la fuite impossible plutôt que
- * seulement improbable.
+ * seulement improbable. Une tuile en attente d'emplacement n'y entre pas non
+ * plus : elle reste dans `fileRevelations`, en mémoire, et n'apparaît qu'au
+ * moment où elle se retourne.
  */
 function oceans(revelees) {
   const g = ref("#oceans-grille");
@@ -361,15 +377,212 @@ function oceans(revelees) {
   if (g.dataset.revelees === signature) return;
   g.dataset.revelees = signature;
 
-  [...g.children].forEach((d, i) => {
-    const t = revelees[i];
-    if (!t) {
-      if (d.dataset.oceanRevelee === "oui") retournerFaceCachee(d);
-      return;
-    }
-    if (d.dataset.oceanRevelee === "oui") return; // déjà retournée, rien à refaire
-    revelerTuile(d, t);
+  // L'ÉTAT PEUT RECULER (`verif/recul-etat.py` en a compté 46 sur une partie) :
+  // moins de tuiles révélées qu'avant, c'est une planche à refaire de zéro.
+  if (revelees.length < emplacementParRang.length) {
+    oublierChoixOceans();
+    [...g.children].forEach(retournerFaceCachee);
+  }
+
+  // Les révélations déjà placées reprennent LEUR emplacement, celui qui a été
+  // choisi : c'est ce qui fait qu'un redessin ne déplace jamais une tuile.
+  emplacementParRang.forEach((i, rang) => {
+    const t = revelees[rang];
+    const d = g.children[i];
+    if (t && d && d.dataset.oceanRevelee !== "oui") revelerTuile(d, t);
   });
+
+  // UNE RÉVÉLATION EN ATTENTE QUE LE MOTEUR N'ANNONCE PLUS n'a pas à se
+  // retourner : l'état a reculé sous elle. On la retire, et le choix ouvert
+  // avec elle — retourner une tuile que le moteur ne publie pas serait
+  // exactement le mensonge que cette planche s'interdit.
+  fileRevelations = fileRevelations.filter((r) => r.rang < revelees.length);
+  if (attente && !fileRevelations.length) {
+    clearTimeout(attente.minuteur);
+    attente = null;
+    fermerLeChoix();
+    fermerAnnonce();
+  }
+
+  // Les nouvelles attendent qu'on leur désigne un emplacement.
+  for (let rang = emplacementParRang.length; rang < revelees.length; rang++) {
+    if (!fileRevelations.some((r) => r.rang === rang)) {
+      fileRevelations.push({ rang, tuile: revelees[rang] });
+    }
+  }
+  ouvrirLeChoix();
+}
+
+/** Les emplacements encore face cachée, dans l'ordre de la planche. */
+function emplacementsLibres(g) {
+  return [...g.children].filter((d) => d.dataset.oceanRevelee !== "oui");
+}
+
+/**
+ * Ouvre le choix de la prochaine révélation en attente. Sans effet s'il y a
+ * déjà un choix ouvert : les révélations se suivent, jamais ne se chevauchent.
+ */
+function ouvrirLeChoix() {
+  if (attente || !fileRevelations.length) return;
+  const g = ref("#oceans-grille");
+  const o = ref("#oceans");
+  if (!g || !o) return;
+  const libres = emplacementsLibres(g);
+  if (!libres.length) {
+    // Neuf emplacements pour neuf tuiles : on ne devrait jamais passer ici. Si
+    // le moteur en annonçait une dixième, on le dirait plutôt que de la perdre.
+    console.warn("plateau.js : une tuile océan révélée sans emplacement libre");
+    fileRevelations.shift();
+    return;
+  }
+
+  const { tuile } = fileRevelations[0];
+  attente = { tuile, minuteur: null };
+  ouvrirAnnonce();
+
+  // Un seul emplacement libre : il n'y a rien à choisir, on le retourne.
+  if (libres.length > 1) {
+    o.classList.add("oceans--choix");
+    for (const d of libres) d.dataset.oceanChoisissable = "";
+    poserConsigne(o);
+  }
+
+  const defaut = [...g.children].indexOf(libres[0]);
+  attente.minuteur = setTimeout(
+    () => choisirEmplacement(defaut),
+    libres.length > 1 ? duree(DELAI_CHOIX) : 0,
+  );
+}
+
+/**
+ * L'emplacement `i` se retourne, avec la tuile que le moteur a tirée. Appelé
+ * par le clic du joueur comme par le minuteur : les deux chemins sont le même.
+ */
+function choisirEmplacement(i) {
+  if (!attente) return;
+  const g = ref("#oceans-grille");
+  const d = g && g.children[i];
+  if (!d || d.dataset.oceanRevelee === "oui") return;
+
+  const { tuile, minuteur } = attente;
+  clearTimeout(minuteur);
+  attente = null;
+  const rang = fileRevelations.shift().rang;
+  fermerLeChoix();
+
+  emplacementParRang[rang] = i;
+  revelerTuile(d, tuile);
+  retournerLAnnonce(tuile);
+
+  // La révélation suivante, s'il y en a une, attend que celle-ci ait fini de se
+  // montrer : deux grandes tuiles au milieu de l'écran en même temps, ce serait
+  // deux événements qu'on rate au lieu d'un qu'on voit.
+  setTimeout(ouvrirLeChoix, duree(FLIP + TENUE_ANNONCE));
+}
+
+/** Éteint la désignation : plus rien n'est cliquable sur la planche. */
+function fermerLeChoix() {
+  const o = ref("#oceans");
+  const g = ref("#oceans-grille");
+  if (o) o.classList.remove("oceans--choix");
+  if (g) for (const d of g.children) delete d.dataset.oceanChoisissable;
+  ref("#oceans-consigne")?.remove();
+}
+
+/** La consigne, en clair, au-dessus de la planche. Elle disparaît avec le choix. */
+function poserConsigne(o) {
+  if (o.querySelector("#oceans-consigne")) return;
+  const s = document.createElement("span");
+  s.className = "oceans__consigne";
+  s.id = "oceans-consigne";
+  s.textContent = CONSIGNE;
+  o.prepend(s);
+}
+
+// ------------------------------------------------- la grande tuile du milieu
+//
+// LE RETOURNEMENT SE VOIT. La planche fait cent dix points de large dans un coin
+// de l'écran, et ses tuiles une cinquantaine : un demi-tour de 620 ms y passe
+// totalement inaperçu — c'est très exactement le reproche du 04-08, « aucune
+// tuile n'est face visible même quand on en retourne ». La tuile se retourne
+// donc AUSSI en grand, au milieu de l'écran, avec son bonus écrit en toutes
+// lettres.
+//
+// Cette annonce ne peut rien bloquer : elle est en `pointer-events: none`, donc
+// un clic la traverse — ni une main ni une machine qui pilote la page ne peut
+// s'y heurter. Et elle n'existe dans le document que pendant qu'elle se montre.
+
+/** La grande tuile paraît, DE DOS : rien de la tuile n'est encore dans la page. */
+function ouvrirAnnonce() {
+  fermerAnnonce();
+  const a = document.createElement("div");
+  a.id = "ocean-annonce";
+  a.dataset.oceanAnnonce = "";
+  a.setAttribute("aria-hidden", "true");
+
+  const t = document.createElement("div");
+  t.className = "annonce-ocean__tuile";
+  const pivot = document.createElement("div");
+  pivot.className = "annonce-ocean__pivot";
+  const dos = document.createElement("div");
+  dos.className = "annonce-ocean__dos";
+  const im = document.createElement("img");
+  im.src = dosOcean();
+  im.alt = MOT.oceanFaceDown;
+  im.draggable = false;
+  dos.appendChild(im);
+  pivot.appendChild(dos);
+  t.appendChild(pivot);
+
+  const mot = document.createElement("p");
+  mot.className = "annonce-ocean__mot";
+  mot.textContent = ANNONCE_CHOIX;
+
+  a.appendChild(t);
+  a.appendChild(mot);
+  document.body.appendChild(a);
+}
+
+/** Elle se retourne à son tour, dit le bonus, puis s'efface. */
+function retournerLAnnonce(t) {
+  const a = ref("#ocean-annonce");
+  if (!a) return;
+  const pivot = a.querySelector(".annonce-ocean__pivot");
+  const mot = a.querySelector(".annonce-ocean__mot");
+  if (!pivot || !mot) return;
+  const face = document.createElement("div");
+  face.className = "annonce-ocean__face";
+  remplirFace(face, t, "annonce-ocean__sansscan");
+  pivot.prepend(face);
+  mot.textContent = bonusEnMots(t);
+  requestAnimationFrame(() => a.classList.add("annonce-ocean--retournee"));
+  setTimeout(fermerAnnonce, duree(FLIP + TENUE_ANNONCE) + 40);
+}
+
+function fermerAnnonce() {
+  ref("#ocean-annonce")?.remove();
+}
+
+/**
+ * La face d'une tuile : le scan du bonus que le moteur annonce, ou ce bonus
+ * écrit en toutes lettres quand aucun scan ne le porte — jamais une tuile qui
+ * annoncerait autre chose. Le même dessin sert la planche et l'annonce.
+ */
+function remplirFace(hote, t, classeSansScan) {
+  hote.textContent = "";
+  const src = faceOcean(t);
+  if (src) {
+    const im = document.createElement("img");
+    im.src = src;
+    im.alt = `${MOT.oceanFaceUp} — ${bonusEnMots(t)}`;
+    im.draggable = false;
+    hote.appendChild(im);
+    return;
+  }
+  const s = document.createElement("span");
+  s.className = classeSansScan;
+  s.textContent = bonusEnMots(t);
+  hote.appendChild(s);
 }
 
 /** Retourne un emplacement face visible, avec le bonus que le moteur annonce. */
@@ -384,42 +597,55 @@ function revelerTuile(d, t) {
     // celle qu'on voit — le dos tant qu'elle est retournée, la face après.
     pivot.prepend(face);
   }
-  face.textContent = "";
-
-  const src = faceOcean(t);
-  if (src) {
-    const im = document.createElement("img");
-    im.src = src;
-    im.alt = `${MOT.oceanFaceUp} — ${bonusEnMots(t)}`;
-    im.draggable = false;
-    face.appendChild(im);
-  } else {
-    // Aucun scan ne rend ce bonus-là : on écrit ce que le moteur annonce
-    // plutôt que de montrer une tuile qui annoncerait autre chose.
-    const s = document.createElement("span");
-    s.className = "ocean__sansscan";
-    s.textContent = bonusEnMots(t);
-    face.appendChild(s);
-  }
+  remplirFace(face, t, "ocean__sansscan");
 
   d.dataset.oceanId = String(t.id);
   d.dataset.oceanBonus = `cards=${t.cards | 0},mc=${t.mc | 0},plants=${t.plants | 0}`;
   d.title = `${MOT.oceanFaceUp} — ${bonusEnMots(t)}`;
+  // LE SURVOL PORTE SUR LA FACE, PAS SUR LE DOS. Mesuré le 04-08 :
+  // `document.elementFromPoint` au centre d'une tuile retournée rend l'image du
+  // DOS — Chrome garde la face arrière dans le test de survol malgré
+  // `backface-visibility: hidden`, alors que le rendu, lui, est juste. Un clic
+  // et une infobulle tombaient donc sur le dos d'une tuile visible. La face
+  // porte son propre `title` et sa propre marque ; la feuille de style, elle,
+  // retire le dos du test de survol dès que la tuile est retournée.
+  face.dataset.oceanFace = "";
+  face.title = d.title;
   d.dataset.oceanRevelee = "oui";
+  delete d.dataset.oceanChoisissable;
   // La classe est posée au tour d'après pour que le navigateur ait vu l'état
   // « retournée » : sans ce délai, il n'y a pas de transition à animer.
   requestAnimationFrame(() => d.classList.add("ocean--retournee"));
+  // Le dos ne quitte le test de survol qu'une fois le demi-tour FINI : avant, il
+  // est encore ce que l'on voit. On compte le temps plutôt que d'attendre la fin
+  // de la transition — une fin de transition qui ne viendrait pas laisserait le
+  // survol faux pour toujours, alors qu'un minuteur, lui, arrive toujours.
+  setTimeout(() => {
+    if (d.dataset.oceanRevelee === "oui") d.classList.add("ocean--posee");
+  }, duree(FLIP) + 60);
 }
 
 /** Remet un emplacement face cachée (nouvelle partie). */
 function retournerFaceCachee(d) {
   d.classList.remove("ocean--retournee");
+  d.classList.remove("ocean--posee");
   d.dataset.oceanRevelee = "non";
   delete d.dataset.oceanId;
   delete d.dataset.oceanBonus;
+  delete d.dataset.oceanChoisissable;
   d.removeAttribute("title");
   const face = d.querySelector(".ocean__face");
   if (face) face.remove();
+}
+
+/** Oublie tout choix en cours et toute révélation en attente. */
+function oublierChoixOceans() {
+  if (attente) clearTimeout(attente.minuteur);
+  attente = null;
+  emplacementParRang = [];
+  fileRevelations = [];
+  fermerLeChoix();
+  fermerAnnonce();
 }
 
 /** Le bonus d'une tuile, dit en toutes lettres, tel que le moteur le publie. */
@@ -440,6 +666,7 @@ export function oublierPlateaux() {
       z.textContent = "";
     }
   }
+  oublierChoixOceans();
   const g = ref("#oceans-grille");
   if (g) {
     delete g.dataset.revelees;

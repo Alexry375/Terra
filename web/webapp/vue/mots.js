@@ -26,6 +26,8 @@ export const MOT = {
   oxygen: "Oxygen",
   ocean: "Oceans",
   oceanMap: "Ocean tiles",
+  // Le paquet de cartes projet et sa defausse, dans le bandeau.
+  deck: "Deck",
   tr: "TR",
   production: "Production",
   steel: "Steel",

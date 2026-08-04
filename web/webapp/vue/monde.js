@@ -96,6 +96,21 @@ export function construireMonde() {
       <span class="param__max">/<i id="mer-max" data-valeur="planet.oceans_max">0</i></span>
     </section>
 
+    <!-- LE PAQUET. Alexis, le 04-08 : « il faudrait savoir combien de cartes
+         projet il reste dans le paquet ». Les deux nombres viennent du moteur
+         (engine/src/observe.rs:183, la clef "decks") et déclarent leur chemin
+         comme tous les autres nombres de l'écran : la page n'en compte aucun.
+
+         La DÉFAUSSE est écrite à côté, et ce n'est pas un ornement : quand le
+         paquet se vide, c'est elle qui est remélangée pour en former un neuf
+         (livret p. 15, engine/src/flow.rs:32). Lire « 0 / 34 » dit donc qu'il
+         reste trente-quatre cartes à piocher, pas que la partie s'arrête. -->
+    <section class="param param--paquet" id="param-paquet">
+      <span class="param__nom">${MOT.deck}</span>
+      <b class="param__n" data-valeur="decks.deck">0</b>
+      <span class="param__max">+<i data-valeur="decks.discard">0</i></span>
+    </section>
+
     <section class="tuiles-honneur">
       <div class="tuiles-honneur__rang" id="jalons"></div>
       <div class="tuiles-honneur__rang" id="recompenses"></div>
@@ -166,6 +181,14 @@ export function majMonde(etat) {
   poser(ref("#temp-max"), degre(p.temperature_max));
   poser(ref("#o2-max"), p.oxygen_max);
   poser(ref("#mer-max"), p.oceans_max);
+
+  // LE PAQUET, tel que le moteur le compte. Les deux nombres sont recopies,
+  // jamais additionnes ni deduits : « il reste tant de cartes » est une
+  // information du moteur, pas un calcul de l'ecran.
+  if (etat.decks) {
+    poserValeur("decks.deck", etat.decks.deck);
+    poserValeur("decks.discard", etat.decks.discard);
+  }
 
   majArcs(etat);
 

@@ -32,7 +32,11 @@
 #horizon {
   /* Une pastille d'honneur, deux rangées empilées, dans la hauteur utile. */
   --pastille: clamp(11px, calc((var(--h-bandeau) - 20px) / 2), 30px);
-  grid-template-columns: auto auto auto auto 1fr auto auto;
+  /* Sept colonnes pour sept blocs : manche, temperature, oxygene, oceans,
+     PAQUET, les tuiles d'honneur (elastique, elles se calent a droite), et la
+     case qui masque les points de victoire. La colonne elastique est celle des
+     honneurs : c'est elle qui absorbe la largeur restante. */
+  grid-template-columns: auto auto auto auto auto 1fr auto;
   align-items: center;
   column-gap: clamp(12px, 1.9vw, 34px);
   padding: 3px 14px;
@@ -335,3 +339,8 @@ html[data-animations="non"] .gain {
   animation: none;
   opacity: 1; transform: translate(-50%, -6px);
 }
+
+/* Le paquet de cartes projet et sa defausse. Le second nombre est ecrit en
+   retrait, precede d'un « + » : ce sont les cartes qui reviendront dans le
+   paquet quand il se videra, pas un maximum. */
+.param--paquet .param__max { color: var(--os-faible); }

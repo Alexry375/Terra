@@ -1,0 +1,165 @@
+/* TERRA — LA PLANCHE DES OCÉANS : LE RETOURNEMENT QU'ON NE RATE PAS.
+ *
+ * Cette feuille est chargée APRÈS `style-monde.css`, qui a dessiné la planche,
+ * et AVANT `style-menu.css`, qui porte le coupe-circuit des animations : tout
+ * ce qui bouge ici s'éteint donc avec `?animations=non`, comme le reste de
+ * l'écran. Aucune règle d'une autre feuille n'est réécrite — on ne fait
+ * qu'ajouter trois états que la planche n'avait pas :
+ *
+ *   `.ocean--posee`              une tuile dont le demi-tour est FINI ;
+ *   `#oceans.oceans--choix`      un emplacement est à désigner ;
+ *   `#ocean-annonce`             la grande tuile qui se retourne au milieu.
+ *
+ * Le reproche du 04-08 était double, et les deux moitiés tiennent à la même
+ * chose : la planche fait cent trente points de large dans un coin, ses tuiles
+ * une cinquantaine, et un demi-tour de 620 ms y est proprement invisible. On
+ * répond donc en deux temps — le retournement se rejoue EN GRAND au milieu de
+ * l'écran, et la planche s'ouvre pour qu'on y désigne l'emplacement.
+ *
+ * RIEN DE TOUT CECI NE PEUT BLOQUER UN CLIC. La grande tuile est en
+ * `pointer-events: none` : un clic la traverse, qu'il vienne d'une main ou d'une
+ * machine qui pilote la page. Et la planche, elle, ne quitte jamais sa colonne
+ * — elle ne peut donc recouvrir ni la scène de la décision, ni les mains.
+ */
+
+/* ======================================= LE SURVOL PORTE SUR LA FACE VISIBLE
+ *
+ * Mesuré le 04-08 : `document.elementFromPoint` au centre d'une tuile retournée
+ * rend l'image du DOS. Le rendu, lui, est juste — c'est le test de survol de
+ * Chrome qui garde la face arrière malgré `backface-visibility: hidden`.
+ * Conséquence réelle : l'infobulle et le survol d'une tuile visible portaient
+ * sur son dos. Deux règles suffisent, et aucune ne touche au rendu :
+ *   • dès le début du demi-tour, le dos sort du test de survol ;
+ *   • une fois le demi-tour fini, il en sort tout à fait — il n'y a plus rien à
+ *     voir de ce côté-là, et `visibility` est la seule chose que le test de
+ *     survol respecte à coup sûr.
+ */
+.ocean--retournee .ocean__dos { pointer-events: none; }
+.ocean--posee .ocean__dos { visibility: hidden; }
+
+/* ============================================ DÉSIGNER L'EMPLACEMENT À OUVRIR
+ *
+ * La planche s'ouvre SANS SORTIR DE SA COLONNE : les neuf emplacements passent
+ * de trois colonnes à deux, et prennent la hauteur que le panneau laissait vide
+ * — une tuile gagne près de la moitié de sa largeur, et rien d'autre à l'écran
+ * ne bouge d'un pixel. Un panneau qui s'agrandirait par-dessus la scène de la
+ * décision, lui, empêcherait de répondre pendant qu'il est ouvert : ce serait
+ * bloquer la partie pour montrer une tuile.
+ */
+#oceans.oceans--choix {
+  z-index: 60;
+  box-shadow: inset 0 0 0 1px rgba(120, 215, 255, .85), 0 0 22px rgba(80, 190, 230, .35);
+  animation: oceans-planche-appel 900ms ease-in-out 6 both;
+}
+#oceans.oceans--choix:not(.oceans--grande) .oceans__grille {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: center;
+  padding: 0 12% 6%;
+}
+/* Le nid d'abeille suit : une colonne sur deux descend d'une demi-tuile. */
+#oceans.oceans--choix:not(.oceans--grande) .oceans__grille > .ocean { transform: none; }
+#oceans.oceans--choix:not(.oceans--grande) .oceans__grille > .ocean:nth-child(2n) {
+  transform: translateY(50%);
+}
+
+/* La consigne, en clair : sans elle, une planche qui clignote est une planche
+   qui clignote — pas une question posée. */
+.oceans__consigne {
+  display: block; text-align: center;
+  font-size: 9px; letter-spacing: .14em; text-transform: uppercase;
+  color: #a8e6ff; margin-bottom: 2px;
+  animation: oceans-consigne-appel 900ms ease-in-out 6 both;
+}
+@keyframes oceans-consigne-appel {
+  0%, 100% { opacity: .55; }
+  50% { opacity: 1; }
+}
+
+/* UN EMPLACEMENT DÉSIGNABLE. Il respire, et il s'allume franchement sous le
+   pointeur : c'est la seule chose de la planche qui se clique, il ne doit pas y
+   avoir d'hésitation sur ce qu'on est en train de désigner. */
+.ocean[data-ocean-choisissable] { cursor: pointer; }
+.ocean[data-ocean-choisissable] .ocean__dos img {
+  animation: oceans-tuile-appel 900ms ease-in-out 6 both;
+}
+.ocean[data-ocean-choisissable]:hover .ocean__dos img {
+  animation: none;
+  filter: brightness(1.35) saturate(1.1) drop-shadow(0 0 10px rgba(150, 230, 255, 1));
+}
+
+@keyframes oceans-planche-appel {
+  0%, 100% { border-color: var(--trait); }
+  50% { border-color: rgba(120, 215, 255, .9); }
+}
+@keyframes oceans-tuile-appel {
+  0%, 100% { filter: brightness(.78) saturate(.85); }
+  50% { filter: brightness(1.2) saturate(1) drop-shadow(0 0 8px rgba(120, 215, 255, .95)); }
+}
+
+/* ================================= LA GRANDE TUILE, AU MILIEU DE L'ÉCRAN
+ *
+ * Elle paraît DE DOS pendant qu'on choisit, se retourne quand l'emplacement est
+ * désigné, dit son bonus en toutes lettres, puis s'efface. C'est elle qui rend
+ * l'événement impossible à rater depuis son siège — la planche, dans son coin,
+ * ne le pouvait pas.
+ */
+#ocean-annonce {
+  position: fixed; z-index: 90;
+  left: 50%; top: 15vh; transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  /* UN CLIC LA TRAVERSE. Sans cette ligne, l'annonce recouvrirait pendant deux
+     secondes une partie de la table — c'est-à-dire empêcherait de jouer. */
+  pointer-events: none;
+  animation: oceans-annonce-entree 340ms cubic-bezier(.2, .9, .3, 1.2) both;
+}
+.annonce-ocean__tuile {
+  position: relative;
+  width: min(26vh, 260px); aspect-ratio: 451 / 404;
+  perspective: 900px;
+}
+/* La lueur derrière la tuile : c'est ce qui accroche l'œil quand on regardait
+   ailleurs. Elle est SOUS la tuile et ne déborde pas de l'annonce. */
+.annonce-ocean__tuile::before {
+  content: ""; position: absolute; inset: -34%; z-index: -1;
+  background: radial-gradient(closest-side, rgba(80, 190, 230, .55), rgba(80, 190, 230, 0) 72%);
+  animation: oceans-lueur 1100ms ease-in-out 4 both;
+}
+.annonce-ocean__pivot {
+  position: relative; width: 100%; height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 620ms cubic-bezier(.3, .85, .3, 1);
+}
+#ocean-annonce.annonce-ocean--retournee .annonce-ocean__pivot { transform: rotateY(180deg); }
+.annonce-ocean__dos, .annonce-ocean__face {
+  position: absolute; inset: 0;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+.annonce-ocean__face { transform: rotateY(180deg); }
+.annonce-ocean__dos img, .annonce-ocean__face img {
+  width: 100%; height: 100%; object-fit: contain;
+  /* Le scan est un hexagone sur fond blanc : on le découpe à sa forme, comme
+     sur la planche. */
+  clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+  filter: drop-shadow(0 14px 30px rgba(0, 0, 0, .85));
+}
+.annonce-ocean__sansscan {
+  font-size: 16px; text-align: center; line-height: 1.2; color: var(--os);
+  padding: 6px;
+}
+.annonce-ocean__mot {
+  margin: 0; padding: 4px 14px;
+  font-size: 13px; letter-spacing: .1em; text-transform: uppercase;
+  color: #d8f4ff; text-align: center;
+  background: rgba(4, 8, 14, .82);
+  box-shadow: 0 0 0 1px rgba(120, 215, 255, .45);
+}
+
+@keyframes oceans-annonce-entree {
+  from { opacity: 0; transform: translateX(-50%) scale(.7); }
+  to { opacity: 1; transform: translateX(-50%) scale(1); }
+}
+@keyframes oceans-lueur {
+  0%, 100% { opacity: .45; }
+  50% { opacity: 1; }
+}
