@@ -53,6 +53,11 @@ export const MOT = {
   milestone: "Milestone",
   award: "Award",
   currentCard: "Current card",
+  // La révélation du dessus de la pioche : ce que le joueur regarde, et ce que
+  // chaque carte révélée est devenue.
+  revealed: "Revealed from the top of the deck",
+  mayTake: "You may take it",
+  cannotTake: "Cannot be taken",
   yourCorps: "Your Corporation cards",
   yourHand: "Your hand",
   faceDown: "face-down card",
@@ -108,6 +113,17 @@ export const BADGE_FR_EN = {
   "Énergie": "Energy",
   "Événement": "Event",
   "joker": "wild",
+};
+
+/**
+ * Les trois couleurs de carte, du mot FRANÇAIS que le moteur en donne
+ * (`Color::nom_fr`, repris tel quel dans le champ `filtre.couleur` d'une
+ * révélation) vers le mot anglais affiché. Table explicite, comme les badges.
+ */
+export const COULEUR_FR_EN = {
+  verte: "green",
+  bleue: "blue",
+  rouge: "red",
 };
 
 /** Le nom anglais d'un badge que le moteur nomme en français. */
@@ -228,7 +244,47 @@ const QUESTIONS = {
   },
 
   rejouer_production: () => "Which green card replays its production effect?",
+
+  // La révélation du dessus de la pioche. Les deux nombres viennent des champs
+  // du descripteur : combien de cartes ont été retournées, combien on en prend
+  // (zéro quand aucune n'est prenable — et c'est alors ce qu'on dit).
+  revelation_pioche: (d) => {
+    const n = (d.revelees || []).length;
+    const k = d.a_choisir || 0;
+    return k
+      ? `Top ${n} card${s(n)} of the deck revealed: take ${k} into your hand`
+      : `Top ${n} card${s(n)} of the deck revealed: none of them can be taken`;
+  },
 };
+
+/**
+ * LA RÈGLE DE LA RÉVÉLATION, en anglais, d'après le `filtre` que le moteur pose
+ * sur la décision — jamais d'après la couleur des cartes montrées. Deux formes,
+ * les deux seules que le moteur produise (`engine::effects::RevealFilter`) :
+ * « toute carte qui n'est pas verte » et « toute carte portant tel badge ».
+ */
+export function regleRevelation(f) {
+  if (!f) return "";
+  if (f.sorte === "couleur_sauf") {
+    const c = COULEUR_FR_EN[f.couleur] || f.couleur;
+    return `you may take any card that is not ${c}`;
+  }
+  if (f.sorte === "badges") {
+    // Le moteur nomme ces badges-là par leur CLEF (`Tag::as_str` : « SCIENCE »),
+    // pas par leur libellé français : `BADGE_EN` d'abord, la table française
+    // ensuite — les deux existent déjà, on n'en invente pas une troisième.
+    const noms = (f.badges || []).map((b) => BADGE_EN[b] || badgeAnglais(b) || b);
+    if (!noms.length) return "";
+    return `you may take any card with a ${noms.join(" or ")} tag`;
+  }
+  console.warn("mots.js : filtre de révélation inconnu —", f);
+  return "";
+}
+
+/** Ce qu'une carte révélée est, pour le joueur : prenable, ou non. */
+export function etatRevelee(prenable) {
+  return prenable ? MOT.mayTake : MOT.cannotTake;
+}
 
 /** L'intitulé anglais de la décision en cours. */
 export function question(d) {

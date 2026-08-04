@@ -1535,6 +1535,92 @@ impl Policy for Harnais<'_> {
         }
     }
 
+    /// **La révélation du dessus de la pioche, MONTRÉE.**
+    ///
+    /// Le moteur retourne trois cartes face visible ; la page doit les voir,
+    /// toutes les trois, à chaque fois — même quand aucune n'est prenable et
+    /// qu'il n'y a rien à décider. Le descripteur porte donc DEUX listes, et la
+    /// distinction entre elles est tout le sujet :
+    ///
+    /// - `revelees` : les trois cartes retournées, chacune marquée `prenable`
+    ///   (le filtre imprimé de la carte Phase : « une carte bleue ou rouge »).
+    ///   C'est de l'INFORMATION, pas un choix — aucune n'est cliquable à ce
+    ///   titre. Rien n'y entre que le joueur n'ait le droit de voir : ces trois
+    ///   cartes-là sont posées sur la table par la règle, et le reste de la
+    ///   pioche n'est pas nommé.
+    /// - `options` : les seules cartes PRENABLES, dans l'ordre du moteur. Les
+    ///   indices de la réponse sont les leurs, exactement comme avant ce
+    ///   chantier (`research_keep` recevait déjà les seules candidates) : aucun
+    ///   fournisseur de décisions existant n'a à changer d'un signe, et aucun ne
+    ///   peut désigner une carte qu'il n'a pas le droit de prendre.
+    ///
+    /// Quand rien n'est prenable, `options` est vide et `a_choisir` vaut 0 : la
+    /// réponse attendue est la liste vide. Un fournisseur qui suit le contrat
+    /// (« un tableau de `a_choisir` indices distincts ») la produit sans rien
+    /// savoir de cette carte Phase.
+    fn reveal_pick(
+        &mut self,
+        rng: &mut StdRng,
+        player: usize,
+        revelees: &[u16],
+        candidates: &[u16],
+        keep: usize,
+        filtre: engine::effects::RevealFilter,
+    ) -> Vec<usize> {
+        // POURQUOI une carte n'est pas prenable : le filtre imprimé, rendu en
+        // CLEFS et en valeurs du moteur (couleur, badges) — jamais en phrase.
+        // La page en fait une phrase anglaise, comme pour tout le reste.
+        let filtre_json = match filtre {
+            engine::effects::RevealFilter::ColorIsNot(c) => json!({
+                "sorte": "couleur_sauf",
+                "couleur": c.nom_fr(),
+            }),
+            engine::effects::RevealFilter::AnyOfTags(t) => json!({
+                "sorte": "badges",
+                "badges": t.iter().map(|x| x.as_str()).collect::<Vec<_>>(),
+            }),
+        };
+        let desc = json!({
+            "type": "revelation_pioche",
+            "joueur": player,
+            "question": if keep == 0 {
+                format!(
+                    "Révélation : aucune des {} cartes du dessus n'est prenable",
+                    revelees.len()
+                )
+            } else {
+                format!(
+                    "Révélation : ajoutez {keep} carte(s) à votre main parmi les {} révélées",
+                    revelees.len()
+                )
+            },
+            "revelees": revelees.iter().map(|c| {
+                let mut o = carte_json(self.db, *c);
+                o["prenable"] = json!(candidates.contains(c));
+                o
+            }).collect::<Vec<_>>(),
+            "options": candidates.iter().map(|c| {
+                let mut o = carte_json(self.db, *c);
+                o["libelle"] = json!(o["nom"].as_str().unwrap_or("?"));
+                o
+            }).collect::<Vec<_>>(),
+            "filtre": filtre_json,
+            "a_choisir": keep,
+            "multiple": true,
+        });
+        match self.prendre(desc) {
+            Some(r) => match self.liste(&r, candidates.len(), keep) {
+                Some(v) => v,
+                None => self
+                    .defaut
+                    .reveal_pick(rng, player, revelees, candidates, keep, filtre),
+            },
+            None => self
+                .defaut
+                .reveal_pick(rng, player, revelees, candidates, keep, filtre),
+        }
+    }
+
     /// Vente d'une carte pour 3 MC : c'est le JOUEUR qui désigne laquelle.
     fn sell_card(&mut self, rng: &mut StdRng, player: usize, hand: &[u16]) -> usize {
         let desc = json!({

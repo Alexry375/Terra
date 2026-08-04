@@ -3106,13 +3106,19 @@ fn reveal_top(
     // demande, jamais lui qui décide (convention du lot 3 pour les CIBLES,
     // `choose_res_target`). La règle « on ne demande rien à une seule option »
     // ne vaut que pour les ALTERNATIVES du texte imprimé (`choose_option`).
-    if take > 0 {
-        policy.observe(&game, p);
-        let idx = policy.research_keep(&mut game.rng, p, &cands, take);
-        for &i in idx.iter().take(take) {
-            if i < cands.len() {
-                kept.push(cands[i]);
-            }
+    //
+    // Et elle est consultée **à chaque révélation**, y compris quand rien n'est
+    // prenable (`take == 0`) : retourner trois cartes face visible est un geste
+    // du jeu, pas un calcul interne. Une politique qui a des yeux (l'écran) doit
+    // pouvoir les montrer ; une politique qui n'en a pas garde le corps par
+    // défaut de `Policy::reveal_pick`, qui ne décide rien et ne consomme pas le
+    // générateur dans ce cas. Le déroulement du jeu, lui, ne bouge pas d'un
+    // point : mêmes cartes gardées, mêmes cartes défaussées, même hasard.
+    policy.observe(&game, p);
+    let idx = policy.reveal_pick(&mut game.rng, p, &revealed, &cands, take, r.keep);
+    for &i in idx.iter().take(take) {
+        if i < cands.len() {
+            kept.push(cands[i]);
         }
     }
     for c in revealed {

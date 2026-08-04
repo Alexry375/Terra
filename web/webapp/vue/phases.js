@@ -32,6 +32,10 @@ const PHASE_DU_TYPE = {
   action_amount: 3,
   rejouer_production: 4,
   research_keep: 5,
+  // La révélation du dessus de la pioche appartient à la phase III : elle vient
+  // soit de la carte Phase améliorée III-A, soit de l'action d'une carte bleue,
+  // et les deux se résolvent en phase Action.
+  revelation_pioche: 3,
 };
 
 // `choose_build` se pose aussi bien en I (développement) qu'en II

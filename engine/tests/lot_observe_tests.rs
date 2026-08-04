@@ -216,6 +216,25 @@ impl Policy for CountingPolicy {
         self.decision(p);
         self.inner.research_keep(r, p, d, k)
     }
+    /// **Une révélation du dessus de pioche EST une décision**, même quand elle
+    /// n'offre rien à prendre : le moteur pose les cartes devant le joueur et
+    /// lui demande ce qu'il en fait — la réponse « rien » reste une réponse, et
+    /// c'est l'écran qui en a besoin pour montrer les trois cartes. La question
+    /// est donc comptée une fois ici, et déléguée à `inner` (et non à `self`)
+    /// pour que le `research_keep` interne du corps par défaut ne la compte pas
+    /// une seconde fois.
+    fn reveal_pick(
+        &mut self,
+        r: &mut StdRng,
+        p: usize,
+        revelees: &[u16],
+        candidates: &[u16],
+        k: usize,
+        f: engine::effects::RevealFilter,
+    ) -> Vec<usize> {
+        self.decision(p);
+        self.inner.reveal_pick(r, p, revelees, candidates, k, f)
+    }
     fn discard_down(&mut self, r: &mut StdRng, p: usize, h: &[u16], n: usize) -> Vec<usize> {
         self.decision(p);
         self.inner.discard_down(r, p, h, n)
