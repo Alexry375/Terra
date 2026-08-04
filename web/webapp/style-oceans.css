@@ -34,7 +34,11 @@
  *     voir de ce côté-là, et `visibility` est la seule chose que le test de
  *     survol respecte à coup sûr.
  */
-.ocean--retournee .ocean__dos { pointer-events: none; }
+/* L'ATTRIBUT, PAS LA CLASSE. `data-ocean-revelee` est posé au moment même où la
+ * tuile est révélée ; `.ocean--retournee`, lui, n'arrive qu'à l'image suivante
+ * (sans quoi il n'y aurait pas de transition à animer). Mesuré : entre les deux,
+ * le survol tombait encore sur le dos d'une tuile déjà déclarée retournée. */
+.ocean[data-ocean-revelee="oui"] .ocean__dos { pointer-events: none; }
 .ocean--posee .ocean__dos { visibility: hidden; }
 
 /* ============================================ DÉSIGNER L'EMPLACEMENT À OUVRIR

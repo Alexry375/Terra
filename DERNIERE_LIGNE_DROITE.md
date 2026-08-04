@@ -10,13 +10,13 @@ par quelqu'un, pas encore prouvé.
 
 ## A. Animations de pose de carte
 
-### A1 — Les cartes en suspension sont de travers
+### A1 — ✅ FAIT [VÉRIFIÉ 04-08] Les cartes en suspension sont de travers
 Pendant l'animation de pose, la carte reste quelques secondes en l'air, comme
 prévu, mais **inclinée** au lieu d'être droite.
 État : signalé plusieurs fois, jamais corrigé.
 Capture fournie par Alexis — **je ne l'ai pas reçue de mon côté**, à redemander.
 
-### A2 — Il manque la transition entre la grande carte et la carte posée
+### A2 — ✅ FAIT [VÉRIFIÉ 04-08] Il manque la transition entre la grande carte et la carte posée
 La grande carte en l'air disparaît, la petite carte apparaît sur le plateau. Il
 manque le mouvement qui relie les deux : le dépôt.
 État : signalé plusieurs fois, jamais corrigé.
@@ -61,7 +61,7 @@ l'affichage des jauges — nombre de cases dessinées et couleurs.
 
 ---
 
-## C. La phase de production ne se voit pas
+## C. ✅ FAIT [VÉRIFIÉ 04-08] La phase de production ne se voit pas
 
 Les compteurs de MC, de chaleur et de plantes augmentent **instantanément** : on
 ne comprend pas qu'il s'est passé quelque chose.
@@ -72,11 +72,11 @@ est laissée libre.
 
 ## D. Objectifs et récompenses
 
-### D1 — Zoom au survol
+### D1 — ✅ FAIT (à regarder de vos yeux) Zoom au survol
 Passer le curseur sur un objectif ou une récompense doit l'agrandir pour qu'on
 puisse le lire.
 
-### D2 — Retirer une mention
+### D2 — ✅ FAIT Retirer une mention
 Supprimer le texte « Mars surface · NASA / JPL / University of Arizona ».
 
 ---
@@ -99,17 +99,25 @@ La tuile doit se retourner à l'écran.
 
 ## F. Les cartes Phase améliorées
 
-### F1 — Les nouveaux visuels ne s'affichent pas au moment du choix
+### F1 — ✅ FAIT [VÉRIFIÉ 04-08] Les nouveaux visuels ne s'affichent pas au moment du choix
 Quand on améliore une carte Phase, la liste proposée montre encore les visuels
 **de base**.
 Précision d'Alexis : la phase **Recherche** améliorée et la carte
 **Développement** s'affichent, elles, correctement. Le défaut ne frappe donc pas
 partout.
 
-### F2 — La production améliorée ne demande pas quelle carte doubler
-La phase Production améliorée double la production d'une carte. Le jeu n'a
-jamais posé la question à Alexis.
-État : [DÉCLARÉ], à reproduire.
+### F2 — ⚠️ PAS UN DÉFAUT [VÉRIFIÉ 04-08] La production améliorée demande bien
+La question EXISTE et le moteur la pose. Elle est simplement **rare** : mesurée
+sur **cinq parties entières** (1 047 décisions au total, graines 2024, 5150, 77,
+31337, 909), la décision « quelle carte verte rejoue sa production » est apparue
+**2 fois**. Il faut, dans la même manche, avoir choisi la carte Production
+améliorée A ET posséder au moins **deux** cartes vertes qui produisent quelque
+chose — sinon le moteur double la seule carte possible sans rien demander
+(`engine/src/flow.rs:4324`, `replay_green_production`).
+
+Alexis n'a donc « pas eu de chance », au sens propre. Ce qui change quand même
+pour lui : depuis le point C, le gain apparaît maintenant en « +X » sur ses
+compteurs — il verra qu'il s'est passé quelque chose, même sans question posée.
 
 ### F3 — L'Action améliorée ne montre pas les cartes tirées
 Elle est censée montrer 3 cartes de la pioche et permettre d'en prendre une
@@ -124,8 +132,9 @@ Alexis n'a jamais rencontré l'exemple. À reproduire et à prouver.
 
 ## G. Le paquet de cartes projet
 
-### G1 — Afficher combien de cartes restent dans le paquet
-Non fait aujourd'hui.
+### G1 — ✅ FAIT [VÉRIFIÉ 04-08] Afficher combien de cartes restent dans le paquet
+Le bandeau écrit « DECK 246 +0 » : ce qui reste à piocher, puis ce qui attend
+dans la défausse. Mesuré sur une partie entière : 246 → 26, défausse 0 → 172.
 
 ### G2 — Remélanger la défausse quand le paquet est vide
 **Déjà fait** [VÉRIFIÉ 04-08] `engine/src/flow.rs:32-42` : `draw_card`
