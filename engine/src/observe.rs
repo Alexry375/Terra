@@ -178,6 +178,27 @@ pub fn state_view(game: &GameState, db: &CardsDb) -> Value {
                 .collect::<Vec<_>>(),
             "infrastructure": game.infrastructure,
         },
+        // (moteur-questions-manquantes) **LE CONTENU DE LA DÉFAUSSE, LA PLUS
+        // RÉCEMMENT DÉFAUSSÉE EN TÊTE.** La pile de défausse est une information
+        // PUBLIQUE du jeu — contrairement à la pioche, dont seule l'épaisseur se
+        // publie juste en dessous. Le moteur la tient ordonnée (`GameState::
+        // discard`, la dernière poussée en fin de vecteur) ; on la retourne ici,
+        // une fois, pour que l'écran n'ait pas à savoir dans quel sens le moteur
+        // empile.
+        //
+        // Même forme de carte que `hand` et `played` ci-dessus : l'écran ne
+        // connaît qu'une seule façon de dessiner une carte, et la fenêtre de
+        // défausse à venir se sert de la même. La longueur reste exactement
+        // `decks.discard`, calculée à côté sur le même vecteur.
+        "defausse": game.discard.iter().rev().map(|&id| {
+            let c = &db.projects[id as usize];
+            json!({
+                "id": id,
+                "name": c.name,
+                "couleur": c.color.nom_fr(),
+                "price": c.price,
+            })
+        }).collect::<Vec<_>>(),
         // Tailles des paquets : le contenu de la pioche n'est pas une
         // information du jeu, son épaisseur l'est.
         "decks": {
@@ -495,9 +516,5 @@ impl<P: Policy> Policy for ObservingPolicy<'_, P> {
         n: usize,
     ) -> Vec<usize> {
         self.inner.discard_down(rng, player, hand, n)
-    }
-
-    fn sell_card(&mut self, rng: &mut StdRng, player: usize, hand: &[u16]) -> usize {
-        self.inner.sell_card(rng, player, hand)
     }
 }

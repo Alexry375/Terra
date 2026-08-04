@@ -431,10 +431,6 @@ impl Policy for ProbePolicy {
         self.inner.discard_down(rng, p, hand, n)
     }
 
-    fn sell_card(&mut self, rng: &mut StdRng, p: usize, hand: &[u16]) -> usize {
-        self.inner.sell_card(rng, p, hand)
-    }
-
     fn choose_option(&mut self, rng: &mut StdRng, p: usize, n: usize) -> usize {
         if self.ci < self.choices.len() {
             let c = self.choices[self.ci];

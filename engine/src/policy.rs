@@ -35,8 +35,17 @@ pub enum ActionOpt {
     TemperatureWithHeat,
     TemperatureWithMc,
     OceanWithMc,
-    /// Défausser 1 carte de la main pour 3 MC.
-    SellCard,
+    // (moteur-questions-manquantes) `SellCard` — « défausser 1 carte de la main
+    // pour 3 MC » — N'EST PLUS UNE ACTION de la phase Action, et le variant est
+    // retiré plutôt que laissé sans emploi.
+    //
+    // La phase Action est un aller-retour : chaque option prise y consomme un
+    // échange. Vendre coûtait donc un tour de jeu, ne vendait qu'une carte, et
+    // faisait doublon avec `flow::occasion_de_vendre`, ouverte avant CHAQUE
+    // point de décision des phases dépensables, gratuite, et sans limite de
+    // nombre. Le taux est le même des deux côtés (`flow::discard_mc_rate`,
+    // service unique) : retirer l'action ne retire aucun MC au joueur, elle ne
+    // lui rendait qu'un chemin plus cher vers le même état.
     /// Action de la carte bleue jouée d'indice donné (stub neutre).
     BlueAction(u16),
     /// (jokers-corpos) **Action portée par la CORPORATION du joueur** — une
@@ -328,21 +337,13 @@ pub trait Policy {
     fn discard_down(&mut self, rng: &mut StdRng, player: usize, hand: &[u16], n: usize)
         -> Vec<usize>;
 
-    /// **Vente d'une carte** (`ActionOpt::SellCard`) : QUELLE carte de la main
-    /// on défausse pour ses 3 MC. Rend un indice dans `hand`.
-    ///
-    /// Corps par défaut = l'ancien comportement du moteur, **au hasard**, et
-    /// il consomme le RNG exactement comme avant : les politiques qui ne
-    /// redéfinissent pas cette méthode jouent à l'identique, empreintes de
-    /// référence comprises. Un joueur humain, lui, doit pouvoir choisir — c'est
-    /// tout l'objet de cette méthode.
-    ///
-    /// À ne pas confondre avec `discard_down`, qui est la limite de main de fin
-    /// de ronde : le contexte de décision n'est pas le même, une politique
-    /// pensante doit pouvoir les distinguer.
-    fn sell_card(&mut self, rng: &mut StdRng, _player: usize, hand: &[u16]) -> usize {
-        rng.gen_range(0..hand.len())
-    }
+    // (moteur-questions-manquantes) `sell_card` VIVAIT ICI — « quelle carte
+    // vendez-vous ? », la seconde moitié de l'action standard `SellCard` que la
+    // phase Action offrait. L'action a été retirée (voir `ActionOpt`), et cette
+    // question avec elle : la vente passe désormais par `vendre_librement`, qui
+    // désigne autant de cartes qu'on veut, à un point d'OCCASION qui ne consomme
+    // pas d'échange. Quatre-vingt-une décisions « quelle carte vendre » sur la
+    // seule graine 4242 disparaissent ainsi de l'arbre.
 }
 
 /// Politique uniforme aléatoire (toutes décisions tirées du RNG de la partie).

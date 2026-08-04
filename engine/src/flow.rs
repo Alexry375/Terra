@@ -3146,9 +3146,12 @@ fn action_options(
     if mc >= standard_mc_cost_with(OCEAN_MC_COST, remise) && game.snap_oceans < NUM_OCEANS {
         out.push(ActionOpt::OceanWithMc);
     }
-    if !pl.hand.is_empty() {
-        out.push(ActionOpt::SellCard);
-    }
+    // (moteur-questions-manquantes) LA VENTE N'EST PLUS UNE ACTION D'ICI. Elle
+    // était poussée là dès que la main n'était pas vide, et coûtait alors un
+    // échange de la phase Action au joueur qui la prenait. Elle reste offerte,
+    // gratuitement et pour autant de cartes qu'on veut, par `occasion_de_vendre`
+    // — ouverte avant chaque point de décision des phases dépensables, celle-ci
+    // comprise (voir `phase_action`).
 }
 
 /// (lot 6) Lecture d'une ressource de joueur désignée par `ActionRes`.
@@ -4150,7 +4153,7 @@ fn phase_action(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
         // Le texte imprimé ne donne aucun moment (ASK 3) : la révélation a lieu
         // AU DÉBUT de la phase, avant la première action — la carte gagnée fait
         // alors partie de la main pendant toute la phase (elle peut être vendue
-        // par l'action standard, et elle compte à la limite de main de fin de
+        // à l'occasion libre, et elle compte à la limite de main de fin de
         // manche). Le chemin est celui du lot 6 (`reveal_top`), pas un second.
         if let Some(r) = g.reveal {
             reveal_top(game, db, p, r, policy);
@@ -4236,36 +4239,13 @@ fn phase_action(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
                     pay_standard_mc(game, db, p, OCEAN_MC_COST);
                     reveal_ocean(game, db, p, policy);
                 }
-                ActionOpt::SellCard => {
-                    // La carte vendue est CHOISIE par la politique — le moteur
-                    // ne la tire plus lui-même au hasard. Le corps par défaut de
-                    // `sell_card` reproduit l'ancien tirage à l'identique.
-                    //
-                    // (regles-de-la-vente) `sell_card` est un point de décision à
-                    // part entière — l'écran l'affiche, et le joueur peut vouloir
-                    // vendre librement AVANT d'y répondre. Il lui faut donc son
-                    // occasion, hoistée au-dessus de l'instantané de main.
-                    occasion_de_vendre(game, db, policy);
-                    let main = game.players[p].hand.clone();
-                    let n = main.len();
-                    // Le joueur vient peut-être de vendre sa dernière carte à
-                    // l'occasion ci-dessus : l'action standard ne trouve alors
-                    // plus rien à vendre. Elle ne fait rien — il a déjà touché
-                    // ses MC — plutôt que d'indexer une main vide.
-                    if n == 0 {
-                        continue;
-                    }
-                    observer(game, p, policy);
-                    let i = policy.sell_card(&mut game.rng, p, &main).min(n - 1);
-                    let card = game.players[p].hand.remove(i);
-                    game.discard.push(card);
-                    // (lot cartes-7) « Cards you discard for MC » : la vente de
-                    // carte EST une défausse pour du MC, et elle ne coûte rien —
-                    // la réduction de *Standard Technology* ne s'y applique
-                    // jamais (NEVER 8), le taux de *Composting Factory* si.
-                    game.players[p].mc += discard_mc_rate(db, &game.players[p]);
-                    game.discard_bonus_mc += discard_bonus_per_card(db, &game.players[p]);
-                }
+                // (moteur-questions-manquantes) L'ARME `ActionOpt::SellCard` A
+                // DISPARU d'`action_options`, et son bras avec elle. Ce qu'elle
+                // faisait — retirer une carte de la main, la mettre en défausse,
+                // créditer `discard_mc_rate` et son supplément — est fait, mot
+                // pour mot, par `occasion_de_vendre` (ci-dessus, à chaque tour de
+                // cette boucle), pour autant de cartes que le joueur veut et sans
+                // lui coûter son échange.
             }
         }
     }

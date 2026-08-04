@@ -123,6 +123,11 @@ struct Scriptee {
     phase: u8,
     /// Actions imposées à `action_choice` ; épuisée = le joueur passe.
     actions: VecDeque<ActionOpt>,
+    /// (moteur-questions-manquantes) Ventes LIBRES que le joueur 0 fait encore,
+    /// une carte par occasion. La vente n'est plus une action de la phase Action
+    /// (elle y coûtait un échange) : le seul chemin est désormais l'occasion
+    /// ouverte avant chaque point de décision, `flow::occasion_de_vendre`.
+    ventes_libres: usize,
 }
 
 impl Scriptee {
@@ -133,6 +138,7 @@ impl Scriptee {
             defausses: VecDeque::new(),
             phase: 4,
             actions: VecDeque::new(),
+            ventes_libres: 0,
         }
     }
 }
@@ -175,6 +181,14 @@ impl Policy for Scriptee {
             // L'action voulue n'est pas offerte : le joueur passe. C'est
             // exactement ce qu'un test d'affordabilité doit pouvoir observer.
             None => None,
+        }
+    }
+    fn vendre_librement(&mut self, _r: &mut StdRng, joueur: usize, main: &[u16]) -> Vec<usize> {
+        if joueur == 0 && self.ventes_libres > 0 && !main.is_empty() {
+            self.ventes_libres -= 1;
+            vec![0]
+        } else {
+            Vec::new()
         }
     }
     fn choose_option(&mut self, r: &mut StdRng, p: usize, n: usize) -> usize {
@@ -523,7 +537,12 @@ fn le_taux_de_defausse_n_entre_plus_dans_l_affordabilite() {
 #[test]
 fn composting_factory_applies_to_the_card_sale_standard_action() {
     // Site n° 3 : « vendre une carte » EST une défausse pour du MC. Chemin réel :
-    // phase Action, action standard SellCard, une seule fois.
+    // phase Action, une vente LIBRE, une seule carte.
+    //
+    // (moteur-questions-manquantes) Le chemin a changé, la règle non :
+    // l'action standard `SellCard` a été retirée de la phase Action, la vente
+    // passe par l'occasion libre. Le site de crédit reste le même service
+    // unique (`flow::discard_mc_rate`), et c'est bien lui que ce test mesure.
     let db = db();
     let mut pol = Scriptee::new();
     let mut g = jeu(&db);
@@ -533,7 +552,7 @@ fn composting_factory_applies_to_the_card_sale_standard_action() {
     g.players[0].plants = 0;
     g.players[0].heat = 0;
     pol.phase = 3;
-    pol.actions.push_back(ActionOpt::SellCard);
+    pol.ventes_libres = 1;
     play_round(&mut g, &db, &mut pol);
     assert_eq!(
         g.players[0].mc,
@@ -551,7 +570,7 @@ fn the_card_sale_gives_three_mc_without_composting_factory() {
     en_main(&mut g, &db, "Power Plant");
     g.players[0].mc = 0;
     pol.phase = 3;
-    pol.actions.push_back(ActionOpt::SellCard);
+    pol.ventes_libres = 1;
     play_round(&mut g, &db, &mut pol);
     assert_eq!(g.players[0].mc, SELL_CARD_MC, "taux du livret");
 }

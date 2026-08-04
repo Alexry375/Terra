@@ -51,8 +51,19 @@ struct Script {
     phases: [VecDeque<u8>; 2],
     bonus: ConstructionBonus,
     build_first: [bool; 2],
-    /// Nombre d'actions `SellCard` que chaque joueur veut encore faire.
-    sell_budget: [usize; 2],
+    /// Nombre d'actions que chaque joueur veut encore faire — la PREMIÈRE
+    /// offerte, quelle qu'elle soit.
+    ///
+    /// (moteur-questions-manquantes) C'était naguère un budget d'actions
+    /// `SellCard`, l'action standard « défausser 1 carte pour du MC » : elle
+    /// était toujours offerte, donc commode pour compter des tours de parole.
+    /// Elle a été retirée du moteur (vendre ne doit plus coûter un échange de la
+    /// phase Action) ; ces tests-ci ne portent pas sur elle mais sur l'ORDRE des
+    /// prises de parole, et prennent donc simplement l'option de tête. Les deux
+    /// tests concernés garnissent le joueur en MC pour que la liste ne soit
+    /// jamais vide — sinon le joueur passerait, et ce serait la mesure qui
+    /// n'aurait pas eu lieu.
+    action_budget: [usize; 2],
     // Journaux.
     build_calls: Vec<(usize, Vec<usize>)>,
     action_calls: Vec<usize>,
@@ -65,7 +76,7 @@ impl Script {
             phases: [VecDeque::from(p0), VecDeque::from(p1)],
             bonus: ConstructionBonus::SecondBuild,
             build_first: [false, false],
-            sell_budget: [0, 0],
+            action_budget: [0, 0],
             build_calls: Vec::new(),
             action_calls: Vec::new(),
         }
@@ -101,12 +112,11 @@ impl Policy for Script {
     }
     fn action_choice(&mut self, _: &mut StdRng, p: usize, options: &[ActionOpt]) -> Option<usize> {
         self.action_calls.push(p);
-        if self.sell_budget[p] == 0 {
+        if self.action_budget[p] == 0 || options.is_empty() {
             return None;
         }
-        let idx = options.iter().position(|&o| o == ActionOpt::SellCard)?;
-        self.sell_budget[p] -= 1;
-        Some(idx)
+        self.action_budget[p] -= 1;
+        Some(0)
     }
     fn research_keep(&mut self, _: &mut StdRng, _: usize, _: &[u16], k: usize) -> Vec<usize> {
         (0..k).collect()
@@ -890,8 +900,12 @@ fn c4_action_phase_alternates_action_by_action() {
     // Inversé : le joueur 0 faisait TOUTES ses actions, puis le joueur 1.
     let db = db();
     let mut pol = Script::new(vec![3], vec![4]);
-    pol.sell_budget = [3, 3];
+    pol.action_budget = [3, 3];
     let mut game = setup_game(&db, 13, &mut pol);
+    // De quoi payer trois actions standard à chacun : la liste d'options ne
+    // peut pas être vide, donc aucun joueur ne passe avant son budget.
+    game.players[0].mc = 500;
+    game.players[1].mc = 500;
     play_round(&mut game, &db, &mut pol);
     // 3 actions chacun puis un « stop » chacun : appels strictement alternés.
     assert_eq!(pol.action_calls, vec![0, 1, 0, 1, 0, 1, 0, 1]);
@@ -903,8 +917,9 @@ fn c4_a_player_who_passes_leaves_the_turn() {
     // continue seul jusqu'à ce qu'il passe à son tour.
     let db = db();
     let mut pol = Script::new(vec![3], vec![4]);
-    pol.sell_budget = [3, 0];
+    pol.action_budget = [3, 0];
     let mut game = setup_game(&db, 14, &mut pol);
+    game.players[0].mc = 500;
     play_round(&mut game, &db, &mut pol);
     assert_eq!(pol.action_calls, vec![0, 1, 0, 0, 0]);
 }

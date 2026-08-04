@@ -752,7 +752,11 @@ fn nom_action(db: &CardsDb, o: &ActionOpt) -> String {
         ActionOpt::TemperatureWithHeat => "Température (chaleur)".to_string(),
         ActionOpt::TemperatureWithMc => "Température (MC)".to_string(),
         ActionOpt::OceanWithMc => "Océan (MC)".to_string(),
-        ActionOpt::SellCard => "Défausser 1 carte pour du MC".to_string(),
+        // (moteur-questions-manquantes) « Défausser 1 carte pour du MC » N'EST
+        // PLUS une action de la phase Action : le moteur ne produit plus ce
+        // variant (voir `engine::policy::ActionOpt`). Vendre passe par
+        // l'occasion libre, qui ne coûte pas d'échange — voir
+        // `Harnais::vendre_librement`.
         ActionOpt::BlueAction(i) => match db.projects.get(*i as usize) {
             Some(c) => format!("Action de {}", c.name),
             None => format!("Action de la carte bleue {i}"),
@@ -1260,19 +1264,41 @@ impl Policy for Harnais<'_> {
         }
     }
 
+    /// **(moteur-questions-manquantes) La question est posée MÊME quand aucune
+    /// carte n'est payable.**
+    ///
+    /// Le pont escamotait le point de décision (`if affordable.is_empty() {
+    /// return None }`) : la page n'avait alors l'occasion ni de poser la
+    /// question, ni d'offrir la vente que le moteur venait pourtant d'ouvrir
+    /// juste au-dessus (`flow::occasion_de_vendre`, hoistée au-dessus de
+    /// l'énumération des cartes payables). Vécu le 04-08, partie `mars2`,
+    /// graine 210055 : 8 MC en poche, dix cartes en main, trois bleues ou rouges
+    /// à 15, 22 et 35 MC — vendre trois cartes en rapportait 9, de quoi poser la
+    /// première. La question n'a jamais été posée, et la phase s'est arrêtée
+    /// sans un mot.
+    ///
+    /// Le point de décision existe donc toujours. Sans option, il ne porte qu'un
+    /// « passer » — et une phrase qui DIT pourquoi, en anglais comme le reste de
+    /// l'écran de jeu. Vendre reste possible tant qu'il est ouvert : c'est une
+    /// entrée d'occasion (`vendre_librement`), pas une réponse, et l'énumération
+    /// est refaite sur la main d'après la vente.
+    ///
+    /// Aucune option nouvelle n'est ajoutée pour autant : « passer » est la
+    /// seule issue, exactement l'issue que le moteur prenait tout seul.
     fn choose_build(
         &mut self,
         rng: &mut StdRng,
         player: usize,
         affordable: &[usize],
     ) -> Option<usize> {
-        if affordable.is_empty() {
-            return None;
-        }
         let desc = json!({
             "type": "choose_build",
             "joueur": player,
-            "question": "Quelle carte poser ?",
+            "question": if affordable.is_empty() {
+                "No card can be built this phase. You may still sell cards from your hand."
+            } else {
+                "Quelle carte poser ?"
+            },
             "options": affordable.iter().map(|i| json!({
                 "libelle": match self.carte_de_main(player, *i) {
                     Value::Null => format!("poser (main n°{i})"),
@@ -1665,25 +1691,12 @@ impl Policy for Harnais<'_> {
         }
     }
 
-    /// Vente d'une carte pour 3 MC : c'est le JOUEUR qui désigne laquelle.
-    fn sell_card(&mut self, rng: &mut StdRng, player: usize, hand: &[u16]) -> usize {
-        let desc = json!({
-            "type": "sell_card",
-            "joueur": player,
-            "question": "Quelle carte vendez-vous pour 3 MC ?",
-            "options": hand.iter().map(|c| {
-                let mut o = carte_json(self.db, *c);
-                o["libelle"] = json!(o["nom"].as_str().unwrap_or("?"));
-                o
-            }).collect::<Vec<_>>(),
-        });
-        match self.prendre(desc) {
-            Some(r) => self
-                .indice(&r, hand.len())
-                .unwrap_or_else(|| self.defaut.sell_card(rng, player, hand)),
-            None => self.defaut.sell_card(rng, player, hand),
-        }
-    }
+    // (moteur-questions-manquantes) LA QUESTION « quelle carte vendez-vous
+    // pour 3 MC ? » N'EXISTE PLUS : elle était la seconde moitié de l'action
+    // standard retirée du moteur (81 décisions sur la seule graine 4242, autant
+    // de tours de jeu perdus). La vente se dit maintenant par une ENTRÉE
+    // `{"vendre": …}`, lue par `vendre_librement` ci-dessus, qui ne consomme
+    // aucun échange et prend autant de cartes qu'on veut.
 
     fn discard_down(
         &mut self,

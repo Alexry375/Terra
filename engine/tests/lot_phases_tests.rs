@@ -1229,17 +1229,18 @@ fn effets_coupes_les_cinq_compteurs_restent_nuls() {
 #[test]
 fn le_deroulement_de_la_boite_de_base_n_a_pas_bouge() {
     // Le témoin de non-régression le plus dur : à graine fixe, la boîte de base
-    // rend exactement l'empreinte de référence. Repère REFIXÉ le 03-08
-    // (regles-de-la-vente) : la jouabilité ne compte plus la vente d'avance et
-    // le paiement par défausse d'office a disparu — les parties ne se déroulent
-    // donc plus pareil, ce que le prompt annonce explicitement. Repères
-    // précédents : c1c52fcbe4e057b0 (01-08), d6a7267472501b13 (31-07).
+    // rend exactement l'empreinte de référence. Repère REFIXÉ le 04-08
+    // (moteur-questions-manquantes) : l'action standard de vente a quitté la
+    // phase Action — la liste d'options tirée par `RandomPolicy` change, et le
+    // tirage par défaut de `sell_card` disparaît avec la question. Repères
+    // précédents : 7dda3ea2e9b2901b (03-08), c1c52fcbe4e057b0 (01-08),
+    // d6a7267472501b13 (31-07).
     let db = db();
     let mut pol = RandomPolicy;
     let s = run_simulation(&db, 1000, 2024, &mut pol);
     assert_eq!(
         format!("{:016x}", s.state_hash),
-        "7dda3ea2e9b2901b",
+        "bf70799ff3fee1d8",
         "la boîte de base doit se dérouler exactement comme la mesure de référence"
     );
 }
