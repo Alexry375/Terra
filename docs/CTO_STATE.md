@@ -117,6 +117,14 @@ la lisibilité — à retenir.
 de **477 décisions**, scores `[69, 51]` identiques des deux côtés, 0 erreur, 0
 chargement extérieur. C'est ce qu'Alexis utilise avec son ami.
 
+**Rejouée APRÈS les trois fusions, en 1920×1080** [VÉRIFIÉ 04-08 08h30] — c'est la
+mesure qui compte, celle de la configuration réelle d'Alexis : **420 décisions**,
+scores `[66, 53]` **identiques dans les deux navigateurs**, 0 erreur de code des
+deux côtés, 0 chargement extérieur (donc aucun visuel de carte ne sort de la
+machine), **9 tuiles océan retournées** vues pareillement par les deux joueurs, et
+le nouveau compteur de paquet affichant **174** des deux côtés. Les deux écrans
+racontent la même partie, chiffre pour chiffre.
+
 **La vente survit aussi** : 147 occasions, **147 ventes entières menées à terme**,
 zéro faute. (Le contrôle reste rouge sur son seul garde-fou d'échantillonnage —
 il n'a pas rencontré de main de 11 cartes —, pas sur ce qu'il mesure.)
