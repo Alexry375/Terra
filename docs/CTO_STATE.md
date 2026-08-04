@@ -5,6 +5,55 @@
 
 Dernière mise à jour : 2026-08-03
 
+## 🔁 LA VENTE CHOISIE — ROUND 2 SCELLÉ ET LANCÉ (03-08 soir) — `regles-de-la-vente`
+
+Le défaut bloquant du round 1 **est corrigé** : l'agent avait retravaillé après
+mon audit (`flow.rs` à 16h27, pont reconstruit à 16h29) sans le journaliser.
+`occasion_de_vendre` **arme** `game.occasion_ouverte`, `observer` le **consomme**
+en publiant `game.vente_offerte` : un point de décision non pourvu publie
+forcément faux, l'oubli devient impossible. [VÉRIFIÉ 03-08]
+
+Nouvel audit du soir : **4/5 visibles, 1/2 caché**. Trois défauts, tous mesurés.
+
+**A — un test du moteur mesure au mauvais moment.** `lot3_tests.rs:604` lit
+`vente_offerte` juste après `occasion_de_vendre`, donc avant la publication. Pas
+une régression du produit : la mesure est restée en arrière de la correction.
+
+**B — des cartes de la main sont invendables en petite fenêtre.** 183 occasions
+mesurées sur trois tailles : **57** avec au moins une carte dont le centre ne
+reçoit pas le clic, **toutes en 1280×720**, zéro en 1600×1000 et 1920×1080.
+Toujours les premières de la main, recouvertes par leur voisine de droite. Une
+main de 8 cartes en cache 1, une main de 13 en cache 3. [VÉRIFIÉ 03-08]
+
+**C — la main recouvre le bouton qui conclut, et la partie se bloque.** Graine
+2024, 1600×1000, rang 70, phase III, main de **11 cartes** : `sonde valider :
+recouvert par img[Acquired Company]`, puis blocage définitif sans message. Les
+mêmes gestes passent aux rangs 10, 35 et 55 sur des mains de 8, 9 et 10 cartes.
+Désigner une carte déplace en outre les boutons de 38 px vers la gauche, ce qui
+aggrave le recouvrement — une mesure qui se contente d'ouvrir puis de renoncer ne
+voit rien. [VÉRIFIÉ 03-08]
+
+**B et C sont la même faute** : la disposition ne réserve pas la place. Le dépôt
+porte déjà la règle dans `vue/scene.js` — « les choix ne se recouvrent jamais ».
+
+Round 2 scellé avec un sixième contrôle visible (quatre tailles, chaque carte
+désignable, les deux boutons atteignables avant ET après désignation) et un
+troisième contrôle caché (six tailles dont **aucune n'est nommée au contrat**,
+plus une mesure de chevauchement géométrique qui ne dépend d'aucun clic).
+
+**Mes trois réserves de promotion étaient infondées — mon erreur.** La dépendance
+recopiée est déjà dans le dépôt et identique au bit près ; `verif/` est la
+convention du dépôt (17 outils y vivent) ; les artefacts de compilation sont déjà
+exclus par la règle `target/`.
+
+**Trois leçons de méthode pour moi.** (1) Mes contrôles vendaient à un rang sur
+sept : seul un balayage exhaustif vaut ici. (2) Ma première mesure du défaut C
+ouvrait la vente puis renonçait — elle n'a rien vu, et j'ai conclu trop vite qu'il
+n'y avait rien : il faut mesurer le geste entier. (3) Ma première version du
+contrôle 06 laissait le mode de vente ouvert après un clic raté et bloquait la
+partie par son propre geste, accusant le produit d'un défaut qu'elle venait de
+créer : un contrôle doit toujours se remettre dans un état jouable.
+
 ## 🔴 LA VENTE CHOISIE — ROUND 1 **PARTIEL, NON PROMU** (03-08) — `regles-de-la-vente`
 
 Demande d'Alexis, mot pour mot : « qu'on ne puisse juste pas acheter une carte
