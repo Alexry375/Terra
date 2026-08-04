@@ -300,6 +300,21 @@ function optionsIllustrees(d) {
 }
 
 /**
+ * L'amélioration que CE joueur possède sur CETTE phase, ou `null`.
+ *
+ * Lue sur `players[].phase_upgrades`, la liste d'étiquettes que le moteur
+ * publie (« 2B » = phase 2, amélioration B). On ne calcule pas, on ne devine
+ * pas : si l'étiquette n'est pas là, le joueur n'a pas l'amélioration.
+ */
+function ameliorationPossedee(etat, joueur, phase) {
+  if (!etat || joueur === undefined || joueur === null) return null;
+  const p = (etat.players || []).find((x) => x.player === joueur);
+  const liste = p && p.phase_upgrades;
+  if (!Array.isArray(liste)) return null;
+  return liste.find((code) => Number(String(code)[0]) === Number(phase)) || null;
+}
+
+/**
  * Le code d'image d'une amélioration de carte Phase (« 2B »), lu sur les champs
  * `phase` et `variante` que le moteur pose sur l'option — jamais sur son rang.
  */
@@ -689,14 +704,34 @@ function choix(d, o, i, largeur, etat) {
     b = document.createElement("button");
     b.type = "button";
     b.className = "choix choix--phase";
-    const src = imagePhase(o.phase);
+    // LA CARTE QU'ON CHOISIT EST CELLE QU'ON POSSÈDE. Alexis, le 04-08 :
+    // « quand j'améliore une carte phase, parmi les cartes phase que je
+    // choisis, j'ai toujours le choix parmi les cartes phases de base (les
+    // nouveaux designs ne s'affichent pas) ».
+    //
+    // Il avait raison, et la cause était ici : l'image était `imagePhase(n)`,
+    // la carte de base, sans jamais regarder ce que le joueur avait amélioré.
+    // Le moteur le publie pourtant en clair (`players[].phase_upgrades`, une
+    // liste d'étiquettes comme « 2B » = phase 2, amélioration B — voir
+    // `engine/src/state.rs:499`). On ne DÉDUIT rien : on lit son étiquette et
+    // on montre la carte qu'elle nomme.
+    const code = ameliorationPossedee(etat, d.joueur, o.phase);
+    const src = (code && imageAmelioration(code)) || imagePhase(o.phase);
+    const dit = code
+      ? `upgraded Phase card ${phaseNom(o.phase)} ${code.slice(1)}`
+      : `Phase card ${phaseNom(o.phase)}`;
     const im = document.createElement("img");
     im.src = src;
-    im.alt = "Phase card " + phaseNom(o.phase);
+    im.alt = dit;
     im.draggable = false;
     b.appendChild(im);
+    if (code) {
+      b.classList.add("choix--amelioration");
+      b.dataset.variante = code.slice(1);
+    }
+    b.dataset.phase = String(o.phase);
     // Une carte Phase est une carte : elle s'agrandit au survol comme les autres.
-    survolableImage(b, src, `Phase card ${phaseNom(o.phase)}`);
+    survolableImage(b, src, dit);
     const t = document.createElement("span");
     t.className = "choix__mot";
     t.textContent = mot;

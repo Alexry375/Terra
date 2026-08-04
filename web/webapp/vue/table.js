@@ -33,7 +33,23 @@
 // planification dure. Celle de la manche PRÉCÉDENTE, elle, est publique : elle a
 // été révélée à la manche d'avant.
 
-import { imagePhase, phaseNom, phaseRomain, EQUIPAGES, nomJoueur } from "./materiel.js";
+import {
+  imagePhase, imageAmelioration, phaseNom, phaseRomain, EQUIPAGES, nomJoueur,
+} from "./materiel.js";
+
+/**
+ * L'amélioration que ce joueur possède sur cette phase, ou `null`. Lue sur
+ * `players[].phase_upgrades`, la liste d'étiquettes que le moteur publie
+ * (« 2B » = phase 2, amélioration B). On ne devine rien : pas d'étiquette,
+ * pas d'amélioration.
+ */
+function amelioration(etat, joueur, phase) {
+  if (!etat || !phase) return null;
+  const p = (etat.players || []).find((x) => x.player === joueur);
+  const liste = p && p.phase_upgrades;
+  if (!Array.isArray(liste)) return null;
+  return liste.find((c) => Number(String(c)[0]) === Number(phase)) || null;
+}
 import { survolableImage } from "./loupe.js";
 import { ref } from "./ecrire.js";
 import { MOT } from "./mots.js";
@@ -119,9 +135,14 @@ export function majTable(etat, decision, siege) {
   derniereSignature = signature;
 
   for (const j of [0, 1]) {
-    dessinerCase(ref("#dock-courante-" + j), courantes[j], j, enJeu, false);
+    // LA CARTE POSÉE EST CELLE QU'ON POSSÈDE, améliorée ou non — même règle que
+    // dans la scène où on la choisit (`vue/scene.js`). Sans cela on choisissait
+    // sa carte améliorée et on en voyait poser une de base sur la table.
+    dessinerCase(ref("#dock-courante-" + j), courantes[j], j, enJeu, false,
+      amelioration(etat, j, courantes[j]));
     const boite = ref("#dock-precedente-" + j);
-    const neuve = dessinerCase(boite, precedentes[j], j, 0, true);
+    const neuve = dessinerCase(boite, precedentes[j], j, 0, true,
+      amelioration(etat, j, precedentes[j]));
     // LA CARTE TOURNE. On ne la découvre pas couchée : on la VOIT se coucher, au
     // moment où la manche s'ouvre. Ailleurs (redessin ordinaire) elle est déjà en
     // place, et rejouer la rotation serait un tic.
@@ -141,9 +162,11 @@ export function majTable(etat, decision, siege) {
  * @param {boolean} couchee  la carte est celle de la manche d'avant, à plat
  * @returns {Element|null}   la carte si elle vient d'être posée, sinon `null`
  */
-function dessinerCase(boite, phase, joueur, enJeu, couchee) {
+function dessinerCase(boite, phase, joueur, enJeu, couchee, code = null) {
   if (!boite) return null;
-  const cle = phase ? `${joueur}:${phase}` : "";
+  // Le code d'amélioration entre dans la clé : sans lui, une carte déjà posée
+  // garderait son image de base le jour où le joueur l'améliore.
+  const cle = phase ? `${joueur}:${phase}:${code || ""}` : "";
   if (boite.dataset.cle === cle) {
     // Même carte : seule la mise en lumière de la phase en cours peut avoir
     // changé, et elle se pose sans rien reconstruire.
@@ -158,7 +181,7 @@ function dessinerCase(boite, phase, joueur, enJeu, couchee) {
   boite.textContent = "";
   if (!phase) return null;
 
-  const src = imagePhase(phase);
+  const src = (code && imageAmelioration(code)) || imagePhase(phase);
   const f = document.createElement("figure");
   f.className = "carte phase-posee" + (couchee ? " phase-posee--couchee" : "");
   // Chaque carte porte SON joueur : c'est ce qui distingue deux cartes de la même
@@ -173,7 +196,9 @@ function dessinerCase(boite, phase, joueur, enJeu, couchee) {
 
   const im = document.createElement("img");
   im.src = src;
-  im.alt = `Phase card ${phaseNom(phase)}`;
+  im.alt = code
+    ? `upgraded Phase card ${phaseNom(phase)} ${code.slice(1)}`
+    : `Phase card ${phaseNom(phase)}`;
   im.draggable = false;
   f.appendChild(im);
 

@@ -41,6 +41,44 @@ const PAR_PILE = 7; // au-delà, une nouvelle pile de la même couleur, à côt�
 const ECART = 14; // entre deux piles
 const COULEURS = ["verte", "bleue", "rouge"]; // l'ordre des piles sur la table
 
+// ------------------------------------------------- les durées de la planche
+//
+// LE RETOURNEMENT SE VOIT, ET LE JOUEUR CHOISIT OÙ. Trois durées, et une seule
+// règle : `?animations=non` (ou l'interrupteur du panneau d'options) les met
+// toutes à zéro côté JavaScript, pendant que `style-menu.css` met les durées
+// CSS à 1 ms — jamais à 0 s, sans quoi certains navigateurs ne signalent plus la
+// fin d'une transition. Rien de ce qui est DÉCIDÉ n'en dépend : la tuile
+// révélée est la même, son bonus est le même, et la partie avance pareil.
+const FLIP = 620; // la durée du demi-tour, celle qu'écrit `style-monde.css`
+const DELAI_CHOIX = 2600; // le temps laissé au joueur pour désigner un emplacement
+const TENUE_ANNONCE = 1600; // le temps que la grande tuile reste sous les yeux
+
+/** La durée réellement appliquée. Même interrupteur que `vue/anim.js`, lu sur
+ *  le document : ce module n'a pas à savoir par quel chemin il a été posé. */
+function duree(ms) {
+  return document.documentElement.dataset.animations === "non" ? 0 : ms;
+}
+
+// L'ÉCRAN PARLE ANGLAIS AU JOUEUR. Ces deux phrases-ci ne sont pas dans
+// `vue/mots.js` : ce chantier n'a pas le droit d'y écrire. Elles y remonteront
+// avec le reste du vocabulaire de la planche.
+const CONSIGNE = "Pick a tile";
+const ANNONCE_CHOIX = "An ocean tile is revealed — pick which one flips";
+
+// LA MÉMOIRE DU CHOIX. L'écran est réécrit à chaque décision, et une partie en
+// compte plusieurs centaines : sans cette table, la tuile choisie sauterait
+// d'emplacement au premier redessin.
+//
+//   `emplacementParRang[r]` — l'emplacement où la r-ième révélation du moteur a
+//                             été posée. C'est la SEULE chose que le joueur
+//                             choisit : le bonus, lui, reste celui du moteur.
+//   `fileRevelations`       — les révélations annoncées par le moteur qui
+//                             n'ont pas encore d'emplacement.
+//   `attente`               — le choix ouvert en ce moment, et son minuteur.
+let emplacementParRang = [];
+let fileRevelations = [];
+let attente = null;
+
 // ------------------------------------------------------------------ le décor
 
 /** Les deux plateaux, la carte des océans et la case des VP. Une seule fois. */
@@ -80,6 +118,19 @@ export function construirePlateaux() {
   // On agrandit la carte des océans pour la détailler ; on la referme d'un clic.
   o.addEventListener("click", () => {
     o.classList.toggle("oceans--grande");
+  });
+
+  // DÉSIGNER L'EMPLACEMENT QUI SE RETOURNE. L'écouteur est posé sur la grille,
+  // une fois pour toutes : les emplacements, eux, ne sont jamais recréés. Il
+  // arrête le clic avant la section, sinon désigner une tuile agrandirait ou
+  // refermerait la planche du même geste.
+  const grille = o.querySelector("#oceans-grille");
+  grille.addEventListener("click", (ev) => {
+    if (!attente) return;
+    const d = ev.target.closest(".ocean");
+    if (!d || d.dataset.oceanChoisissable === undefined) return;
+    ev.stopPropagation();
+    choisirEmplacement([...grille.children].indexOf(d));
   });
 
   // LES NEUF EMPLACEMENTS, TOUS RETOURNÉS AU DÉPART. Une tuile encore
