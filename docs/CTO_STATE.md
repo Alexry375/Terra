@@ -77,6 +77,42 @@ demande pas quelle carte doubler » : la question existe et le moteur la pose
 entières, 1 047 décisions**. Il faut avoir choisi la Production améliorée A ET
 posséder au moins deux cartes vertes productrices.
 
+**Les tuiles océan** [VÉRIFIÉ 04-08] — chantier délégué, `vue/plateau.js` +
+`style-oceans.css`. Le retournement se voit maintenant : la tuile paraît en grand
+au milieu de l'écran, se retourne et dit son bonus en toutes lettres. **Et le
+joueur désigne l'emplacement** : la planche s'ouvre, les tuiles encore cachées
+s'allument et se cliquent ; sans réponse, la première libre se retourne au bout
+de 2,6 s — rien dans la boucle de jeu n'attend ce choix. Mesures du chantier,
+non re-mesurées par moi sauf la partie à deux : 6 parties entières, 0 erreur, 9
+tuiles face visible en fin de partie, **3 564 tuiles encore cachées inspectées
+sans une seule fuite**, 22 choix saisis dont 22 sur un autre emplacement que
+celui du minuteur, **3 868 survols de tuile retournée dont 0 sur le dos**.
+Compromis déclaré : avec `?animations=non`, la fenêtre de choix vaut zéro et le
+joueur ne choisit plus — c'est ce qui garde tous les contrôles automatiques
+verts. Alexis, lui, joue avec les animations.
+
+**La révélation de trois cartes** [VÉRIFIÉ 04-08] — chantier délégué en worktree
+isolé, moteur Rust compris. Le défaut était dans `reveal_top` : trois cartes
+tirées, mais seules les prenables présentées, et **aucune décision posée du tout**
+quand aucune n'était bleue ou rouge. Les trois se montrent maintenant à chaque
+fois, la non prenable éteinte et cerclée de gris. Mesuré par moi après fusion :
+**830 tests du moteur, 830 verts** ; cinq parties entières au navigateur ; **13
+révélations vues, 33 cartes montrées dont 19 non prenables**. Aucune règle ne
+change.
+
+**Deux arbitrages de fusion que j'ai tranchés** : `avant_decision` conservé (le
+chantier partait d'une base antérieure et l'aurait perdu, rouvrant le défaut de
+l'état de fin de manche pendant une vente), mais l'occasion de vendre n'est
+offerte que s'il y a vraiment quelque chose à décider — montrer trois cartes est
+un affichage, pas une décision.
+
+**Un défaut que 3 780 écrans sondés n'avaient pas vu** [VÉRIFIÉ 04-08] : sur la
+décision des dix badges, l'écran écrivait « Buildin / g (you have 0) ». Deux
+causes empilées, une règle de coupure qui casse n'importe où et une taille de
+texte liée à la seule hauteur de la plaque. **C'est une capture regardée à l'œil
+qui l'a trouvé, pas une mesure.** Mes contrôles mesurent des rectangles, pas de
+la lisibilité — à retenir.
+
 **Le mode à deux à distance survit à tout ceci** [VÉRIFIÉ 04-08] : partie entière
 de **477 décisions**, scores `[69, 51]` identiques des deux côtés, 0 erreur, 0
 chargement extérieur. C'est ce qu'Alexis utilise avec son ami.
