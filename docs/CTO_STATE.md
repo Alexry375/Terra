@@ -43,7 +43,54 @@ le moteur entier, donc les cartes de l'adversaire sont techniquement lisibles.
 Mode d'emploi : `web/webapp/relais/MODE-EMPLOI.md` (écrit pour qui ne programme
 pas, sept pannes courantes, et comment tout refermer).
 
-## 🔁 LA VENTE CHOISIE — ROUND 2 SCELLÉ ET LANCÉ (03-08 soir) — `regles-de-la-vente`
+## ✅ LA VENTE CHOISIE — ROUND 2 AUDITÉ ET PROMU (04-08) — `regles-de-la-vente`
+
+Commit `66e64fc`. **5/6 contrôles visibles, 3/3 cachés** — dont celui qui mesure
+le chevauchement des zones sur six tailles de fenêtre jamais nommées au contrat,
+et qui était rouge avant ce round. [VÉRIFIÉ 04-08]
+
+**L'unique échec est mon propre garde-fou, et je l'ai vérifié incalibrable.** Mon
+contrôle 06 conclut la vente à chaque occasion ; or chaque vente retire une carte,
+donc la main ne peut pas atteindre douze cartes. Mesure rejouée par moi : 147
+occasions, **147 ventes entières, zéro faute sur ce qu'il mesure**. Faute de
+calibrage de ma part, pas un contournement — j'avais calibré le garde-fou sur une
+mesure où l'on ouvrait la vente puis renonçait. [VÉRIFIÉ 04-08]
+
+**Trou d'audit comblé par une mesure à moi** (conclure, là où l'outil de l'agent
+renonce) : 376 occasions, 3 006 cartes toutes désignables, **55 ventes conclues
+sur des mains de 10 à 12 cartes**, aucun bouton recouvert. [VÉRIFIÉ 04-08]
+
+**Ce que l'agent a corrigé** : la vraie cause de B et C n'était pas celle que
+j'avais nommée — les cartes n'ont jamais été resserrées, un sélecteur perdait son
+duel de priorité contre `.carte { margin: 0 }`, la rangée débordait sa zone et
+glissait sous le panneau. Plus deux défauts trouvés en jouant : le bouton de vente
+survivait à la fin de partie, et une vente offerte au moment de piocher était
+refusée par le moteur au rejeu (l'occasion était placée avant la pioche), ce qui
+figeait la partie. [DÉCLARÉ — les contrôles cachés couvrent le résultat]
+
+**Étranger à ce chantier** : le blocage en 1440×810 est reproduit par un témoin
+qui n'ouvre **jamais** la vente. C'est le défaut de disposition des boutons de
+choix, déjà au catalogue et toujours non confié. [VÉRIFIÉ 04-08]
+
+## ⚠️ LE CROISEMENT DES DEUX CHANTIERS (04-08)
+
+`interface.js` était modifié par les deux chantiers — j'avais cru leurs territoires
+disjoints, ils ne l'étaient pas. Fusion à trois sans conflit, puis les deux
+chantiers **rejoués sur le dépôt** : mode en ligne 456 décisions scores identiques
+des deux côtés ; vente 423 occasions, 3 753 cartes désignables, mains jusqu'à 13.
+[VÉRIFIÉ 04-08]
+
+**Mais le croisement lui-même révèle un défaut qu'aucun des deux contrats ne
+pouvait voir** : vendre pendant une partie à distance. Sur 63 tentatives, 31
+aboutissent et 32 restent en attente au-delà de dix secondes ; la partie va au bout
+et les deux écrans restent d'accord (523 décisions, scores identiques), donc ce
+n'est pas un blocage. Cause lue dans `web/webapp/distant.js` : une vente n'est
+remise au moteur que par le fournisseur de décisions local, **qui ne s'exécute que
+quand c'est à moi de jouer**. Si l'on clique « vendre » pendant que l'adversaire
+réfléchit, le panneau reste ouvert jusqu'à ce qu'il ait joué. Mesure du délai réel
+en cours. [VÉRIFIÉ 04-08 pour le comptage, délai NON ENCORE MESURÉ]
+
+## 🔁 LA VENTE CHOISIE — ROUND 2 SCELLÉ ET LANCÉ (03-08 soir) — historique
 
 Le défaut bloquant du round 1 **est corrigé** : l'agent avait retravaillé après
 mon audit (`flow.rs` à 16h27, pont reconstruit à 16h29) sans le journaliser.
