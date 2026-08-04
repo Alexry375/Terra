@@ -3,7 +3,45 @@
 > Source de vérité du projet. Ancrée au code (`fichier:ligne`) dès qu'il y aura du
 > code. [VÉRIFIÉ JJ-MM] = relu à la source ce jour-là. [DÉCLARÉ] = non re-vérifié.
 
-Dernière mise à jour : 2026-08-03
+Dernière mise à jour : 2026-08-04
+
+## ✅ JOUER À DEUX, CHACUN CHEZ SOI — LIVRÉ, AUDITÉ, PROMU (04-08) — `jouer-a-deux-en-ligne`
+
+**Prêt pour la partie de 9h30.** Commit `f993116`. Deux humains, deux ordinateurs,
+une partie ; l'autre joueur n'installe rien et ouvre un simple lien.
+
+**Ce qui a été construit** : un point de rendez-vous (`web/webapp/relais/serveur.js`)
+qui sert la page et tient la liste ordonnée des décisions — **aucune dépendance**,
+uniquement les modules livrés avec Node ; un fournisseur de décisions distant
+(`web/webapp/distant.js`) au contrat d'`adversaire.md` ; **une seule ligne de
+composition** ajoutée dans `interface.js`. Le serveur porte la graine, donc le lien
+envoyé ne la transporte pas : deux liens recopiés à un chiffre près ne peuvent pas
+donner deux parties différentes. [VÉRIFIÉ 04-08]
+
+**Audit** : 5/5 contrôles visibles **et** le contrôle caché (deux processus de
+navigateur distincts, le second joueur arrive 20 s après le premier) → PASS.
+Territoire respecté au fichier près : `vue/`, `pont.js`, `partie.js`, le moteur
+compilé — intacts (`diff -rq`). [VÉRIFIÉ 04-08]
+
+**Mesure que j'ai ajoutée, et que le chantier n'avait pas faite** : une partie
+**entière à travers l'adresse publique** `tailscale funnel` — 311 décisions, scores
+`[42, 61]` identiques des deux côtés, puis tunnel coupé et vérifié (`No serve
+config`). Puis rejouée **depuis le dépôt promu** : 442 décisions, `[59, 54]` des
+deux côtés. [VÉRIFIÉ 04-08]
+
+**Deux défauts bloquants trouvés par la relecture adversariale de l'agent**, que
+les cinq contrôles laissaient passer, tous deux corrigés : le retour au menu
+greffait une partie neuve sur le canal de l'ancienne (page morte en silence, à deux
+clics) ; une réponse venue d'un tiers était adoptée à la place du clic du joueur.
+[DÉCLARÉ — non re-mesuré par moi]
+
+**Réserves honnêtes** : (1) le nom d'hôte public se résout localement sur cette
+machine, donc le chemin par internet depuis un réseau tiers n'est **pas** prouvé ;
+(2) le mode en ligne **n'empêche pas la triche** — chaque navigateur fait tourner
+le moteur entier, donc les cartes de l'adversaire sont techniquement lisibles.
+
+Mode d'emploi : `web/webapp/relais/MODE-EMPLOI.md` (écrit pour qui ne programme
+pas, sept pannes courantes, et comment tout refermer).
 
 ## 🔁 LA VENTE CHOISIE — ROUND 2 SCELLÉ ET LANCÉ (03-08 soir) — `regles-de-la-vente`
 
