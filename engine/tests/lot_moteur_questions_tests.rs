@@ -30,7 +30,6 @@ fn db() -> CardsDb {
 /// aucune action), vend librement ce qu'on lui dit de vendre — une seule fois —
 /// et note chaque liste d'options d'action qu'on lui soumet.
 struct Mesure {
-    base: RandomPolicy,
     phase: u8,
     /// Indices de main vendus par le joueur 0, à sa première occasion.
     vente: Vec<usize>,
@@ -45,7 +44,6 @@ struct Mesure {
 impl Mesure {
     fn new(phase: u8) -> Mesure {
         Mesure {
-            base: RandomPolicy,
             phase,
             vente: Vec::new(),
             vendu: false,
