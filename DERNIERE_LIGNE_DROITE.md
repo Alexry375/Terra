@@ -1,497 +1,319 @@
-# Dernière ligne droite
+# Dernière ligne droite — version du 04-08 au soir
 
-Liste dictée par Alexis le **04-08 vers 05h00**. Elle fait foi : tant qu'une
-ligne n'est pas cochée ET vérifiée en jouant, elle n'est pas faite.
+Cette liste **remplace** la précédente. Tout ce qui était fait et vérifié en a
+été retiré : la trace des travaux terminés reste dans `docs/JOURNAL.md` et dans
+`docs/CTO_STATE.md`. Ici ne figure que **ce qui reste à faire**.
 
-Convention : `[VÉRIFIÉ JJ-MM]` = relu à la source ou mesuré. `[DÉCLARÉ]` = dit
-par quelqu'un, pas encore prouvé.
+Trois sources :
+- la partie à deux du 04-08 (défauts relevés en direct, anciens repères K1 à K10) ;
+- les notes prises par **Corentin** pendant cette même partie
+  (`~/Téléchargements/temp/Terra.txt`) ;
+- les défauts anciens jamais traités (anciens repères I, E, J).
 
----
+Convention : `[VÉRIFIÉ JJ-MM]` = relu à la source ou mesuré, avec le
+`fichier:ligne`. `[DÉCLARÉ]` = dit par quelqu'un, pas encore prouvé.
+`[À VÉRIFIER]` = je n'ai pas encore regardé.
 
-## A. Animations de pose de carte
+Les identifiants sont neufs et parlants. L'ancien repère est rappelé entre
+parenthèses quand il existe.
 
-### A1 — ✅ FAIT [VÉRIFIÉ 04-08] Les cartes en suspension sont de travers
-Pendant l'animation de pose, la carte reste quelques secondes en l'air, comme
-prévu, mais **inclinée** au lieu d'être droite.
-État : signalé plusieurs fois, jamais corrigé.
-Capture fournie par Alexis — **je ne l'ai pas reçue de mon côté**, à redemander.
+## 0. Ce qui attend une réponse d'Alexis
 
-### A2 — ✅ FAIT [VÉRIFIÉ 04-08] Il manque la transition entre la grande carte et la carte posée
-La grande carte en l'air disparaît, la petite carte apparaît sur le plateau. Il
-manque le mouvement qui relie les deux : le dépôt.
-État : signalé plusieurs fois, jamais corrigé.
+Rien de ce qui suit ne peut être fait juste : ce sont des choix, pas des défauts.
 
----
+| Repère | Ce que j'ai besoin de savoir |
+|---|---|
+| Q1 | « pas clair jauge temp » — qu'est-ce qui n'est pas clair, au juste ? |
+| Q2 | « retirer interface au milieu plutôt que griser » — quelle interface, dans quelle situation ? |
+| Q3 | Faut-il retirer des phases le choix « défausser une carte pour 3 MC » ? |
+| Q4 | Les objectifs et récompenses sont de mauvaise qualité d'image : a-t-on une meilleure source ? |
 
-## B. Les jauges de température et d'oxygène
+Le détail de chaque question est écrit dans la section correspondante.
 
-### B1 — QUESTION TRANCHÉE : le moteur est juste, seul l'écran est faux
-Alexis a rectifié le 04-08 : il avait oublié les cases **rouges** de la
-température entre le violet et le jaune. Le découpage réel du plateau est donc :
+## 1. MOTEUR — les règles elles-mêmes
 
-| Jauge | Découpage du plateau | Total |
-|---|---|---|
-| Température | 6 violettes, 5 rouges, 5 jaunes, 4 blanches | **20** |
-| Oxygène | 3 violettes, 4 rouges, 5 jaunes, 3 blanches | **15** |
+Ce lot **recompile le moteur** et casse la compatibilité des parties
+enregistrées : les réponses d'une partie sont des **numéros de position** dans
+la liste des choix, pas des noms. Ajouter, retirer ou déplacer un choix décale
+tout ce qui suit. **Ces travaux se font donc en un seul lot, hors partie**, avec
+une seule campagne de contrôles.
 
-Ce que le moteur dit, [VÉRIFIÉ 04-08] :
+### MOT-1 (ancien K8) — Une question sautée quand rien n'est payable
+[VÉRIFIÉ 04-08] `web/webapp/wasm/src/lib.rs:1269` — `if affordable.is_empty()
+{ return None; }`. Quand aucune carte n'est payable, aucun point de décision
+n'est créé : la seconde pose du bonus Construction n'est jamais proposée, et
+l'occasion de vendre que le moteur venait pourtant d'ouvrir est perdue avec elle.
 
-```
-engine/src/state.rs:19-21   TEMPERATURE_MAX = 19  →  20 positions (0 à 19)
-                            OXYGEN_MAX      = 14  →  15 positions (0 à 14)
-engine/src/effects.rs:26-36 TEMP_R_MIN=6  TEMP_Y_MIN=11  TEMP_W_MIN=16
-                            OXY_R_MIN=3   OXY_Y_MIN=7    OXY_W_MIN=12
-```
+Vécu en partie (mars2, graine 210055, rangs 144-146) : 8 MC, trois cartes
+bleues/rouges en main dont Solarpunk à 15 MC. Vendre 3 cartes (+9 MC) la mettait
+à portée. La question n'a jamais été posée.
 
-Soit, cran par cran : température violet 0-5 (**6**), rouge 6-10 (**5**), jaune
-11-15 (**5**), blanc 16-19 (**4**). Oxygène violet 0-2 (**3**), rouge 3-6
-(**4**), jaune 7-11 (**5**), blanc 12-14 (**3**).
+**Correctif** : poser la question même quand la liste est vide — avec la seule
+réponse « passer ». Règle du même coup MOT-4.
 
-**Concordance parfaite sur les deux jauges.** Le moteur compte les cases et
-change de couleur exactement aux bons crans.
+### MOT-2 (ancien K5) — Une action de carte impossible reste proposée
+[VÉRIFIÉ 04-08] Les neuf océans sont révélés et « Aquifer Pumping » est encore
+offerte. `engine/src/flow.rs:3291` refuse l'effet avant tout paiement — aucun MC
+n'est perdu — mais la boucle de la phase Action consomme l'activation « dans
+tous les cas » (`flow.rs:4198`) : le joueur perd son droit d'action pour rien.
 
-### B2 — Les requis sont-ils débloqués aux bons moments ? OUI
-[VÉRIFIÉ 04-08] `engine/src/flow.rs:1462-1471` : un requis de température se
-teste par `temp_color(...)`, c'est-à-dire par le **niveau de couleur**, pas par
-le numéro de case. La souplesse d'un cran (`flex`) travaille elle aussi sur la
-couleur. Même chose pour l'oxygène avec `oxy_color`.
+**Correctif** : dans `action_options` (`flow.rs:3123`), ne pas proposer une carte
+bleue dont l'action ne peut rien produire, exactement comme l'action standard
+Océan l'est déjà (`flow.rs:3146`).
 
-**Conclusion : il n'y a rien à changer dans les règles.** Le travail se limite à
-l'affichage des jauges — nombre de cases dessinées et couleurs.
+### MOT-3 (ancien K6) — Le bonus de la phase Construction est tranché trop tôt
+[VÉRIFIÉ 04-08 contre le livret et contre le code] Livret,
+`docs/regles/livret-base.md:336` : « piocher une carte **avant ou après** avoir
+joué une carte ». Le moteur, lui, appelle `policy.construction_bonus(...)` avant
+le calcul des options de pose (`engine/src/flow.rs:3994-4005`) : les trois issues
+sont arrêtées alors que le joueur n'a rien posé. Les cartes améliorées II-A et
+II-B ont le même défaut (`selector_branch`, même endroit).
 
----
+**Correctif visé** : au début, une question réduite (« piocher tout de suite,
+avant de poser ? ») ; puis, la première carte posée, la vraie question entre
+« piocher » et « poser une seconde ».
 
-## C. ✅ FAIT [VÉRIFIÉ 04-08] La phase de production ne se voit pas
+### MOT-4 (ancien K3, seconde moitié) — La phase s'arrête sans un mot
+[VÉRIFIÉ 04-08] Quand la question de pose n'offre aucune option, la phase passe
+en silence. Il faut dire en clair « aucune carte constructible cette phase ».
+Réglé par MOT-1.
 
-Les compteurs de MC, de chaleur et de plantes augmentent **instantanément** : on
-ne comprend pas qu'il s'est passé quelque chose.
-Demandé : un `+X` visible qui dure assez longtemps pour être lu. La forme exacte
-est laissée libre.
+### MOT-5 (Corentin, ligne 17) — Défausser pendant la Construction donne la main à l'autre
+[DÉCLARÉ 04-08 · À VÉRIFIER] Défausser des cartes pendant la phase Construction
+ferait passer la main à l'adversaire, **sans avoir joué de carte ni passé son
+tour**. Si c'est exact, c'est un défaut grave : un joueur perd son tour de
+construction pour avoir vendu.
 
----
+À reproduire d'abord, puis à situer : est-ce la vente qui consomme le tour, ou
+l'écran qui envoie une réponse « passer » à sa place ?
 
-## D. Objectifs et récompenses
+### MOT-6 (Corentin, ligne 19 · recoupe MOT-1) — Vendre quand on ne peut rien payer
+[DÉCLARÉ 04-08] Quand on n'a pas de quoi acheter une carte ou payer une action,
+la seule issue offerte est « passer ». Il faut que « vendre des cartes » soit
+toujours une issue possible à ces moments-là. C'est le même correctif que MOT-1,
+étendu à la phase Action.
 
-### D1 — ✅ FAIT (à regarder de vos yeux) Zoom au survol
-Passer le curseur sur un objectif ou une récompense doit l'agrandir pour qu'on
-puisse le lire.
+### MOT-7 (Corentin, ligne 23) — Le choix « défausser une carte pour des MC » dans les phases
+[QUESTION Q3 · À VÉRIFIER] Livret `docs/regles/livret-base.md:96` : « à tout
+moment, vous pouvez défausser une carte Projet de votre main pour gagner 3 MC ».
+Corentin fait remarquer que ce choix, proposé explicitement dans plusieurs
+phases, fait double emploi avec le bouton de vente qui, lui, est censé être
+disponible en permanence.
 
-### D2 — ✅ FAIT Retirer une mention
-Supprimer le texte « Mars surface · NASA / JPL / University of Arizona ».
+Enjeu pour l'intelligence artificielle : deux chemins qui mènent au même état
+gonflent l'arbre de recherche sans rien apporter — exactement ce qu'on a évité
+sur la vente multiple. **Mais** il faut d'abord vérifier que le taux est le même
+partout : certaines cartes modifient le gain de la défausse
+(`flow.rs:1555`, `discard_mc_rate`). Si les deux chemins ne rapportent pas la
+même chose, on ne peut pas en supprimer un.
 
----
+### MOT-8 (Corentin, ligne 8) — Le badge « ? » se choisit trop tard
+[DÉCLARÉ 04-08 · À VÉRIFIER] Corentin croit qu'on doit choisir le badge d'une
+carte à badge « ? » **avant même de la jouer**, et voudrait que le choix se fasse
+**au moment où l'on décide de la jouer**. À vérifier dans le moteur : où le point
+de décision est-il posé par rapport à la pose ?
 
-## E. Les tuiles océan
+### MOT-9 (Corentin, ligne 14) — Toujours le même joueur qui choisit sa phase en premier
+[VÉRIFIÉ 04-08 contre le livret, code à vérifier] Le livret est formel
+(`livret-base.md:268` et `:629`) : « chaque joueur choisit **simultanément** une
+carte Phase et la place **face cachée** devant lui ». Notre écran fait choisir
+l'un puis l'autre, et toujours dans le même ordre.
 
-### E1 — Aucune tuile n'est face visible
-Même quand une tuile est retournée, elle ne se révèle pas. Défaut ancien,
-plusieurs fois signalé.
+Deux conséquences : c'est contraire à la règle, et le second joueur peut déduire
+quelque chose du temps de réflexion du premier. Le moteur fait pourtant tourner
+le premier joueur à chaque manche (`engine/src/flow.rs:4881`) — le défaut est
+donc probablement dans l'ordre d'interrogation, pas dans la règle.
 
-### E2 — Le joueur ne choisit pas quelle tuile retourner
-Aujourd'hui le moteur choisit au hasard. Alexis veut choisir.
-**Facilité explicitement autorisée par lui** : si toutes les tuiles donnent le
-même résultat, le choix peut être purement visuel. À confirmer contre le livret.
+### MOT-10 (Corentin, lignes 18 et 20) — La production affichée ignore les cartes à badges
+[DÉCLARÉ 04-08 · À VÉRIFIER] Le compteur de production de MC affiché ne comprend
+pas les cartes qui produisent des MC **selon le nombre de badges** — ni,
+probablement, celles qui dépendent du nombre de jetons Forêt.
 
-### E3 — Il manque l'animation de retournement
-La tuile doit se retourner à l'écran.
+Demandé : une case supplémentaire, sous la production de MC, donnant **le revenu
+réel de la prochaine phase Production** — production de base, plus points de
+terraformation, plus tout ce qui dépend des badges et des jetons.
 
----
+C'est un travail d'affichage, mais le nombre doit venir du **moteur** : il n'y a
+qu'un seul endroit qui a le droit de calculer, et ce n'est pas la page.
 
-## F. Les cartes Phase améliorées
+### MOT-11 (ancien E2) — Le joueur ne choisit pas quelle tuile océan retourner
+[DÉCLARÉ] Aujourd'hui le moteur tire au hasard. Alexis veut choisir. Facilité
+qu'il a lui-même autorisée : si toutes les tuiles restantes donnent le même
+résultat, le choix peut n'être que visuel. À confirmer contre le livret.
 
-### F1 — ✅ FAIT [VÉRIFIÉ 04-08] Les nouveaux visuels ne s'affichent pas au moment du choix
-Quand on améliore une carte Phase, la liste proposée montre encore les visuels
-**de base**.
-Précision d'Alexis : la phase **Recherche** améliorée et la carte
-**Développement** s'affichent, elles, correctement. Le défaut ne frappe donc pas
-partout.
+### MOT-12 (ancien I2) — L'état du moteur recule parfois
+[DÉCLARÉ] 20 reculs sur 183 lectures, graine 5150. Jamais expliqué. À reprendre
+après le lot moteur, car les changements ci-dessus peuvent le déplacer.
 
-### F2 — ⚠️ PAS UN DÉFAUT [VÉRIFIÉ 04-08] La production améliorée demande bien
-La question EXISTE et le moteur la pose. Elle est simplement **rare** : mesurée
-sur **cinq parties entières** (1 047 décisions au total, graines 2024, 5150, 77,
-31337, 909), la décision « quelle carte verte rejoue sa production » est apparue
-**2 fois**. Il faut, dans la même manche, avoir choisi la carte Production
-améliorée A ET posséder au moins **deux** cartes vertes qui produisent quelque
-chose — sinon le moteur double la seule carte possible sans rien demander
-(`engine/src/flow.rs:4324`, `replay_green_production`).
+## 2. ANIMATIONS — voir ce qui se passe
 
-Alexis n'a donc « pas eu de chance », au sens propre. Ce qui change quand même
-pour lui : depuis le point C, le gain apparaît maintenant en « +X » sur ses
-compteurs — il verra qu'il s'est passé quelque chose, même sans question posée.
+Demande générale d'Alexis et de Corentin, formulée plusieurs fois : **on ne voit
+pas ce que fait l'adversaire, ni ce qu'on fait soi-même.** Les nombres changent,
+rien ne bouge. C'est le plus gros manque de confort restant.
 
-### F3 — ✅ FAIT [VÉRIFIÉ 04-08] L'Action améliorée ne montre pas les cartes tirées
-Le défaut était dans le **moteur** : il tirait bien trois cartes, mais ne
-présentait que les prenables — et quand aucune n'était bleue ou rouge, aucune
-décision n'était posée du tout, donc rien ne s'affichait. Les trois cartes sont
-maintenant montrées à chaque fois ; celle qu'on ne peut pas prendre est éteinte
-et cerclée de gris avec « CANNOT BE TAKEN », celle qu'on peut prendre garde ses
-couleurs et porte un liseré vert. Le choix entre plusieurs prenables existait
-déjà dans le moteur, il est maintenant visible.
-Mesure : cinq parties entières, **13 révélations vues, 33 cartes montrées dont
-19 NON prenables** — c'est précisément ce qui n'apparaissait jamais. Moteur :
-830 tests, 830 verts. Aucune règle ne change.
+### ANI-1 — Les actions doivent se voir, les siennes comme celles de l'autre
+[DEMANDÉ 04-08] Liste dictée : pose de carte, hausse de la température, hausse
+de l'oxygène, dépense de MC, gain de jetons Forêt, gain de ressources sur une
+carte. Chaque événement doit produire un mouvement visible, du côté du joueur
+qui agit **et** du côté de celui qui regarde.
 
-### F3 (énoncé d'origine)
-Elle est censée montrer 3 cartes de la pioche et permettre d'en prendre une
-bleue ou une rouge. Alexis a l'impression de ne rien récupérer.
-Demandé au minimum : **montrer les trois cartes tirées**, même quand aucune
-n'est prenable.
-Précision donnée le 04-08 : **quand plusieurs cartes bleues ou rouges sont
-tirées, le joueur doit choisir laquelle prendre.** C'est peut-être déjà le cas,
-Alexis n'a jamais rencontré l'exemple. À reproduire et à prouver.
+### ANI-2 (Corentin, ligne 10) — Le changement de tour ne se voit pas
+[DEMANDÉ] On ne comprend pas que son tour est fini et que l'autre doit choisir
+sa phase.
 
----
+### ANI-3 (Corentin, ligne 11) — Le début de phase ne se voit pas
+[DEMANDÉ] En particulier la phase de Production : on ne sait pas qu'elle commence.
 
-## G. Le paquet de cartes projet
+### ANI-4 (Corentin, ligne 24) — Le « +3 » de la défausse passe trop vite
+[DEMANDÉ] Rallonger la durée d'affichage du gain quand on défausse une carte.
 
-### G1 — ✅ FAIT [VÉRIFIÉ 04-08] Afficher combien de cartes restent dans le paquet
-Le bandeau écrit « DECK 246 +0 » : ce qui reste à piocher, puis ce qui attend
-dans la défausse. Mesuré sur une partie entière : 246 → 26, défausse 0 → 172.
+### ANI-5 (Corentin, ligne 9 · anciens E1, E3, J2) — Les océans
+[CONFIRMÉ PAR ALEXIS 04-08 · TOUJOURS PAS RÉGLÉ] Trois choses, liées :
+1. au rechargement de la page, les tuiles océan **déjà retournées se
+   retournent à nouveau** — l'animation rejoue tout l'historique ;
+2. la grande tuile montrée au milieu de l'écran affiche **son dos des deux
+   côtés** (ancien J2) ;
+3. il manque l'animation de retournement elle-même au moment de la révélation.
 
-### G2 — Remélanger la défausse quand le paquet est vide
-**Déjà fait** [VÉRIFIÉ 04-08] `engine/src/flow.rs:32-42` : `draw_card`
-intervertit pioche et défausse, remélange, puis pioche. Le commentaire cite le
-livret p. 15.
-Reste à vérifier : que l'écran le montre au joueur.
+Le point 1 est le plus gênant : c'est le seul défaut visible à chaque
+rechargement. Cause probable, à confirmer : la page rejoue toute la partie au
+chargement et déclenche les animations du passé au lieu de partir de l'état final.
 
----
+## 3. LISIBILITÉ — comprendre ce qu'on voit
 
-## H. Validé par Alexis, ne plus y toucher
+### LIS-1 (Corentin, ligne 5) — « pas clair jauge temp » — QUESTION Q1
+Corentin trouve la jauge de température peu claire. Ni lui ni Alexis n'ont
+précisé en quoi. Trois lectures possibles, il faut trancher :
+- on ne voit pas **où en est** le marqueur (rejoint LIS-2, blanc sur blanc) ;
+- on ne comprend pas **ce que débloque** chaque palier de couleur ;
+- on ne voit pas **de combien** elle vient de monter (rejoint ANI-1).
 
-- **Le score.** « Le score c'est bon je valide. » (04-08)
+Rappel de ce qui est acquis [VÉRIFIÉ 04-08] : le moteur est juste. Température
+20 crans (6 violets, 5 rouges, 5 jaunes, 4 blancs), oxygène 15 crans (3, 4, 5,
+3), et les prérequis se testent bien par **couleur** et non par numéro de case
+(`engine/src/flow.rs:1462-1471`). Il n'y a donc rien à corriger dans les règles :
+tout se joue à l'affichage.
 
----
+### LIS-2 (Corentin, ligne 21) — Le marqueur des jauges est blanc sur blanc
+[DEMANDÉ] Les cases hautes des deux jauges sont blanches, le marqueur aussi : on
+ne le voit plus. Le passer en noir. Et Corentin préfère **un simple point** au
+point cerclé actuel — il présente cela comme un avis, pas comme une exigence.
 
-## I. Ce qu'Alexis n'a PAS listé et qui reste ouvert
+### LIS-3 (Corentin, ligne 22) — On ne voit pas les ressources posées sur les cartes
+[DEMANDÉ] Les microbes, animaux et jetons Science accumulés sur une carte ne se
+voient pas. Demandé en plus : quand on agrandit une carte, afficher **le nombre
+de points de victoire que ses ressources rapportent déjà**, pour les cartes dont
+les ressources valent des points.
 
-Il a demandé : « J'avais pas mentionné d'autres choses ? » Voici ce que je tiens
-au catalogue et qu'il n'a pas cité ce matin.
+### LIS-4 (Corentin, ligne 15) — Les objectifs et récompenses — QUESTION Q4
+[PARTIELLEMENT FAIT] L'agrandissement au survol existe. Corentin demande
+**plus gros**, et signale que les images sont alors **de mauvaise qualité**.
+Il faut donc savoir si l'on dispose d'une source d'image plus fine ; sinon
+l'agrandissement restera flou quoi qu'on fasse.
 
-### I1 — ✅ RÉGLÉ [VÉRIFIÉ 04-08] La partie se bloquait à plusieurs tailles
-Après correction : **dix-neuf tailles balayées, 3 780 écrans mesurés, zéro écran
-fautif**, et la partie entière (233 décisions, mêmes scores) à chacune d'elles —
-y compris les quatre qui bloquaient. Énoncé d'origine ci-dessous.
+### LIS-5 (Corentin, ligne 13) — La disposition des tuiles océan change toute seule
+[DEMANDÉ] Quand une tuile est révélée, la planche de droite passe de trois
+lignes de trois à deux lignes de quatre et cinq, puis revient. Corentin trouve
+la disposition en 4 et 5 plus lisible et voudrait qu'elle soit **la seule**.
 
-### I1 (énoncé d'origine) — la partie se bloquait à plusieurs tailles de fenêtre
-[VÉRIFIÉ 04-08] Balayage de **quatorze** tailles, même partie, même graine.
-**Quatre bloquent pour de bon** — plus aucun bouton de choix n'est atteignable
-au 7ᵉ écran :
+### LIS-6 (Corentin, ligne 7) — Rien ne dit quel badge a été choisi
+[DEMANDÉ] Les cartes à badge « ? » ne montrent pas le badge retenu. Demandé,
+idéalement : **poser le badge choisi à l'emplacement du « ? »** sur la carte.
 
-| Fenêtre | Bande des choix | Résultat |
-|---|---|---|
-| 1536 × 864 | 45 points de haut | **bloquée** |
-| 1450 × 800 | 29 points | **bloquée** |
-| 1440 × 810 | 32 points | **bloquée** |
-| 1280 × 800 | 29 points | **bloquée** |
+### LIS-7 (Corentin, ligne 4) — Une croix, pas une coche, pour le premier tri
+[DEMANDÉ] Au tout début de la partie, quand on choisit les cartes à garder, la
+marque affichée est une coche. Une croix serait plus juste — on désigne ce qu'on
+écarte.
+*(À confirmer en jouant : selon l'écran, on désigne peut-être ce qu'on garde,
+auquel cas la coche est correcte et c'est le libellé qui doit être plus clair.)*
 
-Et **treize sur quatorze** présentent au moins un écran où des boutons se
-chevauchent. Seule 1920 × 1200 est saine de bout en bout.
+### LIS-8 (Alexis, 04-08) — Le compteur de jetons Forêt est affiché deux fois
+[VÉRIFIÉ 04-08] Il apparaît bel et bien deux fois dans la même barre de joueur :
+`web/webapp/vue/joueurs.js:121` (l'hexagone avec le nombre de forêts) et
+`joueurs.js:68` (la ventilation du score, ligne « Forests »). Les deux nombres
+sont égaux, puisqu'une forêt vaut un point de victoire — d'où l'impression de
+doublon.
 
-C'est donc un défaut général de mise en page, pas le cas particulier d'une
-taille. **C'est le seul défaut connu qui empêche purement et simplement de
-jouer.** Chantier `workspaces/la-bande-des-choix` prêt, contrat écrit, pas encore
-scellé.
+À trancher à l'affichage : garder l'hexagone (le matériel) et retirer la ligne
+de la ventilation, ou l'inverse. Ma recommandation : garder l'hexagone, qui dit
+combien de forêts on possède, et retirer la ligne du score, qui répète le même
+nombre sous un autre nom.
 
-### I2 — L'état du moteur recule parfois
-20 reculs sur 183 lectures, graine 5150. Non expliqué.
+### LIS-9 (Corentin, ligne 12) — « retirer interface au milieu » — QUESTION Q2
+Formulation d'origine : « retirer interface au milieu plutôt que griser retirer
+totalement ». Deux lectures possibles, opposées :
+- **(a)** les choix impossibles s'affichent éteints au centre de l'écran ; il
+  voudrait qu'ils **disparaissent** au lieu d'être éteints ;
+- **(b)** le panneau central reste affiché, éteint, pendant qu'on attend
+  l'adversaire ; il voudrait qu'il **s'efface** complètement.
 
-### I3 — Le prix effectif barré
-Quand une remise s'applique, le prix d'origine devrait être barré à côté du prix
-payé.
+La différence compte : la lecture (a) **annulerait** un travail fait ce matin —
+l'Action améliorée montre désormais les trois cartes tirées, dont celles qu'on
+ne peut pas prendre, éteintes et marquées « CANNOT BE TAKEN ». C'était une
+demande explicite d'Alexis. Il ne faut pas défaire cela par erreur.
 
-### I4 — Effets sonores
+### LIS-10 (ancien J3) — Les logos Océan et Forêt ne sont pas détourés
+[DÉCLARÉ 04-08] Dans les décisions, ces deux jetons s'affichent sur un carré
+blanc, alors que le logo de la défausse est proprement détouré.
+
+### LIS-11 (ancien I3) — Le prix d'origine n'est pas barré
+[DEMANDÉ] Quand une remise s'applique, afficher le prix d'origine barré à côté
+du prix réellement payé.
+
+### LIS-12 (ancien G2) — Le remélange de la défausse ne se voit pas
+[VÉRIFIÉ 04-08] Le moteur le fait bien (`engine/src/flow.rs:32-42`, livret p. 15).
+Reste seulement à le **montrer** au joueur quand cela arrive.
+
+## 4. CONFORT DE JEU
+
+### CNF-1 (Corentin, ligne 6) — Trier sa main en déplaçant les cartes
+[DEMANDÉ] Pouvoir réordonner les cartes de sa main en les faisant glisser.
+
+### CNF-2 (ancien K4) — Voir la défausse
+[DEMANDÉ 04-08] Pouvoir consulter la pile des cartes défaussées.
+
+### CNF-3 (Corentin, ligne 34 · optionnel) — Un bouton « passer définitivement »
+[DEMANDÉ] En plus du bouton qui passe une fois pendant la phase Action, un
+bouton qui passe en boucle, pour accélérer quand on est sûr de ne plus rien
+faire.
+
+### CNF-4 (Corentin, ligne 35 · optionnel) — Des messages d'attente précis
+[DEMANDÉ] Au lieu de « Waiting for the other player », dire ce qu'on attend :
+qu'il choisisse ses cartes, qu'il joue une carte, etc.
+
+### CNF-5 (Corentin, ligne 36 · optionnel) — Fermer le zoom d'un clic n'importe où
+[DEMANDÉ] Aujourd'hui il faut recliquer sur la tuile elle-même.
+
+### CNF-6 (ancien I5) — Reprendre une partie interrompue
+[DEMANDÉ] Aucune sauvegarde n'existe. Une partie coupée est perdue — sauf à
+recopier à la main la liste des décisions, ce qu'on a dû faire une fois le 04-08.
+
+## 5. GROS CHANTIERS
+
+### GRO-1 (ancien I9) — L'intelligence artificielle
+**C'est l'objectif du projet.** Non commencé. Tout ce qui précède existe pour que
+le jeu soit jouable et juste ; l'adversaire artificiel, lui, reste entièrement à
+construire.
+
+### GRO-2 (ancien I4) — Les effets sonores
 Jamais commencés.
 
-### I5 — Sauvegarde de partie
-Impossible de reprendre une partie interrompue.
+### GRO-3 (ancien J4) — La musique de fond
+[REPORTÉ] Liste demandée par Alexis :
+`https://music.youtube.com/playlist?list=PLx1xajSbL3ZFd40MlNo4icK25RMMPaEsH`.
+Un navigateur ne peut pas lire une liste hébergée ailleurs sans les fichiers ;
+Alexis a lui-même dit qu'on abandonne si cela oblige à tout télécharger.
 
-### I6 — Trois décisions gardent leur liste au milieu de l'écran
-Défaut d'affichage isolé, jamais reproduit proprement.
+## 6. DÉFAUTS ANCIENS, JAMAIS REPRODUITS PROPREMENT
 
-### I7 — La main déborde en 1280 × 640
+À reprendre seulement s'ils réapparaissent — ou à fermer si le lot moteur les
+fait disparaître.
 
-### I8 — La vente à distance : un panneau sur dix-huit reste ouvert
-[VÉRIFIÉ 04-08] Mesuré ce matin : sur 18 ventes conclues pendant une partie à
-deux, **17 se referment en moins d'une seconde**, une est restée ouverte plus de
-30 secondes. La partie va au bout et les deux écrans restent d'accord sur le
-score : ce n'est pas un blocage. Cause du cas résiduel inconnue.
-
-### I9 — L'intelligence artificielle
-Le grand chantier final. Non commencé. C'est l'objectif du projet.
-
----
-
-## Questions ouvertes — état au 04-08 vers 05h30
-
-1. ~~Température : 15 crans ou 20 ?~~ **TRANCHÉE : 20.** Voir B1 et B2. Le
-   moteur est juste, il n'y a que l'écran à corriger.
-2. **La capture de la carte de travers** ne m'est **toujours** pas parvenue.
-   Alexis l'a envoyée deux fois, elle n'arrive pas jusqu'à moi. Je corrigerai
-   l'inclinaison sans la voir, en relisant le code de l'animation.
-3. ~~La phrase coupée~~ **RÉPONDUE** : quand plusieurs cartes bleues ou rouges
-   sont tirées, il faut pouvoir choisir. Voir F3.
-4. ~~L'heure de la partie~~ **RÉPONDUE : 9h30 le 04-08, maintenue.** Consigne
-   d'Alexis : « fais de ton mieux, ne bâcle pas juste pour finir. »
-
-**Autonomie totale accordée le 04-08 vers 05h30.** Plus aucune question ne
-bloque : je travaille jusqu'au bout sans rien lui redemander.
-
----
-
-## Deuxième liste, dictée par Alexis le 04-08 vers 09h00 (écran de jeu ouvert)
-
-### J1 — Les cartes Phase améliorées III et IV : les DEUX IMAGES ÉTAIENT INVERSÉES
-[VÉRIFIÉ 04-08 · CORRIGÉ] Alexis a choisi « l'amélioration de production qui
-double une carte verte », et n'a rien vu se doubler ; une autre partie lui a
-donné +13 MC là où il en attendait +8.
-
-**Le moteur n'avait aucun tort.** Les deux découpes d'images étaient permutées :
-le fichier nommé `carte-phase-4-production-amelioree-a` portait le texte de la
-variante B (« Gain 7 MC »), et réciproquement. En cliquant sur l'image qui
-promet le doublement, Alexis installait donc la carte à 7 MC. Cela explique
-**les deux** observations d'un seul coup : aucun doublement (la variante B n'en
-accorde pas), et 5 de terraformation + 7 du bonus + 1 de production = **13 MC**.
-
-Les dix images ont été relues une par une et comparées au moteur :
-phases I, II et V justes ; **phases III et IV inversées**, toutes deux
-corrigées. Les fichiers ont été échangés et la trace de découpe du manifeste
-avec eux.
-
-Cause première : les découpes ont été nommées d'après leur position dans la
-planche scannée, en supposant partout un ordre A puis B — faux pour ces deux
-phases. **Aucune de mes mesures ne pouvait le voir** : elles vérifient qu'une
-image s'affiche, jamais ce qu'elle raconte. Deuxième défaut de la journée trouvé
-à l'œil et non par un contrôle.
-
-### J2 — La grande tuile océan se retourne et montre encore son dos
-[EN COURS 04-08] Sur la planche des neuf océans, les tuiles se retournent
-correctement. C'est la grande tuile rejouée au milieu de l'écran qui montre son
-dos des deux côtés.
-
-### J3 — Les logos Océan et achat de jeton Forêt ne sont pas détourés
-[DÉCLARÉ 04-08] Dans les décisions, ces deux jetons s'affichent sur un carré
-blanc, alors que le logo de défausse, lui, est proprement détouré.
-
-### J4 — Une liste de musiques en fond de partie
-[DÉCLARÉ 04-08] Demandé : les titres dans l'ordre, le nom du morceau affiché, un
-bouton pour passer au suivant, reprise au début à la fin de la liste, et de quoi
-tout couper. **Le lien de la liste n'est pas arrivé jusqu'à moi** — le message
-disait « cette playlist » sans que rien ne me parvienne. À redemander.
-Réserve déclarée par Alexis lui-même : si cela oblige à télécharger tous les
-morceaux, on laisse tomber pour aujourd'hui. C'est bien le cas — un navigateur
-ne peut pas lire une liste hébergée ailleurs sans les fichiers.
-
-## Troisieme liste, dictee par Alexis le 04-08 pendant la partie a deux
-
-### Ordre de bataille — CE QUI SE FAIT QUAND
-
-**Deja livre pendant la partie** (ecran seul, aucun indice de decision deplace,
-un simple rechargement suffit) : K1, K2, K3 (moitie), K7.
-
-**A FAIRE EN UN SEUL LOT, APRES LA PARTIE — et surtout pas avant.** K3 (seconde
-moitie), K5, K6 et K8 touchent tous la liste des points de decision ou la liste
-des options. Chacun, pris seul, detruit une partie en cours au rejeu : les
-reponses enregistrees sont des INDICES, pas des noms.
-
-Il y a une raison de plus de les grouper : ils se recouvrent.
-
-| | Ce qu'il faut changer | Ce que ca reglera aussi |
-|---|---|---|
-| K8 | poser la question meme quand la liste est vide (`wasm/src/lib.rs:1269`) | la seconde moitie de K3 — la phase ne passera plus en silence |
-| K5 | ne pas proposer une action qui ne peut rien produire (`flow.rs:3123`) | le joueur ne perd plus son activation pour rien |
-| K6 | trancher le bonus Construction APRES la premiere pose (`flow.rs:3994`) | rend le bonus conforme au livret p.12 |
-
-Une seule recompilation, une seule rupture de compatibilite, une seule campagne
-de controles. Les faire un par un multiplierait les trois par quatre.
-
-**Ordre recommande** : K8 d'abord (c'est celui qui a coute des coups reels aux
-deux joueurs et il regle la moitie de K3 au passage), puis K5, puis K6 qui est le
-plus lourd. K4 (voir la defausse) est independant et peut se faire a tout moment.
-
-### K1 — Deux ventes de suite arretent la partie
-[CORRIGE 04-08 COTE ECRAN, VERIFIE — verif_vente.py, vert sur la livraison et
-ROUGE sur une copie sabotee]
-
-**Cause racine, lue dans le code.** `flow::occasion_de_vendre` ARME
-`game.occasion_ouverte` avant de consommer la vente ; `flow::observer` le publie
-ensuite dans `vente_offerte`. Le moteur repose alors la MEME question et
-republie donc `vente_offerte = true`, alors que l'occasion vient d'etre
-depensee. L'ecran offrait le bouton une seconde fois, sur un point ou aucune
-occasion n'attendait plus. Le garde qui existait (`if (soumise) return`) ne
-couvrait pas ce cas : une vente livree TOUT DE SUITE remet `soumise` a null.
-
-**Correctif** (`vue/vente.js`, `interface.js`) : un verrou `venduIci`, pose des
-qu'une vente est validee, leve UNIQUEMENT quand mon siege repond a une question
-(`apresMaReponse`) — c'est exactement la regle du moteur, une occasion par point
-de decision. Le bouton reste dans la page, desarme, et DIT pourquoi
-(« Sale sent — play or pass first »).
-
-Vecu en partie reelle : le siege 0
-vend au rang 108 (accepte), revend au rang 109 (refuse). Le moteur n'ouvre
-**qu'une occasion de vendre par point de decision** ; l'ecran, lui, laisse le
-bouton en place. La partie s'est arretee des deux cotes sur
-« aucune occasion de vendre n'est ouverte a ce point ». Sauvee en recopiant les
-109 premieres decisions dans une partie neuve (meme graine), sans la fautive.
-
-### K2 — Pouvoir vendre plusieurs fois d'affilee
-[CORRIGE 04-08 COTE ECRAN, VERIFIE] La forme retenue est celle decrite plus bas :
-l'ecran accumule autant de cartes qu'on veut dans UNE seule vente, on peut
-ajouter et retirer librement, et rien ne quitte la main avant confirmation. Le
-panneau le dit maintenant (« Pick as many as you want — nothing leaves your hand
-until you confirm »). Mesure : 3 cartes designees, 1 reprise, 2 parties d'un coup
-(8 -> 6 cartes en main).
-
-**Ce qui reste impossible sans toucher au moteur** : vendre, VOIR le resultat,
-puis revendre au meme point. Verifie ligne a ligne — `occasion_de_vendre`
-n'appelle `vendre_librement` qu'une fois par point, et le harnais de rejeu
-(`wasm/src/lib.rs:1400`) ne consomme qu'une entree de vente par curseur. K1
-transforme donc ce cas en refus lisible au lieu d'un arret de partie.
-
-Motif d'Alexis : « pour le cas ou on se tromperait ». Il a
-raison sur le besoin — son ami a vendu la seule carte qu'il pouvait poser et
-s'est retrouve sans rien a faire.
-
-**A FAIRE SANS TOUCHER AU MOTEUR.** Alexis a lui-meme pose la contrainte : « ca
-va pas rendre l'IA moins performante, ce genre de trucs qui multiplie les
-options ? » — et c'est juste. Vendre deux cartes d'un coup ou deux fois de suite
-mene EXACTEMENT au meme etat : ce sont deux chemins pour un seul resultat, ce
-qui gonfle l'arbre de recherche sans rien apporter. C'est le pire cas pour une
-IA.
-
-La bonne forme est donc : UNE seule occasion de vente pour le moteur, mais
-REVISABLE tant que le joueur n'a pas repondu a la question principale. L'ecran
-accumule les cartes designees et n'envoie qu'une seule reponse de vente. Le
-joueur peut vendre, voir le resultat, vendre encore ; le moteur ne voit qu'une
-vente, et l'arbre de l'IA ne grossit pas d'un noeud.
-
-### K3 — Rien n'avertit qu'on vend la carte qu'on pouvait poser
-[PARTIELLEMENT CORRIGE 04-08, VERIFIE] L'avertissement est en place : une carte
-designee qui porte `data-choix` (donc que la question en cours propose de poser)
-prend un contour OR par-dessus le rouge de la vente, le panneau passe en or et
-ecrit « ⚠ that card can be played right now — selling it loses that play ».
-On ne l'interdit pas — le livret l'autorise — on le montre.
-
-**RESTE A FAIRE** : dire « aucune carte constructible cette phase » quand la
-question de pose n'offre aucune option, au lieu de passer sans un mot.
-
-Rang 103 : une seule option, « poser Special Design » (3 MC),
-avec 7 MC en poche. Le joueur a vendu cette carte-la. Plus aucune carte rouge
-abordable ensuite, donc la phase s'arrete — a juste titre, mais en silence.
-A faire : marquer, pendant la designation de vente, les cartes qui figurent
-parmi les choix de pose en cours ; et dire en clair « aucune carte constructible
-cette phase » au lieu de passer sans un mot.
-
-### K4 — Voir la defausse
-[DEMANDE 04-08] Pouvoir consulter la pile des cartes defaussees.
-
-### K5 — Une action de carte impossible reste proposée
-[VERIFIE 04-08, A CORRIGER APRES LA PARTIE] Les neuf oceans sont reveles et
-« Aquifer Pumping » est toujours offerte. Ce que fait le moteur, verifie ligne a
-ligne : `flow.rs:3291` (`action_effs_possible`) rend faux des que l'effet pose un
-ocean et que `snap_oceans >= NUM_OCEANS`, donc `apply_blue_action` sort par
-`return false` AVANT tout paiement — aucun MC perdu. Mais la boucle de la phase
-Action consomme l'activation « dans tous les cas » (flow.rs:4198) : le joueur
-perd son droit d'action du tour pour rien.
-
-A corriger dans `action_options` (flow.rs:3123) : ne pas proposer une carte
-bleue dont l'action ne peut rien produire, exactement comme l'action standard
-Ocean l'est deja par `game.snap_oceans < NUM_OCEANS` (flow.rs:3146).
-
-**PAS PENDANT UNE PARTIE EN COURS** : les decisions enregistrees sont des INDICES
-dans la liste des options. Retirer une option change tous les indices suivants et
-detruirait la partie au rejeu.
-
-Gain double : le joueur ne se piege plus, et l'IA n'explore plus une branche
-morte — meme raisonnement que K2.
-
-### K6 — Le bonus de la phase Construction est tranché trop tôt
-[VÉRIFIÉ 04-08 contre le livret ET contre le code, À CORRIGER APRÈS LA PARTIE]
-
-Signalé par Alexis : on est obligé de choisir dès le début de la phase entre
-« piocher une carte » et « jouer une 2e carte », alors qu'on voudrait poser
-d'abord une carte qui fait piocher, voir ce qui arrive, puis décider.
-
-**Le livret lui donne raison.** Texte exact, `docs/regles/livret-base.md:336` :
-« Bonus : Si vous avez choisi cette phase, vous pouvez au choix : piocher une
-carte AVANT OU APRÈS avoir joué une carte lors de cette phase OU vous pouvez
-jouer une carte bleue ou rouge supplémentaire lors de cette phase. » Aucune
-phrase n'impose d'annoncer la branche à l'avance ; la branche « après avoir
-joué » est explicitement prévue. Le moteur est donc plus restrictif que la règle.
-
-**Ce que fait le code** (`engine/src/flow.rs:3994-4005`, `phase_construction`) :
-`policy.construction_bonus(...)` est appelé AVANT le calcul des options de pose
-et avant `policy.choose_build`. Les trois issues (pioche avant, pioche après,
-seconde pose) sont donc arrêtées alors que le joueur n'a encore rien posé.
-Les cartes améliorées II-A / II-B passent par `selector_branch`, appelé au même
-endroit — même défaut.
-
-**Correction visée** : garder au début une question réduite (« piocher tout de
-suite, avant de poser ? » — c'est la seule branche qui doit être décidée tôt,
-puisque la carte piochée peut servir à la pose), puis, une fois la première
-carte posée, poser la vraie question entre « piocher » et « poser une seconde ».
-
-**PAS PENDANT UNE PARTIE EN COURS** : même raison que K5 — cela déplace et
-modifie des points de décision, donc tous les indices enregistrés.
-
-Effet sur l'IA : neutre à positif. Le nombre d'issues finales ne change pas
-(pioche ou seconde pose) ; c'est de l'information gagnée avant de trancher, ce
-qui rend chaque branche plus facile à évaluer, pas plus nombreuse.
-
-### K7 — Un correctif de style qui n'existait que dans le fichier
-[TROUVE ET CORRIGE 04-08 — trouve parce qu'Alexis a demande de verifier les
-correctifs poses en direct, sans workspace ni controle]
-
-Le correctif du bouton de vente pose le matin meme (fond ambre, texte or, pour
-qu'il cesse d'etre noir sur noir) **n'avait aucun effet**. Le bloc etait ecrit
-`#vente-ouvrir` — specificite (1,0,0) — alors que `#vente button`, quinze lignes
-plus haut dans la meme feuille, pese (1,0,1) et fixe deja `background`, `border`
-et `color`. Le plus specifique gagne, pas le dernier ecrit.
-
-Mesure qui l'a revele : la couleur calculee du bouton valait `rgb(239,228,212)`
-(`var(--os)`) au lieu de `rgb(237,181,78)` (`var(--or)`) annonce dans le fichier.
-Corrige en `#vente button#vente-ouvrir`, et le controle mesure DESORMAIS la
-couleur calculee — pas la presence de la regle.
-
-**Lecon a retenir** : un correctif de style n'est pas verifie tant qu'on n'a pas
-lu la valeur CALCULEE dans un vrai navigateur. Relire la feuille ne prouve rien.
-Au passage, `#vente button:hover` a recu `:not(:disabled)` : le panneau se replie
-apres une vente et le bouton passe sous le curseur tout seul, donc un bouton
-desarme s'allumait sans que la main ait bouge.
-
-### K8 — Une question sautee quand rien n'est payable, donc AUCUNE occasion de vendre
-[VERIFIE 04-08 sur la partie en cours, A CORRIGER APRES LA PARTIE]
-
-Signale par Alexis en direct : son ami a choisi le bonus « poser une carte
-bleue/rouge supplementaire » et n'a pose qu'une seule carte.
-
-**Ce que le rejeu montre** (partie mars2, graine 210055, rangs 144 a 146) :
-rang 144 il choisit bien « Poser une carte bleue/rouge supplementaire » ; rang
-145 il pose Business Contracts (une seule option offerte) ; rang 146 le moteur
-passe DIRECTEMENT a la limite de main. Aucune question de seconde pose.
-
-**Pourquoi.** Le moteur fait tout ce qu'il faut : `flow.rs:4079-4095`, branche
-`ConstructionBonus::SecondBuild`, appelle `occasion_de_vendre` PUIS `affordable`
-PUIS `observer` PUIS `choose_build`. Le droit est accorde et l'occasion de vendre
-est ouverte. C'est le harnais de l'ecran qui l'escamote :
-`web/webapp/wasm/src/lib.rs:1269` — `if affordable.is_empty() { return None; }`.
-Aucun point de decision n'est cree, donc la page n'a jamais l'occasion ni de
-poser la question, ni d'offrir le bouton de vente que le moteur venait pourtant
-d'ouvrir.
-
-**Etat mesure a ce moment-la** : 8 MC, 10 cartes en main, trois bleues/rouges —
-Solarpunk 15 MC, Plantation 22 MC, Interplanetary Relations 35 MC. Aucune
-payable a 8 MC. Mais vendre 3 cartes (+9 MC = 17 MC) mettait **Solarpunk a
-portee**. Il pouvait donc bel et bien poser une seconde carte. Alexis a raison.
-
-**Correctif** : poser la question meme quand la liste est vide (uniquement
-« passer »), pour que le point de decision existe et que la vente y soit
-offerte. C'est le MEME defaut que la seconde moitie de K3 (« aucune carte
-constructible cette phase » dit en silence) — un seul correctif reglera les deux.
-
-**PAS PENDANT UNE PARTIE EN COURS** : cela AJOUTE des entrees dans la liste des
-decisions, ce qui decale toutes les reponses enregistrees. Destruction certaine
-au rejeu.
-
-**Contournement utilisable tout de suite** : vendre PENDANT la question de la
-premiere pose, ou le bouton existe. Les MC gagnes comptent pour la seconde pose,
-qui sera alors proposee.
+- **VIE-1** (ancien I6) — trois décisions gardent leur liste au milieu de
+  l'écran. Jamais reproduit.
+- **VIE-2** (ancien I7) — la main déborde en 1280 × 640.
+- **VIE-3** (ancien I8) — la vente à distance : sur 18 ventes mesurées pendant
+  une partie à deux, **17 se referment en moins d'une seconde, une est restée
+  ouverte plus de 30 secondes** [VÉRIFIÉ 04-08]. Ce n'est pas un blocage : la
+  partie va au bout et les deux écrans restent d'accord sur le score. Cause
+  inconnue.
