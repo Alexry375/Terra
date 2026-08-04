@@ -21,15 +21,15 @@ parenthèses quand il existe.
 
 | Repère | Réponse |
 |---|---|
-| Q1 — « pas clair jauge temp » | **EN ATTENTE de Corentin.** Mis de côté, on n'y touche pas. |
-| Q2 — « retirer interface au milieu » | Lecture **(b)** confirmée, mais Alexis ne sait pas à quels cas précis son ami pense. **Mis de côté** lui aussi. |
+| Q1 — « pas clair jauge temp » | **Tranché le 05-08 par Corentin** : retirer le nombre porté par chaque jauge — les degrés à gauche, la valeur d'oxygène à droite. Voir LIS-1 réécrit. |
+| Q2 — « retirer interface au milieu » | **Abandonné le 05-08.** Corentin a dit de laisser tomber. Rien à faire, LIS-9 est supprimé. |
 | Q3 — défausser pour 3 MC | **Tranché**, voir MOT-7 réécrit. |
 | Q4 — qualité des objectifs | Pas de meilleure source. Décision à prendre, voir LIS-4. |
 | Q5 — croix ou coche | **On désigne les cartes qu'on JETTE.** La croix est donc juste. |
 | Q6 — choix de phase | **Aucune fuite d'information** aujourd'hui. À corriger côté écran seulement, voir MOT-9 réécrit. |
 | Q7 — doublon des forêts | Garder l'hexagone, retirer la ligne du score, **et poser le jeton détouré**. |
 
-Seuls Q1 et Q2 restent ouverts, et ils sont volontairement gelés.
+Plus aucune question n'est ouverte.
 
 ## 1. MOTEUR — les règles elles-mêmes
 
@@ -204,13 +204,31 @@ chargement et déclenche les animations du passé au lieu de partir de l'état f
 
 ## 3. LISIBILITÉ — comprendre ce qu'on voit
 
-### LIS-1 (Corentin, ligne 5) — « pas clair jauge temp » — GELÉ, on attend Corentin
-[EN ATTENTE 04-08] **Ne rien faire tant que sa réponse n'est pas arrivée.**
-Corentin trouve la jauge de température peu claire. Ni lui ni Alexis n'ont
-précisé en quoi. Trois lectures possibles :
-- on ne voit pas **où en est** le marqueur (rejoint LIS-2, blanc sur blanc) ;
-- on ne comprend pas **ce que débloque** chaque palier de couleur ;
-- on ne voit pas **de combien** elle vient de monter (rejoint ANI-1).
+### LIS-1 (Corentin, ligne 5) — Retirer le nombre porté par les deux jauges
+[VÉRIFIÉ 05-08 · Q1 tranché] Corentin veut qu'on **retire la valeur en degrés de
+la jauge de température, et la valeur d'oxygène de la jauge d'oxygène**.
+
+Ce qui existe aujourd'hui, relu dans le code : chaque jauge courbe porte un
+nombre dans son creux, écrit par `web/webapp/vue/arcs.js:246-250` (l'élément de
+classe `arc__n`, mis en forme par `web/webapp/style-monde.css:138-146`). La
+température y écrit ses degrés (« -22 »), l'oxygène sa valeur (« 5 »).
+
+**Le même nombre est déjà écrit ailleurs**, dans la barre du haut
+(`web/webapp/vue/monde.js:81-91`) : « TEMPERATURE -22 °C / +8 » et
+« OXYGEN 5 / 14 ». Le retrait ne fait donc **perdre aucune information** : il
+supprime un doublon, qui est très probablement la cause du « pas clair » —
+deux nombres pour une seule grandeur, à deux endroits de l'écran.
+
+Travail : retirer l'élément `arc__n` des deux jauges (sa création, sa mise à
+jour et son style), et retirer l'unité devenue inutile du nom de la jauge —
+`arcTemp: "Temperature °C"` et `arcOxygen: "Oxygen %"`
+(`web/webapp/vue/mots.js:110-111`) deviennent « Temperature » et « Oxygen ».
+Garder les cases de couleur et le marqueur : c'est tout ce qui reste pour lire
+la jauge.
+
+**Conséquence à ne pas manquer** : le marqueur devient le **seul** repère de la
+jauge. LIS-2 (marqueur blanc sur fond blanc, invisible en haut de piste) cesse
+d'être un confort et devient obligatoire. **Les deux se font ensemble.**
 
 Rappel de ce qui est acquis [VÉRIFIÉ 04-08] : le moteur est juste. Température
 20 crans (6 violets, 5 rouges, 5 jaunes, 4 blancs), oxygène 15 crans (3, 4, 5,
@@ -294,20 +312,14 @@ détouré** — celui-ci existe déjà (`web/webapp/vue/materiel.js:281`,
 `jeton-foret-detoure`), alors que la barre utilise aujourd'hui
 `tuile-foret-compteur-hexagone-arbre` (`materiel.js:260`).
 
-### LIS-9 (Corentin, ligne 12) — « retirer interface au milieu » — GELÉ
-[EN ATTENTE 04-08 · Q2] Alexis confirme la lecture **(b)** ci-dessous, mais ne
-sait pas à quels cas précis son ami pense. **Ne rien faire pour l'instant.**
-Formulation d'origine : « retirer interface au milieu plutôt que griser retirer
-totalement ». Deux lectures possibles, opposées :
-- **(a)** les choix impossibles s'affichent éteints au centre de l'écran ; il
-  voudrait qu'ils **disparaissent** au lieu d'être éteints ;
-- **(b)** le panneau central reste affiché, éteint, pendant qu'on attend
-  l'adversaire ; il voudrait qu'il **s'efface** complètement.
+### LIS-9 (Corentin, ligne 12) — « retirer interface au milieu » — ABANDONNÉ
+[TRANCHÉ 05-08 · Q2] Corentin a dit de **laisser tomber**. Rien à faire.
 
-La différence compte : la lecture (a) **annulerait** un travail fait ce matin —
-l'Action améliorée montre désormais les trois cartes tirées, dont celles qu'on
+La trace est gardée ici pour une seule raison : ne pas ressortir cette demande
+d'une vieille note et défaire par erreur le travail du 04-08, où l'Action
+améliorée s'est mise à montrer les trois cartes tirées, y compris celles qu'on
 ne peut pas prendre, éteintes et marquées « CANNOT BE TAKEN ». C'était une
-demande explicite d'Alexis. Il ne faut pas défaire cela par erreur.
+demande explicite d'Alexis. **Ce comportement reste.**
 
 ### LIS-13 (Alexis, 04-08) — Ne pas pouvoir agrandir le dos des cartes adverses
 [DEMANDÉ] La main de l'adversaire est faite de dos de cartes, tous identiques.

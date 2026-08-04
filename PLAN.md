@@ -125,8 +125,10 @@ des images en même temps saturent sa connexion.
   les changements du gros lot peuvent le faire disparaître ou le déplacer.
 - **VIE-1, VIE-2, VIE-3** — les trois défauts jamais reproduits. À rouvrir
   seulement s'ils réapparaissent.
-- **LIS-1 et LIS-9** — gelés tant que Corentin n'a pas répondu. À glisser dans
-  le chantier B dès que sa réponse arrive.
+*(Plus rien n'est en attente de Corentin : sa réponse est arrivée le 05-08.
+**LIS-1** entre dans le chantier B, attelé à LIS-2 — retirer le nombre des deux
+jauges fait du marqueur le seul repère, il doit donc devenir visible dans le même
+mouvement. **LIS-9** est abandonné, Corentin a dit de laisser tomber.)*
 
 ## Vague 4 — L'intelligence artificielle (GRO-1)
 
