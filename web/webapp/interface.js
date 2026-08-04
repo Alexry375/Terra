@@ -55,6 +55,13 @@
 import { ouvrirPontDepuis } from "./pont.js";
 import { creerPartie, jouerJusquAuBout } from "./partie.js";
 import { fournisseurHumain, fournisseurAleatoire } from "./fournisseurs.js";
+// JOUER À DEUX EN LIGNE — le seul fichier neuf. Il n'apporte qu'un fournisseur
+// de décisions de plus, au sens d'`adversaire.md` : hors ligne, rien de ce
+// module ne s'exécute et la partie sur le même écran est exactement ce qu'elle
+// était.
+import {
+  ouvrirRendezVous, brancherEnLigne, finDeLaPartieEnLigne,
+} from "./distant.js";
 
 import { chargerMateriel } from "./vue/materiel.js";
 import { construireMonde, majMonde, oublier } from "./vue/monde.js";
@@ -140,6 +147,10 @@ function lireCadre() {
 }
 
 const cadre = lireCadre();
+
+// Le point de rendez-vous, quand l'adresse porte un code de partie ; `null`
+// sinon — et alors absolument rien ne change.
+let rendezVous = null;
 
 // ------------------------------------------------------------------ le décor
 
@@ -419,6 +430,13 @@ async function lancer({ graine, boites }) {
   fournisseurs[cadre.siege] =
     cadre.decide === "programme" ? siegeProgramme(graine, arret) : siegeHumain();
   fournisseurs[1 - cadre.siege] = adversaire(graine);
+  // LA SEULE LIGNE DE COMPOSITION QUI CHANGE. En ligne, le siège d'en face
+  // n'est plus tenu par le programme mais par un humain devant un autre écran,
+  // et mes propres réponses passent par le point de rendez-vous. `partie.js`
+  // n'en sait rien : ce sont deux fournisseurs de décisions ordinaires.
+  if (rendezVous) {
+    brancherEnLigne(rendezVous, fournisseurs, cadre.siege, (d, etat) => rendre(etat, d));
+  }
 
   try {
     await jouerJusquAuBout(partie, fournisseurs.map((f) => sousCoupeCircuit(f, arret)));
@@ -433,6 +451,7 @@ async function lancer({ graine, boites }) {
 
   viderScene();
   adversaireAgit(null);
+  finDeLaPartieEnLigne(rendezVous);
   rendre(partie.etat, null);
   document.body.dataset.phase = "fin";
   ecranFinal(partie.etat);
@@ -460,6 +479,18 @@ function ecranEntree() {
  * aucune promesse qui pourrait répondre à la partie suivante.
  */
 function retourAuMenu() {
+  // EN LIGNE, IL N'Y A PAS DE RETOUR AU MENU. Une partie à distance ne
+  // s'abandonne pas d'un côté seulement : l'autre joueur, lui, est toujours
+  // devant son écran. Et repartir de l'accueil rebrancherait une partie NEUVE
+  // sur le canal de l'ancienne — le moteur se verrait resservir les réponses
+  // d'avant comme « déjà connues » et la page attendrait pour toujours une
+  // question qui ne viendrait jamais. On recharge donc la page : elle rejoue la
+  // liste et se retrouve exactement où elle en était, ce qui est le seul geste
+  // utile ici. (Défaut trouvé par la relecture adversariale, éprouvé.)
+  if (rendezVous) {
+    location.reload();
+    return;
+  }
   const arret = arretCourant;
   arretCourant = null;
   arret?.couper();
@@ -483,6 +514,20 @@ async function demarrer() {
   }
   batir();
   installerOptions({ auMenu: retourAuMenu });
+  // EN LIGNE. Le rendez-vous s'ouvre AVANT la partie, parce que c'est lui qui
+  // porte la graine : le lien envoyé à l'autre joueur n'a pas à la transporter,
+  // et deux liens recopiés à un chiffre près ne peuvent pas donner deux parties
+  // différentes. La partie démarre alors sans le moindre clic.
+  try {
+    rendezVous = await ouvrirRendezVous();
+  } catch (e) {
+    panne(e);
+    return;
+  }
+  if (rendezVous) {
+    await lancer({ graine: rendezVous.graine, boites: rendezVous.boites });
+    return;
+  }
   const adresse = lireAdresse();
   if (adresse) await lancer(adresse);
   else ecranEntree();
