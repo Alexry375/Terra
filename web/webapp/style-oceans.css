@@ -118,7 +118,12 @@
  */
 #ocean-annonce {
   position: fixed; z-index: 90;
-  left: 50%; top: 15vh; transform: translateX(-50%);
+  /* HAUT DE L'ÉCRAN, ET RIEN QUE LE HAUT. Mesuré à 1280 × 720 : posée plus bas,
+     la grande tuile venait couvrir la question posée au joueur. Elle ne peut
+     pas empêcher d'y répondre — un clic la traverse — mais elle peut empêcher
+     de la LIRE, ce qui revient au même. Elle tient donc au-dessus de la bande
+     de décision, à toutes les hauteurs d'écran. */
+  left: 50%; top: 7vh; transform: translateX(-50%);
   display: flex; flex-direction: column; align-items: center; gap: 8px;
   /* UN CLIC LA TRAVERSE. Sans cette ligne, l'annonce recouvrirait pendant deux
      secondes une partie de la table — c'est-à-dire empêcherait de jouer. */
@@ -127,7 +132,7 @@
 }
 .annonce-ocean__tuile {
   position: relative;
-  width: min(26vh, 260px); aspect-ratio: 451 / 404;
+  width: min(23vh, 250px); aspect-ratio: 451 / 404;
   perspective: 900px;
 }
 /* La lueur derrière la tuile : c'est ce qui accroche l'œil quand on regardait

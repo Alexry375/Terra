@@ -78,6 +78,12 @@ const ANNONCE_CHOIX = "An ocean tile is revealed — pick which one flips";
 let emplacementParRang = [];
 let fileRevelations = [];
 let attente = null;
+// LA PARTIE EST FINIE : plus rien n'attend. Mesuré au siège 1, graine 2024 : les
+// deux dernières révélations tombaient dans les toutes dernières décisions, et
+// la planche restait à sept tuiles face visible pendant que l'écran final
+// s'affichait — le joueur ne saurait jamais ce qu'il y avait dessous. Quand le
+// moteur déclare la fin, tout ce qui attend se retourne à l'instant.
+let partieFinie = false;
 
 // ------------------------------------------------------------------ le décor
 
@@ -201,7 +207,10 @@ export function majPlateaux(etat, decision, siege = 0) {
     }
     piles(j, p, j !== siege);
   }
-  oceans(etat.planet.oceans_revealed_tiles || []);
+  // `game_over` vient du moteur, comme tout le reste : c'est le même fait que
+  // celui qu'`interface.js` déclare sur le corps du document. La planche s'en
+  // sert pour ne rien laisser en attente à la fin de la partie.
+  oceans(etat.planet.oceans_revealed_tiles || [], !!etat.game_over);
 }
 
 /**
@@ -370,11 +379,17 @@ export function replacerPlateaux() {
  * plus : elle reste dans `fileRevelations`, en mémoire, et n'apparaît qu'au
  * moment où elle se retourne.
  */
-function oceans(revelees) {
+function oceans(revelees, fin) {
   const g = ref("#oceans-grille");
   if (!g) return;
+  partieFinie = !!fin;
   const signature = revelees.map((t) => `${t.id}:${cleOcean(t)}`).join("|");
-  if (g.dataset.revelees === signature) return;
+  if (g.dataset.revelees === signature) {
+    // Rien de neuf, mais la partie vient peut-être de s'achever : ce qui
+    // attendait un choix ne peut plus l'attendre.
+    if (partieFinie) haterLesRevelations();
+    return;
+  }
   g.dataset.revelees = signature;
 
   // L'ÉTAT PEUT RECULER (`verif/recul-etat.py` en a compté 46 sur une partie) :
@@ -411,6 +426,21 @@ function oceans(revelees) {
     }
   }
   ouvrirLeChoix();
+  if (partieFinie) haterLesRevelations();
+}
+
+/**
+ * TOUT SE RETOURNE, MAINTENANT. À la fin de la partie il n'y a plus personne
+ * pour désigner quoi que ce soit, et une tuile laissée face cachée serait une
+ * tuile que le joueur ne verra jamais. La boucle est bornée par le nombre
+ * d'emplacements : elle ne peut pas tourner sans fin, même si un emplacement
+ * venait à manquer.
+ */
+function haterLesRevelations() {
+  for (let garde = 0; garde <= NB_OCEANS && (attente || fileRevelations.length); garde++) {
+    if (attente) choisirEmplacement(attente.defaut);
+    else ouvrirLeChoix();
+  }
 }
 
 /** Les emplacements encore face cachée, dans l'ordre de la planche. */
@@ -437,7 +467,14 @@ function ouvrirLeChoix() {
   }
 
   const { tuile } = fileRevelations[0];
-  attente = { tuile, minuteur: null };
+  const defaut = [...g.children].indexOf(libres[0]);
+  attente = { tuile, defaut, minuteur: null };
+
+  // LA PARTIE EST FINIE : on ne pose plus de question, on montre.
+  if (partieFinie) {
+    choisirEmplacement(defaut);
+    return;
+  }
   ouvrirAnnonce();
 
   // Un seul emplacement libre : il n'y a rien à choisir, on le retourne.
@@ -447,7 +484,6 @@ function ouvrirLeChoix() {
     poserConsigne(o);
   }
 
-  const defaut = [...g.children].indexOf(libres[0]);
   attente.minuteur = setTimeout(
     () => choisirEmplacement(defaut),
     libres.length > 1 ? duree(DELAI_CHOIX) : 0,
@@ -476,8 +512,9 @@ function choisirEmplacement(i) {
 
   // La révélation suivante, s'il y en a une, attend que celle-ci ait fini de se
   // montrer : deux grandes tuiles au milieu de l'écran en même temps, ce serait
-  // deux événements qu'on rate au lieu d'un qu'on voit.
-  setTimeout(ouvrirLeChoix, duree(FLIP + TENUE_ANNONCE));
+  // deux événements qu'on rate au lieu d'un qu'on voit. À la fin de la partie,
+  // en revanche, `haterLesRevelations` les enchaîne sans attendre.
+  if (!partieFinie) setTimeout(ouvrirLeChoix, duree(FLIP + TENUE_ANNONCE));
 }
 
 /** Éteint la désignation : plus rien n'est cliquable sur la planche. */
@@ -547,6 +584,12 @@ function ouvrirAnnonce() {
 function retournerLAnnonce(t) {
   const a = ref("#ocean-annonce");
   if (!a) return;
+  // La partie est finie et l'écran des scores est là : une grande tuile qui se
+  // retourne par-dessus n'annonce plus rien, elle recouvre.
+  if (partieFinie) {
+    fermerAnnonce();
+    return;
+  }
   const pivot = a.querySelector(".annonce-ocean__pivot");
   const mot = a.querySelector(".annonce-ocean__mot");
   if (!pivot || !mot) return;
@@ -667,6 +710,7 @@ export function oublierPlateaux() {
     }
   }
   oublierChoixOceans();
+  partieFinie = false;
   const g = ref("#oceans-grille");
   if (g) {
     delete g.dataset.revelees;
