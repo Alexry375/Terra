@@ -5,6 +5,86 @@
 
 Dernière mise à jour : 2026-08-04
 
+## 🌙 LA NUIT DU 04-08 — LA LISTE D'ALEXIS, HUIT POINTS FAITS ET MESURÉS
+
+Alexis a dicté sa liste vers 05h00 et m'a laissé en autonomie totale jusqu'au
+matin. Ce qui suit est fait ET mesuré, pas déclaré.
+
+**Les jauges** [VÉRIFIÉ 04-08]. Alexis : « le nombre de cases et leurs couleurs
+ne sont pas les bons ». Capture de la page : la température avait déjà ses vingt
+crans justes (6 violets, 5 rouges, 5 jaunes, 4 blancs) ; l'oxygène n'en avait que
+**quatorze** — la case 0 % était sautée, d'où deux violettes au lieu de trois.
+Rétablie. Les frontières sont désormais ancrées au moteur
+(`engine/src/effects.rs:26-36`) et non à une lecture de photo, ce qui compte :
+un requis se teste par la COULEUR atteinte (`engine/src/flow.rs:1462-1471`,
+`temp_color` / `oxy_color`), pas par le numéro de case. **Réponse à la question
+qu'Alexis a lui-même posée : oui, les requis se débloquent aux bons moments, et
+il n'y a rien à changer aux règles.** Les quatre couleurs sont redevenues
+franches — chaque zone parcourait un dégradé si large qu'elle changeait de nom en
+route, et la quatrième était grise là où le plateau imprime du blanc.
+
+**La pose de carte** [VÉRIFIÉ 04-08]. Deux plaintes anciennes, une seule cause
+dans `vue/geste.js` : la pose était un vol UNIQUE qui s'achevait sur `tour: 5`
+au-dessus de la table — d'où la carte de travers — puis le fac-similé était
+retiré d'un coup et la petite carte surgissait ailleurs. Il y a deux temps
+maintenant : la carte se tient grande et DROITE, puis la réponse part au moteur,
+la carte reste en l'air le temps que sa place existe, y descend, s'y ajuste
+exactement et s'efface dessus. Sonde qui filme le fac-similé à 50 ms : **16
+gestes, 10 se posent à moins de 8 points de leur place, 6 n'ont aucune place**
+(carte rouge défaussée) et s'effacent sur place. Zéro raté.
+
+**La production se voit** [VÉRIFIÉ 04-08]. Un « +X » monte du compteur, 1 900 ms.
+Rien n'est calculé : on compare l'état d'avant et l'état d'après, comme
+`vue/monde.js` le fait pour la planète. **1 027 affichages relevés sur une partie
+entière, zéro de hauteur nulle**, répartis sur les trois compteurs.
+
+**Les cartes Phase améliorées** [VÉRIFIÉ 04-08]. La scène du choix et la table
+demandaient toutes deux l'image de la carte de BASE sans jamais regarder
+`players[].phase_upgrades`. **248 choix montrent désormais une carte améliorée**
+(c'était structurellement zéro), 638 cartes posées, **zéro incohérence** entre ce
+que le bouton déclare et l'image qu'il porte, sur 414 écrans et deux parties.
+
+**Le paquet** [VÉRIFIÉ 04-08]. Le bandeau écrit ce qui reste à piocher et ce qui
+attend dans la défausse — le moteur les publiait déjà (`observe.rs:183`), rien ne
+les affichait. Mesuré : 246 → 26, défausse 0 → 172. Le remélange, lui, existait
+depuis longtemps (`flow.rs:32`) ; c'était sa moitié visible qui manquait.
+
+**Les objectifs et récompenses** s'agrandissent au survol : 29 → 151 points de
+côté, facteur 5,2, sans être rognés. La mention « Mars surface · NASA / JPL /
+University of Arizona » quitte le bandeau et **reste sur l'écran d'accueil** : la
+condition d'usage de l'image tient toujours, c'est sa place qui a changé.
+
+**La mise en page qui bloquait** [VÉRIFIÉ 04-08] — chantier délégué
+`la-bande-des-choix`, fusionné à la main avec ma correction des cartes Phase.
+Quatre tailles de fenêtre sur quatorze bloquaient la partie. **Trois causes, et
+mon contrat n'en avait deviné qu'une** : pas de plancher pour la bande des choix,
+`pick_joker_tag` taillé en carte alors qu'il se pose en plaque (4 points de large
+— la cause directe du blocage, absente de mon diagnostic), et la scène mesurée
+sur une marge périmée. Après fusion : partie entière en 1920×1080 ET en 1440×810,
+mêmes scores, 0 erreur.
+
+**⚠️ MON ERREUR DE CONTRAT, à ne pas refaire.** Deux des cinq contrôles de ce
+chantier sont restés rouges pour une contradiction que j'avais écrite moi-même :
+ils plafonnent la partie à 90 et 80 décisions et comptent le plafond atteint
+comme un blocage, alors qu'une partie en demande 181 à 233 — et que le contrôle
+01 exige lui-même au moins 120 décisions. « Finie en 90 » et « au moins 120 » ne
+peuvent pas être vrais ensemble. L'agent l'a DÉCLARÉ au lieu de le contourner,
+ce qui est exactement le comportement voulu. Les plafonds sont à corriger.
+
+**⚠️ F2 n'était pas un défaut** [VÉRIFIÉ 04-08]. « La production améliorée ne
+demande pas quelle carte doubler » : la question existe et le moteur la pose
+(`flow.rs:4324`). Elle est simplement rare — **2 occasions sur cinq parties
+entières, 1 047 décisions**. Il faut avoir choisi la Production améliorée A ET
+posséder au moins deux cartes vertes productrices.
+
+**Le mode à deux à distance survit à tout ceci** [VÉRIFIÉ 04-08] : partie entière
+de **477 décisions**, scores `[69, 51]` identiques des deux côtés, 0 erreur, 0
+chargement extérieur. C'est ce qu'Alexis utilise avec son ami.
+
+**La vente survit aussi** : 147 occasions, **147 ventes entières menées à terme**,
+zéro faute. (Le contrôle reste rouge sur son seul garde-fou d'échantillonnage —
+il n'a pas rencontré de main de 11 cartes —, pas sur ce qu'il mesure.)
+
 ## ✅ JOUER À DEUX, CHACUN CHEZ SOI — LIVRÉ, AUDITÉ, PROMU (04-08) — `jouer-a-deux-en-ligne`
 
 **Prêt pour la partie de 9h30.** Commit `f993116`. Deux humains, deux ordinateurs,
