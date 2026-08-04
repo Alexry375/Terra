@@ -56,6 +56,18 @@ const designees = new Set();
 // la fin du mode lirait l'écran d'avant la vente et mesurerait le mauvais
 // instant.
 let soumise = null;
+// (K1, 04-08) UNE SEULE VENTE ENTRE DEUX RÉPONSES DE MON SIÈGE, et c'est la
+// règle du moteur, pas une prudence d'écran. `flow::occasion_de_vendre` ouvre
+// une occasion, `flow::observer` la consomme en publiant `vente_offerte` ; une
+// vente rendue là consomme cette occasion-là. Le moteur repose alors la MÊME
+// question — et republie `vente_offerte` vrai, parce que le drapeau a été armé
+// avant la vente. L'écran offrait donc le bouton une seconde fois, sur un point
+// où plus aucune occasion n'attendait : la seconde vente tombait dans le point
+// de décision, le pont la refusait, et la partie s'arrêtait des DEUX côtés
+// (vécu en partie réelle, entrées 108 et 109). Une nouvelle occasion n'existe
+// qu'après une réponse de ma part : c'est donc ma réponse, et elle seule, qui
+// rouvre le geste (`apresMaReponse`, appelé par `interface.js`).
+let venduIci = false;
 // Une vente vient d'être rendue au moteur et l'écran n'a pas encore été refait.
 // C'est ce drapeau — et lui seul — qui referme le mode, au rendu SUIVANT : la
 // page annonce donc « la vente est finie » quand elle l'est vraiment.
@@ -105,7 +117,9 @@ export function construireVente(livrer) {
   // phase qui s'y prête.
 
   z.querySelector("#vente-ouvrir").addEventListener("click", () => {
-    if (soumise) return; // une vente est déjà partie : on n'en empile pas deux
+    // (K1) `venduIci` couvre le cas que `soumise` laissait passer : une vente
+    // livrée TOUT DE SUITE remet `soumise` à null et ne verrouillait donc rien.
+    if (soumise || attendLeRendu || venduIci) return;
     ouvrirMode();
     majDit();
   });
@@ -148,11 +162,44 @@ function designer(figure) {
   majDit();
 }
 
+/**
+ * (K3, 04-08) **Combien des cartes désignées la question en cours propose-t-elle
+ * de POSER ?**
+ *
+ * On ne le calcule pas : on le LIT sur la main, à l'attribut `data-choix` que
+ * `vue/mains.js` recopie depuis l'énumération du moteur. Une carte qui le porte
+ * est une carte que le joueur peut jouer à l'instant. Vécu en partie réelle :
+ * le siège 1 n'avait qu'une seule pose possible, il a vendu cette carte-là, et
+ * sa phase s'est arrêtée sans un mot.
+ */
+function designeesJouables() {
+  let n = 0;
+  for (const f of document.querySelectorAll("#mienne-rang [data-a-vendre]")) {
+    if (f.dataset.choix !== undefined) n++;
+  }
+  return n;
+}
+
 function majDit() {
   const d = panneau && panneau.querySelector("#vente-dit");
   if (!d) return;
   const n = designees.size;
-  d.textContent = n === 0 ? MOT.sellPick : MOT.sellCount(n);
+  // (K2) Le rappel qu'on peut en désigner plusieurs, et que rien n'est perdu
+  // tant qu'on n'a pas confirmé : c'est CE qu'Alexis demandait, et la seule
+  // forme qui n'ajoute aucun chemin nouveau pour l'IA — une vente reste une
+  // vente, elle porte simplement toutes les cartes d'un coup.
+  d.textContent = n === 0 ? `${MOT.sellPick} · ${MOT.sellHint}` : MOT.sellCount(n);
+  // (K3) L'avertissement passe APRÈS le compte, dans la même ligne : il ne
+  // remplace pas l'information, il s'y ajoute.
+  const j = n === 0 ? 0 : designeesJouables();
+  if (j > 0) d.textContent += ` · ${MOT.sellWarn(j)}`;
+  const z = panneau && panneau.querySelector("#vente-conclure");
+  // Le repère que le style (et un contrôle) peut lire : « ce qui est désigné
+  // contient une carte jouable ».
+  if (z) {
+    if (j > 0) z.dataset.venteAlerte = "oui";
+    else delete z.dataset.venteAlerte;
+  }
   const v = panneau && panneau.querySelector("#vente-valider");
   if (v) v.disabled = n === 0;
 }
@@ -162,7 +209,7 @@ function majDit() {
  * la garde jusqu'à ce que le moteur la reprenne (`venteAEcrire`).
  */
 function conclure(livrer) {
-  if (!designees.size || soumise) return;
+  if (!designees.size || soumise || attendLeRendu || venduIci) return;
   // Les indices, dans la main du MOTEUR, triés : le moteur les nettoie de son
   // côté, mais lui envoyer une liste en désordre reviendrait à lui faire
   // deviner ce qu'on voulait dire.
@@ -172,6 +219,9 @@ function conclure(livrer) {
     .sort((a, b) => a - b);
   if (!cartes.length) return;
   const entree = { vendre: { joueur: siege, cartes } };
+  // (K1) LE VERROU SE POSE ICI, avant même de savoir par quel chemin la vente
+  // partira : dans les deux cas l'occasion en cours est dépensée.
+  venduIci = true;
   // DEUX MOMENTS POSSIBLES, et c'est la page qui les distingue, jamais le
   // joueur. Si une question est posée à l'instant, la vente part tout de suite :
   // le moteur la consomme au point d'occasion qui précède cette question-là et
@@ -206,6 +256,18 @@ export function venteAEcrire() {
 /** Une vente est-elle validée et pas encore rendue au moteur ? */
 export function venteEnCours() {
   return soumise !== null;
+}
+
+/**
+ * (K1, 04-08) **MON SIÈGE VIENT DE RÉPONDRE À UNE QUESTION.** C'est le seul
+ * événement qui rouvre le droit de vendre : le moteur ne rouvrira une occasion
+ * qu'après cette réponse-là (`flow::occasion_de_vendre`, appelée avant CHAQUE
+ * énumération). Appelé par `interface.js`, une fois la réponse partie — et
+ * jamais quand la réponse EST une vente, puisque celle-ci consomme justement
+ * l'occasion en cours.
+ */
+export function apresMaReponse() {
+  venduIci = false;
 }
 
 /**
@@ -267,8 +329,22 @@ export function majVente(etat, monSiege) {
   if (!offerte && soumise) {
     soumise = null;
     attendLeRendu = false;
+    // Rien n'a été vendu : le verrou n'a plus lieu d'être.
+    venduIci = false;
     fermerMode();
     return;
+  }
+
+  // (K1) LE BOUTON DIT POURQUOI IL NE MARCHE PAS. Il reste dans la page — la
+  // phase offre bien la vente — mais il est désarmé et le déclare, plutôt que
+  // de laisser croire qu'un clic a manqué sa cible.
+  const b = z.querySelector("#vente-ouvrir");
+  if (b) {
+    const bloque = venduIci || soumise !== null || attendLeRendu;
+    b.disabled = bloque;
+    b.textContent = bloque ? MOT.sellDone : MOT.sell;
+    if (bloque) b.dataset.venteBloque = "oui";
+    else delete b.dataset.venteBloque;
   }
 
   // La vente est passée par le moteur ET l'écran vient d'être refait sur l'état
@@ -287,6 +363,7 @@ export function majVente(etat, monSiege) {
 export function oublierVente() {
   soumise = null;
   attendLeRendu = false;
+  venduIci = false;
   mainDuMoteur = [];
   fermerMode();
   if (panneau) panneau.remove();

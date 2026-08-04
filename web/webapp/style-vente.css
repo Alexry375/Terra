@@ -85,7 +85,41 @@
   cursor: pointer;
 }
 
-#vente button:hover { border-color: var(--or); color: var(--or); }
+/* NOIR SUR NOIR — le défaut du 04-08, signalé en partie à deux : « le bouton est
+   caché par le rectangle noir qui est derrière notre main ». Il ne l'était pas
+   au sens de recouvert (`z-index: 96` passe au-dessus de la bande de la main),
+   il l'était au sens où on ne le VOYAIT pas : `rgba(4, 6, 11, .92)` sur le fond
+   de `.main--mienne`, qui vaut `rgba(4, 6, 11, .92)` lui aussi. Deux noirs
+   identiques, séparés par une bordure à 28 % d'opacité. Un bouton qu'on ne
+   distingue pas de son fond est un bouton qui n'existe pas.
+
+   Seul le bouton d'OUVERTURE est repeint : c'est le seul qui doive se trouver
+   tout seul, à froid, au moment où l'on manque d'argent. Ceux de conclusion
+   paraissent au milieu d'une désignation déjà commencée — on les cherche, on ne
+   les découvre pas — et les laisser sobres évite qu'on valide par réflexe. */
+/* LE SÉLECTEUR PORTE LE TYPE, ET CE N'EST PAS DÉCORATIF (mesuré le 04-08).
+   Écrit `#vente-ouvrir`, ce bloc pesait (1,0,0) là où `#vente button` ci-dessus
+   pèse (1,0,1) : le fond, la bordure ET la couleur repartaient au noir sur noir,
+   et le correctif de la veille n'existait que dans le fichier. Mesure : la
+   couleur calculée du bouton valait `rgb(239,228,212)` — `var(--os)`, celle de
+   `#vente button` — au lieu de l'or annoncé ici. Deux blocs qui se contredisent,
+   c'est le plus spécifique qui gagne, pas le dernier écrit. */
+#vente button#vente-ouvrir {
+  background: rgba(237, 181, 78, .16);
+  border-color: rgba(237, 181, 78, .70);
+  color: var(--or);
+  font-weight: 600;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .6);
+}
+#vente button#vente-ouvrir:hover:not(:disabled) {
+  background: rgba(237, 181, 78, .28);
+  border-color: var(--or);
+}
+
+/* `:not(:disabled)` : un bouton désarmé qui s'allume au survol dit le contraire
+   de ce qu'il est. Constaté en mesurant — le panneau se replie après la vente et
+   le bouton passe SOUS le curseur tout seul, sans que la main ait bougé. */
+#vente button:hover:not(:disabled) { border-color: var(--or); color: var(--or); }
 #vente button:focus-visible { outline: 1px solid var(--or); outline-offset: 3px; }
 #vente button:disabled { opacity: .45; cursor: default; }
 
@@ -127,4 +161,36 @@ html[data-mode="vente"] #mienne-rang .carte--main { cursor: pointer; }
 #mienne-rang .carte--main[data-a-vendre="oui"] img {
   outline: 2px solid rgba(226, 84, 43, .9);
   outline-offset: 1px;
+}
+
+/* (K3, 04-08) LA CARTE DÉSIGNÉE QUE L'ON POUVAIT JOUER. `data-choix` est posé par
+   `vue/mains.js` d'après l'énumération du moteur : la carte figure parmi les
+   poses proposées à l'instant. La vendre, c'est perdre ce coup-là — et c'est
+   arrivé en partie réelle, sur la SEULE pose que le joueur avait. On ne
+   l'interdit pas (le livret l'autorise) : on le montre, en jaune par-dessus le
+   rouge de la désignation, et le panneau le dit en toutes lettres. */
+#mienne-rang .carte--main[data-a-vendre="oui"][data-choix] img {
+  outline: 2px solid var(--or);
+  outline-offset: 1px;
+  box-shadow: 0 0 14px rgba(237, 181, 78, .9);
+}
+
+/* Le panneau reprend l'alerte : la marque sur la carte se voit quand on la
+   regarde, la phrase se lit quand on regarde le panneau. Les deux disent le même
+   fait, tenu par un seul calcul (`designeesJouables`). */
+.vente__conclure[data-vente-alerte="oui"] {
+  border-color: rgba(237, 181, 78, .8);
+}
+.vente__conclure[data-vente-alerte="oui"] .vente__dit { color: var(--or); }
+
+/* (K1, 04-08) LE BOUTON DÉSARMÉ SE LIT COMME TEL. Il porte alors son propre
+   texte (`MOT.sellDone`) : une vente est déjà partie pour cette question-là, et
+   le moteur n'en reçoit qu'une. Sans cela on cliquait dans le vide — ou pire, on
+   envoyait la seconde vente qui arrêtait la partie des deux côtés. */
+#vente button#vente-ouvrir[data-vente-bloque="oui"] {
+  background: rgba(4, 6, 11, .92);
+  border-color: rgba(239, 228, 212, .24);
+  color: var(--os-faible);
+  font-weight: 400;
+  box-shadow: none;
 }

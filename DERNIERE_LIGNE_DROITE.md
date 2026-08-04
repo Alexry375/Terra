@@ -280,3 +280,155 @@ disait « cette playlist » sans que rien ne me parvienne. À redemander.
 Réserve déclarée par Alexis lui-même : si cela oblige à télécharger tous les
 morceaux, on laisse tomber pour aujourd'hui. C'est bien le cas — un navigateur
 ne peut pas lire une liste hébergée ailleurs sans les fichiers.
+
+## Troisieme liste, dictee par Alexis le 04-08 pendant la partie a deux
+
+### K1 — Deux ventes de suite arretent la partie
+[CORRIGE 04-08 COTE ECRAN, VERIFIE — verif_vente.py, vert sur la livraison et
+ROUGE sur une copie sabotee]
+
+**Cause racine, lue dans le code.** `flow::occasion_de_vendre` ARME
+`game.occasion_ouverte` avant de consommer la vente ; `flow::observer` le publie
+ensuite dans `vente_offerte`. Le moteur repose alors la MEME question et
+republie donc `vente_offerte = true`, alors que l'occasion vient d'etre
+depensee. L'ecran offrait le bouton une seconde fois, sur un point ou aucune
+occasion n'attendait plus. Le garde qui existait (`if (soumise) return`) ne
+couvrait pas ce cas : une vente livree TOUT DE SUITE remet `soumise` a null.
+
+**Correctif** (`vue/vente.js`, `interface.js`) : un verrou `venduIci`, pose des
+qu'une vente est validee, leve UNIQUEMENT quand mon siege repond a une question
+(`apresMaReponse`) — c'est exactement la regle du moteur, une occasion par point
+de decision. Le bouton reste dans la page, desarme, et DIT pourquoi
+(« Sale sent — play or pass first »).
+
+Vecu en partie reelle : le siege 0
+vend au rang 108 (accepte), revend au rang 109 (refuse). Le moteur n'ouvre
+**qu'une occasion de vendre par point de decision** ; l'ecran, lui, laisse le
+bouton en place. La partie s'est arretee des deux cotes sur
+« aucune occasion de vendre n'est ouverte a ce point ». Sauvee en recopiant les
+109 premieres decisions dans une partie neuve (meme graine), sans la fautive.
+
+### K2 — Pouvoir vendre plusieurs fois d'affilee
+[CORRIGE 04-08 COTE ECRAN, VERIFIE] La forme retenue est celle decrite plus bas :
+l'ecran accumule autant de cartes qu'on veut dans UNE seule vente, on peut
+ajouter et retirer librement, et rien ne quitte la main avant confirmation. Le
+panneau le dit maintenant (« Pick as many as you want — nothing leaves your hand
+until you confirm »). Mesure : 3 cartes designees, 1 reprise, 2 parties d'un coup
+(8 -> 6 cartes en main).
+
+**Ce qui reste impossible sans toucher au moteur** : vendre, VOIR le resultat,
+puis revendre au meme point. Verifie ligne a ligne — `occasion_de_vendre`
+n'appelle `vendre_librement` qu'une fois par point, et le harnais de rejeu
+(`wasm/src/lib.rs:1400`) ne consomme qu'une entree de vente par curseur. K1
+transforme donc ce cas en refus lisible au lieu d'un arret de partie.
+
+Motif d'Alexis : « pour le cas ou on se tromperait ». Il a
+raison sur le besoin — son ami a vendu la seule carte qu'il pouvait poser et
+s'est retrouve sans rien a faire.
+
+**A FAIRE SANS TOUCHER AU MOTEUR.** Alexis a lui-meme pose la contrainte : « ca
+va pas rendre l'IA moins performante, ce genre de trucs qui multiplie les
+options ? » — et c'est juste. Vendre deux cartes d'un coup ou deux fois de suite
+mene EXACTEMENT au meme etat : ce sont deux chemins pour un seul resultat, ce
+qui gonfle l'arbre de recherche sans rien apporter. C'est le pire cas pour une
+IA.
+
+La bonne forme est donc : UNE seule occasion de vente pour le moteur, mais
+REVISABLE tant que le joueur n'a pas repondu a la question principale. L'ecran
+accumule les cartes designees et n'envoie qu'une seule reponse de vente. Le
+joueur peut vendre, voir le resultat, vendre encore ; le moteur ne voit qu'une
+vente, et l'arbre de l'IA ne grossit pas d'un noeud.
+
+### K3 — Rien n'avertit qu'on vend la carte qu'on pouvait poser
+[PARTIELLEMENT CORRIGE 04-08, VERIFIE] L'avertissement est en place : une carte
+designee qui porte `data-choix` (donc que la question en cours propose de poser)
+prend un contour OR par-dessus le rouge de la vente, le panneau passe en or et
+ecrit « ⚠ that card can be played right now — selling it loses that play ».
+On ne l'interdit pas — le livret l'autorise — on le montre.
+
+**RESTE A FAIRE** : dire « aucune carte constructible cette phase » quand la
+question de pose n'offre aucune option, au lieu de passer sans un mot.
+
+Rang 103 : une seule option, « poser Special Design » (3 MC),
+avec 7 MC en poche. Le joueur a vendu cette carte-la. Plus aucune carte rouge
+abordable ensuite, donc la phase s'arrete — a juste titre, mais en silence.
+A faire : marquer, pendant la designation de vente, les cartes qui figurent
+parmi les choix de pose en cours ; et dire en clair « aucune carte constructible
+cette phase » au lieu de passer sans un mot.
+
+### K4 — Voir la defausse
+[DEMANDE 04-08] Pouvoir consulter la pile des cartes defaussees.
+
+### K5 — Une action de carte impossible reste proposée
+[VERIFIE 04-08, A CORRIGER APRES LA PARTIE] Les neuf oceans sont reveles et
+« Aquifer Pumping » est toujours offerte. Ce que fait le moteur, verifie ligne a
+ligne : `flow.rs:3291` (`action_effs_possible`) rend faux des que l'effet pose un
+ocean et que `snap_oceans >= NUM_OCEANS`, donc `apply_blue_action` sort par
+`return false` AVANT tout paiement — aucun MC perdu. Mais la boucle de la phase
+Action consomme l'activation « dans tous les cas » (flow.rs:4198) : le joueur
+perd son droit d'action du tour pour rien.
+
+A corriger dans `action_options` (flow.rs:3123) : ne pas proposer une carte
+bleue dont l'action ne peut rien produire, exactement comme l'action standard
+Ocean l'est deja par `game.snap_oceans < NUM_OCEANS` (flow.rs:3146).
+
+**PAS PENDANT UNE PARTIE EN COURS** : les decisions enregistrees sont des INDICES
+dans la liste des options. Retirer une option change tous les indices suivants et
+detruirait la partie au rejeu.
+
+Gain double : le joueur ne se piege plus, et l'IA n'explore plus une branche
+morte — meme raisonnement que K2.
+
+### K6 — Le bonus de la phase Construction est tranché trop tôt
+[VÉRIFIÉ 04-08 contre le livret ET contre le code, À CORRIGER APRÈS LA PARTIE]
+
+Signalé par Alexis : on est obligé de choisir dès le début de la phase entre
+« piocher une carte » et « jouer une 2e carte », alors qu'on voudrait poser
+d'abord une carte qui fait piocher, voir ce qui arrive, puis décider.
+
+**Le livret lui donne raison.** Texte exact, `docs/regles/livret-base.md:336` :
+« Bonus : Si vous avez choisi cette phase, vous pouvez au choix : piocher une
+carte AVANT OU APRÈS avoir joué une carte lors de cette phase OU vous pouvez
+jouer une carte bleue ou rouge supplémentaire lors de cette phase. » Aucune
+phrase n'impose d'annoncer la branche à l'avance ; la branche « après avoir
+joué » est explicitement prévue. Le moteur est donc plus restrictif que la règle.
+
+**Ce que fait le code** (`engine/src/flow.rs:3994-4005`, `phase_construction`) :
+`policy.construction_bonus(...)` est appelé AVANT le calcul des options de pose
+et avant `policy.choose_build`. Les trois issues (pioche avant, pioche après,
+seconde pose) sont donc arrêtées alors que le joueur n'a encore rien posé.
+Les cartes améliorées II-A / II-B passent par `selector_branch`, appelé au même
+endroit — même défaut.
+
+**Correction visée** : garder au début une question réduite (« piocher tout de
+suite, avant de poser ? » — c'est la seule branche qui doit être décidée tôt,
+puisque la carte piochée peut servir à la pose), puis, une fois la première
+carte posée, poser la vraie question entre « piocher » et « poser une seconde ».
+
+**PAS PENDANT UNE PARTIE EN COURS** : même raison que K5 — cela déplace et
+modifie des points de décision, donc tous les indices enregistrés.
+
+Effet sur l'IA : neutre à positif. Le nombre d'issues finales ne change pas
+(pioche ou seconde pose) ; c'est de l'information gagnée avant de trancher, ce
+qui rend chaque branche plus facile à évaluer, pas plus nombreuse.
+
+### K7 — Un correctif de style qui n'existait que dans le fichier
+[TROUVE ET CORRIGE 04-08 — trouve parce qu'Alexis a demande de verifier les
+correctifs poses en direct, sans workspace ni controle]
+
+Le correctif du bouton de vente pose le matin meme (fond ambre, texte or, pour
+qu'il cesse d'etre noir sur noir) **n'avait aucun effet**. Le bloc etait ecrit
+`#vente-ouvrir` — specificite (1,0,0) — alors que `#vente button`, quinze lignes
+plus haut dans la meme feuille, pese (1,0,1) et fixe deja `background`, `border`
+et `color`. Le plus specifique gagne, pas le dernier ecrit.
+
+Mesure qui l'a revele : la couleur calculee du bouton valait `rgb(239,228,212)`
+(`var(--os)`) au lieu de `rgb(237,181,78)` (`var(--or)`) annonce dans le fichier.
+Corrige en `#vente button#vente-ouvrir`, et le controle mesure DESORMAIS la
+couleur calculee — pas la presence de la regle.
+
+**Lecon a retenir** : un correctif de style n'est pas verifie tant qu'on n'a pas
+lu la valeur CALCULEE dans un vrai navigateur. Relire la feuille ne prouve rien.
+Au passage, `#vente button:hover` a recu `:not(:disabled)` : le panneau se replie
+apres une vente et le bouton passe sous le curseur tout seul, donc un bouton
+desarme s'allumait sans que la main ait bouge.

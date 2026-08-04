@@ -72,12 +72,29 @@ export const MOT = {
   // (regles-de-la-vente) VENDRE. Livret l. 96 : « à tout moment, vous pouvez
   // défausser une carte Projet de votre main pour gagner 3 MC ». Les cinq mots
   // du geste, ici comme le reste de ce que le joueur lit.
-  sell: "Sell cards",
+  // « Sell cards » se lisait comme la VALIDATION d'une vente en cours, alors
+  // que ce bouton ne fait qu'ouvrir la désignation (04-08). Les points de
+  // suspension disent qu'une étape suit ; « need MC? » dit à quoi ça sert, ce
+  // que le mot « sell » seul ne disait pas au moment où l'on manque d'argent.
+  sell: "Need MC? Sell…",
   sellPick: "Pick the cards to sell",
   sellCount: (n) => `${n} card${n > 1 ? "s" : ""} selected`,
   sellGoing: "Selling\u2026",
   sellConfirm: "Confirm sale",
   sellCancel: "Cancel",
+  // (K2, 04-08) Dit ce que le joueur ne devinait pas : une seule vente part par
+  // question, mais elle peut porter AUTANT de cartes qu'il veut, et il peut se
+  // reprendre tant qu'il n'a pas confirm\u00e9.
+  sellHint: "Pick as many as you want \u2014 nothing leaves your hand until you confirm",
+  // (K1, 04-08) Une vente est d\u00e9j\u00e0 partie pour cette question-ci : le moteur n'en
+  // re\u00e7oit qu'une par point de d\u00e9cision. Le dire, plut\u00f4t que de laisser envoyer
+  // une seconde vente qui arr\u00eate la partie des deux c\u00f4t\u00e9s.
+  sellDone: "Sale sent \u2014 play or pass first",
+  // (K3, 04-08) L'avertissement qui manquait : la carte d\u00e9sign\u00e9e est de celles
+  // que la question en cours propose de POSER. La vendre, c'est la perdre.
+  sellWarn: (n) => (n === 1
+    ? "\u26a0 that card can be played right now \u2014 selling it loses that play"
+    : `\u26a0 ${n} of them can be played right now \u2014 selling them loses those plays`),
   dropHere: "Drop a card here to play it — or simply click it in your hand",
   thatCard: "The card you are playing",
   // Obligation de licence de la photographie du sol (voir

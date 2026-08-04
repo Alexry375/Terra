@@ -29,6 +29,53 @@
 // feuilles de style gardent leur sélecteur d'origine, intact.
 let actives = true;
 
+// LE RATTRAPAGE — quand la page REJOUE une partie déjà jouée.
+//
+// (04-08, en partie à deux.) Après un rechargement, la page redemande au
+// rendez-vous toutes les décisions déjà prises et les repasse au moteur pour
+// revenir à l'instant présent. Chacune redéclenchait sa mise en scène : les
+// grandes tuiles océan se retournaient une à une, du début de la partie
+// jusqu'au coup courant. Ce n'est pas seulement long — c'est FAUX : ces
+// évènements ont déjà eu lieu, les rejouer annonce comme neuf ce qui est vieux.
+//
+// Le rattrapage éteint donc les durées, exactement comme `?animations=non`, mais
+// SANS toucher au réglage du joueur : c'est un second interrupteur en série,
+// pas une seconde valeur du même. Quand le rattrapage finit, le réglage choisi
+// reprend la main tel qu'il était.
+let rattrapage = false;
+
+/** Les deux attributs, posés d'après l'état RÉEL des deux interrupteurs. */
+function appliquer() {
+  const eteint = !actives || rattrapage;
+  document.body.dataset.animations = eteint ? "non" : "oui";
+  // La règle de `style-menu.css` porte sur la racine, celle de `style-table.css`
+  // sur le corps : les deux doivent voir la même chose.
+  if (eteint) document.documentElement.dataset.animations = "non";
+  else delete document.documentElement.dataset.animations;
+  // Le rattrapage est dit À PART, car il ne veut pas dire la même chose que
+  // « pas d'animations ». Une durée nulle joue quand même la mise en scène, en
+  // accéléré ; le rattrapage, lui, demande de ne pas la jouer du tout. Les
+  // modules qui annoncent un évènement (la grande tuile océan) lisent celui-ci.
+  if (rattrapage) document.documentElement.dataset.rattrapage = "oui";
+  else delete document.documentElement.dataset.rattrapage;
+}
+
+// CE QUI DOIT ÊTRE PURGÉ AVANT QUE LE RATTRAPAGE SE TERMINE.
+//
+// Une mise en scène différée (`setTimeout`) survit à la fin du rattrapage : le
+// moteur, lui, va plus vite que la file d'attente de l'écran. Mesuré le 04-08 :
+// rattrapage fini à 293 ms, grande tuile océan parue à 393 ms — cent
+// millisecondes plus tard, animations rallumées, exactement le défaut signalé.
+// Éteindre les durées ne suffisait donc pas ; il faut donner à ces modules un
+// dernier instant, PENDANT que le rattrapage compte encore, pour vider ce
+// qu'ils gardent en attente.
+const aPurger = new Set();
+
+/** S'abonner à ce dernier instant. Appelé une fois, au chargement du module. */
+export function avantLaFinDuRattrapage(f) {
+  aPurger.add(f);
+}
+
 /**
  * L'unique écriture du réglage des animations, quel qu'en soit le chemin :
  * `?animations=non` (lu par `interface.js`) ou l'interrupteur du panneau
@@ -36,20 +83,34 @@ let actives = true;
  */
 export function reglerAnimations(oui) {
   actives = !!oui;
-  document.body.dataset.animations = oui ? "oui" : "non";
-  // La règle de `style-menu.css` porte sur la racine, celle de `style-table.css`
-  // sur le corps : les deux doivent voir la même chose.
-  if (oui) delete document.documentElement.dataset.animations;
-  else document.documentElement.dataset.animations = "non";
+  appliquer();
 }
 
+/** Le rattrapage commence ou finit. Le réglage du joueur n'est pas touché. */
+export function reglerRattrapage(oui) {
+  const futur = !!oui;
+  // La purge a lieu AVANT la bascule, tant que `rattrapage` vaut encore vrai :
+  // ce que les abonnés vident doit se vider sans mise en scène, et ils lisent
+  // l'état courant pour le savoir.
+  if (rattrapage && !futur) for (const f of aPurger) f();
+  rattrapage = futur;
+  appliquer();
+}
+
+/**
+ * LE RÉGLAGE DU JOUEUR, et lui seul — jamais l'état momentané du rattrapage.
+ * `vue/options.js` le lit pour afficher l'interrupteur ET le réécrit tel quel
+ * (`reglerAnimations(animationsActives())`) : s'il rendait « éteint » pendant un
+ * rattrapage, le panneau afficherait un réglage que le joueur n'a pas choisi et
+ * finirait par l'écrire pour de bon.
+ */
 export function animationsActives() {
   return actives;
 }
 
 /** La durée réellement appliquée : celle demandée, ou zéro. */
 export function duree(ms) {
-  return actives ? ms : 0;
+  return actives && !rattrapage ? ms : 0;
 }
 
 export const pause = (ms) => new Promise((r) => setTimeout(r, duree(ms)));

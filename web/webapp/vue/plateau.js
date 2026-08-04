@@ -29,6 +29,7 @@ import {
 import { survolable } from "./loupe.js";
 import { ref } from "./ecrire.js";
 import { MOT } from "./mots.js";
+import { avantLaFinDuRattrapage } from "./anim.js";
 
 const RATIO = 569 / 409; // les cartes, telles qu'elles ont été découpées
 const LARGEUR = 110; // largeur d'une carte AVANT réduction
@@ -57,6 +58,17 @@ const TENUE_ANNONCE = 1600; // le temps que la grande tuile reste sous les yeux
  *  le document : ce module n'a pas à savoir par quel chemin il a été posé. */
 function duree(ms) {
   return document.documentElement.dataset.animations === "non" ? 0 : ms;
+}
+
+/**
+ * LA PAGE REJOUE UNE PARTIE DÉJÀ JOUÉE (après un rechargement). Les océans se
+ * sont révélés il y a longtemps : les annoncer maintenant, en grand, au milieu
+ * de l'écran, c'est présenter comme neuf ce qui est vieux. On les POSE, sans
+ * un mot — même chemin qu'à la fin de la partie, où plus personne ne désigne.
+ * Lu sur le document, comme l'interrupteur des durées juste au-dessus.
+ */
+function enRattrapage() {
+  return document.documentElement.dataset.rattrapage === "oui";
 }
 
 // L'ÉCRAN PARLE ANGLAIS AU JOUEUR, et tout son vocabulaire vit dans
@@ -445,6 +457,13 @@ function haterLesRevelations() {
   }
 }
 
+// LE DERNIER INSTANT DU RATTRAPAGE. Tout ce qui reste en attente se pose ici,
+// sans mise en scène, tant que `data-rattrapage` vaut encore « oui ». Sans
+// cela, la dernière tuile de la file se retournait en grand APRÈS le retour à
+// la normale — cent millisecondes plus tard, mesuré le 04-08 — et c'est
+// exactement ce que le joueur voyait à chaque rechargement.
+avantLaFinDuRattrapage(haterLesRevelations);
+
 /** Les emplacements encore face cachée, dans l'ordre de la planche. */
 function emplacementsLibres(g) {
   return [...g.children].filter((d) => d.dataset.oceanRevelee !== "oui");
@@ -472,8 +491,9 @@ function ouvrirLeChoix() {
   const defaut = [...g.children].indexOf(libres[0]);
   attente = { tuile, defaut, minuteur: null };
 
-  // LA PARTIE EST FINIE : on ne pose plus de question, on montre.
-  if (partieFinie) {
+  // LA PARTIE EST FINIE, ou la page rattrape son retard : on ne pose plus de
+  // question et on n'annonce rien, on montre.
+  if (partieFinie || enRattrapage()) {
     choisirEmplacement(defaut);
     return;
   }
@@ -516,7 +536,11 @@ function choisirEmplacement(i) {
   // montrer : deux grandes tuiles au milieu de l'écran en même temps, ce serait
   // deux événements qu'on rate au lieu d'un qu'on voit. À la fin de la partie,
   // en revanche, `haterLesRevelations` les enchaîne sans attendre.
-  if (!partieFinie) setTimeout(ouvrirLeChoix, duree(FLIP + TENUE_ANNONCE));
+  // En rattrapage, la suivante enchaîne TOUT DE SUITE : un `setTimeout`, même
+  // à durée nulle, rend la main au moteur, qui prend de l'avance — et la file
+  // finit de se vider après la fin du rattrapage, animations rallumées.
+  if (enRattrapage()) ouvrirLeChoix();
+  else if (!partieFinie) setTimeout(ouvrirLeChoix, duree(FLIP + TENUE_ANNONCE));
 }
 
 /** Éteint la désignation : plus rien n'est cliquable sur la planche. */

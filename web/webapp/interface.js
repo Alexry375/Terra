@@ -80,7 +80,7 @@ import {
   venteImmediate,
 } from "./vue/scene.js";
 import {
-  construireVente, majVente, venteAEcrire, oublierVente,
+  construireVente, majVente, venteAEcrire, oublierVente, apresMaReponse,
 } from "./vue/vente.js";
 import { construireLoupe } from "./vue/loupe.js";
 import { oublierRefs } from "./vue/ecrire.js";
@@ -292,6 +292,11 @@ function siegeHumain() {
     if (vente) return vente;
     adversaireAgit(SIMULTANEES.has(d.type) ? actionAdverse(d) : null);
     const reponse = await poserDecision(d, etat);
+    // (K1, 04-08) MA RÉPONSE ROUVRE LE DROIT DE VENDRE, et elle seule : le
+    // moteur n'ouvrira une nouvelle occasion qu'au point de décision suivant.
+    // Ce n'est PAS le cas quand la réponse est une vente (retour anticipé
+    // ci-dessus) : celle-là consomme l'occasion en cours.
+    apresMaReponse();
     son.eveiller();
     son.sonChoix();
     adversaireAgit(null);

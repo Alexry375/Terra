@@ -725,8 +725,39 @@ html[data-pv-masques="oui"] [data-role="vp"] { display: none; }
    n'y attend de réponse, et le regard va à la bande du haut, où lui agit.
    `data-actif` porte le joueur qui décide, `data-siege` celui que je regarde :
    la comparaison des deux se fait ici, sans une ligne de script. */
+/* 04-08, en partie à deux : à .42 l'écran devenait illisible pendant le tour de
+   l'autre, et on ne pouvait plus réfléchir à ce qu'on allait jouer. Le tour de
+   l'autre dure longtemps — c'est justement là qu'on prépare son coup. On garde
+   un écart visible (ce n'est pas à moi), mais tout reste lisible ; le bandeau en
+   bas à gauche dit déjà, en toutes lettres, qu'on attend. */
 body[data-siege="0"][data-actif="1"] #scene,
-body[data-siege="1"][data-actif="0"] #scene { opacity: .42; }
+body[data-siege="1"][data-actif="0"] #scene { opacity: .84; }
+
+/* CE QUI M'A ÉTÉ DEMANDÉ EST FINI : LA QUESTION S'EN VA, PAS LE SUJET.
+   (04-08, en partie à deux.) Ma réponse partie, la scène gardait mon énoncé,
+   mes boutons de mots et ma barre de validation pendant tout le tour de
+   l'autre. À .42 d'opacité on les distinguait à peine ; à .84 ils paraissent
+   vivants, on les relit, on les vise, et on croit son tour encore ouvert. Trois
+   choses s'en vont donc, et trois seulement :
+     · l'énoncé (`.scene__entete`) — il ne demande plus rien ;
+     · la barre de validation (`.scene__barre`) — elle ne valide plus rien ;
+     · les choix QUI SONT DES MOTS (`data-composition="contexte"`) — ce sont des
+       boutons, et un bouton visible est un bouton qu'on essaie.
+   Ce qui reste : les choix QUI SONT DES IMAGES (`data-composition="options"`,
+   les cartes) et le contexte. C'est le sujet de la manche, pas une question ;
+   c'est justement ce qu'on veut regarder pendant que l'autre joue — demandé
+   explicitement. Et la scène entière cesse de prendre le moindre clic, pour que
+   plus rien ne parte au mauvais moment. */
+body[data-siege="0"][data-actif="1"] #scene,
+body[data-siege="1"][data-actif="0"] #scene { pointer-events: none; }
+body[data-siege="0"][data-actif="1"] #scene .scene__entete,
+body[data-siege="1"][data-actif="0"] #scene .scene__entete,
+body[data-siege="0"][data-actif="1"] #scene .scene__barre,
+body[data-siege="1"][data-actif="0"] #scene .scene__barre,
+body[data-siege="0"][data-actif="1"] #scene[data-composition="contexte"] .scene__choix,
+body[data-siege="1"][data-actif="0"] #scene[data-composition="contexte"] .scene__choix {
+  display: none;
+}
 
 /* AUCUNE PROPRIÉTÉ DE LA SCÈNE NE S'ANIME — et surtout pas sa marge intérieure.
    Le coupe-circuit des animations (`style-menu.css`) pose `transition-duration:

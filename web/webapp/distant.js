@@ -23,6 +23,10 @@
 //     par ici lui aussi : quand le rang demandé est déjà dans la liste, il rend
 //     la réponse connue sans rien demander à personne.
 
+// La seule dépendance de ce fichier à la couche d'affichage, et elle ne porte
+// que sur le TEMPS : pendant le rattrapage, les durées tombent à zéro.
+import { reglerRattrapage } from "./vue/anim.js";
+
 // ------------------------------------------------------- ce que dit l'adresse
 
 /**
@@ -55,6 +59,49 @@ export function lireRendezVous() {
 // de l'extérieur sans lire une ligne de code.
 
 const REGLAGE = lireRendezVous();
+
+/**
+ * LE REJEU EST UN FAIT, PAS SEULEMENT UN BANDEAU. (04-08, en partie à deux.)
+ *
+ * Après un rechargement, la page repasse au moteur toutes les décisions déjà
+ * prises pour revenir à l'instant présent. Chacune redéclenchait sa mise en
+ * scène : les grandes tuiles océan se retournaient une à une depuis le début de
+ * la partie. Le drapeau existait déjà (`canal.rejeu`) mais ne servait qu'à
+ * écrire « Catching up… » dans le coin ; personne d'autre ne le lisait.
+ *
+ * Il est désormais DIT à la couche qui tient les durées, qui les met à zéro tant
+ * qu'il dure — sans toucher au réglage d'animations choisi par le joueur, qui
+ * reprend la main intact à la fin du rattrapage. Un seul point d'écriture, pour
+ * qu'aucun chemin ne puisse lever le drapeau sans éteindre les durées.
+ */
+function marquerRejeu(canal, oui) {
+  canal.rejeu = oui;
+  reglerRattrapage(oui);
+}
+
+/**
+ * L'ÉCRAN EST EN RETARD SUR LE MOTEUR, ET C'EST NORMAL.
+ *
+ * Quand la première décision inconnue paraît, le moteur a fini de rattraper —
+ * mais l'écran, lui, n'a pas encore dessiné l'état qui en découle. Éteindre le
+ * rattrapage à cet instant précis rallumait la mise en scène juste à temps pour
+ * la dernière révélation d'océan du passé, qui se retournait alors en grand au
+ * milieu de l'écran. Mesuré le 04-08 : rattrapage éteint à 327 ms, grande tuile
+ * parue à 417 ms.
+ *
+ * On laisse donc passer deux images avant d'éteindre : le rendu a eu lieu, tout
+ * ce qui appartenait au passé est parti sans mise en scène, et ce qui arrivera
+ * ensuite — la partie qui reprend — retrouve son théâtre intact.
+ */
+function finirLeRejeuApresLeRendu(canal) {
+  if (!canal.rejeu) {
+    // Rien à finir : on n'était pas en train de rejouer. Éteindre quand même
+    // serait sans effet, mais le dire est plus clair que de le supposer.
+    marquerRejeu(canal, false);
+    return;
+  }
+  requestAnimationFrame(() => requestAnimationFrame(() => marquerRejeu(canal, false)));
+}
 
 function poser(nom, valeur) {
   if (valeur === null || valeur === undefined) {
@@ -421,11 +468,11 @@ export function brancherEnLigne(canal, fournisseurs, siege, regarder) {
     async decider(d, etat) {
       const connue = canal.reponseConnue(d.rang);
       if (connue !== undefined) {
-        canal.rejeu = true;
+        marquerRejeu(canal, true);
         canal.attendre("aucune");
         return connue;
       }
-      canal.rejeu = false;
+      finirLeRejeuApresLeRendu(canal);
       // Le moteur vient de dire à qui revient ce rang. On le rapporte au
       // serveur : c'est ainsi, et seulement ainsi, qu'il peut refuser qu'un
       // siège réponde à la place de l'autre — sans connaître une seule règle.
@@ -446,11 +493,11 @@ export function brancherEnLigne(canal, fournisseurs, siege, regarder) {
     async decider(d, etat) {
       const connue = canal.reponseConnue(d.rang);
       if (connue !== undefined) {
-        canal.rejeu = true;
+        marquerRejeu(canal, true);
         canal.attendre("aucune");
         return connue;
       }
-      canal.rejeu = false;
+      finirLeRejeuApresLeRendu(canal);
       // L'écran continue de montrer la partie pendant qu'il réfléchit : sans
       // cela, mon écran se figerait sans que rien ne dise pourquoi.
       if (regarder) regarder(d, etat);
@@ -476,7 +523,7 @@ export function brancherEnLigne(canal, fournisseurs, siege, regarder) {
  */
 export function finDeLaPartieEnLigne(canal) {
   if (!canal) return;
-  canal.rejeu = false;
+  marquerRejeu(canal, false);
   if (canal.resync !== null) {
     clearInterval(canal.resync);
     canal.resync = null;
