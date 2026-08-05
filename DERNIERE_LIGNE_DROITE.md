@@ -48,12 +48,45 @@ faire aussi avant de **choisir** le chantier.
 | Q1 — « pas clair jauge temp » | **Tranché le 05-08 par Corentin** : retirer le nombre porté par chaque jauge — les degrés à gauche, la valeur d'oxygène à droite. Voir LIS-1 réécrit. |
 | Q2 — « retirer interface au milieu » | **Abandonné le 05-08.** Corentin a dit de laisser tomber. Rien à faire, LIS-9 est supprimé. |
 | Q3 — défausser pour 3 MC | **Tranché**, voir MOT-7 réécrit. |
-| Q4 — qualité des objectifs | Pas de meilleure source. Décision à prendre, voir LIS-4. |
+| Q4 — qualité des objectifs | **Plus de décision à prendre, 05-08.** Mesuré : on n'utilise que 17 à 20 % de la définition disponible, il suffit d'agrandir davantage et de donner le bon rapport à l'agrandissement. Voir LIS-4 réécrit. |
 | Q5 — croix ou coche | **On désigne les cartes qu'on JETTE.** La croix est donc juste. |
 | Q6 — choix de phase | **Aucune fuite d'information** aujourd'hui. À corriger côté écran seulement, voir MOT-9 réécrit. |
 | Q7 — doublon des forêts | Garder l'hexagone, retirer la ligne du score, **et poser le jeton détouré**. |
 
-Plus aucune question n'est ouverte.
+### ❓ Q8 (05-08) — Pendant qu'on regarde une carte en grand, la table doit-elle rester lisible ?
+
+**La question, en clair.** Quand l'écran vous montre une carte en grand pour que
+vous décidiez, il pose par-dessus la table un voile sombre qui va d'une main à
+l'autre. Ce voile recouvre les deux plateaux, et donc les petites pastilles qui
+comptent les ressources posées sur les cartes. **C'est le dernier morceau de
+LIS-3**, et c'est la seule chose qui empêche ce point d'être clos.
+
+**Ce qui est mesuré** : en jeu ordinaire, **plus une seule pastille n'est
+recouverte** — 188 décisions, zéro. Les 4 cas restants se produisent **tous**
+pendant un de ces moments où une carte est montrée en grand.
+
+**Pourquoi je ne peux pas trancher seul** : dans une fenêtre de 1 000 points de
+haut, la carte montrée occupe 326 points, et l'espace libre entre les deux
+plateaux n'en offre que 252. Rendre la table lisible pendant ce moment **réduit
+forcément la carte**, c'est-à-dire la seule raison d'être de ce panneau.
+
+**Trois réponses possibles :**
+
+1. **Ne rien changer** — pendant ces quelques secondes, on lit une carte, pas la
+   table ; le défaut ne se produit jamais en jeu ordinaire. Le banc serait alors
+   corrigé pour ne mesurer que le jeu ordinaire, avec la raison écrite.
+   **C'est ma recommandation** : le défaut que Corentin a signalé est réglé, et
+   ce qui reste ne le gêne pas en jouant.
+2. **Rendre le voile transparent là où il ne montre rien** — règle 3 cas sur 4,
+   mais fait perdre le voile à tous les moments particuliers (choix de
+   corporation, remplacement des cartes de départ, révélation).
+3. **Réorganiser le panneau autour des plateaux** — plus rien ne recouvre rien,
+   la carte garde 252 points au lieu de 326, mais la zone des choix tombe de 199
+   à 76 points. C'est une refonte de la disposition, pas un réglage.
+
+**Aucune urgence** : rien de tout cela n'empêche de jouer.
+
+Aucune autre question n'est ouverte.
 
 ## 1. MOTEUR — les règles elles-mêmes
 
@@ -754,15 +787,40 @@ coin **haut-droit** de la carte : exactement la partie que la carte suivante de
 la pile recouvre. Aucun réglage de superposition ne pouvait la sauver — elle vit
 dans le plan de sa propre carte. Elle est passée en bas à gauche.
 
-⚠️ **Mais ce n'est pas fini, et le rapport de livraison disait le contraire.**
-Le banc écrit pour ce point, `web/webapp/verif/ressources-visibles.py`, rend
-**18 pastilles encore recouvertes sur 330** (graine 4242, décisions 174, 209 et
-237, cartes 33 et 67, recouvertes par une image). Le rapport annonçait « aucune
-recouverte ». [VÉRIFIÉ 05-08] J'ai mesuré **des deux côtés** — dans la copie de
-travail du chantier et sur `main` après fusion — et j'obtiens **exactement les
-mêmes 18**, aux mêmes décisions : ce n'est ni la fusion, ni la taille de la
-fenêtre, ni un aléa. L'explication la plus probable est que la mesure a été faite
-avant le dernier réglage d'échelle et n'a pas été rejouée après.
+⚠️ **CE QUI RESTE, ET J'AI ÉCRIT DEUX FOIS LE FAUX COUPABLE** [VÉRIFIÉ 05-08 ·
+mesuré par le chantier, sonde relue par moi].
+
+**Le chiffre du jour : 4 pastilles recouvertes sur 192**, aux décisions 300,
+320, 358 et 360, toutes sur la carte 67 du plateau d'en face.
+
+**Ma fiche disait « recouvertes par la main du joueur ». C'est faux, et l'erreur
+vient d'une lecture trop rapide du banc.** Celui-ci imprime le coupable ainsi :
+`dessus.className || dessus.tagName` (`verif/ressources-visibles.py:55`). Or
+l'élément `<main id="scene">` est créé **sans aucune classe**
+(`vue/scene.js:94`) : le banc se rabat sur son nom de balise et imprime le mot
+`MAIN`. J'ai lu « MAIN » et compris « la main du joueur ». **La main du joueur
+n'y est pour rien.**
+
+**Le vrai coupable est le panneau de superposition** — le voile sombre qui
+s'étend d'une main à l'autre pour montrer une carte en grand
+(`web/webapp/style.css:861`). Et la corrélation est totale :
+
+| Moment | Décisions | Pastilles recouvertes |
+|---|---|---|
+| en **superposition** | 4 | **4, soit 100 %** |
+| en mode **bande** (le jeu ordinaire) | 188 | **0** |
+
+**Autrement dit : en jeu ordinaire, plus une seule pastille n'est recouverte.**
+Ce qui reste ne se produit que pendant les moments où l'écran montre une carte
+en grand — et le panneau, dont le commentaire affirme « les deux plateaux
+restent visibles dessous », a en réalité un fond opaque à 95 %.
+
+**Pourquoi ce n'est pas un simple réglage** : dans une fenêtre de 1 000 points de
+haut, la carte montrée occupe 326 points, alors que la bande libre entre les
+deux plateaux n'en offre que 252. Rendre la table lisible pendant ce moment
+**réduit forcément la carte** — c'est-à-dire la seule raison d'être de ce
+panneau. **C'est un choix qui appartient à Alexis**, et il est posé plus bas
+dans la section des questions.
 
 **Ce qui reste à faire** : les cas où les piles sont serrées. La bande de carte
 qui reste découverte n'y fait qu'environ treize points d'écran, et repousser
@@ -943,7 +1001,28 @@ Ce qui suit est le constat d'origine.
 Les agrandir ne montre rien et n'a aucun intérêt : retirer la loupe sur ces
 cartes-là.
 
-### LIS-14 (trouvé par la machine le 05-08, personne ne l'avait signalé) — Le contour vert ment parfois
+### LIS-14 (trouvé par la machine le 05-08, personne ne l'avait signalé) — Le contour vert ment parfois — ✅ FAIT 05-08
+**[VÉRIFIÉ 05-08 · rejoué par moi]** **0 désaccord** sur 219 décisions, 216
+écrans avec une main, **59 occasions** où une carte de la main était offerte —
+contre 5 désaccords au scellement, dont huit cartes marquées à tort sur une même
+décision.
+
+Le correctif sépare les deux faits que l'écran confondait, chacun avec **une**
+définition :
+
+- `data-jouable` — le moteur offre cette carte **à l'instant** ;
+- `data-payable` — j'ai de quoi la payer.
+
+Et le contour vert montre **celui des deux qui répond à la question du moment** :
+pendant une question qui se joue depuis la main, il désigne exactement les cartes
+offertes ; le reste du temps, il dit ce qu'on a les moyens de payer, et il
+grandit toujours quand on vend. `web/webapp/vue/mains.js`, `style.css`.
+
+**Mon contrôle caché s'est trompé deux fois avant de dire vrai**, sur le même
+défaut de méthode : il exigeait le nom d'attribut que j'avais imaginé, puis il
+mesurait le contour sur le cadre de la carte alors que la couleur est portée par
+l'image à l'intérieur. Corrigé, il est **vert sur le dépôt sain (0 écran fautif
+sur 171)** et **rouge sur une copie sabotée (44 sur 171)**.
 [VÉRIFIÉ 05-08] Le banc `web/webapp/verif/jouable.py` compare, à chaque
 décision, les cartes de ma main marquées « jouable » (contour vert) et les
 cartes que le moteur offre réellement. Il relève **cinq désaccords** sur une

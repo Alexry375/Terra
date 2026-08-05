@@ -5,6 +5,44 @@
 
 Dernière mise à jour : 2026-08-05
 
+## ✅ 05-08 — LE LOT « CE QUE L'ÉCRAN DIT DE MA MAIN » EST FUSIONNÉ, DEUX TRAVAUX SUR TROIS
+
+**Deux points livrés et vérifiés par moi, un point déclaré bloqué avec une
+question pour Alexis.** C'est une livraison honnête : l'agent n'a livré aucun
+correctif partiel qui aurait changé l'écran sans régler le défaut.
+
+| Ce qui manquait | Avant | Après, rejoué par moi |
+|---|---|---|
+| le contour vert promet des cartes que le moteur n'offre pas (LIS-14) | 59 occasions, **5 désaccords**, dont 8 cartes à tort sur une seule décision | 59 occasions, **0 désaccord** |
+| une carte gratuite affiche un prix barré (LIS-11) | 11 couples, **1 échec** | **10 couples justes** et 1 remise sans rien à barrer, comptée à part |
+| une pastille de ressources reste recouverte (LIS-3) | 4 recouvertes sur 192 | **inchangé — voir la question Q8** |
+
+**Le correctif de LIS-14 est meilleur que ce que je demandais.** L'écran
+confondait deux faits ; ils vivent désormais dans deux étiquettes distinctes —
+« le moteur offre cette carte à l'instant » et « j'ai de quoi la payer » — et le
+contour vert montre celui des deux qui répond à la question du moment.
+
+**Ma fiche de LIS-3 accusait le mauvais coupable, deux fois.** Elle disait « la
+pastille est recouverte par la main du joueur ». C'est faux : le banc imprime le
+nom de balise quand l'élément n'a pas de classe, il écrivait donc le mot `MAIN`
+pour la balise `<main>` de la scène, et je l'ai lu comme « la main ». **Le vrai
+coupable est le voile sombre qui s'étend d'une main à l'autre pendant qu'on
+regarde une carte en grand** — et la corrélation est totale : **4 pastilles
+recouvertes sur 4 décisions en superposition, 0 sur les 188 décisions de jeu
+ordinaire.**
+
+**L'agent a fait relire sa propre livraison et s'est corrigé sur cinq points**,
+dont deux qui comptent : son banc du prix barré croyait la page sur parole, il
+lit maintenant le prix imprimé dans les données du jeu — une source que le code
+mesuré ne touche pas ; et il a écarté une solution qui aurait rendu le contrôle
+vert **par une coïncidence de la partie mesurée**, ce qu'il dit noir sur blanc.
+
+**Vérifié par moi** : contrôle 01 vert (59 occasions, 0 désaccord), contrôle 03
+vert, contrôle 02 rouge comme déclaré, garde-fou vert (26 suites du moteur,
+2 102 pas, 414 décisions à l'écran sans une erreur), contrôle caché vert (0
+écran fautif sur 171), et **pas une ligne de `engine/`, aucune empreinte
+déplacée, aucune adresse hors de la machine**.
+
 ## ⚠️ 05-08 — RELECTURE GÉNÉRALE : LA MOITIÉ DE LA LISTE NE DISAIT PLUS LA VÉRITÉ
 
 Après avoir trouvé trois fiches périmées, j'ai fait relire **toutes** les fiches
