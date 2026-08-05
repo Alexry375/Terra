@@ -580,7 +580,39 @@ Ce qui suit est la demande d'origine.
 
 Ces deux animations et la fenêtre de défausse se tiennent : à faire ensemble.
 
-### ANI-5 (Corentin, ligne 9 · anciens E1, E3, J2) — Les océans
+### ANI-5 (Corentin, ligne 9 · anciens E1, E3, J2) — Les océans — ✅ EN GRANDE PARTIE FAIT, LA FICHE ÉTAIT PÉRIMÉE
+**[VÉRIFIÉ 05-08 · relu à la source et mesuré par moi]** Cette fiche disait
+« TOUJOURS PAS RÉGLÉ ». **C'était faux depuis le 04-08** : le commit `4f7ebdb`
+(« le retournement se voit en grand, et le joueur choisit quelle tuile ouvrir »)
+avait déjà traité les points 2 et 3, et le côté écran de MOT-11 avec.
+
+- **Point 2 — la grande tuile montrait son dos des deux côtés : RÉGLÉ.** Elle
+  paraît de dos, se retourne, dit son bonus en toutes lettres, puis s'efface
+  (`web/webapp/vue/plateau.js:600-650`). L'annonce ne peut rien bloquer : elle
+  laisse passer le clic.
+- **Point 3 — il manquait l'animation de retournement : RÉGLÉE**, et le vrai
+  problème était ailleurs. La planche fait cent dix points de large dans un coin
+  de l'écran : un demi-tour y passe inaperçu quoi qu'on fasse. D'où le
+  retournement **aussi en grand, au milieu de l'écran**.
+- **Le côté écran de MOT-11 est fait** : le joueur désigne la tuile qu'il veut
+  ouvrir (`data-ocean-choisissable`), et le moteur n'a pas été touché.
+- **Point 1 — les tuiles qui se retournent à nouveau au rechargement : le
+  garde-fou est en place, mais JE NE L'AI PAS MESURÉ.** `enRattrapage()` existe
+  et est lu aux deux endroits qui mettent en scène (`plateau.js:531` et `:577`) :
+  pendant le rattrapage les tuiles sont **posées, sans un mot**. [DÉCLARÉ] tant
+  qu'une partie en ligne rechargée ne l'aura pas confirmé.
+
+**Mesuré par moi le 05-08** : le banc `web/webapp/verif/oceans.py` rejoué, **129
+planches lues, 610 identités vérifiées** contre la table du moteur, jusqu'à neuf
+tuiles révélées, aucun défaut.
+
+⚠️ **Ce banc est un quatrième banc cassé du dépôt** : il cherche la page à
+`outputs/web/webapp`, un chemin de chantier qui n'existe pas dans le dépôt. Il ne
+tourne qu'avec un lien de circonstance. À réparer avec `arcs.py`, `score.py` et
+`corporation.py`.
+
+Ce qui suit est la fiche d'origine, périmée.
+
 [CONFIRMÉ PAR ALEXIS 04-08 · TOUJOURS PAS RÉGLÉ] Trois choses, liées :
 1. au rechargement de la page, les tuiles océan **déjà retournées se
    retournent à nouveau** — l'animation rejoue tout l'historique ;
