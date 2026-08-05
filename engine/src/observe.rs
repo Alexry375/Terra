@@ -79,6 +79,23 @@ fn player_view(game: &GameState, db: &CardsDb, p: usize, parts: &ScoreBreakdown)
             "heat": pl.heat_prod,
             "plants": pl.plant_prod,
             "cards": pl.card_prod,
+            // (MOT-10) **LE REVENU RÉEL DE LA PROCHAINE PHASE PRODUCTION.** La
+            // piste `mc` ci-dessus ne porte que les productions FIXES ; la phase
+            // IV verse en plus le niveau de terraformation et toute la
+            // production DÉRIVÉE — celle qui dépend du nombre de badges ou de
+            // jetons Forêt, quatorze cartes. Un joueur voyait 5 et touchait 7.
+            //
+            // Le nombre n'est pas recalculé ici : c'est terme pour terme
+            // l'addition de `flow::phase_production` (`pl.mc_prod + pl.tr +
+            // bonus + d_mc`), dont la part dérivée sort du service UNIQUE
+            // `flow::derived_production`. Aucune seconde addition, ni ici ni
+            // dans la page : l'écran recopie ce champ.
+            //
+            // **Hors bonus du sélectionneur** (`flow.rs:4282-4284`) : ce bonus
+            // dépend d'une phase que les joueurs n'ont pas encore choisie au
+            // moment où ce nombre est lu. L'annoncer serait deviner ; l'écran le
+            // dit d'un mot à côté du nombre.
+            "mc_reel": pl.mc_prod + pl.tr + crate::flow::derived_production(db, pl).0,
         },
         // Savoir-faire (acier / titane) : ce sont des réductions permanentes,
         // pas des jetons dépensables.
@@ -104,6 +121,39 @@ fn player_view(game: &GameState, db: &CardsDb, p: usize, parts: &ScoreBreakdown)
             let mut v = card(id);
             // Ressources posées SUR la carte (lot 3), lues sur le joueur.
             v["resources"] = json!(pl.resources_on(id));
+            // (MOT-14) **LE BADGE CHOISI POUR UN BADGE JOKER.** Le moteur le
+            // range carte par carte (`PlayerState::joker_tags`) mais ne le
+            // publiait à personne : ni le joueur ni son adversaire ne pouvaient
+            // voir ce qui avait été choisi, et une partie reprise en cours de
+            // route ne pouvait pas le deviner. Absent des cartes sans badge
+            // joker, et des cartes joker dont le choix n'a pas encore été fait.
+            //
+            // La chaîne est celle de `Tag::as_str()` — exactement celle que le
+            // descripteur du point de décision `pick_joker_tag` met dans
+            // `options[].badge`. Une seule source de noms de badges.
+            if let Some(t) = pl.joker_tag(id) {
+                v["joker"] = json!(t.as_str());
+            }
+            // (MOT-15) **CE QUE LES RESSOURCES POSÉES RAPPORTENT DÉJÀ**, en
+            // points de victoire. `resources` ci-dessus n'est qu'un COMPTE
+            // (« 4 ») : ni la nature des ressources, ni le barème de la carte,
+            // donc l'écran ne pouvait pas conclure sans recopier la règle.
+            //
+            // Le nombre vient du service de comptage UNIQUE : `flow::card_points`
+            // est la fonction que `flow::score_breakdown` appelle carte par
+            // carte pour former la part « cartes » du score, et sa seconde
+            // valeur est précisément la part venue des ressources. Aucun barème
+            // n'est recopié, ni ici ni dans la page — deux lecteurs, un calcul.
+            //
+            // La coupure `effects_on` est celle de `score_breakdown` lui-même :
+            // effets coupés, la part « cartes » du score vaut zéro, et ce champ
+            // doit dire zéro aussi — sinon les deux publications divergeraient
+            // sur le squelette « à blanc ».
+            v["pv_ressources"] = json!(if db.effects_on {
+                crate::flow::card_points(db, pl, id).1
+            } else {
+                0
+            });
             v
         }).collect::<Vec<_>>(),
         "chosen_phase": pl.chosen_phase,
