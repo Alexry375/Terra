@@ -108,6 +108,16 @@ export function animationsActives() {
   return actives;
 }
 
+/**
+ * La page rejoue-t-elle une partie déjà jouée ? Les modules qui METTENT EN SCÈNE
+ * un évènement le demandent avant d'ouvrir la bouche : pendant le rattrapage,
+ * ces évènements ont déjà eu lieu, et les rejouer annoncerait comme neuf ce qui
+ * est vieux.
+ */
+export function rattrapageEnCours() {
+  return rattrapage;
+}
+
 /** La durée réellement appliquée : celle demandée, ou zéro. */
 export function duree(ms) {
   return actives && !rattrapage ? ms : 0;
@@ -208,7 +218,8 @@ export function attraper(source, motif = "pose") {
   // sinon elle en lancerait une seconde par-dessus. On reconnaît le geste à ce
   // qu'il attrape — une carte de la main, et rien d'autre ne porte cette classe.
   if (source.classList && source.classList.contains("carte--main")) {
-    posesDeLaMain = performance.now();
+    const im = source.querySelector("img");
+    posesDeLaMain = { quand: performance.now(), nom: (im && im.alt) || "" };
   }
   const image = source.querySelector("img");
   return fabriquer({
@@ -453,9 +464,23 @@ export async function voler(source, cible, options = {}) {
 // agit ET chez celui qui regarde : la pioche de l'adversaire vole vers son
 // paquet de dos, sa dépense quitte sa bourse à lui.
 
-import { imageCarte, dosProjet } from "./materiel.js";
+import { imageCarte, dosProjet, imageReserve, jetonForetDetoure } from "./materiel.js";
 
 const RATIO_CARTE = 569 / 409;
+
+// LA DERNIÈRE CARTE PARTIE DE LA MAIN, et l'instant où elle est partie :
+// `{ quand, nom }`. Voir `attraper` — une carte que `vue/geste.js` fait déjà
+// voler n'a pas à voler deux fois.
+//
+// LE NOM, ET PAS SEULEMENT L'INSTANT. Une simple fenêtre de temps était trop
+// large : quand une carte posée en amène une autre dans la foulée (le moteur en
+// pose une seconde dans la même action), la seconde tombait dans la fenêtre de
+// la première et n'était PAS mise en scène — 2 poses muettes sur 30, mesurées
+// par le contrôle 01. On ne tait donc que la carte exacte qui vole déjà.
+let posesDeLaMain = { quand: 0, nom: "" };
+// Le temps qu'une pose met à finir son voyage : 820 ms pour le premier temps,
+// 460 pour le dépôt, plus les raccords.
+const POSE_EN_COURS = 2200;
 
 // Ce que l'écran a vu au rendu précédent. `null` = premier rendu de la partie :
 // il n'y a pas d'avant, donc pas d'écart — sans cette garde, toute la mise en
@@ -538,13 +563,176 @@ function cartesDessinees() {
 /** Ce qu'on retient d'un état, et rien d'autre. */
 function relever(etat, siege) {
   const d = etat.defausse || [];
+  const joueurs = etat.players || [];
+  const actif = Number(document.body.dataset.actif);
   return {
-    mains: (etat.players || []).map((p) => (p.hand || []).length),
+    mains: joueurs.map((p) => (p.hand || []).length),
     dessinees: cartesDessinees(),
     defausse: (etat.decks && etat.decks.discard) || 0,
     tete: d.length ? String(d[0].id) : "",
+    // ANI-1 — ce que la liste dictée demande de voir bouger.
+    temperature: Number(etat.planet ? etat.planet.temperature : 0) || 0,
+    oxygene: Number(etat.planet ? etat.planet.oxygen : 0) || 0,
+    mc: joueurs.map((p) => Number(p.mc) || 0),
+    forets: joueurs.map((p) => Number(p.forests) || 0),
+    posees: joueurs.map((p) => (p.played || []).map((c) => String(c.id)).join(",")),
+    // Les ressources posées sur les cartes en jeu : « joueur:carte » -> compte.
+    ressources: joueurs.map((p) => {
+      const m = new Map();
+      for (const c of p.played || []) m.set(String(c.id), Number(c.resources) || 0);
+      return m;
+    }),
+    // QUI VIENT D'AGIR. `body[data-actif]` porte le joueur à qui la question EST
+    // posée : au rendu d'avant, c'est donc celui dont l'action a produit l'écart
+    // qu'on est en train de mettre en scène. On ne le déduit pas des règles — la
+    // page n'en connaît aucune —, on lit qui avait la parole.
+    actif: Number.isFinite(actif) ? actif : null,
     siege,
   };
+}
+
+/** L'équipage du joueur `j` : sa barre, ses bacs, ses compteurs. */
+function barreDe(j) {
+  return trouver("#equipage-" + j);
+}
+
+/** Un bac de réserve (`mc`, `heat`, `plants`) dans la barre du joueur `j`. */
+function bacDe(j, cle) {
+  return premiereBoite(`#equipage-${j} .reserve--${cle}`, `#equipage-${j}`, "#milieu");
+}
+
+/**
+ * ANI-1 — LES ACTIONS SE VOIENT. La liste est celle qui a été dictée, et elle
+ * est traitée entièrement : hausse de la température, hausse de l'oxygène,
+ * dépense de mégacrédits, gain de jetons Forêt, gain de ressources sur une
+ * carte, pose de carte. Chacune produit un mouvement visible, du côté de celui
+ * qui agit comme du côté de celui qui regarde.
+ *
+ * CHAQUE VOL PART D'OÙ LA CHOSE ÉTAIT ET ARRIVE OÙ ELLE EST MAINTENANT. Ce n'est
+ * pas un ornement libre : c'est ce qui fait comprendre l'évènement sans le lire.
+ * La chaleur monte du bac de chaleur du joueur jusqu'à la jauge de température ;
+ * les plantes montent à l'oxygène ; les mégacrédits quittent la bourse pour la
+ * table ; le jeton Forêt vient de la table jusqu'au compteur de forêts.
+ */
+function actionsDeLaListe(avant, apres, etat) {
+  const siege = apres.siege;
+  // L'auteur de l'écart est celui qui avait la parole au rendu d'avant. À défaut
+  // — première décision, fin de partie — la scène part de la table.
+  const auteur = avant.actif === 0 || avant.actif === 1 ? avant.actif : null;
+
+  // LA TEMPÉRATURE MONTE. Le cran gagné vient de la chaleur dépensée.
+  if (apres.temperature > avant.temperature) {
+    const cible = trouver("#param-temp");
+    const depuis = auteur === null ? premiereBoite("#milieu") : bacDe(auteur, "heat");
+    if (cible && depuis) {
+      lancer("jauge", () => volerMatiere({
+        depuis, vers: cible, src: imageReserve("heat"), motif: "jauge",
+        cote: 40, ms: 620, grossir: 1.4,
+      }));
+    }
+  }
+
+  // L'OXYGÈNE MONTE. Il vient des plantes — c'est ce que dit le plateau imprimé.
+  if (apres.oxygene > avant.oxygene) {
+    const cible = trouver("#param-o2");
+    const depuis = auteur === null ? premiereBoite("#milieu") : bacDe(auteur, "plants");
+    if (cible && depuis) {
+      lancer("jauge", () => volerMatiere({
+        depuis, vers: cible, src: imageReserve("plants"), motif: "jauge",
+        cote: 40, ms: 620, grossir: 1.4,
+      }));
+    }
+  }
+
+  const table = premiereBoite("#milieu", "#scene");
+
+  for (const j of [0, 1]) {
+    // DES MÉGACRÉDITS DÉPENSÉS. La pièce quitte la bourse et s'en va sur la
+    // table. Les HAUSSES ne volent pas ici : elles sont déjà dites par le « +N »
+    // qui monte du bac (`vue/joueurs.js`), et deux mises en scène pour un même
+    // fait se marcheraient dessus.
+    if ((apres.mc[j] ?? 0) < (avant.mc[j] ?? 0) && table) {
+      const depuis = bacDe(j, "mc");
+      if (depuis) {
+        lancer("mc", () => volerMatiere({
+          depuis, vers: table, src: imageReserve("mc"), motif: "mc",
+          cote: 38, ms: 560, tour: 24, grossir: 1.25,
+        }));
+      }
+    }
+
+    // UN JETON FORÊT GAGNÉ. Il vient de la table et se pose sur le compteur de
+    // forêts de son propriétaire — l'hexagone de sa barre.
+    const forets = (apres.forets[j] ?? 0) - (avant.forets[j] ?? 0);
+    if (forets > 0 && table) {
+      const cible = premiereBoite(`#equipage-${j} .cap--foret`, `#equipage-${j}`);
+      if (cible) {
+        for (let k = 0; k < Math.min(forets, PAR_EVENEMENT); k++) {
+          lancer("jeton", () => volerMatiere({
+            depuis: table, vers: cible, src: jetonForetDetoure(), motif: "jeton",
+            cote: 44, ms: 640, grossir: 1.3,
+          }));
+        }
+      }
+    }
+
+    // DES RESSOURCES SUR UNE CARTE. Le nombre posé sur la pastille de la carte
+    // change ; on montre l'écart voyager de la barre du joueur jusqu'à la carte
+    // qui le reçoit. L'écart vient du moteur (`played[].resources`), il n'est ni
+    // calculé ni attendu.
+    for (const [id, n] of apres.ressources[j] || new Map()) {
+      const vieux = (avant.ressources[j] || new Map()).get(id);
+      if (vieux === undefined || n <= vieux) continue;
+      const cible = premiereBoite(
+        `#piles-${j} [data-carte-en-jeu="${id}"]`, `#piles-${j}`, `#plateau-${j}`);
+      const depuis = barreDe(j) && boite(barreDe(j)) ? barreDe(j) : table;
+      if (!cible || !depuis) continue;
+      lancer("jeton", () => volerMatiere({
+        depuis, vers: cible, texte: "+" + (n - vieux), motif: "jeton",
+        cote: 34, ms: 620, grossir: 1.2,
+      }));
+    }
+
+    // UNE CARTE POSÉE. Elle quitte la main de son joueur et se pose sur son
+    // plateau. Du côté du siège regardé, `vue/geste.js` fait déjà voler la carte
+    // qu'on vient de lâcher : on ne double pas son geste — on complète ce qui
+    // manquait, la pose de CELUI D'EN FACE, qu'on ne voyait pas du tout.
+    const anciennes = (avant.posees[j] || "").split(",");
+    const nouvelles = (apres.posees[j] || "").split(",").filter(Boolean)
+      .filter((id) => !anciennes.includes(id));
+    if (!nouvelles.length) continue;
+    const jouees = etat.players[j].played || [];
+    // La carte que le geste de la main fait voler EN CE MOMENT, et elle seule,
+    // est passée sous silence : les autres se posent, y compris quand la même
+    // action en amène deux.
+    const enMain = j === siege && performance.now() - posesDeLaMain.quand < POSE_EN_COURS
+      ? posesDeLaMain.nom
+      : "";
+    const depuis = mainDe(j, siege);
+    if (!depuis) continue;
+    let faits = 0;
+    for (const id of nouvelles) {
+      if (faits >= PAR_EVENEMENT) break;
+      const posee = jouees.find((c) => String(c.id) === id);
+      if (posee && enMain && posee.name === enMain) continue;
+      // OÙ LA CARTE ARRIVE. Sa place définitive quand elle en a déjà une —
+      // sinon la PILE qui l'accueille. Une carte qui vient d'entrer dans le
+      // document n'a pas encore de boîte : sa hauteur vient de son image, et
+      // l'image n'est pas décodée au rendu qui la pose. Mesuré sur la graine
+      // 909 : 6 poses sur 56 visaient une carte présente mais de taille nulle,
+      // et le vol était abandonné (mon banc `verif/actions-visibles.py`). La
+      // pile, elle, a sa taille écrite en dur par `vue/plateau.js`.
+      const cible = premiereBoite(
+        `#piles-${j} [data-carte-en-jeu="${id}"]`, `#piles-${j}`, `#plateau-${j}`);
+      if (!cible) continue;
+      faits++;
+      lancer("pose", () => volerMatiere({
+        depuis, vers: cible, src: (posee && imageCarte(posee.name)) || dosProjet(),
+        motif: "pose", cote: 62, ratio: RATIO_CARTE, cadrer: "boite",
+        ms: 640, grossir: 1.25,
+      }));
+    }
+  }
 }
 
 /**
@@ -629,6 +817,7 @@ export function mettreEnScene(etat, siege) {
   // plus — c'est le même instant, vu d'ailleurs.
   if (rattrapage || !avant || avant.siege !== siege) return;
   piochesEtDefausses(avant, apres, etat);
+  actionsDeLaListe(avant, apres, etat);
 }
 
 /** Remet la mémoire à zéro (nouvelle partie, table vidée). */
