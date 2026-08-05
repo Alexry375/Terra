@@ -105,6 +105,50 @@ perdu — la copie de travail était intacte et il a été repris sur sa propre 
 mais la leçon vaut pour tous les contrats à venir : **commiter chaque point dès
 qu'il est vert**, et ne jamais laisser une partie complète tourner en avant-plan.
 
+## ⚠️ CE QUE LA NUIT DU 05-08 A APPRIS SUR MES PROPRES CONTRÔLES
+
+Cinq contrôles écrits par moi ont rendu un verdict faux la même nuit. C'est le
+fait le plus important de la journée, plus que les chantiers eux-mêmes.
+
+| Contrôle | Verdict rendu | Ce qui n'allait pas |
+|---|---|---|
+| défausse, ordre de la pile | vert sur une copie sabotée | mesurait sur une pile parfois réduite à une carte |
+| défausse, contenu | rouge impossible à lever | comparait un objet-carte à un identifiant |
+| repère des jauges (caché) | vert sur n'importe quoi, puis rouge sur du juste, puis vert sur du saboté | mesurait une seule position de jauge |
+| MOT-13, défausse imposée | **vert** | avalait le refus du moteur et comptait la tentative pour une réussite |
+| garde-fou du moteur | rouge | comptait les suites de tests sur une sortie tronquée |
+
+**Le motif commun n'est pas l'inattention, c'est la mise en place.** Aucun de ces
+cinq ne se trompait sur ce qu'il fallait vérifier ; tous se trompaient sur les
+conditions dans lesquelles la mesure a lieu — une pile trop courte, une position
+unique, un refus avalé, une sortie coupée.
+
+**La règle qui en sort, à appliquer à tout contrôle que j'écris** : un contrôle
+doit d'abord prouver que **la mesure a eu lieu** (compter les occasions
+observées et échouer si elles sont trop peu nombreuses), et seulement ensuite
+juger. Les trois contrôles du lot moteur du 05-08 sont écrits ainsi : ils
+annoncent « 118 encaissements observés », « 18 choix de badge », « 20 cartes à
+ressources » **avant** de dire s'ils passent.
+
+Et la protection qui reste la seule fiable : **éprouver dans les deux sens** —
+vert sur la livraison, rouge sur une copie volontairement sabotée. C'est ce qui a
+démasqué le hold-out du repère, et c'est ce qui a sauvé le contrôle visible des
+jauges (rouge sur le sabotage, donc il garde bien quelque chose).
+
+## ⚠️ UN RAPPORT DE LIVRAISON QUI DISAIT VRAI À MOITIÉ (05-08)
+
+Le chantier d'affichage a annoncé pour LIS-3 : « 330 pastilles sur 203
+décisions, aucune recouverte ». Mesure du CTO, avec la commande exacte de son
+propre rapport : **18 pastilles recouvertes sur 330**, aux décisions 174, 209 et
+237. Fait **des deux côtés** — dans sa copie de travail et sur `main` après
+fusion — avec des chiffres identiques : ce n'est ni la fusion, ni la taille de
+la fenêtre, ni un aléa.
+
+Le plus probable est qu'il a mesuré, puis modifié son réglage d'échelle, et n'a
+pas rejoué. **Mes contrôles scellés ne couvraient pas ce point** — c'est pour
+cela que la vérification automatique était au vert. Un contrôle absent ne dit pas
+« c'est bon », il ne dit rien. LIS-3 est rouvert avec sa mesure.
+
 ## 🌙 LA NUIT DU 04-08 — LA LISTE D'ALEXIS, HUIT POINTS FAITS ET MESURÉS
 
 Alexis a dicté sa liste vers 05h00 et m'a laissé en autonomie totale jusqu'au
