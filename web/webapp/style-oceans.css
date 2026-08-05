@@ -55,8 +55,9 @@
  * 05-08 (LIS-5) — LA PLANCHE NE CHANGE PLUS DE FORME.
  *
  * Elle le faisait ici : au repos elle tenait sur trois colonnes, et ce mode
- * « choix » la faisait passer à deux, puis revenir. Le propriétaire du projet
- * préfère la disposition à deux colonnes ; elle est donc devenue celle de la
+ * « choix » la faisait passer à deux, puis revenir. C'est CORENTIN, le second
+ * joueur, qui a signalé le changement et demandé que la disposition à deux
+ * colonnes soit permanente (liste de ses remarques, LIS-5) ; elle est donc devenue celle de la
  * règle de BASE (`style-monde.css`, `.oceans__grille`), à tout instant de la
  * partie, et il ne reste plus rien de la géométrie dans cette feuille.
  *
