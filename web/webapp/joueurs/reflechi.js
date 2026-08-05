@@ -67,24 +67,23 @@ export const REGLAGES = {
   pvEnMain: 6, // ce que vaut 1 PV imprimé, quand on garde la carte
   prixEnMain: 0.35, // ce que coûte 1 MC de prix, quand on garde la carte
   pvALaPose: 7, // ce que vaut 1 PV imprimé, quand on choisit quoi poser
-  prixALaPose: 0.5, // à la pose, une carte chère se paie tout de suite
+  prixALaPose: 0.3, // à la pose, on PRÉFÈRE la plus chère des cartes payables
   badgeEnMain: 0.8, // un badge de plus, c'est une synergie de plus
 
   // — Le choix de la carte Phase (la décision la plus fréquente de la partie).
-  devBase: 2.0, // I — Développement
-  devParCarte: 2.6, // … par carte VERTE payable en main (au plus 3)
-  conBase: 2.0, // II — Construction
-  conParCarte: 2.6, // … par carte BLEUE ou ROUGE payable en main (au plus 3)
-  actBase: 3.0, // III — Action
-  actParMc: 0.22, // … l'action standard se paie en MC : plus on est riche, mieux
-  actParPlante: 0.35, // … et les plantes ne servent qu'en phase Action
-  actFinDePartie: 0, // … et il faut savoir finir : la planète bientôt terminée
-  proBase: 5.5, // IV — Production
-  proDecroissance: 0.28, // … par point de production déjà acquis (elle sature)
-  proFinDePartie: 6.0, // … et ne vaut plus rien quand la planète est finie
-  recBase: 1.5, // V — Recherche
-  recParCarteManquante: 1.9, // … par carte manquante sous `mainVisee`
-  mainVisee: 5, // la main qu'on cherche à tenir
+  devBase: 1.0, // I — Développement
+  devParCarte: 5.0, // … par carte VERTE payable en main (au plus 3)
+  conBase: 1.0, // II — Construction
+  conParCarte: 5.0, // … par carte BLEUE ou ROUGE payable en main (au plus 3)
+  actBase: 0, // III — Action : jamais pour elle-même, seulement pour ce qui suit
+  actParMc: 0.05, // … l'action standard se paie en MC : plus on est riche, mieux
+  actParPlante: 0.8, // … et une forêt payée en plantes ne coûte pas un MC
+  proBase: 7.0, // IV — Production
+  proDecroissance: 0.3, // … par point de production déjà acquis (elle sature)
+  proFinDePartie: 7.0, // … et ne vaut plus rien quand la planète est finie
+  recBase: 3.0, // V — Recherche
+  recParCarteManquante: 3.5, // … par carte manquante sous `mainVisee`
+  mainVisee: 7, // la main qu'on cherche à tenir
   seuilMulligan: 0, // la barre sous laquelle une carte de départ est remplacée
 
   // — Les actions standard, en phase Action.
@@ -238,8 +237,7 @@ function noterPhase(phase, moi, monde) {
       return (
         R.actBase +
         R.actParMc * Math.min(moi.mc, 40) +
-        R.actParPlante * Math.min(moi.plantes, 12) +
-        R.actFinDePartie * monde.avancement
+        R.actParPlante * Math.min(moi.plantes, 12)
       );
     case 4: // Production — un revenu qui rapporte à chaque manche restante
       return Math.max(
