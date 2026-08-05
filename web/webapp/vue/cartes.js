@@ -149,13 +149,16 @@ export function carte(c, {
   // jeton imprimé de la famille, celui-là même que la barre du joueur emploie
   // pour compter les badges — jamais un dessin à part.
   if (n.joker) {
-    const src = imageBadge(n.joker);
+    // `jeton` et non `src` : la face de la carte, plus haut, s'appelle déjà
+    // `src` dans cette fonction. Deux `src` dans le même corps, et la prochaine
+    // lecture croit lire la carte là où on parle du jeton.
+    const jeton = imageBadge(n.joker);
     const b = document.createElement("span");
     b.className = "carte__joker";
     b.title = MOT.jokerTag + " : " + nomBadge(n.joker);
-    if (src) {
+    if (jeton) {
       const ib = document.createElement("img");
-      ib.src = src;
+      ib.src = jeton;
       ib.alt = nomBadge(n.joker);
       ib.draggable = false;
       b.appendChild(ib);

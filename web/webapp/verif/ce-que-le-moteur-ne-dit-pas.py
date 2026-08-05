@@ -88,7 +88,9 @@ JETONS = """() => {
         if (!(dessus === e || e.contains(dessus) || (dessus && dessus.contains(e))))
           cache = dessus ? (dessus.className || dessus.tagName) : 'rien';
       }
+      const c = e.closest('.carte--jeu');
       out.push({joueur: j, badge: nom.toUpperCase(),
+                carte: c ? c.getAttribute('data-carte-en-jeu') : null,
                 titre: (e.getAttribute('title') || '').toUpperCase(),
                 taille: Math.round(Math.min(r.width, r.height)), cache});
     }
@@ -111,9 +113,16 @@ BARRE = """(j) => {
 
 fautes = []
 vu = {"decisions": 0, "choix_joker": 0, "jetons": 0, "loupes": 0, "temoins": 0,
-      "revenus": 0, "eclipses": 0, "accords": 0}
-# joueur -> liste des badges repondus au point de decision `pick_joker_tag`
-repondus = {0: [], 1: []}
+      "revenus": 0, "eclipses": 0, "accords": 0, "derives": 0}
+# joueur -> { identifiant de carte : badge repondu au point `pick_joker_tag` }.
+# REMIS A ZERO A CHAQUE GRAINE : une reponse donnee dans une partie ne valide
+# rien dans la suivante.
+repondus = {0: {}, 1: {}}
+# (joueur, carte) -> badge deja montre, pour verifier qu'il ne change jamais.
+montres = {}
+# Les dix familles de badges du moteur (`cards.rs`, JOKER_TAG_CHOICES).
+FAMILLES = {"BUILDING", "SPACE", "SCIENCE", "PLANT", "MICROBE", "ANIMAL",
+            "EARTH", "JUPITER", "ENERGY", "EVENT"}
 graines_jouees = []
 
 
@@ -148,6 +157,14 @@ def controler_revenu(pg, rang):
         elif b["base"] is not None and b["tr"] is not None and b["reel"] < b["base"] + b["tr"]:
             erreur(f"decision {rang} : joueur {j}, revenu annonce {b['reel']} "
                    f"inferieur a la piste de base {b['base']} plus le TR {b['tr']}")
+        elif b["base"] is not None and b["tr"] is not None and b["reel"] > b["base"] + b["tr"]:
+            # LE CAS QUI COMPTE. Une page qui additionnerait ELLE-MEME la piste
+            # de base et le TR — la « seconde addition a l'ecran » que le contrat
+            # interdit — donnerait exactement `base + tr`, et les deux tests
+            # ci-dessus la laisseraient passer. Voir au moins une fois un nombre
+            # STRICTEMENT superieur, c'est voir la production derivee : elle ne
+            # peut venir que du moteur.
+            vu["derives"] += 1
 
 
 def controler_jetons(pg, rang):
@@ -173,12 +190,31 @@ def controler_jetons(pg, rang):
         # `pick_joker_tag` sous nos yeux : sinon la comparaison serait vide et
         # se declarerait verte pour n'avoir rien vu. Le compteur `accords` dit
         # combien de fois elle a REELLEMENT eu lieu, et le bilan l'affiche.
-        if repondus[t["joueur"]]:
+        # Le badge montre est-il une famille REELLE du jeu ? Un libelle vide, ou
+        # un mot qui n'est pas un badge, passerait sinon pour un jeton valide.
+        if t["badge"] not in FAMILLES:
+            erreur(f"decision {rang} : le joueur {t['joueur']} montre « {t['badge']} », "
+                   f"qui n'est pas une famille de badges du jeu")
+        # LE BADGE EST DEFINITIF (le moteur ne reecrit jamais une case occupee,
+        # `flow::ensure_joker_tag`). Une carte qui change de badge sous l'oeil est
+        # donc un defaut d'AFFICHAGE — et rien ne le mesurait.
+        cle_carte = (t["joueur"], t["carte"])
+        if t["carte"] is not None:
+            if cle_carte in montres and montres[cle_carte] != t["badge"]:
+                erreur(f"decision {rang} : la carte {t['carte']} du joueur "
+                       f"{t['joueur']} montrait « {montres[cle_carte]} » et montre "
+                       f"maintenant « {t['badge']} » — le badge est pourtant definitif")
+            montres[cle_carte] = t["badge"]
+        # LA PAGE N'INVENTE AUCUN BADGE : tout jeton montre doit correspondre a un
+        # badge REPONDU par ce joueur-la, pour CETTE carte. On ne compare que si
+        # la reponse a ete vue (voir le bilan : le compteur `accords` le dit).
+        attendu = repondus[t["joueur"]].get(t["carte"])
+        if attendu is not None:
             vu["accords"] += 1
-            if t["badge"] not in repondus[t["joueur"]]:
-                erreur(f"decision {rang} : le joueur {t['joueur']} montre un badge "
-                       f"« {t['badge'] or t['titre']} » qu'il n'a jamais choisi "
-                       f"(reponses vues : {repondus[t['joueur']]})")
+            if t["badge"] != attendu:
+                erreur(f"decision {rang} : la carte {t['carte']} du joueur "
+                       f"{t['joueur']} montre « {t['badge']} » alors que la reponse "
+                       f"donnee au point de decision etait « {attendu} »")
 
 
 def loupe_sur(pg, avec_ressources):
@@ -194,8 +230,10 @@ def loupe_sur(pg, avec_ressources):
       if (!voulue.length) return null;
       const c = voulue[0];
       const r = c.getBoundingClientRect();
+      const im = c.querySelector('img');
       return {x: r.x + r.width * .5, y: r.y + r.height * .5,
-              id: c.getAttribute('data-carte-en-jeu')};
+              id: c.getAttribute('data-carte-en-jeu'),
+              nom: (im && im.alt) || ''};
     }""", avec_ressources)
     if not cible:
         return None
@@ -216,6 +254,8 @@ def loupe_sur(pg, avec_ressources):
     # Ce qu'on exige a la place, et qui a un sens : la ligne a une boite non
     # vide, elle est DEDANS la carte agrandie, et la carte agrandie est dans
     # l'ecran. Une ligne de hauteur nulle, ou posee hors du cadre, ne se lit pas.
+    agrandi = pg.evaluate("() => (document.getElementById('loupe')||{}).dataset"
+                          " ? document.getElementById('loupe').dataset.agrandi : null")
     lu = pg.evaluate("""() => {
       const l = document.getElementById('loupe');
       const e = l && l.querySelector('.carte__pv');
@@ -240,19 +280,30 @@ def loupe_sur(pg, avec_ressources):
             illisible = "posee HORS de la carte agrandie"
         elif not lu["ecran"]:
             illisible = "la carte agrandie sort de l'ecran"
-    return {"id": cible["id"], "ouverte": True, "pv": pv,
-            "cache": illisible, "texte": lu["texte"] if lu else None}
+    # `loupe.js` DECLARE ce qu'elle agrandit (`#loupe[data-agrandi]`), justement
+    # « pour qu'un controle exterieur puisse verifier que c'est bien la carte
+    # survolee, et pas une autre ». On le verifie : sans cela, on mesurerait une
+    # carte au hasard en croyant mesurer celle qu'on a designee.
+    if cible["nom"] and agrandi and agrandi != cible["nom"]:
+        illisible = (f"la loupe declare agrandir « {agrandi} » alors qu'on a "
+                     f"survole « {cible['nom']} »")
+    return {"id": cible["id"], "ouverte": True, "pv": pv, "agrandi": agrandi,
+            "nom": cible["nom"], "cache": illisible,
+            "texte": lu["texte"] if lu else None}
 
 
 with serveur(RACINE) as base:
   for GRAINE in GRAINES:
     # On s'arrete des que TOUT a ete mesure : inutile de jouer une partie de
     # plus, et le banc dit ce qu'il a vu plutot que de compter les graines.
-    if vu["jetons"] and vu["loupes"] and vu["temoins"]:
+    if vu["jetons"] and vu["loupes"] and vu["temoins"] and vu["derives"]:
         break
     with page(f"{base}/?graine={GRAINE}&siege=0&animations=non") as (pg, erreurs, _):
         pg.wait_for_selector("#horizon", timeout=20000)
         graines_jouees.append(GRAINE)
+        repondus[0].clear()
+        repondus[1].clear()
+        montres.clear()
         loupe_faite = False
         for _tour in range(2000):
             if pg.query_selector("[data-partie-terminee]"):
@@ -278,8 +329,10 @@ with serveur(RACINE) as base:
 
             # Le revenu reel se controle regulierement : a chaque decision ce
             # serait des centaines de lectures pour rien ; jamais, ce serait ne
-            # rien mesurer.
-            if rang % 25 == 0 and not eclipse:
+            # rien mesurer. Un sur huit : assez serre pour attraper le cas qui
+            # compte — celui ou la production DERIVEE fait depasser la piste de
+            # base plus le TR —, qu'un echantillon d'un sur vingt-cinq ratait.
+            if rang % 8 == 0 and not eclipse:
                 controler_revenu(pg, rang)
             if not eclipse:
                 controler_jetons(pg, rang)
@@ -338,7 +391,19 @@ with serveur(RACINE) as base:
                     mot = (bouton.inner_text() or "").strip().upper()
                     badge = mot.split("(")[0].strip().split()[0] if mot else ""
                     if badge:
-                        repondus[joueur].append(badge)
+                        # La carte concernee, telle que la page la nomme dans la
+                        # question. Sans elle on ne peut pas lier la reponse a
+                        # une carte posee : on compte le choix, mais l'accord ne
+                        # se fera pas, et le bilan le dira.
+                        idc = pg.evaluate("""() => {
+                          const s = document.getElementById('scene');
+                          const e = s && (s.querySelector('[data-carte-en-jeu]')
+                                       || s.querySelector('[data-prix-carte]'));
+                          return e ? (e.getAttribute('data-carte-en-jeu')
+                                   || e.getAttribute('data-prix-carte')) : null;
+                        }""")
+                        if idc is not None:
+                            repondus[joueur][idc] = badge
                         vu["choix_joker"] += 1
                 bouton.click()
             pg.wait_for_function(
@@ -361,6 +426,8 @@ print(f"    graines {'+'.join(graines_jouees)} : {vu['decisions']} decisions, "
 # jeton sans qu'aucun `pick_joker_tag` ne soit jamais pose. L'accord lui-meme est
 # deja prouve a la publication par le banc 02 du contrat ; ici, ce qui est
 # mesure, c'est que le jeton SE VOIT.
+print(f"    revenu annonce SUPERIEUR a la piste de base plus le TR : {vu['derives']} "
+      f"lecture(s) — c'est la production derivee, elle ne peut venir que du moteur")
 if vu["accords"]:
     print(f"    accord badge montre / badge choisi : {vu['accords']} confrontation(s)")
 else:
@@ -385,6 +452,21 @@ if vu["loupes"] == 0:
 if vu["temoins"] == 0:
     print("KO aucun temoin sans ressource — le banc ne peut pas distinguer une page "
           "qui compte d'une page qui ecrit « 0 » partout")
+    sys.exit(1)
+# LE CAS QUI DISTINGUE UNE LECTURE D'UNE ADDITION FAITE A L'ECRAN. Sans une seule
+# lecture ou `mc_reel > piste de base + TR`, ce banc serait vert pour une page qui
+# additionnerait elle-meme les deux nombres publies — le raccourci que le contrat
+# interdit nommement. Il faut donc l'avoir VU.
+if vu["derives"] == 0:
+    print("KO le revenu annonce n'a jamais depasse la piste de base plus le TR — "
+          "ce banc ne peut pas distinguer un nombre venu du moteur d'une addition "
+          "faite a l'ecran (donne d'autres graines en second argument)")
+    sys.exit(1)
+# Des reponses relevees mais jamais confrontees = une mesure annoncee qui n'a pas
+# eu lieu. On ne sort pas vert la-dessus.
+if vu["choix_joker"] and vu["accords"] == 0:
+    print(f"KO {vu['choix_joker']} badge(s) joker choisi(s) sous nos yeux, et AUCUNE "
+          f"confrontation avec un jeton montre — l'accord annonce n'a pas ete mesure")
     sys.exit(1)
 
 if fautes:
