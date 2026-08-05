@@ -16,6 +16,15 @@ deux parties differentes soient couvertes.
      porte la question annonce « moi », que l'autre annonce « lui », et que les
      deux ne disent JAMAIS « moi » en meme temps.
 
+     UNE SEULE EXCEPTION, ET ELLE EST EXIGEE, PAS TOLEREE (MOT-9, 04-08). Le
+     livret veut que les deux joueurs choisissent leur carte Phase EN MEME
+     TEMPS : sur cette question-la — « pick_phase », et sur aucune autre — les
+     deux pages DOIVENT dire « moi » ensemble. On ne se contente donc pas de
+     lever l'interdit : on verifie que les deux portent bien une question de
+     phase, que toutes deux annoncent « moi », et que leurs rangs se suivent
+     (chacune la sienne, pas deux fois la meme). Partout ailleurs, deux « moi »
+     simultanes restent une faute.
+
   B. « personne ne repond a la place de l'autre » PENDANT UNE VRAIE PARTIE. Le
      controle 02 parle au serveur sans navigateur : le tour n'y est jamais
      connu, et le premier arrive l'emporte. Ici les deux moteurs tournent, ils
@@ -202,7 +211,7 @@ def main():
     port = port_libre()
     proc, journal = lancer_serveur(port)
     base = f"http://127.0.0.1:{port}"
-    vus = {"attente": 0, "triche": 0}
+    vus = {"attente": 0, "triche": 0, "simultane": 0}
     try:
         with sync_playwright() as p:
             nav = p.chromium.launch(executable_path="/usr/bin/google-chrome")
@@ -257,16 +266,38 @@ def main():
                         continue
 
                     # A. qui attend quoi, vu des deux cotes
+                    posees = [decision_posee(pg) for pg in pages]
                     attentes = [pg.evaluate(LIRE, "data-attente") for pg in pages]
                     # La partie avance pendant qu'on la regarde : on ne juge que si
                     # rien n'a bouge entre les deux lectures, sinon on compare deux
                     # instants differents et l'on invente une faute.
                     stable = porteuses == [i for i, pg in enumerate(pages)
                                            if decision_posee(pg) is not None]
-                    if attentes.count("moi") > 1:
+                    # LE CHOIX DE PHASE SE FAIT EN MEME TEMPS, et lui seul. Les
+                    # deux pages portent alors chacune SA question — deux rangs
+                    # qui se suivent — et toutes deux disent « moi ».
+                    phases = [d for d in posees
+                              if d is not None and d["type"] == "pick_phase"]
+                    simultane = len(porteuses) == 2 and len(phases) == 2
+                    if simultane:
+                        vus["simultane"] += 1
+                        rangs = sorted(d["rang"] for d in phases)
+                        if rangs[1] - rangs[0] != 1:
+                            faute(f"les deux pages portent une question de phase mais "
+                                  f"leurs rangs ne se suivent pas : {rangs} — chacune "
+                                  f"doit porter la sienne")
+                        for i in (0, 1):
+                            if attentes[i] != "moi":
+                                faute(f"la page {i} porte sa question de phase en meme "
+                                      f"temps que l'autre mais annonce data-attente="
+                                      f"{attentes[i]!r} au lieu de 'moi' : ce joueur "
+                                      f"croit encore qu'il attend")
+                    elif attentes.count("moi") > 1:
+                        types = [d["type"] if d else None for d in posees]
                         faute(f"les DEUX pages annoncent data-attente='moi' "
-                              f"(decision {donnees})")
-                    if stable:
+                              f"(decision {donnees}, types {types}) alors que seule "
+                              f"la question de phase se joue en meme temps")
+                    if stable and not simultane:
                         vus["attente"] += 1
                         for i in porteuses:
                             if attentes[i] != "moi":
@@ -287,7 +318,14 @@ def main():
                         triche_faite += 1
                         vus["triche"] += 1
                         c, av = demander(f"{base}/relais/etat?partie={CODE}")
-                        rang = len(av["decisions"])
+                        # LE RANG ATTENDU SE LIT, IL NE SE COMPTE PLUS. Depuis
+                        # que les choix de phase se jouent face cachee, la liste
+                        # publiee s'arrete au premier groupe incomplet : sa
+                        # longueur n'est plus le rang que le serveur attend, et
+                        # « siege_attendu » se rapporte a CE rang-la. Compter les
+                        # reponses viserait un autre rang que le siege annonce,
+                        # et la triche serait refusee pour la mauvaise raison.
+                        rang = av["rang_attendu"]
                         proprio = av.get("siege_attendu")
                         if proprio is None:
                             faute(f"a la decision {rang}, le serveur ne sait toujours "
@@ -332,6 +370,13 @@ def main():
 
                 if donnees < DECISIONS_A_VOIR:
                     faute(f"seulement {donnees} decisions jouees en 5 min")
+                # L'exception accordee au choix de phase ne prouve rien si elle
+                # n'a jamais servi : une partie de 45 decisions en traverse
+                # plusieurs manches, donc plusieurs choix de phase.
+                if vus["simultane"] == 0:
+                    faute("aucun choix de phase vu sur les DEUX pages a la fois en "
+                          f"{donnees} decisions : soit les deux joueurs ne choisissent "
+                          "pas en meme temps, soit la mesure n'a pas eu lieu")
                 if triche_faite < 3:
                     faute(f"seulement {triche_faite} tentative(s) de triche sur 3 : "
                           f"la partie n'a pas assez avance pour les placer")
@@ -413,6 +458,8 @@ def main():
         arreter_serveur(proc)
 
     print(f"   {vus['attente']} occasions ou l'attente a ete lue sur les deux pages")
+    print(f"   {vus['simultane']} choix de phase portes par les DEUX pages en meme "
+          f"temps")
     print(f"   {vus['triche']} tentatives de reponse a la place de l'autre, "
           f"en pleine partie")
     print(f"   {vus.get('double', 0)} essai(s) « quelqu'un repond avec MON siege »")
