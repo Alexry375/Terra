@@ -32,18 +32,35 @@ ALLE VOIR A L'ECRAN AVANT DE TRANCHER : au rang 268 de la graine 2024, la carte
 est « Asset Liquidation », prix imprime 0, rabais annonce 5. LES DEUX AVAIENT
 TORT. La page, de barrer un prix qu'aucun autre ne remplace ; le banc, d'exiger
 ce barre. La page n'ecrit plus que le prix a payer dans ce cas, et le declare
-(`data-prix-remise="nulle"`) ; ce banc l'accepte a cette seule condition — un
-bloc sans `<s>` qui ne le declare pas reste une faute, et un prix a payer non
-nul sans `<s>` aussi. La regle « rien a barrer » ne peut donc pas servir a
-cacher un barre oublie.
+(`data-prix-remise="nulle"`) ; ce banc l'accepte a TROIS conditions, et pas une
+de moins : la page le declare, le prix a payer vaut zero, ET le prix imprime de
+la carte nommee vaut zero DANS LES DONNEES DU JEU (`data/cards.json`) — une
+source que le code mesure ne touche pas. Sans cette derniere, le banc croirait
+la page sur parole, et « rien a barrer » servirait a cacher un barre oublie sur
+une remise qui tombe pile a zero.
 
     python3 verif/prix-barre.py <racine-webapp> [graines...]
 """
+import json
 import os
 import sys
 
 RACINE = os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else "web/webapp")
 GRAINES = sys.argv[2:] or ["4242", "77", "2024", "210055"]
+
+# LE PRIX IMPRIME, LU AILLEURS QUE SUR L'ECRAN QU'ON MESURE. Sans cette table,
+# « la remise ne change rien » ne serait verifiable que par ce que la page veut
+# bien montrer : le banc accepterait l'absence de barre sur la seule foi du
+# `data-prix-remise="nulle"` que la page pose elle-meme. On confronte donc le nom
+# de la carte au prix ecrit dans les donnees du jeu — une source que le code
+# mesure ne touche pas.
+_cartes = os.path.join(RACINE, "..", "..", "data", "cards.json")
+PRIX_IMPRIME = {}
+if os.path.exists(_cartes):
+    with open(_cartes, encoding="utf-8") as f:
+        for c in json.load(f):
+            if c.get("name") is not None and c.get("price") is not None:
+                PRIX_IMPRIME[str(c["name"])] = c["price"]
 
 sys.path.insert(0, os.path.join(RACINE, "verif"))
 from pilote import serveur, page, choix_simple  # noqa: E402
@@ -127,6 +144,27 @@ with serveur(RACINE) as base:
                                     f"declaree nulle mais le prix a payer vaut "
                                     f"{p['paye']} — une remise qui ne change rien ne "
                                     f"se rencontre que sur une carte gratuite")
+                            # ET LA CARTE EST-ELLE VRAIMENT GRATUITE ? On ne croit
+                            # pas la page sur parole : on lit le prix imprime dans
+                            # les donnees du jeu. C'est la seule chose qui empeche
+                            # « remise nulle » de servir a cacher un barre oublie
+                            # sur une remise qui, elle, tombait pile a zero.
+                            elif not PRIX_IMPRIME:
+                                fautes.append(
+                                    f"graine {graine}, rang {rang} : impossible de "
+                                    f"verifier une remise nulle — `data/cards.json` "
+                                    f"introuvable depuis {RACINE}")
+                            elif p["carte"] not in PRIX_IMPRIME:
+                                fautes.append(
+                                    f"graine {graine}, rang {rang} : remise declaree "
+                                    f"nulle sur « {p['carte']} », carte inconnue des "
+                                    f"donnees du jeu — invérifiable")
+                            elif PRIX_IMPRIME[p["carte"]] != 0:
+                                fautes.append(
+                                    f"graine {graine}, rang {rang} : remise declaree "
+                                    f"nulle sur « {p['carte']} », dont le prix imprime "
+                                    f"vaut {PRIX_IMPRIME[p['carte']]} et non 0 — un "
+                                    f"prix plein a donc ete barre puis efface")
                             continue
                         vus += 1
                         if p["plein"] is None or p["paye"] is None:
