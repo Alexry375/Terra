@@ -252,7 +252,13 @@ function piles(j, p, visAVis) {
   const z = ref("#piles-" + j);
   if (!z) return;
   const signature =
-    (visAVis ? "f#" : "n#") + p.played.map((c) => `${c.id}:${c.resources ?? 0}`).join("|");
+    (visAVis ? "f#" : "n#") +
+    // (MOT-14) Le badge joker entre dans la signature. Il est écrit une seule
+    // fois, au moment de la pose, et rien ne garantit que la carte arrive dans
+    // `played` avec son jeton déjà posé : sans lui ici, une pile déjà dessinée
+    // ne serait jamais reprise et le badge resterait invisible jusqu'à la carte
+    // suivante.
+    p.played.map((c) => `${c.id}:${c.resources ?? 0}:${c.joker ?? ""}`).join("|");
   if (z.dataset.signature === signature) return;
   z.dataset.signature = signature;
   z.textContent = "";

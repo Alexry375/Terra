@@ -541,6 +541,33 @@ html[data-pv-masques="oui"] [data-role="vp"] { display: none; }
 }
 .prod__case--vide { opacity: .38; }
 
+/* (MOT-10) LE REVENU RÉEL DE LA PROCHAINE PHASE PRODUCTION, sous la piste de
+   base. Il se distingue des cases de production : ce n'est pas une piste, c'est
+   ce que la phase versera. D'où le trait d'or et le mot en clair. */
+.prod__reel {
+  display: flex; align-items: baseline; gap: 4px;
+  padding: 2px 5px;
+  border-left: 2px solid var(--or);
+  background: rgba(237, 181, 78, .09);
+}
+.prod__reel-mot {
+  font-size: 7.5px; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--os-faible);
+}
+.prod__reel b { font-family: "TerraChiffre", monospace; font-size: 14px; color: var(--or); }
+.prod__reel i {
+  font-style: normal; font-size: 7.5px; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--os-faible);
+}
+/* CE QUI N'EST PAS DEDANS SE DIT. Le bonus du sélectionneur dépend d'une phase
+   que personne n'a encore choisie : le nombre l'exclut, et la mention l'écrit
+   plutôt que de laisser croire à un oubli. Elle est menue — c'est une note, pas
+   une alarme — et le survol la redonne en entier (`title`). */
+.prod__reel-note {
+  font-size: 6.5px; letter-spacing: .04em; color: var(--os-faible); opacity: .72;
+  max-width: 96px; line-height: 1.1;
+}
+
 .capacites { display: flex; gap: 4px; flex: 0 0 auto; }
 .cap {
   display: flex; align-items: center; gap: 4px; padding: 3px 5px;
@@ -734,6 +761,55 @@ html[data-pv-masques="oui"] [data-role="vp"] { display: none; }
   border-radius: 50%; box-shadow: 0 0 10px rgba(237, 181, 78, .6);
   z-index: 4;
 }
+
+/* (MOT-14) LE JETON DE BADGE JOKER, sur la carte posée. En haut à GAUCHE — la
+   pastille de ressources tient déjà le coin droit, et les deux doivent pouvoir
+   coexister sur la même carte. C'est le jeton imprimé de la famille choisie,
+   celui de la barre du joueur : le même dessin dit la même chose. */
+.carte__joker {
+  position: absolute; top: -5px; left: -5px;
+  width: 21px; height: 21px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  background: rgba(6, 8, 14, .92);
+  box-shadow: 0 0 0 1.5px rgba(239, 228, 212, .5), 0 0 10px rgba(239, 228, 212, .35);
+  z-index: 5;
+}
+.carte__joker img { width: 17px; height: 17px; border-radius: 0; box-shadow: none; }
+/* Famille sans jeton découpé : le mot, en petit, plutôt qu'un rond muet. */
+.carte__joker--mot {
+  width: auto; min-width: 21px; padding: 0 4px; border-radius: 9px;
+  font-size: 7px; letter-spacing: .06em; text-transform: uppercase;
+  line-height: 21px; color: var(--os);
+}
+/* Sur une carte posée en pile, le jeton RENTRE DANS LA CARTE, en haut à gauche.
+   C'est la leçon de la pastille de ressources (LIS-3) : la carte suivante de la
+   pile est décalée vers la DROITE et vers le HAUT, elle recouvre donc le coin
+   haut-droit et laisse découverte la bande de gauche. Un jeton posé hors du
+   cadre, ou à droite, serait dans le document sans être sous les yeux.
+
+   Et il suit l'échelle du plateau, sans quoi il devient illisible une fois la
+   pile réduite. */
+.pile .carte--jeu .carte__joker {
+  top: 3px; left: 3px;
+  width: 21px; height: 21px;
+  transform: scale(clamp(.5, calc(1 / var(--echelle, 1)), 1.8));
+  transform-origin: top left;
+}
+
+/* (MOT-15) CE QUE LES RESSOURCES POSÉES RAPPORTENT DÉJÀ, sous le nom de la
+   carte agrandie. Une ligne, pas une pastille : le nombre seul ne dirait pas de
+   quoi il parle. */
+.carte__pv {
+  display: block; margin-top: 2px;
+  font-size: 8px; line-height: 1.2; color: var(--or);
+}
+.carte__pv b { font-family: "TerraChiffre", monospace; font-size: 11px; }
+.carte__pv i {
+  font-style: normal; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--os-faible);
+}
+
 /* ================================================================= LA SCÈNE */
 
 /* LA SCÈNE — une BANDE, pas un écran. Le plateau des deux joueurs reste posé

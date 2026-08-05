@@ -101,6 +101,15 @@ export function construireJoueurs() {
     a.dataset.joueur = String(j);
     a.style.setProperty("--teinte", EQUIPAGES[j].teinte);
 
+    // (MOT-10) La barre porte désormais, sous la piste de production, LE REVENU
+    // RÉEL DE LA PROCHAINE PHASE PRODUCTION (« prod__reel »). La piste ne montre
+    // que les productions FIXES ; la phase verse en plus le niveau de
+    // terraformation et tout ce qui dépend du nombre de badges ou de jetons
+    // Forêt — quatorze cartes. Un joueur voyait 5 et touchait 7.
+    //
+    // Le nombre vient du moteur ENTIER (chemin players.J.production.mc_reel) :
+    // la page ne l'additionne pas, elle le recopie. La mention à côté dit ce
+    // qu'il laisse dehors, et pourquoi.
     a.innerHTML = `
       <div class="equipage__rang" id="rang-${j}">
       <div class="equipage__tete">
@@ -119,6 +128,12 @@ export function construireJoueurs() {
       <div class="prod">
         <span class="prod__mot">${MOT.production}</span>
         <div class="prod__cases" id="prod-${j}"></div>
+        <div class="prod__reel" title="${MOT.nextIncomeNote}">
+          <span class="prod__reel-mot">${MOT.nextIncome}</span>
+          <b data-valeur="players.${j}.production.mc_reel">0</b>
+          <i>${MOT.mc}</i>
+          <span class="prod__reel-note">${MOT.nextIncomeNote}</span>
+        </div>
       </div>
 
       <div class="capacites">
@@ -340,6 +355,10 @@ export function majJoueurs(etat, decision, siege) {
         e.parentElement.classList.toggle("prod__case--vide", p.production[cle] === 0);
       }
     }
+    // (MOT-10) Le revenu réel se pose comme le reste : lu chez le moteur, jamais
+    // recomposé ici. Il vaut au moins le niveau de terraformation, donc il n'est
+    // jamais vide — pas de classe « --vide » à basculer.
+    poserValeur(`players.${j}.production.mc_reel`, p.production.mc_reel);
 
     // La corporation est montrée par son SCAN, jamais par son nom écrit : six
     // cartes du jeu s'appellent « … Corporation », et l'écran est en anglais.
