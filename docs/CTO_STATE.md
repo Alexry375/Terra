@@ -5,6 +5,31 @@
 
 Dernière mise à jour : 2026-08-05
 
+## ✅ 05-08 — LES QUATRE BANCS « CASSÉS » : DEUX ÉTAIENT SAINS (`2b545ae`)
+
+La carte d'état portait depuis des jours une dette : « quatre bancs cassés du
+dépôt — `arcs.py`, `score.py`, `corporation.py`, `oceans.py` ». **La moitié de
+cette dette n'existait pas.**
+
+La cause était unique et bête : la racine par défaut du petit serveur d'essai
+valait `outputs/web/webapp` — un chemin de **chantier**, c'est-à-dire le dossier
+où un agent dépose sa livraison. Ce dossier n'existe pas dans le dépôt, et il
+dépendait en plus du répertoire d'où l'on lançait la commande. Les bancs
+servaient donc un dossier vide et attendaient indéfiniment une page qui ne
+venait jamais. Elle se calcule désormais depuis l'emplacement du fichier
+lui-même. Huit autres fichiers portaient ce chemin en dur.
+
+| Banc | Après réparation |
+|---|---|
+| `oceans.py` | **VERT** — 129 planches lues, 609 identités vérifiées, jusqu'à 9 tuiles révélées |
+| `corporation.py` | **VERT** — 16 choix éprouvés sur 8 parties, 0 faute |
+| `score.py` | tourne enfin, et trouve un désaccord : **4 mentions « provisoire »** là où il en attend 2. Probablement périmé depuis que le mot est écrit en entier (`5996c45`) — **à trancher** |
+| `arcs.py` | tourne enfin, et se casse sur **son propre défaut** : il lit la température **à l'écran**, où la page affiche les **degrés**, et la traite comme un nombre de crans. Refaire ce banc demande de lui trouver une autre source : **consigné, pas bricolé** |
+
+**La leçon est la même que pour le contrôle de langue, le même jour** : un banc
+qu'on croit cassé peut n'être que mal appelé, et une dette écrite dans un
+document n'est pas une dette mesurée. J'ai maintenant deux exemples le même jour.
+
 ## 🚧 05-08 — CHANTIER EN COURS : « LE PREMIER ADVERSAIRE, ET LA BALANCE QUI LE PÈSE »
 
 **C'est le premier chantier qui vise l'objectif du projet lui-même.** Tout ce qui
