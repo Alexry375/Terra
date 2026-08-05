@@ -66,6 +66,32 @@ artificielle qui choisit ses phases doit connaître ces trois montants.
 - **LIS-3 n'est pas fini** : les 18 pastilles recouvertes sont toujours là,
   au même nombre exactement qu'avant le lot. Non régressé, non réparé.
 
+## 🚧 05-08 — CHANTIER EN COURS : « LES CHOIX SE POSENT AU BON MOMENT »
+
+Scellé et lancé. **MOT-2, MOT-3, MOT-8** — trois défauts qui déplacent tous des
+points de décision, donc rendent injouables les parties enregistrées. Ils partent
+ensemble pour ne refixer les repères qu'**une seule fois**.
+
+| Point | Ce qui cloche | Mesuré au scellement |
+|---|---|---|
+| MOT-2 | des actions proposées qui ne peuvent rien produire | **340 sur 2133** options essayées, sur **seize** cartes |
+| MOT-3 | le bonus de Construction tranché avant toute pose | 70 questions, **zéro** posée après une pose |
+| MOT-8 | le badge « ? » demandé pour des cartes injouables | 18 questions, **10** pour une carte non offerte |
+
+**Une décision qui attend Alexis** : pour MOT-8 je n'ai demandé que le
+**demi-correctif** — ne plus poser la question pour les cartes de toute façon
+injouables. Le correctif complet (demander le badge au moment de poser) soulève
+un problème de règles non tranché : si le joueur choisit alors un badge moins
+avantageux, la carte peut devenir trop chère après coup. Ce choix appartient à
+Alexis et Corentin.
+
+**Deux pièges de mesure trouvés en écrivant ces contrôles**, et écrits dans le
+contrat pour que l'agent ne les refasse pas : une action qui pose un microbe
+**sur une carte** ne change ni l'argent ni la planète — la compter stérile est
+faux ; et `main_payable` est une liste de oui/non parallèle à la main, pas une
+liste d'identifiants — y chercher des identifiants donne un rouge qui n'a rien
+mesuré.
+
 ## 🔧 NUIT DU 04 AU 05-08 — LE LOT MOTEUR FUSIONNÉ, DEUX CHANTIERS D'ÉCRAN LANCÉS
 
 ### Ce qui est entré dans le dépôt
