@@ -18,6 +18,25 @@ verifie SUR LA PAGE :
 Le troisieme point est le seul qui compte vraiment : afficher deux nombres
 plausibles mais faux serait pire que de n'en afficher qu'un.
 
+ET UNE CARTE GRATUITE N'A PAS DE PRIX BARRE A MONTRER (LIS-11, 05-08). Ce banc
+exigeait un COUPLE sur toute decision de remise, et « prix paye < prix plein »
+sur tout couple. Les deux exigences se contredisent sur les cinq cartes dont le
+prix imprime vaut 0 (`data/cards.json` : Asset Liquidation, Local Heat Trapping,
+Project Inspection, Synthetic Catastrophe, DummyCard) : le moteur y propose la
+remise comme ailleurs, et il n'y a rien a barrer. Le banc echouait donc sur
+« graine 2024, rang 268 : prix paye 0 MC pas inferieur au prix plein 0 MC »
+alors que la page disait vrai — elle ecrivait « 0 MC » barre a cote de « 0 MC »,
+ce qui est un non-sens, mais pas un mensonge sur les nombres.
+
+ALLE VOIR A L'ECRAN AVANT DE TRANCHER : au rang 268 de la graine 2024, la carte
+est « Asset Liquidation », prix imprime 0, rabais annonce 5. LES DEUX AVAIENT
+TORT. La page, de barrer un prix qu'aucun autre ne remplace ; le banc, d'exiger
+ce barre. La page n'ecrit plus que le prix a payer dans ce cas, et le declare
+(`data-prix-remise="nulle"`) ; ce banc l'accepte a cette seule condition — un
+bloc sans `<s>` qui ne le declare pas reste une faute, et un prix a payer non
+nul sans `<s>` aussi. La regle « rien a barrer » ne peut donc pas servir a
+cacher un barre oublie.
+
     python3 verif/prix-barre.py <racine-webapp> [graines...]
 """
 import os
@@ -46,6 +65,8 @@ LECTURE = """() => {
       // Barre pour de vrai ? On lit ce que le navigateur applique.
       barre: plein ? getComputedStyle(plein).textDecorationLine : null,
       balise: plein ? plein.tagName : null,
+      // « La remise ne change rien » : la page le DIT, on ne le devine pas.
+      remise: p.dataset.prixRemise || null,
     });
   }
   return out;
@@ -53,6 +74,10 @@ LECTURE = """() => {
 
 fautes = []
 vus = 0
+# Les remises qui ne changent rien (carte gratuite) : comptees a part, jamais
+# comme des couples — sans quoi un ecran qui n'afficherait QUE des zeros
+# passerait le plancher d'occasions du controle sans avoir rien montre.
+nuls = 0
 
 
 def nombre(txt):
@@ -82,10 +107,28 @@ with serveur(RACINE) as base:
                             f"graine {graine}, rang {rang} ({type_}) : une remise est "
                             "proposee et AUCUN prix n'est affiche")
                     for p in lu["prix"]:
-                        vus += 1
                         if not p["visible"]:
-                            fautes.append(f"graine {graine}, rang {rang} : le couple de "
-                                          "prix est dans la page mais invisible")
+                            fautes.append(f"graine {graine}, rang {rang} : le prix "
+                                          "est dans la page mais invisible")
+                        # RIEN A BARRER — et il faut que ce soit VRAI. Un bloc
+                        # sans `<s>` n'est accepte qu'a deux conditions : la page
+                        # declare que la remise ne change rien, et le prix a
+                        # payer est bien zero. Sans quoi c'est un barre oublie.
+                        if p["remise"] == "nulle":
+                            nuls += 1
+                            if p["plein"] is not None:
+                                fautes.append(
+                                    f"graine {graine}, rang {rang} : la remise est "
+                                    f"declaree nulle et un prix plein est barre tout "
+                                    f"de meme ({p['plein']})")
+                            if nombre(p["paye"]) != 0:
+                                fautes.append(
+                                    f"graine {graine}, rang {rang} : la remise est "
+                                    f"declaree nulle mais le prix a payer vaut "
+                                    f"{p['paye']} — une remise qui ne change rien ne "
+                                    f"se rencontre que sur une carte gratuite")
+                            continue
+                        vus += 1
                         if p["plein"] is None or p["paye"] is None:
                             fautes.append(f"graine {graine}, rang {rang} : couple "
                                           f"incomplet {p}")
@@ -131,7 +174,8 @@ with serveur(RACINE) as base:
             if erreurs:
                 fautes.append(f"graine {graine} : erreurs de console {erreurs[:2]}")
 
-print(f"    {vus} couple(s) de prix vus sur une decision de remise")
+print(f"    {vus} couple(s) de prix vus sur une decision de remise"
+      + (f", et {nuls} remise(s) sans rien a barrer (carte gratuite)" if nuls else ""))
 if vus == 0:
     print("ECHEC : aucune remise rencontree — la mesure n'a pas eu lieu")
     sys.exit(1)

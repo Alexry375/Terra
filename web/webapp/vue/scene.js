@@ -976,23 +976,40 @@ function choix(d, o, i, largeur, etat) {
   // imprimé est `d.carte.prix`, le rabais `o.reduction_mc`. La seule opération
   // est leur différence, qui est la définition même d'une remise. On borne à
   // zéro : le moteur ne fait jamais payer un prix négatif.
+  //
+  // UNE CARTE GRATUITE N'A PAS DE PRIX BARRÉ À MONTRER. Cinq cartes du jeu ont
+  // un prix imprimé de 0 (`data/cards.json` : Asset Liquidation, Local Heat
+  // Trapping, Project Inspection, Synthetic Catastrophe, DummyCard), et le
+  // moteur propose la remise sur elles comme sur les autres. On écrivait alors
+  // « 0 MC » barré à côté de « 0 MC » : deux fois le même nombre, dont un rayé,
+  // pour dire qu'il ne se passe rien. Vu à l'écran, graine 2024, rang 268, sur
+  // « Asset Liquidation ». Barrer un prix, c'est annoncer qu'un AUTRE le
+  // remplace ; quand la remise ne change rien, il n'y a rien à barrer, et l'on
+  // n'écrit que ce que la carte coûtera — zéro. Le bloc le déclare
+  // (`data-prix-remise="nulle"`) pour que `verif/prix-barre.py` distingue « rien
+  // à barrer » de « on a oublié de barrer ».
   const plein = d.carte && typeof d.carte.prix === "number" ? d.carte.prix : null;
   const rabais = typeof o.reduction_mc === "number" ? o.reduction_mc : 0;
   if (plein !== null && rabais > 0) {
+    const paye = Math.max(0, plein - rabais);
     const bloc = document.createElement("span");
     bloc.className = "choix__prix";
-    // `<s>` et non un simple style : ce qui est barré doit l'être aussi pour
-    // qui lit la page autrement qu'avec les yeux.
-    const avant = document.createElement("s");
-    avant.className = "choix__prix--plein";
-    avant.textContent = `${plein} MC`;
-    const apres = document.createElement("b");
-    apres.className = "choix__prix--paye";
-    apres.textContent = `${Math.max(0, plein - rabais)} MC`;
     // Les deux nombres déclarent d'où ils viennent, comme tout nombre de
     // l'écran : de la carte que le moteur nomme dans cette décision.
     bloc.dataset.prixCarte = String(d.carte.nom ?? d.carte.id ?? "");
-    bloc.appendChild(avant);
+    if (paye < plein) {
+      // `<s>` et non un simple style : ce qui est barré doit l'être aussi pour
+      // qui lit la page autrement qu'avec les yeux.
+      const avant = document.createElement("s");
+      avant.className = "choix__prix--plein";
+      avant.textContent = `${plein} MC`;
+      bloc.appendChild(avant);
+    } else {
+      bloc.dataset.prixRemise = "nulle";
+    }
+    const apres = document.createElement("b");
+    apres.className = "choix__prix--paye";
+    apres.textContent = `${paye} MC`;
     bloc.appendChild(apres);
     b.appendChild(bloc);
   }
