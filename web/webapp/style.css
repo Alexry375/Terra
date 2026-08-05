@@ -1074,6 +1074,20 @@ body[data-siege="1"][data-actif="0"] #scene[data-composition="contexte"] .scene_
   box-shadow: 0 0 0 3px var(--braise), 0 10px 24px rgba(0, 0, 0, .6);
 }
 
+/* LIS-11 — LE PRIX D'ORIGINE BARRÉ, ET LE PRIX PAYÉ. Les deux se lisent d'un
+   coup d'œil : le premier éteint et rayé, le second en pleine lumière, dans la
+   couleur que l'écran emploie déjà pour l'argent. Le barré vient de la balise
+   `<s>` ; ces règles ne font que le rendre lisible. */
+.choix__prix {
+  display: flex; align-items: baseline; justify-content: center; gap: 8px;
+  margin-top: 4px; font-family: "TerraChiffre", monospace; line-height: 1;
+}
+.choix__prix--plein {
+  color: var(--os-faible); font-size: 12px;
+  text-decoration-thickness: 1.5px;
+}
+.choix__prix--paye { color: var(--or); font-size: 16px; font-weight: 700; }
+
 /* La barre de validation. */
 .scene__barre {
   display: flex; align-items: center; justify-content: center; gap: 16px;

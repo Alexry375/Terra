@@ -917,6 +917,38 @@ function choix(d, o, i, largeur, etat) {
     b = slabAction(o, mot);
   }
 
+  // LIS-11 — LE PRIX D'ORIGINE, BARRÉ, À CÔTÉ DU PRIX RÉELLEMENT PAYÉ.
+  //
+  // Quand une remise s'applique (`reduction_microbes`, `reduction_plantes`),
+  // l'option ne disait que le RABAIS — « 10 MC off » — et jamais ce qu'on
+  // allait finir par payer. Le joueur devait faire la soustraction de tête,
+  // en retrouvant lui-même le prix imprimé de la carte.
+  //
+  // Les deux nombres viennent du moteur et d'aucun calcul d'écran : le prix
+  // imprimé est `d.carte.prix`, le rabais `o.reduction_mc`. La seule opération
+  // est leur différence, qui est la définition même d'une remise. On borne à
+  // zéro : le moteur ne fait jamais payer un prix négatif.
+  const plein = d.carte && typeof d.carte.prix === "number" ? d.carte.prix : null;
+  const rabais = typeof o.reduction_mc === "number" ? o.reduction_mc : 0;
+  if (plein !== null && rabais > 0) {
+    const bloc = document.createElement("span");
+    bloc.className = "choix__prix";
+    // `<s>` et non un simple style : ce qui est barré doit l'être aussi pour
+    // qui lit la page autrement qu'avec les yeux.
+    const avant = document.createElement("s");
+    avant.className = "choix__prix--plein";
+    avant.textContent = `${plein} MC`;
+    const apres = document.createElement("b");
+    apres.className = "choix__prix--paye";
+    apres.textContent = `${Math.max(0, plein - rabais)} MC`;
+    // Les deux nombres déclarent d'où ils viennent, comme tout nombre de
+    // l'écran : de la carte que le moteur nomme dans cette décision.
+    bloc.dataset.prixCarte = String(d.carte.nom ?? d.carte.id ?? "");
+    bloc.appendChild(avant);
+    bloc.appendChild(apres);
+    b.appendChild(bloc);
+  }
+
   b.dataset.choix = String(i);
   b.style.setProperty("--w", largeur + "px");
   return b;
