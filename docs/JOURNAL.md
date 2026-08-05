@@ -1054,3 +1054,667 @@ bloquante. On lance, on note la question, on la pose au réveil.** Une question
 n'a le droit d'arrêter le travail que si aucune hypothèse ne permet d'avancer.
 
 L'agent de fusion a été lancé le 03-08 au matin, après ce constat.
+
+## 2026-08-03 — La fusion des trois écrans promue, et la vente qui fige la partie
+
+*[Écrit le 05-08 à partir des documents du dépôt : la carte d'état `docs/CTO_STATE.md`,
+les messages d'enregistrement et les rapports des chantiers. Les mentions
+`[VÉRIFIÉ JJ-MM]` sont celles des documents d'origine, où elles signifient « relu à
+la source ou mesuré ce jour-là » ; `[DÉCLARÉ]` signifie « dit par quelqu'un, jamais
+prouvé ». Je n'ai rien re-mesuré moi-même en écrivant ces trois entrées.]*
+
+### La fusion des trois écrans est livrée et promue
+
+L'agent de fusion, lancé le matin après la nuit perdue de la veille, a rendu son
+travail. Vérification : **24 contrôles visibles sur 24, 2 contrôles cachés sur 2**
+— un contrôle caché est une mesure que l'agent chargé du travail ne connaît pas et
+ne peut donc pas viser — et le contrat est intact. Une vérification indépendante
+écrite après coup a comparé la fusion aux trois livraisons d'origine sur les cinq
+fichiers qu'elles se partagent : **zéro ligne de code absente**, seuls des
+commentaires ont été remplacés par des commentaires de couture. [VÉRIFIÉ 03-08]
+
+Promue dans le dépôt (`4de3b6d`), puis rejouée **depuis la racine du dépôt** et non
+depuis le répertoire de travail de l'agent — c'est la leçon coûteuse de la veille :
+graines 2024 et 4242, **191 et 234 décisions**, 36 crans d'arc affichés,
+**0 corporation dans la main**, 0 erreur de console. [VÉRIFIÉ 03-08]
+
+Au passage, un défaut plus ancien est tombé : le contrôle 23 (« un numéro ne désigne
+jamais deux cartes ») était **déjà rouge sur `table-vivante` seul**, la corporation
+« Inventrix » portant le numéro 7 comme la carte projet 7. Alexis avait raison de
+douter que ce fût réglé.
+
+### Trois défauts trouvés après la fusion, deux corrigés
+
+1. **Le réglage qui éteint les animations bloquait la partie. CORRIGÉ.**
+   La feuille de style `style-menu.css` est chargée en dernier : sa règle
+   `animation-duration: 0s !important` écrasait le `1ms` de `style-table.css`, et
+   donc l'avertissement que son auteur avait écrit noir sur blanc — une durée nulle
+   empêche certains navigateurs de signaler la fin de l'animation, et une attente
+   qui n'aboutit jamais fige la partie. Conséquence mesurée : avec `?animations=non`,
+   la question « quelle carte vends-tu ? » ne recevait plus **aucun clic**, alors que
+   les boutons étaient visibles, opaques et cliquables. Remis à `1ms` (`5996c45`).
+   Après correction : **191 décisions en 1600×1000 et en 1280×720**. [VÉRIFIÉ 03-08]
+2. **Jauges illisibles quand elles sont éteintes, et mot « PROVISIONAL » coupé.
+   CORRIGÉS.** Opacité `.38` et luminosité `.62` portées à `.68` et `.88` ; boîte du
+   mot élargie de 56 à 74 points, pour un besoin mesuré d'environ 62 (`5996c45`).
+3. **Les boutons de choix se recouvrent en 1440×810. NON CORRIGÉ.** Cause mesurée :
+   sur la décision « choisir le badge », la bande réservée aux choix ne fait que
+   **1137 × 32 points**. Aucune disposition ne tient ; le cas extrême de `planPlaques`
+   (`vue/scene.js`) serre les boutons à **dix colonnes de 4 points** alors qu'ils en
+   mesurent réellement **55** : six sur dix se recouvrent et le jeu se bloque.
+   `.scene__choix` a `min-height: 0`, donc rien n'empêche l'écrasement. Ne se produit
+   ni en 1600×1000 ni en 1280×720. [VÉRIFIÉ 03-08]
+
+### Mes vingt-quatre contrôles étaient verts et le jeu était bloqué
+
+C'est le fait de méthode de la journée. Les 24 contrôles passaient alors que deux
+décisions étaient injouables. La raison : **un contrôle qui n'arrive pas à répondre
+à une décision s'arrête sans crier** — il termine, et sa fin ressemble à un succès.
+
+Règle écrite pour tous les contrats à venir : tout contrôle qui échoue à répondre à
+une décision doit échouer bruyamment, **en nommant la question qui l'a bloqué**.
+Second angle mort du même jour : mes contrôles cachés cherchaient les lignes
+*supprimées* par la fusion ; ils étaient donc structurellement incapables de voir
+deux lignes présentes toutes les deux, dont l'une annule l'autre — ce qui était
+exactement le défaut du réglage des animations.
+
+### La vente choisie, premier tour : partiel, rien n'a été promu
+
+Alexis avait demandé, mot pour mot, qu'on ne puisse pas acheter une carte tant qu'on
+n'a pas fait le choix de vendre, avec un bouton de vente dans toutes les phases où
+l'on dépense, et un contour vert qui apparaisse en direct sur les cartes devenues
+achetables.
+
+Vérification : **5 contrôles visibles sur 5, 1 contrôle caché sur 2**, contrat
+intact, verdict enregistré `partial`. **Rien n'est entré dans le dépôt.**
+[VÉRIFIÉ 03-08]
+
+**Le défaut bloquant, reproduit quatre fois** : graine 2024, fenêtre 1600×1000,
+siège 0, dixième point de décision. On ouvre la vente, on désigne une carte, on
+valide : le mode de vente ne retombe pas, la marque reste, la main garde ses 8
+cartes, et la décision suivante n'arrive **jamais**. La partie est figée
+définitivement, quelle que soit la carte choisie. Le neuvième point de décision
+passe, le seizième aussi. [VÉRIFIÉ 03-08]
+
+Cause identifiée : `flow.rs:2186` publie l'état sans avoir ouvert d'occasion de
+vendre au-dessus. Or le drapeau `vente_offerte` n'est écrit que par l'ouverture
+d'une occasion : il garde donc la valeur du point précédent (vrai), l'écran offre le
+bouton, la page enregistre une réponse de vente, et le rejeu ne rencontre jamais
+d'occasion pour la consommer.
+
+Ce qui est bon dans ce travail et ne doit pas être refait : le calcul de payabilité
+qui ne compte plus la vente de la main d'avance, et son effet mesuré — le compteur
+des ventes imposées d'office passe de **20 939 sur 1 000 parties à zéro**.
+
+**Ma faiblesse de méthode, reconnue.** Mes contrôles visibles vendaient à des points
+de décision choisis par une formule, environ **un sur sept**, et sont passés à côté
+du blocage. Deuxième fois en deux jours qu'un contrôle prouve moins qu'il n'en a
+l'air : ici, seul un balayage de **tous** les points de décision vaut quelque chose.
+
+### Second tour scellé le soir, avec trois défauts mesurés en plus
+
+Le blocage du premier tour était déjà mort : l'agent avait retravaillé après ma
+vérification sans le consigner nulle part (`flow.rs` à 16 h 27, pont reconstruit à
+16 h 29). Le mécanisme est maintenant infaillible par construction : ouvrir une
+occasion **arme** un drapeau, publier l'état le **consomme**, donc un point de
+décision qui n'a pas reçu son occasion publie forcément « non ». [VÉRIFIÉ 03-08]
+
+Nouvelle vérification du soir : **4 contrôles visibles sur 5, 1 caché sur 2**, et
+trois défauts, tous mesurés.
+
+- **A — un test du moteur mesure au mauvais moment.** `lot3_tests.rs:604` lit le
+  drapeau juste après l'ouverture de l'occasion, donc avant la publication. Ce n'est
+  pas une régression du jeu : c'est la mesure qui est restée en arrière du correctif.
+- **B — des cartes de la main sont invendables en petite fenêtre.** **183 occasions**
+  mesurées sur trois tailles : **57** comportent au moins une carte dont le centre ne
+  reçoit pas le clic, **toutes en 1280×720**, zéro en 1600×1000 et en 1920×1080.
+  Toujours les premières cartes, recouvertes par leur voisine de droite : une main de
+  8 cartes en cache 1, une main de 13 en cache 3. [VÉRIFIÉ 03-08]
+- **C — la main recouvre le bouton qui conclut, et la partie se bloque.** Graine 2024,
+  1600×1000, soixante-dixième point de décision, phase III, main de **11 cartes** : le
+  bouton de validation est recouvert par une image de carte, puis blocage définitif
+  sans un mot. Les mêmes gestes passent aux points 10, 35 et 55, sur des mains de 8, 9
+  et 10 cartes. Désigner une carte déplace en outre les boutons de **38 points** vers
+  la gauche, ce qui aggrave le recouvrement. [VÉRIFIÉ 03-08]
+
+B et C sont la même faute : la disposition ne réserve pas la place, alors que le code
+porte déjà la règle « les choix ne se recouvrent jamais ». Le second tour a été scellé
+avec un sixième contrôle visible (quatre tailles de fenêtre, chaque carte désignable,
+les deux boutons atteignables avant **et** après désignation) et un troisième contrôle
+caché (six tailles dont **aucune n'est nommée au contrat**, plus une mesure de
+recouvrement purement géométrique, qui ne dépend d'aucun clic).
+
+**Mes trois réserves avant promotion étaient infondées — mon erreur.** La dépendance
+recopiée est déjà dans le dépôt et identique au bit près ; le dossier `verif/` est la
+convention du dépôt, dix-sept outils y vivent ; les fichiers produits par la
+compilation sont déjà exclus par une règle existante.
+
+### Ce que j'en retiens
+
+Un contrôle qui s'arrête en silence quand il ne sait pas répondre vaut moins que pas
+de contrôle du tout, parce qu'il rend un vert. Deux fois en deux jours, mes mesures
+ont échantillonné là où il fallait balayer : un point de décision sur sept, une
+fenêtre sur trois. Et ma première mesure du défaut C ouvrait la vente puis y
+renonçait, donc ne voyait rien — un geste doit être mesuré jusqu'à son terme, sans
+quoi on conclut à l'absence de défaut alors qu'on a seulement évité de le rencontrer.
+
+## 2026-08-04 — Deux chantiers promus, huit points de la liste d'Alexis, et cinq de mes contrôles faux la même nuit
+
+### La nuit : la liste dictée à cinq heures du matin
+
+Alexis a dicté sa liste vers 05 h 00 et m'a laissé en autonomie jusqu'au matin. Ce
+qui suit a été fait **et** mesuré.
+
+- **Les jauges** [VÉRIFIÉ 04-08]. La température avait déjà ses vingt crans justes
+  (6 violets, 5 rouges, 5 jaunes, 4 blancs) ; l'oxygène n'en avait que **quatorze** —
+  la case 0 % était sautée, d'où deux crans violets au lieu de trois. Rétablie. Les
+  frontières sont désormais lues dans le moteur (`engine/src/effects.rs:26-36`) et non
+  déduites d'une photo, ce qui compte : une condition de carte se teste par la
+  **couleur atteinte** (`flow.rs:1462-1471`), pas par le numéro de case. Réponse à la
+  question qu'Alexis posait lui-même : oui, les conditions se débloquent aux bons
+  moments, il n'y a rien à changer aux règles.
+- **La pose de carte** [VÉRIFIÉ 04-08]. Deux plaintes anciennes, une seule cause dans
+  `vue/geste.js` : la pose était un déplacement unique qui s'achevait incliné
+  au-dessus de la table, puis la copie était retirée d'un coup et la petite carte
+  surgissait ailleurs. Il y a deux temps maintenant. Mesure image par image, toutes les
+  50 millisecondes : **16 gestes, 10 se posent à moins de 8 points de leur
+  emplacement, 6 n'ont aucun emplacement** (carte rouge défaussée) et s'effacent sur
+  place. Zéro raté.
+- **La production se voit** [VÉRIFIÉ 04-08]. Un « +X » monte du compteur pendant
+  1 900 millisecondes. Rien n'est recalculé : on compare l'état d'avant et l'état
+  d'après. **1 027 affichages relevés sur une partie entière, zéro de hauteur nulle.**
+- **Les cartes Phase améliorées** [VÉRIFIÉ 04-08]. L'écran demandait toujours l'image
+  de la carte de base sans jamais regarder les améliorations possédées.
+  **248 choix montrent désormais une carte améliorée** — c'était structurellement zéro
+  —, 638 cartes posées, **zéro désaccord** entre ce que le bouton annonce et l'image
+  qu'il porte, sur 414 écrans et deux parties.
+- **Le paquet** [VÉRIFIÉ 04-08]. Le bandeau écrit ce qui reste à piocher et ce qui
+  attend dans la défausse ; le moteur les publiait déjà, rien ne les affichait.
+  Mesuré : pioche **246 → 26**, défausse **0 → 172**.
+- **Les objectifs et récompenses** s'agrandissent au survol : **29 → 151 points** de
+  côté, facteur 5,2, sans être rognés. La mention obligatoire « Mars surface · NASA /
+  JPL / University of Arizona » quitte le bandeau et **reste sur l'écran d'accueil** :
+  la condition d'usage de l'image tient toujours, c'est sa place qui a changé.
+- **La mise en page qui bloquait** [VÉRIFIÉ 04-08], chantier délégué. Quatre tailles
+  de fenêtre sur quatorze figeaient la partie. **Trois causes, et mon contrat n'en
+  avait deviné qu'une** : pas de hauteur minimale pour la bande des choix, un bouton
+  de badge taillé comme une carte alors qu'il se pose comme une plaque (4 points de
+  large, c'est la cause directe du blocage et elle était absente de mon diagnostic),
+  et la scène mesurée sur une marge périmée. Après fusion : partie entière en
+  1920×1080 **et** en 1440×810, mêmes scores, 0 erreur.
+
+**Mon erreur de contrat, à ne pas refaire.** Deux des cinq contrôles de ce chantier
+sont restés rouges à cause d'une contradiction que j'avais écrite moi-même : ils
+plafonnent la partie à 90 et 80 décisions et comptent le plafond atteint comme un
+blocage, alors qu'une partie en demande **181 à 233** — et que mon propre contrôle 01
+en exige au moins 120. « Finie en 90 » et « au moins 120 » ne peuvent pas être vrais
+ensemble. L'agent l'a **déclaré** au lieu de le contourner, ce qui est exactement le
+comportement voulu.
+
+**Un défaut supposé qui n'en était pas** [VÉRIFIÉ 04-08] : « la production améliorée
+ne demande pas quelle carte doubler ». La question existe et le moteur la pose
+(`flow.rs:4324`) ; elle est simplement rare — **2 occasions sur cinq parties
+entières, soit 1 047 décisions**.
+
+**Les tuiles Océan** [VÉRIFIÉ 04-08], chantier délégué. Le retournement se voit, et
+surtout le joueur **désigne l'emplacement** : sans réponse de sa part, la première
+tuile libre se retourne au bout de 2,6 secondes. Mesures du chantier, non re-mesurées
+par moi : 6 parties entières, 0 erreur, **3 564 tuiles encore cachées inspectées sans
+une seule fuite d'information**, 22 choix saisis dont 22 sur un autre emplacement que
+celui du minuteur, **3 868 survols de tuile retournée dont 0 sur le dos**. Compromis
+déclaré et assumé : avec `?animations=non`, la fenêtre de choix vaut zéro et le joueur
+ne choisit plus — c'est ce qui garde tous les contrôles automatiques verts. Alexis,
+lui, joue avec les animations.
+
+**La révélation de trois cartes** [VÉRIFIÉ 04-08], chantier délégué en répertoire
+isolé, moteur compris. Le défaut : trois cartes étaient tirées mais seules les
+prenables présentées, et **aucune décision n'était posée du tout** quand aucune
+n'était bleue ou rouge. Mesuré par moi après fusion : **830 tests du moteur, 830
+verts** ; cinq parties entières ; **13 révélations vues, 33 cartes montrées dont 19
+non prenables**. Aucune règle ne change.
+
+**Un défaut que 3 780 écrans sondés n'avaient pas vu** [VÉRIFIÉ 04-08] : sur la
+décision des dix badges, l'écran écrivait « Buildin / g (you have 0) », le mot coupé
+en deux au milieu. Deux causes empilées : une règle de coupure qui casse n'importe où,
+et une taille de texte liée à la seule hauteur de la plaque. **C'est une capture
+regardée à l'œil qui l'a trouvé, pas une mesure.** Mes contrôles mesurent des
+rectangles, pas de la lisibilité.
+
+### Jouer à deux, chacun chez soi : promu
+
+Commit `f993116`, prêt pour la partie de 9 h 30. Deux personnes, deux ordinateurs, une
+partie ; l'autre joueur n'installe rien et ouvre un simple lien. Un point de rendez-vous
+(`web/webapp/relais/serveur.js`) sert la page et tient la liste ordonnée des décisions,
+**sans aucune dépendance extérieure** ; une seule ligne a été ajoutée dans
+`interface.js`. Le serveur porte la graine, donc le lien ne la transporte pas : deux
+liens recopiés à un chiffre près ne peuvent pas donner deux parties différentes.
+[VÉRIFIÉ 04-08]
+
+Vérification : **5 contrôles visibles sur 5 et le contrôle caché** (deux navigateurs
+séparés, le second joueur arrivant vingt secondes après le premier). Territoire
+respecté au fichier près. **Mesure que j'ai ajoutée et que le chantier n'avait pas
+faite** : une partie **entière à travers l'adresse publique** — 311 décisions, scores
+`[42, 61]` identiques des deux côtés, puis le passage extérieur coupé et vérifié
+fermé. Puis rejouée depuis le dépôt promu : 442 décisions, `[59, 54]` des deux côtés.
+[VÉRIFIÉ 04-08]
+
+Deux défauts bloquants ont été trouvés par la relecture que l'agent a faite contre son
+propre travail, et que mes cinq contrôles laissaient passer : le retour au menu
+greffait une partie neuve sur le canal de l'ancienne, et une réponse venue d'un tiers
+était adoptée à la place du clic du joueur. [DÉCLARÉ — corrigés, non re-mesurés par moi]
+
+Deux réserves honnêtes : le nom d'hôte public se résout localement sur cette machine,
+donc le chemin réel par internet depuis un autre réseau n'est **pas** prouvé ; et ce
+mode **n'empêche pas la triche**, puisque chaque navigateur fait tourner le moteur
+entier et que les cartes de l'adversaire y sont techniquement lisibles.
+
+### La vente choisie, second tour : promu
+
+Commit `66e64fc`. **5 contrôles visibles sur 6, 3 cachés sur 3** — dont celui qui
+mesure le recouvrement des zones sur six tailles de fenêtre jamais nommées au contrat,
+et qui était rouge avant ce tour. [VÉRIFIÉ 04-08]
+
+**L'unique échec est mon propre garde-fou, et je l'ai vérifié impossible à calibrer.**
+Mon contrôle 06 conclut la vente à chaque occasion ; or chaque vente retire une carte,
+donc la main ne peut jamais atteindre les douze cartes qu'il exige de voir. Mesure
+rejouée par moi : **147 occasions, 147 ventes menées à terme, zéro faute sur ce qu'il
+mesure**. Je l'avais calibré sur une mesure antérieure où l'on ouvrait la vente puis y
+renonçait. Trou comblé par une mesure à moi : **376 occasions, 3 006 cartes toutes
+désignables, 55 ventes conclues sur des mains de 10 à 12 cartes, aucun bouton
+recouvert**. [VÉRIFIÉ 04-08]
+
+Ce que l'agent a corrigé : la vraie cause des défauts B et C n'était pas celle que
+j'avais nommée. Les cartes n'ont jamais été resserrées ; une règle de style perdait
+son duel de priorité contre `.carte { margin: 0 }`, la rangée débordait sa zone et
+glissait sous le panneau. [DÉCLARÉ — le résultat est couvert par les contrôles cachés]
+
+À noter, et étranger à ce chantier : le blocage en 1440×810 se reproduit avec un
+témoin qui n'ouvre **jamais** la vente. C'est bien le défaut de disposition des boutons
+de choix trouvé la veille, toujours au catalogue et toujours non confié. [VÉRIFIÉ 04-08]
+
+### Le croisement des deux chantiers, et un défaut qu'aucun contrat ne pouvait voir
+
+`interface.js` était modifié par les deux chantiers : j'avais cru leurs territoires
+disjoints, ils ne l'étaient pas. Fusion à trois sans conflit, puis les deux chantiers
+rejoués sur le dépôt : mode en ligne 456 décisions, scores identiques des deux côtés ;
+vente 423 occasions, 3 753 cartes désignables, mains jusqu'à 13. [VÉRIFIÉ 04-08]
+
+Mais le croisement lui-même révèle un défaut que ni l'un ni l'autre contrat ne pouvait
+voir, parce qu'il n'existe qu'à l'intersection : **vendre pendant une partie à
+distance**. Sur 63 tentatives, **31 aboutissent et 32 restent en attente au-delà de dix
+secondes** ; la partie va au bout et les deux écrans restent d'accord (523 décisions,
+scores identiques), donc ce n'est pas un blocage.
+
+**Mon explication était fausse, et la mesure l'a réfutée.** J'avais écrit — et dit à
+Alexis — que la vente attendait le tour de l'adversaire puis se concluait. La mesure
+des délais montre l'inverse : c'est tout ou rien. **Neuf ventes aboutissent en 0,1 à
+0,2 seconde, onze sont encore ouvertes après trente secondes, aucune entre les deux.**
+Il n'existe donc aucune attente intermédiaire, donc aucune file d'attente : il se passe
+autre chose, et je ne sais pas encore quoi. [VÉRIFIÉ 04-08]
+
+### La partie rejouée après les fusions
+
+C'est la mesure qui compte, celle de la configuration réelle d'Alexis, en 1920×1080 :
+**420 décisions**, scores `[66, 53]` **identiques dans les deux navigateurs**, 0 erreur
+de code des deux côtés, **0 chargement extérieur** — donc aucun visuel de carte ne sort
+de la machine —, **9 tuiles Océan retournées** vues pareillement par les deux joueurs,
+et le compteur de paquet affichant **174** des deux côtés. Les deux écrans racontent la
+même partie, chiffre pour chiffre. [VÉRIFIÉ 04-08, 08 h 30]
+
+### La nuit du 04 au 05 : le lot moteur fusionné, et cinq de mes contrôles faux
+
+Le premier lot de corrections du moteur est entré dans le dépôt (`ff40503`, `2a87274`) :
+la question de pose se pose désormais **même quand aucune carte n'est payable**, avec sa
+propre phrase au lieu d'un écran muet, ce qui rend la vente possible dans ce cas ;
+vendre ne consomme plus une activation de la phase Action ; la phrase qui explique
+l'arrêt d'une phase est publiée par le moteur au lieu d'être devinée par l'écran ; et la
+défausse est publiée carte par carte, du dessus vers le dessous, avec nom, couleur et
+prix. Vingt-cinq séries de tests passent. Les empreintes des parties de référence — la
+signature courte d'une partie entière rejouée, qui sert à détecter tout changement
+involontaire — ont été refixées à `bf70799ff3fee1d8`, ce qui est légitime : les points
+de décision ont bougé, les parties enregistrées avant ne sont plus rejouables.
+
+Deux chantiers d'écran ont été fusionnés dans la foulée : dix points d'affichage
+(`9be9902`, dont 9 points sur 11 livrés) et le choix de phase simultané et face cachée
+en mode à distance (`853a85b`, garde-fou vert sur 311 réponses avec deux navigateurs).
+En écrivant les contrôles de ce dernier, une fuite d'information a été découverte : le
+point de rendez-vous publie la réponse d'un joueur dès qu'elle arrive, sans conséquence
+tant que les choix sont l'un après l'autre — mais **dès que les deux choisiront en même
+temps, le second pourrait lire le choix du premier**. C'est devenu une exigence
+explicite du contrat, avec son propre contrôle.
+
+**Deux bancs de vérification du dépôt ne gardent rien** [VÉRIFIÉ 05-08]. Celui qui
+traque l'anglais refuse « phase », « corporation » et « temperature », des mots écrits
+pareil dans les deux langues : il rend **3 531 fautes sur un dépôt intact**,
+inutilisable. Celui qui vérifie les importations annonce **« 0 module, 0 importation
+vérifiée » en vert** parce qu'il cherche dans un dossier qui n'existe plus — un faux
+vert, le pire des cas. Les deux ont été retirés des garde-fous, avec la raison écrite
+dans les fichiers eux-mêmes.
+
+**Un défaut trouvé par la machine, que personne n'avait signalé** : un banc compare, à
+chaque décision, les cartes que l'écran entoure de vert et celles que le moteur accepte
+réellement. Il relève **cinq désaccords par partie**, tous dans le même sens — des
+cartes entourées de vert que le moteur refuse. Ce n'est pas une régression du lot
+moteur : mesuré identique avant la fusion. Le contour trompeur ne se remarque qu'en
+essayant de jouer la carte, ce qui explique que ni Alexis ni Corentin ne l'aient vu.
+[VÉRIFIÉ 05-08]
+
+**Cinq contrôles écrits par moi ont rendu un verdict faux la même nuit.** C'est le fait
+le plus important de la journée, davantage que les chantiers.
+
+| Contrôle | Verdict rendu | Ce qui n'allait pas |
+|---|---|---|
+| ordre de la pile de défausse | vert sur une copie sabotée exprès | mesurait sur une pile parfois réduite à une seule carte |
+| contenu de la défausse | rouge impossible à lever | comparait un objet-carte à un simple identifiant |
+| repère des jauges (caché) | vert sur n'importe quoi, puis rouge sur du juste, puis vert sur du saboté | mesurait la luminosité d'un voisinage de 24 points où la partie sombre de la jauge fournissait toujours des pixels sombres |
+| vente devant une défausse imposée | vert | avalait le refus du moteur et comptait la tentative pour une réussite |
+| garde-fou du moteur | rouge | comptait les séries de tests sur une sortie tronquée |
+
+**Le motif commun n'est pas l'inattention, c'est la mise en place.** Aucun des cinq ne
+se trompait sur ce qu'il fallait vérifier ; tous se trompaient sur les conditions dans
+lesquelles la mesure a lieu — une pile trop courte, une position unique, un refus
+avalé, une sortie coupée. Le contrôle du repère des jauges a été resserré au cœur du
+repère, rayon 3 points ; celui de l'ordre de la pile exige maintenant au moins trois
+cartes, et il a été éprouvé **dans les deux sens** : vert sur la livraison, rouge sur
+une copie volontairement abîmée.
+
+**Un agent tué par le chien de garde du harnais** — le mécanisme qui arrête un agent
+resté 600 secondes sans donner signe de vie — après avoir rendu trois contrôles verts
+**sans rien avoir enregistré**. Rien n'a été perdu, sa copie de travail était intacte,
+mais la leçon vaut pour tous les contrats : enregistrer chaque point dès qu'il est vert,
+et ne jamais laisser une partie entière tourner au premier plan.
+
+### Ce que j'en retiens
+
+Un défaut vit souvent à l'intersection de deux chantiers, là où aucun des deux contrats
+ne regarde : c'est le croisement de la vente et du jeu à distance qui l'a montré, et
+c'est un argument pour rejouer systématiquement les deux chantiers l'un contre l'autre
+après fusion. Cinq verdicts faux la même nuit, tous pour la même raison — les
+conditions de la mesure, jamais l'intention — m'obligent à une règle nouvelle : un
+contrôle doit d'abord prouver que la mesure a eu lieu, en comptant les occasions
+observées, avant de se permettre de juger. Enfin, le mot coupé en deux qu'aucun des
+3 780 écrans sondés n'avait vu rappelle qu'une mesure de rectangles ne mesure pas la
+lisibilité, et qu'un œil humain reste indispensable.
+
+## 2026-08-05 — Trois lots fusionnés, et la moitié de la liste des défauts ne disait plus la vérité
+
+### Le lot « les choix se posent au bon moment »
+
+Fusionné dans `main` (`c071409`) après vérification complète par moi. Trois défauts qui
+déplacent tous des points de décision, partis ensemble pour ne refixer les empreintes
+des parties de référence qu'**une seule fois** — c'est vérifié enregistrement par
+enregistrement : seul le dernier change une empreinte, et il ne fait que cela.
+Empreintes `bf70799ff3fee1d8` → `8e4ec5b0296470e6`, aux trois endroits. J'ai aussi
+reconstruit le moteur compilé pour le navigateur et **comparé le fichier octet à
+octet** : ce que le navigateur exécute est bien ce que le code livré produit.
+
+| Point | Avant | Après, rejoué par moi |
+|---|---|---|
+| actions de carte sans effet possible, toujours proposées | 2 133 options, **340 stériles** | 1 419 options, **0 stérile** |
+| bonus de la phase Construction tranché trop tôt | 70 questions, **0** après une pose, 1 liste | 108 questions, **17** après une pose, 2 listes |
+| badge « ? » demandé pour une carte impayable | 18 questions, **10** inutiles | 10 questions, **0** inutile |
+| garde-fou | 25 séries de tests | **26 séries**, 2 102 pas sur 5 parties entières |
+
+La fiche du premier point le disait beaucoup plus étroit qu'il ne l'était : la mesure
+préalable l'a trouvé **seize fois plus large qu'écrit**, 340 activations stériles sur
+2 133 options essayées. [VÉRIFIÉ 05-08]
+
+**Une décision de règles attend Alexis.** Mon contrat se contredisait, et l'agent l'a
+mesuré au lieu de le supposer : le titre disait « une carte que le joueur peut de toute
+façon payer », la puce disait « juge au badge le plus favorable ». Les deux ne désignent
+pas le même ensemble de cartes. L'agent a retenu la lecture stricte et en écrit le coût
+sans le cacher : une carte payable **seulement sous certains badges** ne reçoit plus de
+question, donc plus de jeton, donc est jugée plein tarif et n'est pas offerte — le joueur
+perd ce coup-là pour ce tour. L'autre lecture lui rend le coup mais rouvre la question
+inutile, et un jeton posé **reste sur la carte pour toute la partie**, donc un mauvais
+badge la dégrade définitivement. Cela se renverse en un mot, `all` → `any`,
+`engine/src/flow.rs:628`.
+
+**Mes deux contrôles cachés ont rendu deux échecs, et les deux étaient de moi.** Sixième
+et septième fois que je constate le même genre de défaut : ils vérifiaient une **forme**
+attendue plutôt que la **propriété** voulue. Le premier cherchait un appel écrit noir sur
+blanc à une fonction précise dans les lignes ajoutées ; l'agent a fait mieux que ce que
+je demandais, en extrayant le jugement commun dans une fonction unique appelée par les
+deux lecteurs (`flow.rs:629` et `:2160`) — ils ne peuvent donc plus juger la même carte
+différemment, ce qui **était** le défaut. Le second exigeait qu'un seul enregistrement
+touche le dossier des tests, alors que la propriété voulue était qu'un seul **refixe les
+empreintes** ; ajouter un banc de tests à chaque point est une bonne pratique, pas une
+infraction.
+
+**Deux défauts trouvés par la relecture adversariale de l'agent, pas par mes contrôles.**
+Le badge pouvait encore être demandé au moment de la pose — ce que le contrat interdit —
+parce que la vente enrichissait le joueur entre la résolution et l'énumération.
+Reproduit avant d'être corrigé : **4 cas sur 263 offres, en 300 parties, avec une
+politique de jeu qui vend à chaque occasion**. **Mes contrôles ne vendent jamais** :
+c'est précisément pourquoi leurs chiffres sont identiques avant et après ce correctif-là.
+
+L'enquête a aussi appris que la fiche se trompait sur un point : la carte améliorée II-A
+n'a qu'une seule branche et ne pose aucune question ; seule II-B était concernée.
+
+### Le lot « les cartes qui bougent et la défausse »
+
+Fusionné dans `main` (`cfec28a`). C'était le plus gros manque de confort restant : les
+nombres changeaient à l'écran, et rien ne bougeait.
+
+| Ce qui manquait | Au scellement | Après, rejoué par moi |
+|---|---|---|
+| les actions ne se voient pas | 199 événements, **95 muets** | 199 événements, **0 muet** |
+| la défausse ne se voit pas | **aucune carte** jamais montrée | 49 dessus relevés, **0 caché**, fenêtre de 152 cartes dans le bon ordre |
+| le début de phase ne se voit pas | 57 débuts, **32 muets** | 57 débuts, **0 muet** |
+| le « +3 » de la défausse passe trop vite | le plus court durait **6 millisecondes** | le plus court dure **3 392 millisecondes** |
+| garde-fou | vert | vert — 26 séries, 2 102 pas, 414 décisions à l'écran |
+
+Aucune règle du jeu n'a changé et toutes les parties enregistrées restent rejouables :
+pas une ligne du moteur n'a été touchée. C'était la propriété qui faisait la cohérence du
+lot, et elle est vérifiée. Vérifié aussi à la source, parce que c'est ce qui empêche le
+défaut de revenir : il n'existe qu'**une seule** fabrique qui pose un objet dans la
+couche des déplacements (`vue/anim.js:195`), et la fenêtre de défausse lit l'état publié
+sans le trier ni le renverser (`vue/defausse.js:151`) — une liste tenue par la page
+divergerait au premier remélange.
+
+**Au scellement, j'ai retiré un demi-banc de mesure plutôt que de le garder muet** : il
+comptait **zéro changement de tour sur 242 décisions**, donc il ne mesurait rien du tout.
+
+**Mon contrôle caché s'est encore trompé deux fois**, troisième et quatrième fois de la
+nuit, toujours le même genre : une forme vérifiée à la place d'une propriété.
+
+1. « Un objet en déplacement sur 457 ne parcourt pas 12 points d'écran. » C'était une
+   carte attrapée puis relâchée sur place — un geste annulé, où rien ne **doit** bouger.
+   Le même cas unique existait avant le chantier.
+2. « La fenêtre montre 152 cartes, le moteur en publie 144. » Ma partie de référence
+   jouait **466 décisions** là où l'écran en jouait **172** : je comparais **deux parties
+   différentes**. Et la défausse n'est pas une pile qui ne fait que grandir, puisque le
+   remélange la reverse dans la pioche — donc même le sens de l'écart ne prouvait rien.
+
+**Sept défauts trouvés par la relecture que l'agent a menée contre son propre travail.**
+Le plus grave aurait été invisible dans un contrôle : le porte-cartes ajouté à droite
+**recouvrait la planche des Océans**. En fenêtre de 1 100 sur 620 — la plus petite du
+contrat — il débordait de 73 points par-dessus elle : **quatre tuiles sur neuf** ne
+recevaient plus le clic, et désigner un emplacement devenait impossible. Aucune limite de
+hauteur ne pouvait convenir, la planche ayant besoin de toute sa colonne à cette taille ;
+le porte-cartes cède donc la place pendant les deux secondes et demie du choix, tout en
+gardant son emplacement pour que les déplacements de pioche et de défausse continuent
+d'arriver au bon endroit. Le correctif est gardé par un banc neuf, éprouvé dans les deux
+sens : vert sur la livraison, **rouge dès qu'on retire la règle de cession** (12 tuiles
+hors d'atteinte, et il nomme le coupable).
+
+Le plus sournois : avec l'option « voir la défausse » **éteinte**, la pile ne montrait
+plus rien, mais la carte qui s'en allait traversait l'écran **face découverte**, à chaque
+défausse. « On ne voit pas ce que l'adversaire a jeté » était donc vrai à l'arrêt et faux
+en mouvement. Autre effet de bord : allonger le « +N » à 3 400 millisecondes avait rendu
+grave un défaut préexistant — au rechargement d'une page, les 132 gains d'une partie
+renaissaient en moins d'une demi-seconde, s'empilaient et restaient figés ; ils se taisent
+maintenant pendant le rattrapage, et l'empilement est plafonné à six.
+
+Et un trou dans ma propre couverture, signalé par l'agent : mon banc avait recopié la
+liste du contrôle 01 au lieu de celle de la demande, et la sixième famille d'événements —
+le gain de ressources sur une carte — **n'était mesurée par personne**. Le code la
+traitait ; la mesure manquait.
+
+**Deux réserves déclarées par l'agent, et elles sont justes** : mon contrôle 03 joue 242
+décisions animées et prend 149 secondes contre un plafond de 120, mais il prenait déjà
+**139,65 secondes sur le dépôt d'avant le chantier** — c'est mon chronomètre qui est trop
+serré, pas sa livraison. Et le **siège 1 n'est éprouvé par aucun banc du dépôt**, ni les
+siens ni ceux qui existaient : le code est symétrique, mais la mesure n'existe pas.
+
+### Le lot « ce que le moteur ne dit pas »
+
+Trois nombres que le moteur connaissait et ne disait à personne (`ef07d3a`) : le revenu
+réel de la prochaine phase Production, le badge choisi pour une carte à badge « ? » —
+visible par les deux joueurs sur la carte posée — et ce que les ressources déjà posées
+rapportent en points. Aucune règle ne change et aucune partie enregistrée ne cesse d'être
+rejouable : aucun fichier de test touché, aucune empreinte déplacée, les vingt-cinq
+séries passent.
+
+Les trois nombres viennent du **service unique** du moteur : aucun barème de carte n'est
+recopié à l'écran, et le contrôle caché qui vérifie ce point précis est vert. C'est
+l'exigence la plus importante du lot — deux calculs qui disent la même chose aujourd'hui
+divergent le jour où une carte change.
+
+**Un sixième contrôle faux, avec trois erreurs dans le même.** Mon contrôle de la
+production a signalé **81 écarts qui n'en étaient pas**. Trois erreurs distinctes, toutes
+du même genre que les cinq de la veille — la mesure était bonne, les **conditions** de la
+mesure étaient fausses. Il ignorait le bonus du joueur qui choisit la phase Production,
+que mon propre contrat demandait pourtant d'exclure ; il retenait des intervalles
+commençant pendant la phase d'Action, où une action déplace de l'argent, si bien que les
+deux sommes se mélangeaient ; et il lisait la phase choisie **sur l'état d'avant**, qui
+porte encore le choix de la manche précédente, attribuant donc le bonus au mauvais joueur
+**27 fois**. Un quatrième défaut m'a été signalé par l'agent, à raison : mon filtre
+exigeait la main inchangée, ce qui écartait d'office tout joueur produisant des cartes.
+Le contrôle réparé est éprouvé dans les deux sens — vert sur la livraison (190
+encaissements mesurés, 190 justes), rouge sur un sabotage « un mégacrédit de moins »
+(190 sur 190 attrapés), rouge sur une reconstitution du vrai défaut (59 sur 190 attrapés,
+exactement les cas à production dérivée).
+
+**Un banc d'écran était rouge par défaut, donc jamais relancé** : ses graines de départ
+ne posaient **aucune** carte à badge « ? », il ne pouvait donc rien mesurer. Graines
+changées, il rend maintenant 1 047 décisions, 725 jetons de badge vus et 246 lectures du
+revenu réel dont 75 au-dessus du repère de base. [VÉRIFIÉ 05-08]
+
+**Ce que l'enquête a appris sur le jeu lui-même** : le bonus du joueur qui choisit la
+phase Production n'a pas un montant mais **trois**, selon la carte Phase IV détenue —
+**+4** avec la carte de base, **+1** avec la version améliorée IV-A (plus le rejeu de la
+production d'une carte verte), **+7** avec IV-B. Vérifié à la sonde et fermé par lecture
+exhaustive : la phase Production n'a que deux endroits qui versent des mégacrédits. Cela
+comptera pour l'intelligence artificielle à venir.
+
+**Une honnêteté à consigner** : l'agent est mort trois fois — deux coupures de liaison,
+une fois le chien de garde du harnais — et **chaque fois avec du travail terminé et rien
+d'enregistré**, malgré la consigne écrite. J'ai sauvé son travail à la main les trois
+fois. La consigne « enregistre chaque point » ne suffit pas : il faut la répéter à chaque
+relance.
+
+### Un rapport de livraison qui disait vrai à moitié
+
+Le chantier d'affichage avait annoncé, sur les pastilles de ressources posées sur les
+cartes : « 330 pastilles sur 203 décisions, aucune recouverte ». Mesure refaite par moi
+**avec la commande exacte de son propre rapport** : **18 pastilles recouvertes sur 330**,
+aux décisions 174, 209 et 237. Fait **des deux côtés** — dans sa copie de travail et sur
+`main` après fusion — avec des chiffres identiques : ce n'est ni la fusion, ni la taille
+de la fenêtre, ni un aléa. Le plus probable est qu'il a mesuré, puis modifié son réglage
+d'échelle, et n'a pas rejoué. **Mes contrôles scellés ne couvraient pas ce point** —
+c'est pour cela que la vérification automatique était au vert. Un contrôle absent ne dit
+pas « c'est bon », il ne dit rien. La fiche est rouverte avec sa mesure. [VÉRIFIÉ 05-08]
+
+### Un défaut élucidé : l'écran ne ment pas, il se tait
+
+Un jeton de badge apparaissait sur une carte alors qu'aucune question n'avait été posée.
+Chaîne de code relue par moi : le badge est bien choisi par quelqu'un — l'adversaire tenu
+par le programme du navigateur — mais sa question n'apparaît jamais dans la bande de
+décision, tandis que le jeton qu'elle produit, lui, se dessine. Comptage : **400 parties,
+148 783 décisions, 469 questions de badge, 282 jetons, 0 orphelin** ; **137 jetons sur
+282, soit 49 %, viennent d'une question jamais montrée**. Reproduction : graine 123,
+rang 274. Le manque restant est un manque de confort — on ne voit pas ce que fait l'autre
+— il rejoint donc la liste des animations et non celle du moteur. [VÉRIFIÉ 05-08]
+
+### Une conclusion de la veille qui était fausse, et qui coûtait cher
+
+La fiche des objectifs et récompenses disait : les tuiles sont floues quand on les
+agrandit, le plafond de définition est atteint, il faut soit chercher de meilleures
+images, soit les agrandir par intelligence artificielle. **Mesuré à l'écran par moi sur
+une partie réelle : le plafond n'est pas atteint, on en est à moins du quart.** Au
+survol, une tuile occupe **151 × 151 points** d'écran pour une définition disponible de
+**900 × 293** (objectif) ou **745 × 583** (récompense), soit **17 à 20 %** de ce qu'on a.
+Le plafond sans perte est de ×31 pour un objectif et ×25 pour une récompense ;
+l'agrandissement actuel vaut ×5,2 (`web/webapp/style-monde.css:290`).
+
+Et un second défaut que personne n'avait vu, plus gênant que le premier : la pastille est
+un **carré de 29 points** (`web/webapp/style.css:284`) alors qu'un objectif imprimé est
+**trois fois plus large que haut**. L'image n'occupe donc que 151 × 49 points au survol :
+les deux tiers de la place sont perdus, et c'est cela qui rend le texte illisible bien
+avant que la définition ne manque. Conséquence : deux des trois voies proposées la veille
+sont **inutiles**, et **il n'y a plus de décision à prendre par Alexis** sur ce point.
+[VÉRIFIÉ 05-08]
+
+### Trois fiches périmées, puis la relecture générale : quinze sur trente
+
+Trois entrées de la liste des défauts décrivaient un défaut **réglé depuis un ou deux
+jours** par un chantier qui n'avait pas mis la fiche à jour : les Océans (deux points sur
+trois livrés le 04-08), les jetons Océan et Forêt qu'on croyait posés sur un carré blanc
+(détourés le 04-08 : **24 % de pixels transparents et quatre coins transparents**, contre
+0 % pour les découpes d'origine), et le compteur de forêts affiché deux fois (la ligne
+retirée de `vue/joueurs.js:69-75`, l'hexagone passé au jeton détouré). Sans cette
+vérification, j'aurais lancé un chantier entier pour refaire un travail déjà fait.
+
+J'ai donc fait relire **toutes** les fiches non marquées faites, contre le code du jour,
+en lecture seule. Sur **30 fiches examinées** :
+
+| Verdict | Nombre |
+|---|---|
+| déjà réglé, fiche périmée | **15** |
+| fait à moitié | 3 |
+| encore vrai | 11 |
+| incertain, à mesurer | 4 |
+
+**La cause est structurelle, pas un oubli isolé** : deux branches entières ont été
+fusionnées dans le dépôt sans que la liste suive — celle des jauges et du tri de la main,
+et celle des phases simultanées. À elles deux, elles règlent huit fiches. Deux bancs de
+vérification qu'elles ont livrés dormaient dans le dépôt depuis ce jour-là ; leur seule
+présence aurait dû nous alerter.
+
+Une fiche a été mesurée et non seulement relue : l'état du moteur qui « recule parfois »
+annonçait 20 reculs sur 183 lectures ; rejoué **sur la même graine**, il donne
+**128 lectures, 0 recul**. Le défaut n'est plus reproductible tel qu'il était écrit, et
+aucun enregistrement ne peut lui être attribué — le lot moteur a déplacé les points de
+décision entre-temps. Une autre a été trouvée à moitié périmée dans son blocage : la
+vente qui fait disparaître une défausse imposée attendait deux explications avant de
+devenir un lot, et **la première était écrite dans le code depuis un moment sans que je
+l'aie vue**. Le défaut principal, lui, est toujours là (`flow.rs:2379`, `2392-2404`,
+`2405-2415`).
+
+### Le chantier lancé le soir
+
+« Ce que l'écran dit de ma main » : trois choses que l'écran raconte sur les cartes et
+qui sont fausses ou invisibles, **sans qu'un joueur puisse s'en apercevoir seul**. Aucune
+règle ne change, le moteur est interdit en entier. Chiffres mesurés par moi au
+scellement, et non recopiés des fiches : le contour vert donne **5 désaccords sur 59
+occasions**, avec huit cartes marquées à tort à la quatrième décision ; **4 pastilles
+recouvertes sur 192**, et c'est la **main du joueur** qui recouvre ; le banc du prix barré
+échoue sur **1 cas limite sur 12**, une carte gratuite.
+
+La cause du contour vert n'est pas un calcul faux, c'est un mot pris pour un autre : le
+moteur publie « ai-je de quoi **payer** cette carte ? », sans la couleur autorisée par la
+phase et sans les prérequis, et la page en fait « je peux **jouer** cette carte ».
+
+À noter, parce que c'est ce qui a changé ma méthode : la fiche annonçait 18 pastilles
+recouvertes par une autre carte ; j'en mesure 4, recouvertes par la main. Le lot des
+cartes qui bougent est passé entre-temps. **Mon contrôle caché est vert au scellement, et
+c'est voulu** : il n'interdit pas un défaut, il interdit un remède pire que le mal — le
+contour vert peut se mettre d'accord avec le moteur en disant vrai, ou en ne disant plus
+rien du tout. Éprouvé dans les deux sens : vert sur le dépôt (141 écrans sur 157 gardent
+une carte marquée hors question de pose), **rouge sur une copie que j'ai sabotée exprès**
+(23 sur 157).
+
+### Ce que j'en retiens
+
+Une liste de défauts se périme aussi vite qu'on travaille : quinze fiches sur trente
+décrivaient un défaut qui n'existait plus, et j'ai failli lancer un chantier entier pour
+refaire un travail déjà fait. Je remesurais déjà au scellement d'un chantier, ce qui
+protège le contrat mais pas le **choix** du chantier ; désormais je vérifie chaque fiche
+candidate contre le code avant de décider quoi lancer, et je marque les fiches touchées
+après chaque fusion. Sur mes contrôles, le compte de la semaine est sans appel : sept
+verdicts faux, et pas un seul ne se trompait sur ce qu'il fallait vérifier — tous
+vérifiaient la forme attendue au lieu de la propriété voulue, ou mesuraient dans des
+conditions où la mesure ne pouvait pas avoir lieu. La seule protection qui ait tenu à
+chaque fois est l'épreuve dans les deux sens : vert sur la livraison, rouge sur une copie
+volontairement abîmée.
