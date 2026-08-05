@@ -3,7 +3,107 @@
 > Source de vérité du projet. Ancrée au code (`fichier:ligne`) dès qu'il y aura du
 > code. [VÉRIFIÉ JJ-MM] = relu à la source ce jour-là. [DÉCLARÉ] = non re-vérifié.
 
-Dernière mise à jour : 2026-08-04
+Dernière mise à jour : 2026-08-05
+
+## 🔧 NUIT DU 04 AU 05-08 — LE LOT MOTEUR FUSIONNÉ, DEUX CHANTIERS D'ÉCRAN LANCÉS
+
+### Ce qui est entré dans le dépôt
+
+**Le lot moteur A1 est fusionné** (`ff40503` + `2a87274`) — quatre points de la
+liste de Corentin, tous mesurés :
+
+- **MOT-1 / MOT-6** : la question de pose se pose désormais **même quand aucune
+  carte n'est payable**, avec sa propre phrase (« No card can be built this
+  phase. You may still sell cards from your hand. ») au lieu d'un écran muet. On
+  peut donc vendre dans ce cas, ce qui était impossible.
+- **MOT-7** : vendre ne consomme plus une activation de la phase Action. La vente
+  a quitté cette phase (`engine/src/flow.rs`).
+- **MOT-4, moitié moteur** : la phrase qui explique l'arrêt de la phase est
+  publiée par le moteur au lieu d'être devinée par l'écran.
+- **CNF-2, moitié moteur** : la défausse est publiée carte par carte
+  (`engine/src/observe.rs`), du dessus vers le dessous, avec nom, couleur et prix.
+
+Vingt-cinq suites de tests passent. Les empreintes de parties de référence ont été
+refixées à `bf70799ff3fee1d8` — c'est légitime : les points de décision ont bougé,
+donc les parties enregistrées d'avant ne sont plus rejouables. Les repères
+précédents sont conservés dans les fiches.
+
+### ⚠️ Mes deux contrôles de la défausse étaient faux, pas la livraison
+
+Au moment d'auditer, deux de mes propres contrôles ont rendu un verdict qui ne
+valait rien. À écrire ici parce que c'est **le même angle mort deux fois** :
+
+1. Ils comparaient un **objet-carte** à un **identifiant** — une exigence
+   impossible à satisfaire par construction. Le rouge que j'avais constaté au
+   scellement venait d'une autre étape (la défausse absente) et n'a **jamais**
+   exercé l'étape fautive. Un rouge global ne prouve pas que chaque étape mesure.
+2. L'un mesurait l'ordre de la pile sur une défausse parfois réduite à **une
+   seule carte** : il restait vert sur une copie volontairement sabotée. Corrigé
+   (`e.defausse.length >= 3`) puis éprouvé **dans les deux sens** — vert sur la
+   livraison, rouge sur la copie sabotée.
+
+Un troisième contrôle caché était vert à tort pour une raison voisine : il
+mesurait la luminance d'un voisinage de 24 points autour du repère, et la gorge
+sombre de la jauge lui fournissait toujours des pixels sombres, quel que soit le
+repère. Resserré au cœur du repère (rayon 3 points).
+
+### ⚠️ Deux bancs du dépôt ne gardent rien
+
+- `web/webapp/verif/anglais.mjs` refuse « phase », « corporation » et
+  « temperature » — des mots écrits pareil dans les deux langues. Il rend
+  **3 531 fautes sur un dépôt intact** : inutilisable comme contrôle.
+- `web/webapp/verif/importations.mjs` annonce **« 0 modules, 0 importations
+  vérifiées »** en vert : il cherche dans un dossier qui n'existe plus. C'est un
+  faux vert, le pire des cas.
+
+Les deux ont été retirés des garde-fous des chantiers en cours, avec la raison
+écrite dans les fichiers eux-mêmes.
+
+### LIS-14 — un défaut trouvé par la machine, que personne n'avait signalé
+
+`web/webapp/verif/jouable.py` compare, à chaque décision, les cartes que l'écran
+entoure de vert et celles que le moteur accepte réellement. Il relève **cinq
+désaccords par partie**, tous dans le même sens : des cartes entourées de vert que
+le moteur refuse. [VÉRIFIÉ 05-08] **Ce n'est pas une régression du lot moteur** —
+mesuré identique sur `14f2501`, avant la fusion, dans une copie de travail
+temporaire. Le contour trompeur ne se remarque qu'en essayant de jouer la carte,
+ce qui explique que ni Alexis ni Corentin ne l'aient vu. À traiter dans un lot
+d'affichage ultérieur.
+
+### Les décisions de Corentin intégrées
+
+- **Les jauges** (LIS-1) : retirer le nombre porté par la température **et** par
+  l'oxygène. Vérifié dans le code avant d'agir : les crans ne portent aucun texte
+  et le seul nombre est un doublon de la barre du haut — **aucune information
+  n'est perdue**. Conséquence : le repère devait devenir visible (LIS-2), les deux
+  points se font donc ensemble.
+- **LIS-9 abandonné** (« retirer interface au milieu ») : Corentin a dit de
+  laisser tomber. La trace est gardée pour ne pas défaire par mégarde le travail
+  du 04-08 sur les cartes non prenables.
+- **Plus aucune question n'attend Corentin.**
+
+### Deux chantiers délégués, territoires strictement disjoints
+
+- **`ce-qu-on-voit`** — dix points d'affichage (`web/webapp/vue/`, feuilles de
+  style, bancs d'écran). Trois contrôles de progrès rouges au scellement, un
+  garde-fou vert (une partie entière au clic, 227 décisions).
+- **`phases-simultanees`** — le choix de phase simultané (MOT-9) et les messages
+  d'attente précis (CNF-4), dans `distant.js` et le point de rendez-vous. Trois
+  contrôles rouges, un garde-fou vert (partie entière à deux navigateurs, 311
+  réponses).
+
+**Une fuite d'information découverte en écrivant les contrôles** : aujourd'hui, dès
+qu'un joueur répond, le point de rendez-vous publie sa réponse à qui la demande.
+Sans conséquence tant que les choix sont l'un après l'autre — mais **dès que les
+deux choisiront en même temps, le second pourrait lire le choix du premier**. Le
+livret veut un choix face cachée. C'est devenu une exigence explicite du contrat,
+avec son propre contrôle.
+
+**Un agent tué par le chien de garde du harnais** (600 secondes sans événement),
+après avoir rendu trois contrôles verts **sans rien avoir commité**. Rien n'a été
+perdu — la copie de travail était intacte et il a été repris sur sa propre trace —
+mais la leçon vaut pour tous les contrats à venir : **commiter chaque point dès
+qu'il est vert**, et ne jamais laisser une partie complète tourner en avant-plan.
 
 ## 🌙 LA NUIT DU 04-08 — LA LISTE D'ALEXIS, HUIT POINTS FAITS ET MESURÉS
 
