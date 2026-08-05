@@ -5,6 +5,45 @@
 
 Dernière mise à jour : 2026-08-05
 
+## ✅ 05-08 — LE LOT « LE PLATEAU SE LIT ET S'ENTEND » EST MONTÉ (`8572933`)
+
+Quatre travaux livrés, **audités et rejoués par moi**, jamais crus sur parole.
+
+| Ce qui manquait | Avant | Après, rejoué par moi |
+|---|---|---|
+| les tuiles d'objectifs sont illisibles (LIS-4) | image affichée **151 × 49 points** | **607 × 198** (objectif), **391 × 306** (récompense) — seize fois plus de surface |
+| le remélange de la défausse ne se voit pas (LIS-12) | 2 remélanges, **0 montré** | **2 montrés, 0 annonce à tort** sur 1 135 décisions |
+| poser une carte est muet (GRO-2) | **2,30** bruits contre 2,20 | **4,03 contre 2,20**, et **0 bruit** quand on éteint (489 survivaient avant) |
+| la planche des océans change de forme (LIS-5) | **30 bascules** | **0 bascule** sur 2 556 relevés, 307 en mode « choix » |
+
+**Le son s'éteint désormais** — c'est l'exigence que j'avais ajoutée au contrat.
+Une ligne « Sound » dans le panneau d'options et un réglage dans l'adresse, avec
+un seul point d'écriture posé sur le contexte audio lui-même : un sixième bruit
+ajouté un jour s'éteindrait aussi, sans rien à y penser.
+
+**Le contrôle caché est vert** : `engine/` intact, aucune empreinte, aucune
+adresse extérieure ; 219 décisions jouées avec et sans les mises en scène, mêmes
+scores ; 166 emplacements d'océan, **0 recouvert** ; la main n'est jamais
+recouverte. Garde-fou : 26 suites du moteur, 2 102 pas sur 5 parties, 414
+décisions à l'écran.
+
+⚠️ **UN DÉFAUT DE MON PROPRE BANC, TROUVÉ À L'AUDIT — LE TROISIÈME DU MÊME
+GENRE CETTE SEMAINE.** Mon banc du remélange comptait l'**extinction** d'une
+annonce comme une seconde annonce, et criait ou non selon la vitesse de la
+machine : l'agent l'avait vert, moi rouge. Il jugeait une **forme** (un attribut
+qui bouge) au lieu de la **propriété** (une annonce apparaît). Corrigé, la raison
+écrite dans le fichier, et ré-éprouvé dans les deux sens : vert sur la livraison,
+**1 127 fautes** sur la copie sabotée.
+
+**Une dette du dépôt réparée au passage** (`f81131b`) : le contrôle qui vérifie
+qu'aucun français ne reste à l'écran **ne tournait plus** — cinq chemins de
+fichier faux — et, une fois relancé, il criait **3 404 fautes dont pas une
+vraie** : sa liste de mots français contenait douze mots qui s'écrivent pareil en
+anglais (« phase », « corporation », « score », « points », « temperature »…).
+Corrigé et éprouvé dans les deux sens : 20 parties, 6 755 décisions, 27 905
+options, 24 types de décision couverts, 0 faute — et 4 fautes relevées quand j'y
+glisse une phrase française exprès.
+
 ## ✅ 05-08 — DÉCISION D'ALEXIS : Q8 TRANCHÉ, LIS-3 EST CLOS
 
 **Question posée** : pendant qu'on regarde une carte en grand, la table doit-elle
@@ -25,7 +64,7 @@ devenaient plus nombreux que les instants mesurés, sinon il ne prouverait plus
 rien tout en paraissant satisfait. Rejoué par moi, graine 4242 : **188 pastilles
 sur 188 décisions, 0 recouverte, 7 décisions écartées.**
 
-## 🚧 05-08 — CHANTIER EN COURS : « LE PLATEAU SE LIT ET S'ENTEND »
+## 📓 05-08 — CE QUE J'AVAIS MESURÉ AVANT DE SCELLER CE LOT (livré, voir plus haut)
 
 Quatre choses que le plateau montre mal ou pas du tout. **Aucune règle du jeu ne
 change, et `engine/` est interdit en entier.**

@@ -26,8 +26,8 @@ code d'aujourd'hui. Résultat sur **30 fiches examinées** :
 | Verdict | Nombre | Lesquelles |
 |---|---|---|
 | **déjà réglé, fiche périmée** | 15 | ANI-5 (2 points sur 3), LIS-1, LIS-2, LIS-7, LIS-8, LIS-10, LIS-11, LIS-13, CNF-1, CNF-4, CNF-5, MOT-4, MOT-9, MOT-11, MOT-12 |
-| **fait à moitié** | 2 | GRO-2 (3 sons sur 5 branchés), MOT-13 (le premier préalable est résolu) — LIS-3 est **clos** depuis la réponse à Q8, 05-08 |
-| **encore vrai** | 11 | MOT-2 (part restante), MOT-8, LIS-4, LIS-5, LIS-12, CNF-3, CNF-6, GRO-1, GRO-3, `adversaire.md`, ANI-5 point 1 |
+| **fait à moitié** | 1 | MOT-13 (le premier préalable est résolu) — LIS-3 **clos** par la réponse à Q8 et GRO-2 **fait**, 05-08 |
+| **encore vrai** | 7 | MOT-2 (part restante), MOT-8, CNF-3, CNF-6, GRO-1, GRO-3, `adversaire.md` — **LIS-4, LIS-5 et LIS-12 sont faits le 05-08** |
 | **incertain, à mesurer** | 4 | ANI-5 point 1, VIE-1, VIE-2, VIE-3 |
 
 **La cause est structurelle, pas un oubli isolé** : deux branches entières ont
@@ -827,7 +827,19 @@ qu'aucun barème soit recopié à l'écran.
 
 **LIS-3 EST CLOS.**
 
-### LIS-4 (Corentin, ligne 15) — Les objectifs et récompenses sont flous
+### LIS-4 (Corentin, ligne 15) — Les objectifs et récompenses sont flous — FAIT
+
+**[FAIT 05-08, fusionné dans `main` (`8572933`), audité et rejoué par moi.]**
+La pastille agrandie était un **carré**, et l'image d'un objectif — trois fois
+plus large que haute — n'y occupait que **151 × 49 points** sur 900 × 293
+disponibles dans le fichier. L'agrandissement reçoit désormais **le rapport de
+son image**, calculé pour chaque tuile à partir de la définition du fichier, et
+raboté à cette définition si la surface visée la dépassait. Mesure rejouée :
+**607 × 198** pour un objectif, **391 × 306** pour une récompense — seize fois
+plus de surface. Rien ne bouge au repos, et l'agrandissement ne recouvre pas la
+table.
+
+Ce qui suit est le constat d'origine.
 ⚠️ **[VÉRIFIÉ 05-08 · mesuré à l'écran par moi — la conclusion du 04-08 était
 fausse, et elle nous envoyait chercher une solution coûteuse pour rien]**
 
@@ -904,7 +916,16 @@ Les photos d'Alexis
 lecture du texte — elles ne sont pas assez propres pour l'affichage, il l'a dit
 lui-même.
 
-### LIS-5 (Corentin, ligne 13) — La disposition des tuiles océan change toute seule
+### LIS-5 (Corentin, ligne 13) — La disposition des tuiles océan change toute seule — FAIT
+
+**[FAIT 05-08, fusionné dans `main` (`8572933`), audité et rejoué par moi.]**
+La disposition à deux colonnes — celle que Corentin préfère — est devenue la
+règle à tout instant de la partie. Mesure rejouée : **2 556 relevés, 307 en mode
+« choix », 0 bascule**, une seule disposition. Avant : 30 bascules. Le mode
+« choix » existe toujours et continue de désigner par son liseré et sa consigne ;
+il ne touche simplement plus à la géométrie.
+
+Ce qui suit est le constat d'origine.
 **[VÉRIFIÉ 05-08 · mesuré par moi — Corentin a raison]** Sur deux parties
 entières jouées à l'écran, **2 556 relevés** : la planche entre **246 fois** en
 mode « choix d'emplacement », et sa disposition **bascule 30 fois**. Deux
@@ -1079,7 +1100,17 @@ Ce qui suit est le constat d'origine.
 [DEMANDÉ] Quand une remise s'applique, afficher le prix d'origine barré à côté
 du prix réellement payé.
 
-### LIS-12 (ancien G2) — Le remélange de la défausse ne se voit pas
+### LIS-12 (ancien G2) — Le remélange de la défausse ne se voit pas — FAIT
+
+**[FAIT 05-08, fusionné dans `main` (`8572933`), audité et rejoué par moi.]**
+Le moteur ne publie aucun signal de remélange, et il n'en publie toujours pas :
+l'écran reconnaît l'évènement aux deux nombres déjà publiés — la pioche remonte
+pendant que la défausse s'effondre, ce qui ne peut arriver autrement. Il le
+**dit** (une phrase) et le **montre** (trois dos de cartes volent de la défausse
+vers la pioche). Mesure rejouée : **6 parties, 1 135 décisions, 2 remélanges,
+2 montrés, 0 annonce à tort.**
+
+Ce qui suit est le constat d'origine.
 [VÉRIFIÉ 04-08] Le moteur le fait bien (`engine/src/flow.rs:32-42`, livret p. 15).
 Reste seulement à le **montrer** au joueur quand cela arrive.
 
@@ -1193,7 +1224,22 @@ Deux conséquences pratiques :
 2. si on l'active, il faudra décider explicitement si la machine y a droit. Ce
    n'est pas une décision d'affichage, c'est une décision de règle du jeu.
 
-### GRO-2 (ancien I4) — Les effets sonores — ⚠️ À MOITIÉ FAIT, la fiche disait « jamais commencés »
+### GRO-2 (ancien I4) — Les effets sonores — FAIT
+
+**[FAIT 05-08, fusionné dans `main` (`8572933`), audité et rejoué par moi.]**
+Les deux bruits qui manquaient sont branchés — poser une carte, gagner un cran de
+terraformation — chacun là où l'évènement se produit et **une seule fois par
+instant**. Mesure rejouée : **4,03 bruits par décision quand il se passe quelque
+chose contre 2,20 sinon** ; avant, 2,30 contre 2,20, c'est-à-dire aucune
+différence.
+
+**Et le son s'éteint**, ce que j'avais ajouté au contrat : une ligne « Sound »
+dans le panneau d'options et `sons=non` dans l'adresse, avec un seul point
+d'écriture, posé sur le contexte audio lui-même — donc un sixième bruit ajouté un
+jour s'éteindrait aussi. Mesuré : **0 bruit sur 219 décisions** une fois éteint,
+contre 489 qui survivaient auparavant.
+
+Ce qui suit est le constat d'origine.
 **[VÉRIFIÉ 05-08 · relecture générale]** Les sons existent déjà et sont
 **fabriqués dans la page**, sans aucun fichier ni téléchargement
 (`web/webapp/vue/son.js`, livré par `6f6f2c9`). Cinq bruits y sont écrits.
