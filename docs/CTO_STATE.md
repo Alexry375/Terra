@@ -5,6 +5,41 @@
 
 Dernière mise à jour : 2026-08-05
 
+## ⚠️ 05-08 — RELECTURE GÉNÉRALE : LA MOITIÉ DE LA LISTE NE DISAIT PLUS LA VÉRITÉ
+
+Après avoir trouvé trois fiches périmées, j'ai fait relire **toutes** les fiches
+non marquées faites contre le code, en lecture seule. Sur **30 fiches
+examinées** :
+
+| Verdict | Nombre |
+|---|---|
+| déjà réglé, fiche périmée | **15** |
+| fait à moitié | 3 |
+| encore vrai | 11 |
+| incertain, à mesurer | 4 |
+
+**La cause est structurelle** : deux branches entières ont été fusionnées dans le
+dépôt sans que la liste suive — celle des jauges et du tri de la main, et celle
+des phases simultanées. À elles deux elles règlent huit fiches. Deux bancs de
+vérification qu'elles ont livrés dormaient dans le dépôt depuis ; leur seule
+présence aurait dû nous alerter.
+
+**Une fiche mesurée, pas seulement relue** : l'état du moteur qui « recule
+parfois » (MOT-12) annonçait 20 reculs sur 183 lectures. Rejoué sur **la même
+graine** : **128 lectures, 0 recul**. Le défaut n'est plus reproductible tel
+qu'il était écrit, et aucun commit ne peut lui être attribué — le lot moteur a
+déplacé les points de décision entre-temps.
+
+**Une fiche trouvée à moitié périmée dans son blocage** : la vente qui fait
+disparaître une défausse imposée (MOT-13) attendait deux explications avant d'en
+faire un lot. **La première est écrite dans le code depuis un moment** et je ne
+l'avais pas vue. Le défaut principal, lui, est toujours là.
+
+**Ce que j'en tire** : je remesurais déjà au scellement d'un chantier, ce qui
+protège le contrat mais pas le **choix** du chantier. Désormais je vérifie chaque
+fiche candidate contre le code avant de décider quoi lancer, et je marque les
+fiches touchées **après chaque fusion**.
+
 ## ⚠️ 05-08 — TROIS FICHES ANNONÇAIENT UN DÉFAUT DÉJÀ CORRIGÉ
 
 Trois entrées de `DERNIERE_LIGNE_DROITE.md` décrivaient un défaut **réglé
