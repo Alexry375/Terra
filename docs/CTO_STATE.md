@@ -5,6 +5,26 @@
 
 Dernière mise à jour : 2026-08-05
 
+## ✅ 05-08 — DÉCISION D'ALEXIS : Q8 TRANCHÉ, LIS-3 EST CLOS
+
+**Question posée** : pendant qu'on regarde une carte en grand, la table doit-elle
+rester lisible ? **Réponse : on ne change rien** (Alexis a suivi ma
+recommandation).
+
+Le voile sombre qui s'étend d'une main à l'autre recouvre les pastilles de
+ressources — mais **uniquement** pendant ces quelques secondes où l'écran montre
+une carte en grand. En jeu ordinaire, plus une seule pastille n'est recouverte.
+Rendre la table lisible à cet instant aurait forcément réduit la carte montrée,
+c'est-à-dire la seule raison d'être de ce panneau.
+
+**Ce que j'en ai fait dans le code** [VÉRIFIÉ 05-08] : le banc
+`web/webapp/verif/ressources-visibles.py` écarte désormais ces instants, **et
+imprime combien il en a écarté** — un écart silencieux se lirait comme une
+couverture complète. Il refuse en outre de rester vert si les instants écartés
+devenaient plus nombreux que les instants mesurés, sinon il ne prouverait plus
+rien tout en paraissant satisfait. Rejoué par moi, graine 4242 : **188 pastilles
+sur 188 décisions, 0 recouverte, 7 décisions écartées.**
+
 ## 🚧 05-08 — CHANTIER EN COURS : « LE PLATEAU SE LIT ET S'ENTEND »
 
 Quatre choses que le plateau montre mal ou pas du tout. **Aucune règle du jeu ne
@@ -53,7 +73,7 @@ correctif partiel qui aurait changé l'écran sans régler le défaut.
 |---|---|---|
 | le contour vert promet des cartes que le moteur n'offre pas (LIS-14) | 59 occasions, **5 désaccords**, dont 8 cartes à tort sur une seule décision | 59 occasions, **0 désaccord** |
 | une carte gratuite affiche un prix barré (LIS-11) | 11 couples, **1 échec** | **10 couples justes** et 1 remise sans rien à barrer, comptée à part |
-| une pastille de ressources reste recouverte (LIS-3) | 4 recouvertes sur 192 | **inchangé — voir la question Q8** |
+| une pastille de ressources reste recouverte (LIS-3) | 4 recouvertes sur 192 | **Q8 tranché le 05-08 : on ne change rien, LIS-3 est clos** |
 
 **Le correctif de LIS-14 est meilleur que ce que je demandais.** L'écran
 confondait deux faits ; ils vivent désormais dans deux étiquettes distinctes —
@@ -215,8 +235,9 @@ artificielle qui choisit ses phases doit connaître ces trois montants.
   rien d'enregistré**, malgré la consigne écrite. J'ai sauvé son travail à la
   main les trois fois. La consigne « commite chaque point » ne suffit pas : il
   faut la répéter à chaque relance.
-- **LIS-3 n'est pas fini** : les 18 pastilles recouvertes sont toujours là,
-  au même nombre exactement qu'avant le lot. Non régressé, non réparé.
+- **LIS-3 n'était pas fini à ce moment-là** : les pastilles recouvertes étaient
+  toujours là, au même nombre exactement qu'avant le lot. Le point a été **clos
+  le 05-08** par la réponse d'Alexis à la question Q8 (voir plus haut).
 
 ## 🚧 05-08 — CHANTIER EN COURS : « CE QUE L'ÉCRAN DIT DE MA MAIN »
 

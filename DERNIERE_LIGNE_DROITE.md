@@ -26,7 +26,7 @@ code d'aujourd'hui. Résultat sur **30 fiches examinées** :
 | Verdict | Nombre | Lesquelles |
 |---|---|---|
 | **déjà réglé, fiche périmée** | 15 | ANI-5 (2 points sur 3), LIS-1, LIS-2, LIS-7, LIS-8, LIS-10, LIS-11, LIS-13, CNF-1, CNF-4, CNF-5, MOT-4, MOT-9, MOT-11, MOT-12 |
-| **fait à moitié** | 3 | GRO-2 (3 sons sur 5 branchés), MOT-13 (le premier préalable est résolu), LIS-3 (déjà dit) |
+| **fait à moitié** | 2 | GRO-2 (3 sons sur 5 branchés), MOT-13 (le premier préalable est résolu) — LIS-3 est **clos** depuis la réponse à Q8, 05-08 |
 | **encore vrai** | 11 | MOT-2 (part restante), MOT-8, LIS-4, LIS-5, LIS-12, CNF-3, CNF-6, GRO-1, GRO-3, `adversaire.md`, ANI-5 point 1 |
 | **incertain, à mesurer** | 4 | ANI-5 point 1, VIE-1, VIE-2, VIE-3 |
 
@@ -53,38 +53,30 @@ faire aussi avant de **choisir** le chantier.
 | Q6 — choix de phase | **Aucune fuite d'information** aujourd'hui. À corriger côté écran seulement, voir MOT-9 réécrit. |
 | Q7 — doublon des forêts | Garder l'hexagone, retirer la ligne du score, **et poser le jeton détouré**. |
 
-### ❓ Q8 (05-08) — Pendant qu'on regarde une carte en grand, la table doit-elle rester lisible ?
+### ✅ Q8 (05-08) — Pendant qu'on regarde une carte en grand, la table reste en retrait — TRANCHÉ
 
-**La question, en clair.** Quand l'écran vous montre une carte en grand pour que
+**La question posée.** Quand l'écran vous montre une carte en grand pour que
 vous décidiez, il pose par-dessus la table un voile sombre qui va d'une main à
 l'autre. Ce voile recouvre les deux plateaux, et donc les petites pastilles qui
-comptent les ressources posées sur les cartes. **C'est le dernier morceau de
-LIS-3**, et c'est la seule chose qui empêche ce point d'être clos.
+comptent les ressources posées sur les cartes. C'était le dernier morceau de
+LIS-3.
 
-**Ce qui est mesuré** : en jeu ordinaire, **plus une seule pastille n'est
-recouverte** — 188 décisions, zéro. Les 4 cas restants se produisent **tous**
-pendant un de ces moments où une carte est montrée en grand.
+**Réponse d'Alexis, 05-08 : on ne change rien** (il a suivi ma recommandation).
+Pendant ces quelques secondes on lit une carte, pas la table ; et en jeu
+ordinaire **plus une seule pastille n'est recouverte** — 188 décisions, zéro.
+Les 4 cas restants se produisaient tous pendant un de ces moments. Rendre la
+table lisible à cet instant aurait forcément réduit la carte montrée, c'est-à-dire
+la seule raison d'être de ce panneau : 326 points de haut aujourd'hui contre 252
+si on réorganisait, et la zone des choix serait tombée de 199 à 76 points.
 
-**Pourquoi je ne peux pas trancher seul** : dans une fenêtre de 1 000 points de
-haut, la carte montrée occupe 326 points, et l'espace libre entre les deux
-plateaux n'en offre que 252. Rendre la table lisible pendant ce moment **réduit
-forcément la carte**, c'est-à-dire la seule raison d'être de ce panneau.
+**Ce que j'ai fait de la décision** [VÉRIFIÉ 05-08]. Le banc
+`verif/ressources-visibles.py` écarte désormais ces instants, **et imprime
+combien il en a écarté** — un écart silencieux se lirait comme une couverture
+complète. Il refuse aussi de rester vert si les instants écartés devenaient plus
+nombreux que les instants mesurés : sinon il ne prouverait plus rien tout en
+paraissant satisfait. La raison de l'écart est écrite en tête du fichier.
 
-**Trois réponses possibles :**
-
-1. **Ne rien changer** — pendant ces quelques secondes, on lit une carte, pas la
-   table ; le défaut ne se produit jamais en jeu ordinaire. Le banc serait alors
-   corrigé pour ne mesurer que le jeu ordinaire, avec la raison écrite.
-   **C'est ma recommandation** : le défaut que Corentin a signalé est réglé, et
-   ce qui reste ne le gêne pas en jouant.
-2. **Rendre le voile transparent là où il ne montre rien** — règle 3 cas sur 4,
-   mais fait perdre le voile à tous les moments particuliers (choix de
-   corporation, remplacement des cartes de départ, révélation).
-3. **Réorganiser le panneau autour des plateaux** — plus rien ne recouvre rien,
-   la carte garde 252 points au lieu de 326, mais la zone des choix tombe de 199
-   à 76 points. C'est une refonte de la disposition, pas un réglage.
-
-**Aucune urgence** : rien de tout cela n'empêche de jouer.
+**LIS-3 est donc clos.**
 
 Aucune autre question n'est ouverte.
 
@@ -536,7 +528,7 @@ exactement le même geste.
 carte. Aucun barème recopié nulle part : le contrôle caché « un seul endroit
 compte » le vérifie et il est vert. L'écran l'affiche sur la **carte agrandie**,
 là où il y a la place de l'écrire en toutes lettres. **La seconde moitié de
-LIS-3 est donc faite** ; la première (les pastilles recouvertes) reste ouverte.
+LIS-3 est donc faite** ; la première a été close le 05-08 par la réponse à Q8.
 
 Un défaut trouvé en chemin et réparé : l'adaptateur des cartes perdait le compte
 de ressources au **second** passage, et la loupe repasse par lui — la carte
@@ -775,7 +767,7 @@ Ce qui suit est le constat d'origine.
 ne le voit plus. Le passer en noir. Et Corentin préfère **un simple point** au
 point cerclé actuel — il présente cela comme un avis, pas comme une exigence.
 
-### LIS-3 (Corentin, ligne 22) — On ne voit pas les ressources posées sur les cartes — EN GRANDE PARTIE FAIT, PAS FINI
+### LIS-3 (Corentin, ligne 22) — On ne voit pas les ressources posées sur les cartes — FAIT
 [DEMANDÉ] Les microbes, animaux et jetons Science accumulés sur une carte ne se
 voient pas. Demandé en plus : quand on agrandit une carte, afficher **le nombre
 de points de victoire que ses ressources rapportent déjà**, pour les cartes dont
@@ -822,16 +814,18 @@ deux plateaux n'en offre que 252. Rendre la table lisible pendant ce moment
 panneau. **C'est un choix qui appartient à Alexis**, et il est posé plus bas
 dans la section des questions.
 
-**Ce qui reste à faire** : les cas où les piles sont serrées. La bande de carte
-qui reste découverte n'y fait qu'environ treize points d'écran, et repousser
-l'échelle d'agrandissement au-delà de 1,8 remet dix-huit pastilles sous leur
-voisine. Ce n'est donc pas un réglage à pousser mais une disposition à revoir.
+**TRANCHÉ LE 05-08 PAR ALEXIS : on ne change rien** (question Q8, section 0).
+Pendant ces quelques secondes on lit une carte, pas la table. Le banc
+`verif/ressources-visibles.py` écarte désormais ces instants, en imprime le
+nombre, et refuse de rester vert s'ils devenaient plus nombreux que les instants
+mesurés. Mesure du jour, graine 4242 : **188 pastilles vues sur 188 décisions,
+zéro recouverte, 7 décisions écartées.**
 
 **La seconde moitié est FAITE 05-08** : MOT-15 réparé, la carte agrandie dit
 maintenant ce que ses ressources rapportent déjà, en points de victoire, sans
-qu'aucun barème soit recopié à l'écran. **La première moitié reste ouverte** :
-`verif/ressources-visibles.py` rend toujours **18 pastilles recouvertes**,
-exactement le même chiffre qu'avant ce lot — non régressé, non réparé.
+qu'aucun barème soit recopié à l'écran.
+
+**LIS-3 EST CLOS.**
 
 ### LIS-4 (Corentin, ligne 15) — Les objectifs et récompenses sont flous
 ⚠️ **[VÉRIFIÉ 05-08 · mesuré à l'écran par moi — la conclusion du 04-08 était

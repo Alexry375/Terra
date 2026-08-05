@@ -17,6 +17,19 @@ n'est pas la pastille elle-meme, c'est qu'une autre carte est passee devant.
 C'est la mesure qui manquait : un test qui compte les pastilles aurait ete
 vert AVANT la correction comme apres.
 
+CE QUE CE BANC NE MESURE PAS, ET POURQUOI (decision Q8, Alexis, 05-08).
+Quand l'ecran montre une carte en grand pour qu'on decide, il pose un voile
+sombre par-dessus les deux plateaux (`#scene[data-mode="superposition"]`,
+`style.css:861`). Pendant ces quelques secondes la table est volontairement
+mise en retrait : on lit une carte, pas la table. Rendre les plateaux lisibles
+a cet instant obligerait a reduire la carte montree — c'est-a-dire la seule
+raison d'etre de ce panneau (326 points de haut disponibles contre 252 si on
+reorganise). Alexis a tranche : ON NE CHANGE RIEN.
+Ce banc ecarte donc ces instants, et IMPRIME COMBIEN il en a ecarte : un
+ecart silencieux se lirait comme une couverture complete. Il exige aussi que
+les instants mesures restent la grande majorite, sinon il n'aurait plus rien
+prouve du tout.
+
     python3 verif/ressources-visibles.py <racine-webapp> [graine] [captures]
 """
 import os
@@ -68,12 +81,19 @@ LECTURE = """() => {
 }"""
 
 fautes = []
-vu = {"pastilles": 0, "decisions": 0}
+vu = {"pastilles": 0, "decisions": 0, "ecartees": 0}
 plus_grand_lot = []
+
+# Voir l'en-tete : les instants ou une carte est montree en grand sont ecartes
+# par decision, et comptes.
+EN_GRAND = "() => !!document.querySelector('#scene[data-mode=\"superposition\"]')"
 
 
 def controle(pg, rang):
     global plus_grand_lot
+    if pg.evaluate(EN_GRAND):
+        vu["ecartees"] += 1
+        return
     lu = pg.evaluate(LECTURE)
     if not lu:
         return
@@ -155,8 +175,16 @@ with serveur(RACINE) as base:
 
 print(f"    {vu['pastilles']} pastille(s) de ressources vues sur {vu['decisions']} "
       f"decision(s) ; le plus grand lot en portait {len(plus_grand_lot)}")
+print(f"    {vu['ecartees']} decision(s) ecartee(s) : une carte y etait montree en "
+      f"grand, la table est alors volontairement en retrait (decision Q8 du 05-08)")
 if vu["pastilles"] == 0:
     print("ECHEC : aucune ressource posee de toute la partie — la mesure n'a pas eu lieu")
+    sys.exit(1)
+# Garde-fou de l'ecart lui-meme : s'il devenait la regle, ce banc ne prouverait
+# plus rien tout en restant vert.
+if vu["ecartees"] > vu["decisions"]:
+    print(f"ECHEC : {vu['ecartees']} decision(s) ecartee(s) pour seulement "
+          f"{vu['decisions']} mesuree(s) — ce banc ne mesure plus le jeu ordinaire")
     sys.exit(1)
 if fautes:
     for f in fautes[:6]:
