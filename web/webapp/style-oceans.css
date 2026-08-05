@@ -52,27 +52,34 @@
 
 /* ============================================ DÉSIGNER L'EMPLACEMENT À OUVRIR
  *
- * La planche s'ouvre SANS SORTIR DE SA COLONNE : les neuf emplacements passent
- * de trois colonnes à deux, et prennent la hauteur que le panneau laissait vide
- * — une tuile gagne près de la moitié de sa largeur, et rien d'autre à l'écran
- * ne bouge d'un pixel. Un panneau qui s'agrandirait par-dessus la scène de la
- * décision, lui, empêcherait de répondre pendant qu'il est ouvert : ce serait
- * bloquer la partie pour montrer une tuile.
+ * 05-08 (LIS-5) — LA PLANCHE NE CHANGE PLUS DE FORME.
+ *
+ * Elle le faisait ici : au repos elle tenait sur trois colonnes, et ce mode
+ * « choix » la faisait passer à deux, puis revenir. C'est CORENTIN, le second
+ * joueur, qui a signalé le changement et demandé que la disposition à deux
+ * colonnes soit permanente (liste de ses remarques, LIS-5) ; elle est donc devenue celle de la
+ * règle de BASE (`style-monde.css`, `.oceans__grille`), à tout instant de la
+ * partie, et il ne reste plus rien de la géométrie dans cette feuille.
+ *
+ * COMMENT LE CAS A ÉTÉ OUVERT, ET POURQUOI IL NE L'ÉTAIT PAS. Le mode « choix »
+ * ne dure que le temps de désigner l'emplacement (`vue/plateau.js`,
+ * `DELAI_CHOIX`), et ce délai est une DURÉE : `?animations=non` le met à zéro.
+ * Une première mesure jouée ainsi avait conclu « 0 changement sur 219
+ * décisions » — elle n'avait rien mesuré, le moment se refermait avant le
+ * relevé. Rejouée AVEC les mises en scène et en sondant six fois par décision :
+ * 2 556 relevés, 246 en mode « choix », 30 bascules. Après ce correctif, sur le
+ * même banc : 2 556 relevés, 352 en mode « choix », 0 bascule, une seule
+ * disposition (« 46.375px 46.375px »).
+ *
+ * IL NE RESTE ICI QUE CE QUI DÉSIGNE : le mode « choix » continue d'exister, de
+ * s'allumer et de s'éteindre aux mêmes instants — c'est lui qui dit qu'une
+ * question est posée, et le liseré, l'appel et la consigne le montrent. Il ne
+ * touche simplement plus à la géométrie de la planche.
  */
 #oceans.oceans--choix {
   z-index: 60;
   box-shadow: inset 0 0 0 1px rgba(120, 215, 255, .85), 0 0 22px rgba(80, 190, 230, .35);
   animation: oceans-planche-appel 900ms ease-in-out 6 both;
-}
-#oceans.oceans--choix:not(.oceans--grande) .oceans__grille {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-content: center;
-  padding: 0 12% 6%;
-}
-/* Le nid d'abeille suit : une colonne sur deux descend d'une demi-tuile. */
-#oceans.oceans--choix:not(.oceans--grande) .oceans__grille > .ocean { transform: none; }
-#oceans.oceans--choix:not(.oceans--grande) .oceans__grille > .ocean:nth-child(2n) {
-  transform: translateY(50%);
 }
 
 /* La consigne, en clair : sans elle, une planche qui clignote est une planche

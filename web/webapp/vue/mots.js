@@ -204,6 +204,14 @@ export const MOT = {
   // phrase doivent aller dans le même sens, sinon on ne sait plus ce qu'on coupe.
   setAnimationsNote: "Movement and fades, everywhere on screen.",
   setScoreNote: "Show both scores while the game is being played.",
+  // (GRO-2) Le son. La note dit ce que le réglage fait quand il est ALLUMÉ,
+  // comme les autres.
+  // (LIS-12) Le remélange de la défausse dans la pioche. Le mot NOMME
+  // l'évènement : « reshuffled », et non « deck » ou « discard », qui sont le
+  // vocabulaire ordinaire de l'écran et ne diraient pas ce qui vient d'arriver.
+  reshuffle: "Discard pile reshuffled into the deck",
+  setSound: "Sound",
+  setSoundNote: "Short cues: a card played, a terraforming step, a new round.",
   stateOn: "On",
   stateOff: "Off",
 };

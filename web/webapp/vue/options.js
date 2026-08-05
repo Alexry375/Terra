@@ -33,6 +33,10 @@ import { reglerAnimations, animationsActives } from "./anim.js";
 // Voir la défausse n'est pas une règle officielle — c'est un arrangement entre
 // les deux joueurs, qui s'allume et s'éteint comme le reste.
 import { reglerDefausse, defausseVisible } from "./defausse.js";
+// (GRO-2, 05-08) Le son devient un réglage de confort à part entière : deux
+// bruits fréquents viennent d'être branchés (la pose d'une carte, le cran de
+// terraformation), et sans interrupteur on les imposerait aux deux joueurs.
+import { reglerSons, sonsActifs } from "./son.js";
 import { oublierRefs } from "./ecrire.js";
 import { vueAide } from "./aide.js";
 import { MOT } from "./mots.js";
@@ -91,6 +95,20 @@ const REGLAGES = [
     lire: () => defausseVisible(),
     poser(actif) {
       reglerDefausse(actif);
+    },
+  },
+  {
+    // (GRO-2) LE SON. Comme les deux précédents, l'écriture passe par le module
+    // qui le tient (`vue/son.js`) : ce module-ci lit et demande. Et comme les
+    // deux précédents, l'effet se vérifie de l'extérieur de la page — `?sons=non`
+    // dans l'adresse dit la même chose que cet interrupteur, et éteint les cinq
+    // bruits.
+    cle: "sons",
+    nom: MOT.setSound,
+    note: MOT.setSoundNote,
+    lire: () => sonsActifs(),
+    poser(actif) {
+      reglerSons(actif);
     },
   },
 ];

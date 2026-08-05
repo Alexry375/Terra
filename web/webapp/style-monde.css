@@ -169,12 +169,27 @@
  * trois quarts de la largeur d'une tuile, et une colonne sur deux descend d'une
  * demi-tuile. C'est ce décalage, et lui seul, qui fait le nid d'abeille.
  */
+/* 05-08 (LIS-5) — DEUX COLONNES, ET PLUS JAMAIS TROIS.
+ *
+ * La planche avait deux dispositions : trois colonnes au repos, deux pendant le
+ * court moment où l'on désigne l'emplacement d'une tuile révélée
+ * (`style-oceans.css`, règle `#oceans.oceans--choix`), puis retour. Mesuré sur
+ * deux parties entières jouées AVEC les mises en scène : 2 556 relevés, la
+ * planche entre 246 fois en mode « choix » et bascule 30 fois de disposition.
+ * Le propriétaire du projet préfère la disposition à deux colonnes et la veut
+ * permanente : elle devient donc la SEULE, ici, dans la règle de base — et la
+ * feuille du choix n'a plus rien à dire de la géométrie.
+ *
+ * Le remplissage et le centrage viennent de la règle du choix, sans quoi les
+ * colonnes n'auraient pas la même LARGEUR d'un moment à l'autre : « une seule
+ * disposition » se mesure en points, pas en nombre de colonnes. */
 .oceans__grille {
   /* `minmax(0, …)` : sans lui, la largeur minimale d'une tuile fait gonfler sa
      colonne et la planche déborde du panneau par la droite. */
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: center;
   gap: 0;
-  padding: 0 6% 8%;
+  padding: 0 12% 6%;
 }
 .ocean {
   perspective: 460px;
@@ -184,7 +199,9 @@
   width: 133.33%;
   margin-left: -16.67%;
 }
-.oceans__grille > .ocean:nth-child(3n + 2) { transform: translateY(50%); }
+/* (LIS-5) Le nid d'abeille suit les colonnes : sur deux colonnes, c'est une
+   tuile sur deux qui descend d'une demi-tuile. */
+.oceans__grille > .ocean:nth-child(2n) { transform: translateY(50%); }
 
 /* Le scan est un hexagone posé sur un fond blanc : on le découpe à sa forme,
    sinon la planche est une grille de carrés blancs. */
@@ -282,19 +299,62 @@ html[data-animations="non"] .cran { transition-duration: 0s; }
  *   · le curseur ne la touche plus une fois agrandie (`pointer-events: none`
  *     sur l'image), sinon elle clignote — la souris entre dans l'agrandissement,
  *     quitte la pastille, l'agrandissement retombe, et ainsi de suite. */
+/* 05-08 (LIS-4) — L'AGRANDISSEMENT PREND LE RAPPORT DE L'IMAGE.
+ *
+ * Ce qui ne marchait pas : `transform: scale(5.2)` sur une pastille CARRÉE.
+ * Mesuré graine 7, six tuiles à l'écran — la boîte agrandie faisait bien
+ * 151 × 151 points, mais l'image d'un objectif (900 × 293 disponibles) n'y
+ * occupait que 151 × 49, `object-fit: contain` laissant les deux tiers de la
+ * hauteur vides. On agrandissait surtout du vide, et la définition du fichier
+ * n'était utilisée qu'à 17 %.
+ *
+ * Ce qu'on fait à la place : la pastille reçoit, au survol, la LARGEUR et la
+ * HAUTEUR de son propre agrandissement (`--honneur-l` / `--honneur-h`, posées
+ * par `vue/monde.js` d'après `naturalWidth` / `naturalHeight` de l'image, donc
+ * jamais au-delà de sa définition). Le rapport de la boîte est alors celui de
+ * l'image : `contain` ne rogne plus rien, et toute la surface porte du dessin.
+ * Mesuré graine 7 : 607 × 198 pour un objectif, 391 × 306 pour une récompense.
+ *
+ * LA PLACE AU REPOS NE BOUGE PAS D'UN POINT, et c'est la raison des deux marges
+ * négatives : elles rendent au bandeau exactement ce que l'agrandissement lui
+ * prend. La pastille contribue toujours `--pastille` en largeur comme en
+ * hauteur à sa rangée — les tuiles voisines, les jauges et le plateau restent
+ * où ils sont. La marge est à GAUCHE et en BAS : la tuile grandit vers
+ * l'intérieur de l'écran et vers le bas, jamais par le bord droit, ce que
+ * `transform-origin: top right` obtenait auparavant.
+ *
+ * LE REPLI ANTI-CLIGNOTEMENT EST INTACT : l'image reste hors du test de survol
+ * (`pointer-events: none`, deux lignes plus bas), et c'est la pastille
+ * elle-même — dont la boîte EST l'agrandissement — qui garde le survol. La
+ * souris ne peut donc pas « entrer dans l'agrandissement » et en sortir.
+ *
+ * `flex: 0 0 auto` : sans lui, une rangée flex verrait une largeur de base de
+ * 600 points et pourrait chercher à rétrécir la pastille survolée. */
 .honneur {
-  transition: transform 160ms cubic-bezier(.2, .8, .2, 1);
-  transform-origin: top right;
+  --honneur-l: var(--pastille);
+  --honneur-h: var(--pastille);
+  flex: 0 0 auto;
+  transition:
+    width 160ms cubic-bezier(.2, .8, .2, 1),
+    height 160ms cubic-bezier(.2, .8, .2, 1),
+    margin 160ms cubic-bezier(.2, .8, .2, 1);
 }
 .honneur img { pointer-events: none; }
 .honneur:hover {
-  transform: scale(5.2);
+  width: var(--honneur-l);
+  height: var(--honneur-h);
+  margin-left: calc(var(--pastille) - var(--honneur-l));
+  margin-bottom: calc(var(--pastille) - var(--honneur-h));
   z-index: 900;
   /* Agrandie, la pastille reprend sa pleine lumière même quand elle n'est pas
      prise : on la survole POUR LA LIRE. */
   filter: drop-shadow(0 2px 6px rgba(0, 0, 0, .9));
 }
 .honneur:hover img { filter: none; opacity: 1; }
+/* Le liseré d'une tuile PRISE est un cercle posé sur un carré. Agrandie, la
+   tuile n'est plus carrée : le cercle deviendrait une ellipse tout autour du
+   dessin. On lui rend des coins pendant le survol — rien d'autre ne change. */
+.honneur--pris:hover::after { border-radius: 8px; }
 /* La rangée doit laisser sortir l'agrandissement : sans ceci, le débordement
    est rogné au premier parent qui découpe. */
 .tuiles-honneur, .tuiles-honneur__rang { overflow: visible; }

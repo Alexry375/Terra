@@ -103,6 +103,49 @@ export function annoncePassage(texte) {
 }
 
 /**
+ * (LIS-12, 05-08) **LA DÉFAUSSE EST REVERSÉE DANS LA PIOCHE.**
+ *
+ * Quand la pioche est vide, le moteur y reverse la défausse et la mélange
+ * (`engine/src/flow.rs:32`, livret p. 15). C'est un moment fort de la partie —
+ * mesuré graine 77 : la pioche passe de 0 à 168 cartes et la défausse de 171 à
+ * 2 d'un seul coup — et rien ne le montrait : deux nombres du bandeau
+ * changeaient, et c'était tout.
+ *
+ * Le moteur ne publie AUCUN signal de remélange et ne doit pas en publier :
+ * c'est `vue/anim.js` qui reconnaît l'évènement aux deux nombres déjà publiés,
+ * et qui appelle cette annonce-ci en même temps qu'il fait voler les cartes de
+ * la pile de défausse vers celle de la pioche.
+ *
+ * ELLE NE BLOQUE RIEN, comme toutes les autres : `#annonce` est en
+ * `pointer-events: none` et se pose sur le bandeau, jamais sur la scène.
+ *
+ * LE MOT NE SURVIT PAS AU MOMENT. Les autres annonces laissent leur texte dans
+ * le document une fois éteintes ; celle-ci l'efface, parce qu'elle est la seule
+ * dont le texte périmé serait FAUX et pas seulement vieux : qui relit
+ * `#annonce` après coup — un banc, un lecteur d'écran, une capture — y lirait
+ * un remélange qui n'a plus lieu. C'est la même raison qui fait vider `#annonce`
+ * au retour au menu (`vue/options.js`, `viderTable`).
+ */
+const TENUE_REMELANGE = 1300;
+
+export function annonceRemelange() {
+  const z = document.getElementById("annonce");
+  if (!z) return;
+  const d = document.createElement("div");
+  d.className = "annonce__passage annonce__remelange";
+  d.textContent = MOT.reshuffle;
+  jouerAnnonce(d, TENUE_REMELANGE);
+  setTimeout(() => {
+    // Une autre annonce a pu prendre la place entre-temps : on n'efface que la
+    // sienne.
+    if (z.firstElementChild === d) {
+      z.textContent = "";
+      z.classList.remove("annonce--vive");
+    }
+  }, TENUE_REMELANGE);
+}
+
+/**
  * L'écran final. Les deux scores viennent du moteur (`partie.scores`), et
  * l'élément qui les porte ne contient qu'eux — rien d'autre à lire dedans.
  */
