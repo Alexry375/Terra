@@ -853,6 +853,19 @@ lecture du texte — elles ne sont pas assez propres pour l'affichage, il l'a di
 lui-même.
 
 ### LIS-5 (Corentin, ligne 13) — La disposition des tuiles océan change toute seule
+**[VÉRIFIÉ 05-08 · mesuré par moi — Corentin a raison]** Sur deux parties
+entières jouées à l'écran, **2 556 relevés** : la planche entre **246 fois** en
+mode « choix d'emplacement », et sa disposition **bascule 30 fois**. Deux
+dispositions coexistent bien — trois colonnes de 35,8 points hors du choix, deux
+colonnes de 46,4 points pendant.
+
+⚠️ **Ma première mesure disait « 0 changement sur 219 décisions », et elle
+n'avait rien mesuré.** Le mode « choix » ne dure que le court instant pendant
+lequel on peut désigner l'emplacement (`web/webapp/vue/plateau.js:538-546`), et
+je jouais avec le réglage qui raccourcit toutes les mises en scène : le moment se
+refermait avant mon relevé. C'est le même piège que le demi-banc muet du lot des
+animations. **Un zéro n'est un résultat que si l'occasion a été comptée.**
+
 [DEMANDÉ] Quand une tuile est révélée, la planche de droite passe de trois
 lignes de trois à deux lignes de quatre et cinq, puis revient. Corentin trouve
 la disposition en 4 et 5 plus lisible et voudrait qu'elle soit **la seule**.
@@ -996,6 +1009,18 @@ du prix réellement payé.
 ### LIS-12 (ancien G2) — Le remélange de la défausse ne se voit pas
 [VÉRIFIÉ 04-08] Le moteur le fait bien (`engine/src/flow.rs:32-42`, livret p. 15).
 Reste seulement à le **montrer** au joueur quand cela arrive.
+
+**[VÉRIFIÉ 05-08 · mesuré par moi]** Sur **six parties entières jouées à
+l'écran, 1 135 décisions** : **2 remélanges**, **aucun des deux montré**, et
+aucune fausse alerte. C'est un événement rare mais spectaculaire dans les
+nombres — graine 77, rang 422 : la pioche passe de **0 à 168** cartes et la
+défausse de **171 à 2** d'un seul coup, sans que rien ne bouge à l'écran.
+
+**Le moteur ne publie aucun signal de remélange, et il n'a pas besoin d'en
+publier** : les deux nombres `decks.deck` et `decks.discard` sont déjà publiés
+(`engine/src/observe.rs:254-257`) et suffisent à reconnaître le moment — la
+pioche remonte pendant que la défausse s'effondre. **Rien à changer dans les
+règles.**
 
 ## 4. CONFORT DE JEU
 
