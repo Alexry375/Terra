@@ -58,6 +58,74 @@ posées et leurs ressources, repères, récompenses, score courant.
 Une réponse hors bornes n'est pas devinée : le moteur la refuse et le pont
 remonte l'erreur. C'est voulu — un fournisseur qui triche doit être vu.
 
+## Vendre des cartes — une entrée, jamais une réponse
+
+Vendre une carte projet de sa main est une décision que le moteur pose, et elle
+ne ressemble à aucune autre : **le moteur ne la demande pas**. Il fait savoir,
+avant chacun de ses points de décision, qu'ici une vente serait recevable
+(`flow::occasion_de_vendre`), et c'est au fournisseur de la proposer s'il la
+veut.
+
+**Ce que le fournisseur reçoit** : rien dans `decision` — la question posée est
+toujours une autre (« quelle carte poser ? », le plus souvent). C'est **l'état**
+qui porte l'information, dans `etat.vente_offerte` : vrai exactement là où une
+vente sera reçue. `etat.ventes_volontaires` compte celles déjà faites, tous
+joueurs confondus. La main à vendre, elle, est `etat.players[monSiège].hand`, et
+les indices de vente sont ceux de cette liste-là.
+
+**Ce que le fournisseur rend** : au lieu d'un indice d'option, une **entrée de
+vente**, qui prend sa place dans la liste des décisions —
+
+```js
+return { vendre: { joueur: monSiège, cartes: [0, 3] } };   // indices dans `hand`
+```
+
+Le moteur consomme cette entrée au point d'occasion qui précède la question,
+puis **repose la même question** sur l'état d'après : les cartes payables sont
+ré-énumérées avec l'argent d'après la vente. Répondre à la question vient donc
+ensuite, à l'appel suivant.
+
+**Le piège, et il est sérieux.** Une occasion ne se dépense qu'une fois : après
+une vente, la même question revient et `etat.vente_offerte` vaut **encore
+vrai** — le drapeau a été armé avant la vente. Une seconde vente rendue là est
+refusée par le moteur (« aucune occasion de vendre n'est ouverte à ce point ») et
+la partie s'arrête. Une nouvelle occasion ne s'ouvre qu'après une vraie réponse
+de ce siège. Un fournisseur qui vend doit donc se souvenir qu'il vient de
+vendre : l'état ne le lui dira pas.
+
+## La règle des deux mains
+
+L'état publie **les deux mains** : `etat.players[0].hand` et
+`etat.players[1].hand` existent toutes les deux, et c'est assumé côté moteur
+(« Mode bac à sable : les DEUX mains sont visibles », `engine/src/observe.rs`).
+La page en a besoin — elle sert les deux joueurs sur le même écran — et un
+simulateur aussi.
+
+**Un joueur artificiel honnête ne lit pas celle d'en face.** Des deux mains
+publiées, il ne lit que la sienne : ni la `hand` de l'autre siège, ni son
+`main_payable`, ni sa phase tant que le moteur ne l'a pas révélée. Il ne regarde
+pas non plus les cartes de son adversaire par un détour — un score courant
+recalculé sur cette main en serait un. Rien dans le code ne l'en empêche : c'est
+une règle de conduite, et
+elle a deux raisons. La première est que ce qu'on mesure alors ne veut rien
+dire — un joueur qui voit le jeu d'en face paraît brillant sans l'être. La
+seconde est plus lourde : ce joueur-là ne serait **pas transposable** à une
+partie contre un humain, où ces cartes ne seront pas connues. Il faudrait le
+réécrire, et le chiffre de victoires obtenu ne dirait rien de ce qu'il vaudrait
+une fois aveugle.
+
+Ce qu'un fournisseur peut lire sans mentir : **son propre siège** en entier, ce
+qui est **public** (paramètres de la planète, objectifs et récompenses, tailles
+de pioche et de défausse, scores affichés, cartes **posées** de l'adversaire et
+leurs ressources), et **la décision elle-même** (`question`, `options`, `passer`,
+`montant`, `multiple`). C'est déjà beaucoup : les options énumérées portent le
+prix, les points de victoire, les badges et la couleur de chaque carte.
+
+Cette règle s'éprouve de l'extérieur, sans lire le code : on repose au
+fournisseur exactement la même question dans deux états qui ne diffèrent que par
+la main d'en face, et l'on compare ses réponses. C'est ce que fait
+`inputs/checks/03-il-ne-regarde-pas-les-cartes-d-en-face.sh`.
+
 ## Règle d'or
 
 **Un fournisseur ne connaît aucune règle du jeu.** Il choisit parmi ce que le
@@ -119,6 +187,45 @@ Côté serveur, l'autorité reste le moteur : on rejoue
 `pont.pas(graine, boites, decisions)` et l'on vérifie que la réponse reçue est
 bien dans les bornes que le moteur annonce. Un client qui ment est rejeté par le
 moteur, pas par une règle recopiée.
+
+## La balance — `verif/duel.mjs`
+
+```
+node web/webapp/verif/duel.mjs <joueurA> <joueurB> [graines] [boites]
+```
+
+Elle fait jouer deux fournisseurs **nommés** l'un contre l'autre et dit qui
+gagne — et surtout **si l'écart veut dire quelque chose**. Chaque graine est
+jouée deux fois, sièges échangés, pour ne pas confondre la valeur d'un joueur
+avec l'avantage d'un siège ; chaque camp reçoit sa propre graine de hasard, sans
+quoi deux joueurs aléatoires feraient le même tirage ; rien n'y consulte
+l'horloge, donc deux exécutions impriment exactement les mêmes lignes. Elle
+imprime le nombre de décisions jouées, et conclut par « écart significatif » ou
+« dans le bruit » selon qu'on est à plus ou moins de deux écarts typiques de
+l'équilibre (le calcul est écrit en clair dans le fichier).
+
+Ce qu'elle prouve : que deux joueurs au hasard sont à l'équilibre — c'est le
+verdict qu'elle rend sur `duel.mjs hasard hasard 100` — et donc qu'un écart
+qu'elle déclare significatif est un vrai écart.
+
+## Le joueur qui réfléchit — `joueurs/reflechi.js`
+
+```
+node web/webapp/verif/duel.mjs reflechi hasard 100
+```
+
+`fournisseurReflechi(graine, nom)` est le premier fournisseur du dépôt qui ne
+tire pas au sort. Il ne connaît aucune règle : il note les options que le moteur
+vient d'énumérer (prix, points de victoire, badges, couleur, production) et son
+propre côté de la table, et prend la mieux notée. `decider` est une **fonction
+pure** — pas de mémoire, pas de tirage, donc pas de partie apprise par cœur — et
+il ne lit que son propre siège : une seule fonction du fichier touche
+`etat.players`, et elle prend le siège qui décide.
+
+Ce qu'il prouve : qu'on peut battre le hasard **nettement** sans explorer l'arbre
+des possibles, et qu'on a désormais une référence à laquelle comparer le
+prochain adversaire. Ses chiffres du jour sont dans `outputs/result.md` du
+chantier « le premier adversaire ».
 
 ## Ce qui n'a PAS à bouger
 
