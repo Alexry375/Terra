@@ -482,17 +482,42 @@ carte — ce qui créerait un **second endroit qui compte les points**, à côt�
 `engine/src/observe.rs`. **Aucune partie enregistrée cassée.** Même lot que
 MOT-10 et MOT-14.
 
-### MOT-16 (05-08) — Un badge joker s'affiche alors que personne ne l'a choisi à l'écran
-[DÉCLARÉ par l'agent du lot, non re-vérifié par moi] Le banc d'écran du chantier
-a observé un jeton de badge joker posé sur une carte alors qu'**aucune question
-« quel badge choisis-tu ? » n'avait jamais été posée à l'écran** dans cette
-partie. Deux lectures possibles, et je n'ai pas tranché : soit une carte joker
-est arrivée en jeu par un chemin qui choisit le badge sans demander (un effet qui
-pose une carte directement), et c'est alors normal ; soit l'état publié annonce
-un badge qui n'a pas été choisi, et c'est un cousin de MOT-12.
+### MOT-16 (05-08) — Un badge joker s'affiche alors que personne ne l'a choisi à l'écran — ✅ ÉLUCIDÉ 05-08, ce n'est pas un mensonge
+**[VÉRIFIÉ 05-08 · chaîne de code relue par moi]** **Le badge a bien été choisi
+par quelqu'un : par l'adversaire tenu par le programme.** L'écran n'invente
+aucun badge. Ce qu'il fait, c'est **ne rien dire** : la question posée au siège
+d'en face n'apparaît jamais dans la bande de décision, et pourtant le jeton
+qu'elle produit se dessine sur la table adverse.
 
-**À reprendre à part**, avec la partie exacte et le rang de la décision. Ne pas
-mélanger avec le lot A3.
+Chaîne de preuve, relue à la source :
+
+- `engine/src/flow.rs:451-483` — `ensure_joker_tag` est la **seule** écriture de
+  `joker_tags`, et elle passe **toujours** par `policy.pick_joker_tag`. Aucune
+  valeur par défaut, aucun autre chemin. Le badge ne peut donc pas apparaître
+  sans avoir été demandé à une politique.
+- `engine/src/observe.rs:134` — le champ `joker` n'est publié que si l'entrée
+  existe. Rien n'est fabriqué à la publication.
+- `web/webapp/interface.js:470` et `:343` — le siège d'en face est tenu par
+  `adversaire(graine)`, un fournisseur de décisions qui répond **sans** passer
+  par la bande de décision ; `:347` il redessine pourtant la scène.
+- `web/webapp/vue/cartes.js:151-172` — le jeton est dessiné pour **les deux**
+  tables.
+
+**Occasions comptées** : 400 parties hors écran, 148 783 décisions, 469 questions
+de badge, 282 jetons posés, **0 orphelin** — dont **137 jetons (49 %) dont la
+question ne fut jamais affichée au siège 0**. Plus 13 parties au navigateur
+(2 126 décisions), 6 jetons vus dont 2 sur le plateau adverse. Preuve que rien de
+l'adversaire n'atteint la bande : `#scene[data-joueur]` vaut toujours `"0"`.
+
+**Reproduction exacte** : graine 123, siège 0, rang 274 — jeton `Joker tag :
+Building` sur la carte 263 du plateau d'en face, alors que le compteur
+`pick_joker_tag` affiché vaut 0 sur toute la partie. Second cas : graine 10,
+rang 76 (carte 231).
+
+**Ce qui reste, et c'est un point de confort, pas de règle** : aucun événement à
+l'écran n'explique l'apparition du jeton adverse. À rattacher à la liste des
+animations (« on ne voit pas ce que fait l'autre »), **pas** au moteur. Aucun
+correctif appliqué, dépôt intact.
 
 ### MOT-12 (ancien I2) — L'état du moteur recule parfois
 [DÉCLARÉ] 20 reculs sur 183 lectures, graine 5150. Jamais expliqué. À reprendre

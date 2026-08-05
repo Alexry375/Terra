@@ -85,10 +85,16 @@ cette carte ». Le correctif demandé : pendant une question de pose, le vert
 désigne exactement ce que le moteur offre ; le reste du temps, il continue de
 dire ce qu'on a les moyens de payer.
 
-**Un quatrième point est une enquête, pas un correctif** : MOT-16, un jeton de
-badge vu sur une carte alors qu'aucune question n'avait été posée. Établir
-laquelle des deux explications est la bonne, avec la partie et le rang. « Je n'ai
-pas réussi à reproduire » est une réponse acceptée.
+**Un quatrième point était une enquête, pas un correctif — il est tranché**
+[VÉRIFIÉ 05-08, chaîne de code relue par moi] : MOT-16, un jeton de badge vu sur
+une carte alors qu'aucune question n'avait été posée. **L'écran ne ment pas ; il
+se tait.** Le badge est bien choisi par quelqu'un — l'adversaire tenu par le
+programme — mais sa question n'apparaît jamais dans la bande de décision, tandis
+que le jeton qu'elle produit, lui, se dessine. Comptage : 400 parties, 148 783
+décisions, 469 questions de badge, 282 jetons, **0 orphelin** ; 137 jetons sur
+282 (49 %) viennent d'une question jamais montrée. Reproduction : graine 123,
+rang 274. Le manque restant est un manque de **confort** — on ne voit pas ce que
+fait l'autre — donc il rejoint la liste des animations, pas celle du moteur.
 
 **Le chiffre de LIS-3 a changé, et la cause aussi** : la fiche disait 18
 pastilles recouvertes par une autre carte ; j'en mesure 4, recouvertes par la
