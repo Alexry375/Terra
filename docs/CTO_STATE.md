@@ -66,6 +66,32 @@ artificielle qui choisit ses phases doit connaître ces trois montants.
 - **LIS-3 n'est pas fini** : les 18 pastilles recouvertes sont toujours là,
   au même nombre exactement qu'avant le lot. Non régressé, non réparé.
 
+## 🚧 05-08 — CHANTIER EN COURS : « LES CARTES QUI BOUGENT ET LA DÉFAUSSE »
+
+Scellé et lancé. C'est le chantier D du plan, et le plus gros manque de confort
+restant : **les nombres changent, et rien ne bouge**. Quatre travaux dans
+l'ordre — le chemin de la pioche et de la défausse (ANI-6), la fenêtre de
+défausse (CNF-2), les actions qui se voient (ANI-1), puis les passages et le
+« +3 » (ANI-2, ANI-3, ANI-4).
+
+**Aucune règle du jeu ne change, et aucune partie enregistrée ne cesse d'être
+rejouable** : `engine/` est interdit en entier. C'est la propriété qui fait la
+cohérence du lot, et mon contrôle caché la vérifie.
+
+| Contrôle | Mesuré par moi au scellement |
+|---|---|
+| ce qui change se voit bouger | 172 décisions jouées à l'écran, **199 événements observés, 95 sans que rien ne bouge** — l'oxygène (14 sur 14) et les jetons Forêt (15 sur 15) sont muets à 100 % |
+| la défausse se voit | 172 observations de la pile, **aucune carte jamais montrée sur le dessus** |
+| le début de phase se voit | 242 décisions jouées, **57 débuts de phase, 32 muets** |
+| garde-fou (déjà vert) | 26 suites du moteur, 2102 pas par le pont, **414 décisions jouées à l'écran sans une erreur** |
+
+**Un demi-banc que j'ai retiré plutôt que de le garder muet.** Ma première
+version mesurait aussi le changement de tour (ANI-2) et comptait **zéro
+occasion** sur 242 décisions : la page ne publie rien qui désigne le joueur à qui
+la question s'adresse. Un contrôle qui juge sans avoir rien observé rend un
+verdict sur le vide — je l'ai donc supprimé et écrit dans le banc pourquoi. ANI-2
+reste au contrat, vérifié autrement.
+
 ## ✅ 05-08 — LE LOT « LES CHOIX SE POSENT AU BON MOMENT » EST FUSIONNÉ
 
 Fusionné dans `main` (`c071409`) après audit complet par moi. **MOT-2, MOT-3,
