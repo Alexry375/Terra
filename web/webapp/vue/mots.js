@@ -38,7 +38,6 @@ export const MOT = {
   // dessus, face decouverte, et un clic montre toutes les autres.
   discardOpen: "Click to see every discarded card",
   discardCount: (n) => `${n} card${n === 1 ? "" : "s"} — most recent first`,
-  discardOff: "The discard pile shows nothing while this option is off",
   setDiscard: "See the discard",
   setDiscardNote: "the last discarded card stays face up, and a click opens the whole pile",
   close: "Close",
@@ -46,8 +45,6 @@ export const MOT = {
   // phase : elles disent QUI a la parole, jamais ce qu'il a choisi.
   turnToOpponent: "Your turn is over — the other player is picking their Phase card",
   turnToMe: "Your turn — pick your Phase card",
-  turnHandover: "The other player is playing",
-  turnBack: "Your turn",
   // La planche des océans quand une tuile est due : la consigne posée sur la
   // planche, et l'annonce qui traverse l'écran.
   oceanPick: "Pick a tile",

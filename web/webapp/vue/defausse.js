@@ -83,10 +83,9 @@ export function reglerDefausse(oui) {
 // Ce que le moteur publie, retenu pour la fenêtre : la liste des cartes
 // défaussées, la plus récente en tête. Jamais complétée ni corrigée ici.
 let pile = [];
-// La signature du dessus déjà dessiné : on ne refait pas une carte qui n'a pas
-// changé. L'écran se réécrit à chaque décision, et une partie en compte
-// plusieurs centaines.
-let dessus = "";
+// La signature du dessus déjà dessiné vit sur l'élément lui-même
+// (`z.dataset.cle`) : on ne refait pas une carte qui n'a pas changé. L'écran se
+// réécrit à chaque décision, et une partie en compte plusieurs centaines.
 
 /** Le dock des deux paquets. Appelé une fois, par `vue/plateau.js`. */
 export function construireDefausse() {
@@ -228,11 +227,26 @@ function ouvrirFenetre() {
   voile.appendChild(cadre);
   document.body.appendChild(voile);
   remplirFenetre();
+
+  // ÉCHAP REFERME, comme partout ailleurs dans cette page. L'écouteur est posé
+  // à la CAPTURE, et il arrête l'évènement : `vue/options.js` en a un autre sur
+  // le document, posé bien avant celui-ci, qui OUVRE le panneau d'options quand
+  // rien n'est ouvert. Sans la capture, Échap aurait ouvert le panneau par
+  // dessus la fenêtre au lieu de la refermer.
+  voile.__echap = (e) => {
+    if (e.key !== "Escape") return;
+    e.stopPropagation();
+    fermerFenetre();
+  };
+  document.addEventListener("keydown", voile.__echap, true);
 }
 
 /** Referme la fenêtre. Sans effet si elle n'est pas ouverte. */
 export function fermerFenetre() {
-  document.getElementById("fenetre-defausse")?.remove();
+  const f = document.getElementById("fenetre-defausse");
+  if (!f) return;
+  if (f.__echap) document.removeEventListener("keydown", f.__echap, true);
+  f.remove();
 }
 
 /**
@@ -260,7 +274,6 @@ function remplirFenetre() {
 /** Remet la mémoire à zéro (nouvelle partie, table vidée). */
 export function oublierDefausse() {
   pile = [];
-  dessus = "";
   fermerFenetre();
   const z = document.getElementById("defausse");
   if (z) {

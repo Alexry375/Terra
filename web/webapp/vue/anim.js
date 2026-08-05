@@ -465,6 +465,9 @@ export async function voler(source, cible, options = {}) {
 // paquet de dos, sa dépense quitte sa bourse à lui.
 
 import { imageCarte, dosProjet, imageReserve, jetonForetDetoure } from "./materiel.js";
+// L'option « voir la défausse » gouverne aussi ce qui VOLE vers la pile : voir
+// `piochesEtDefausses`. C'est `vue/defausse.js` qui la tient, et lui seul.
+import { defausseVisible } from "./defausse.js";
 
 const RATIO_CARTE = 569 / 409;
 
@@ -744,8 +747,11 @@ function actionsDeLaListe(avant, apres, etat) {
  * côtés de la table.
  */
 function piochesEtDefausses(avant, apres, etat) {
-  const pioche = trouver("[data-pioche]");
-  const pile = trouver("[data-defausse]");
+  // Le dock se cherche avec la même prudence que tout le reste : un élément
+  // présent n'a pas forcément de surface, et un point d'ancrage sans surface
+  // rendrait TOUTES les pioches et toutes les défausses muettes, en silence.
+  const pioche = premiereBoite("[data-pioche]", "#paquets");
+  const pile = premiereBoite("[data-defausse]", "#paquets");
   const siege = apres.siege;
 
   // LES PIOCHES. Au siège regardé, on compte les cartes DESSINÉES : `vue/mains.js`
@@ -791,8 +797,15 @@ function piochesEtDefausses(avant, apres, etat) {
   for (let k = 0; k < combien; k++) {
     const c = liste[k];
     if (!c) break;
+    // FACE DÉCOUVERTE OU FACE CACHÉE ? L'option décide. Défaut trouvé par la
+    // relecture adversariale : option ÉTEINTE, la pile ne montrait plus rien —
+    // mais la carte qui s'en allait, elle, traversait l'écran face découverte.
+    // « On ne voit pas ce que l'adversaire a jeté » était donc tenu à l'arrêt et
+    // faux en mouvement. Le vol reste, entier — ANI-6 ne dépend pas de cette
+    // option — c'est la FACE qui s'en va.
+    const face = defausseVisible() ? imageCarte(c.name) : null;
     lancer("defausse", () => volerMatiere({
-      depuis, vers: pile, src: imageCarte(c.name) || dosProjet(), motif: "defausse",
+      depuis, vers: pile, src: face || dosProjet(), motif: "defausse",
       cote: 58, ratio: RATIO_CARTE, cadrer: "boite",
       ms: 540 + k * 70, tour: 8, grossir: 1.2,
     }));
@@ -823,6 +836,11 @@ export function mettreEnScene(etat, siege) {
 /** Remet la mémoire à zéro (nouvelle partie, table vidée). */
 export function oublierMiseEnScene() {
   vu = null;
+  // Les compteurs de vols en cours et le souvenir de la dernière pose partent
+  // avec la partie. Un résidu de compteur — une partie abandonnée pendant des
+  // vols — rendrait un motif entier définitivement muet dans la partie suivante.
+  enVol.clear();
+  posesDeLaMain = { quand: 0, nom: "" };
 }
 
 export async function coucher(el, ms = 700) {

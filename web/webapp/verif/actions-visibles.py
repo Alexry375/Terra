@@ -44,7 +44,7 @@ new MutationObserver((ms) => {
 }).observe(document, { childList: true, subtree: true });
 """
 
-LECTURE = """
+LECTURE = r"""
 () => {
   const n = (s) => { const e = document.querySelector(s); return e ? e.textContent.trim() : null; };
   const v = (c) => n('[data-valeur="' + c + '"]');
@@ -54,6 +54,13 @@ LECTURE = """
     mc: [v('players.0.mc'), v('players.1.mc')],
     forets: [v('players.0.forests'), v('players.1.forests')],
     main: document.querySelectorAll('[data-main-siege] [data-carte-cle]').length,
+    // Les ressources posees sur les cartes en jeu, chemin par chemin. C'est la
+    // pastille que `vue/cartes.js` pose sur la carte, et elle declare son chemin
+    // exact dans l'etat (`players.J.played.K.resources`) : oracle publie, et
+    // anterieur a ce chantier.
+    ressources: Object.fromEntries([...document.querySelectorAll('[data-valeur]')]
+      .filter((e) => /^players\.\d+\.played\.\d+\.resources$/.test(e.dataset.valeur))
+      .map((e) => [e.dataset.valeur, e.textContent.trim()])),
     jeu: document.querySelectorAll('[data-carte-en-jeu]').length,
     defausse: v('decks.discard'),
     vols: window.__m.length,
@@ -72,6 +79,24 @@ def nombre(x):
 def monte(a, b, cle):
     x, y = nombre(a[cle]), nombre(b[cle])
     return x is not None and y is not None and y > x
+
+
+def ressource_monte(a, b):
+    """Une carte DEJA posee porte-t-elle plus de ressources qu'avant ?
+
+    On ne compte que les chemins presents des deux cotes : une carte qui vient
+    d'etre posee avec une ressource dessus fait apparaitre un chemin neuf, et
+    c'est une POSE, pas un gain de ressource. Confondre les deux ferait compter
+    une occasion qui n'a pas eu lieu.
+    """
+    av, ap = a["ressources"], b["ressources"]
+    for chemin, v in ap.items():
+        if chemin not in av:
+            continue
+        x, y = nombre(av[chemin]), nombre(v)
+        if x is not None and y is not None and y > x:
+            return True
+    return False
 
 
 def monte_joueur(a, b, cle):
@@ -94,6 +119,11 @@ FAMILLES = [
     ("une carte piochee", lambda a, b: b["main"] > a["main"], "pioche", 10),
     ("une carte posee", lambda a, b: b["jeu"] > a["jeu"], "pose", 8),
     ("une carte defaussee", lambda a, b: monte(a, b, "defausse"), "defausse", 8),
+    # LA SIXIEME ENTREE DE LA LISTE DICTEE, et celle que personne ne mesurait :
+    # ni le contrôle 01 du contrat (sept familles, celle-ci n'y est pas) ni la
+    # premiere version de ce banc, qui avait recopie la liste du contrôle au lieu
+    # de celle du prompt. Defaut trouve par la relecture adversariale.
+    ("des ressources sur une carte", ressource_monte, "jeton", 4),
 ]
 
 

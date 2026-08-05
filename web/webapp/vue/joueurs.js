@@ -30,6 +30,9 @@ import { carte } from "./cartes.js";
 import { survolable } from "./loupe.js";
 import { ref, poser, poserValeur } from "./ecrire.js";
 import { estPlanification } from "./phases.js";
+// (cartes-qui-bougent) Le rattrapage rejoue une partie déjà jouée : les gains
+// d'alors ont déjà été touchés, et les annoncer serait annoncer du vieux.
+import { rattrapageEnCours } from "./anim.js";
 import { MOT } from "./mots.js";
 
 const RESERVES = [
@@ -266,6 +269,14 @@ function montrerGain(a, j, cle, valeur) {
   // Premier rendu : il n'y a pas d'avant, donc pas d'écart. Sans cette garde,
   // toute la mise en place de la partie s'annoncerait comme un gain.
   if (precedent === undefined || valeur <= precedent) return;
+  // LE RATTRAPAGE NE REJOUE PAS LES GAINS. Défaut trouvé par la relecture
+  // adversariale : après un rechargement, la page repasse au moteur toutes les
+  // décisions déjà prises — 132 gains par partie, en moins d'une demi-seconde.
+  // Chacun vivant 3 400 ms et s'empilant sur le précédent, la colonne montait à
+  // plusieurs centaines de points au-dessus du bac, figée (le rattrapage éteint
+  // les durées). La mémoire, elle, est déjà à jour deux lignes plus haut : au
+  // retour à la normale, le prochain vrai gain sera juste.
+  if (rattrapageEnCours()) return;
   const bac = a.querySelector(".reserve--" + cle);
   if (!bac) return;
   const d = document.createElement("span");
@@ -286,6 +297,12 @@ function montrerGain(a, j, cle, valeur) {
   // déjà là (`--rang`, lu par `style-monde.css`). Ils ne se recouvrent pas, ils
   // se suivent — et comme chacun s'efface tout seul, la colonne se vide d'elle-
   // même.
+  // LE PLAFOND. Mesuré sur deux fenêtres et deux graines, une même réserve ne
+  // porte jamais plus de CINQ « +N » à la fois. Six est donc une borne qu'une
+  // partie ordinaire n'atteint pas — elle n'existe que pour qu'une rafale
+  // imprévue ne fasse pas monter la colonne indéfiniment au-dessus du bac.
+  const dejaLa = bac.querySelectorAll(".gain");
+  if (dejaLa.length >= 6) dejaLa[0].remove();
   d.style.setProperty("--rang", String(bac.querySelectorAll(".gain").length));
   bac.appendChild(d);
   // (cartes-qui-bougent, ANI-4) 3 400 ms, et non plus 1 900.
