@@ -38,7 +38,10 @@ import os
 import sys
 
 RACINE = os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else "web/webapp")
-GRAINE = sys.argv[2] if len(sys.argv) > 2 else "4242"
+# PLUSIEURS GRAINES, et on s'arrete des que les trois mesures ont eu lieu. Une
+# partie ne contient pas forcement de carte a badge joker, ni de carte porteuse
+# de ressources : une seule graine, et le banc serait vert pour n'avoir rien vu.
+GRAINES = (sys.argv[2] if len(sys.argv) > 2 else "4242,7,5150").split(",")
 
 sys.path.insert(0, os.path.join(RACINE, "verif"))
 from pilote import serveur, page, choix_simple, choix_montant  # noqa: E402
@@ -111,6 +114,7 @@ vu = {"decisions": 0, "choix_joker": 0, "jetons": 0, "loupes": 0, "temoins": 0,
       "revenus": 0}
 # joueur -> liste des badges repondus au point de decision `pick_joker_tag`
 repondus = {0: [], 1: []}
+graines_jouees = []
 
 
 def erreur(m):
@@ -195,8 +199,15 @@ def loupe_sur(pg, avec_ressources):
 
 
 with serveur(RACINE) as base:
+  for GRAINE in GRAINES:
+    # On s'arrete des que TOUT a ete mesure : inutile de jouer une partie de
+    # plus, et le banc dit ce qu'il a vu plutot que de compter les graines.
+    if vu["jetons"] and vu["loupes"] and vu["temoins"]:
+        break
     with page(f"{base}/?graine={GRAINE}&siege=0&animations=non") as (pg, erreurs, _):
         pg.wait_for_selector("#horizon", timeout=20000)
+        graines_jouees.append(GRAINE)
+        loupe_faite = False
         for _tour in range(2000):
             if pg.query_selector("[data-partie-terminee]"):
                 break
@@ -209,10 +220,42 @@ with serveur(RACINE) as base:
             vu["decisions"] += 1
 
             # Le revenu reel se controle regulierement : a chaque decision ce
-            # serait 600 lectures pour rien, jamais ce serait ne rien mesurer.
+            # serait des centaines de lectures pour rien ; jamais, ce serait ne
+            # rien mesurer.
             if rang % 25 == 0:
                 controler_revenu(pg, rang)
             controler_jetons(pg, rang)
+
+            # MOT-15 se mesure DES QU'une carte posee porte des ressources —
+            # pas a la fin : une partie peut finir sans qu'il en reste une.
+            if not loupe_faite:
+                avec = loupe_sur(pg, True)
+                if avec is not None:
+                    loupe_faite = True
+                    if not avec["ouverte"]:
+                        erreur(f"graine {GRAINE} : la loupe ne s'ouvre pas sur la "
+                               f"carte {avec['id']}")
+                    else:
+                        vu["loupes"] += 1
+                        if avec["pv"] is None:
+                            erreur(f"graine {GRAINE} : la carte {avec['id']} porte des "
+                                   f"ressources, mais une fois AGRANDIE elle ne dit pas "
+                                   f"ce qu'elles rapportent — c'est la moitie visible "
+                                   f"de MOT-15 (texte lu : {avec['texte']!r})")
+                        elif avec["cache"]:
+                            erreur(f"graine {GRAINE} : la ligne des points de la carte "
+                                   f"{avec['id']} est recouverte par {avec['cache']!r}")
+                    # Temoin en sens inverse, au meme instant : une carte SANS
+                    # ressource ne doit RIEN annoncer. Sans lui, une page qui
+                    # ecrirait « 0 point » partout passerait pour juste.
+                    sans = loupe_sur(pg, False)
+                    if sans is not None and sans["ouverte"]:
+                        vu["temoins"] += 1
+                        if sans["pv"] is not None:
+                            erreur(f"graine {GRAINE} : la carte {sans['id']} ne porte "
+                                   f"AUCUNE ressource et annonce pourtant {sans['pv']} "
+                                   f"point(s) : la ligne s'affiche partout, elle ne "
+                                   f"mesure donc rien")
 
             choix = [c for c in pg.query_selector_all("[data-choix]") if c.is_visible()]
             if forme == "montant":
@@ -247,53 +290,25 @@ with serveur(RACINE) as base:
                 arg=rang, timeout=15000)
 
         # ------------------------------------------------------------------
-        # MOT-14 : ce qui a ete REPONDU se retrouve-t-il sur la table ?
-        # ------------------------------------------------------------------
-        jetons = pg.evaluate(JETONS)
-        for j in (0, 1):
-            montres = [t["badge"] for t in jetons if t["joueur"] == j and not t["cache"]]
-            titres = " | ".join(t["titre"] for t in jetons if t["joueur"] == j)
-            for badge in repondus[j]:
-                # Le jeton porte le nom d'affichage du badge (`nomBadge`) et son
-                # `title` porte le nom du moteur : l'un des deux doit dire le
-                # badge repondu. On ne compare donc pas deux fois la meme source.
-                if not any(badge in m for m in montres) and badge not in titres:
-                    erreur(f"joueur {j} : le badge « {badge} » a ete choisi au point "
-                           f"de decision, aucun jeton VISIBLE ne le dit sur ses cartes "
-                           f"posees (jetons vus : {montres or 'aucun'})")
-
-        # ------------------------------------------------------------------
-        # MOT-15 : la carte agrandie dit ce que ses ressources rapportent.
-        # ------------------------------------------------------------------
-        avec = loupe_sur(pg, True)
-        if avec is None:
-            erreur("aucune carte posee ne porte de ressources en fin de partie — "
-                   "la mesure MOT-15 n'a pas eu lieu")
-        elif not avec["ouverte"]:
-            erreur(f"la loupe ne s'ouvre pas sur la carte {avec['id']}")
-        else:
-            vu["loupes"] += 1
-            if avec["pv"] is None:
-                erreur(f"la carte {avec['id']} porte des ressources, mais une fois "
-                       f"AGRANDIE elle ne dit pas ce qu'elles rapportent — c'est la "
-                       f"moitie visible de MOT-15 (texte lu : {avec['texte']!r})")
-            elif avec["cache"]:
-                erreur(f"la ligne des points de la carte {avec['id']} est recouverte "
-                       f"par {avec['cache']!r}")
-
-        # Temoin en sens inverse : une carte SANS ressource n'annonce rien.
-        sans = loupe_sur(pg, False)
-        if sans is not None and sans["ouverte"]:
-            vu["temoins"] += 1
-            if sans["pv"] is not None:
-                erreur(f"la carte {sans['id']} ne porte AUCUNE ressource et annonce "
-                       f"pourtant {sans['pv']} point(s) : la ligne s'affiche partout, "
-                       f"elle ne mesure donc rien")
+        # MOT-14 : LA PAGE N'INVENTE AUCUN BADGE.
+        #
+        # Sens de la comparaison : tout jeton MONTRE doit correspondre a un
+        # badge REPONDU par ce joueur-la. L'inverse ne se tient pas — une carte
+        # a badge joker peut etre resolue sans finir sur la table (mesure : 18
+        # choix pour 12 cartes posees, banc 02 du contrat) —, et l'exiger ferait
+        # un banc rouge sur une page juste.
+        for t in pg.evaluate(JETONS):
+            if t["cache"]:
+                continue
+            if t["badge"] not in repondus[t["joueur"]]:
+                erreur(f"graine {GRAINE} : le joueur {t['joueur']} montre un badge "
+                       f"« {t['badge'] or t['titre']} » qu'il n'a jamais choisi "
+                       f"(reponses donnees : {repondus[t['joueur']] or 'aucune'})")
 
         for e in erreurs:
-            erreur(f"la page a signale une erreur : {e}")
+            erreur(f"graine {GRAINE} : la page a signale une erreur : {e}")
 
-print(f"    graine {GRAINE} : {vu['decisions']} decisions, "
+print(f"    graines {'+'.join(graines_jouees)} : {vu['decisions']} decisions, "
       f"{vu['revenus']} lectures du revenu reel, {vu['choix_joker']} badge(s) joker "
       f"choisi(s), {vu['jetons']} jeton(s) dessine(s), {vu['loupes']} carte(s) "
       f"agrandie(s) a ressources, {vu['temoins']} temoin(s) sans ressource")
@@ -305,12 +320,16 @@ if vu["decisions"] < 50:
 if vu["revenus"] < 2:
     print("KO le revenu reel n'a jamais ete lu — la mesure MOT-10 n'a pas eu lieu")
     sys.exit(1)
-if vu["choix_joker"] == 0 and vu["jetons"] == 0:
-    print("KO aucun badge joker dans cette partie — la mesure MOT-14 n'a pas eu lieu "
-          "(essaie une autre graine)")
+if vu["jetons"] == 0:
+    print("KO aucun jeton de badge joker dessine — la mesure MOT-14 n'a pas eu lieu "
+          "(donne d'autres graines en second argument)")
     sys.exit(1)
 if vu["loupes"] == 0:
     print("KO aucune carte a ressources agrandie — la mesure MOT-15 n'a pas eu lieu")
+    sys.exit(1)
+if vu["temoins"] == 0:
+    print("KO aucun temoin sans ressource — le banc ne peut pas distinguer une page "
+          "qui compte d'une page qui ecrit « 0 » partout")
     sys.exit(1)
 
 if fautes:
