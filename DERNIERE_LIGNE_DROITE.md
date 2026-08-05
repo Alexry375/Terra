@@ -93,14 +93,33 @@ Au passage, le libellé `sell_card` de `mots.js:275` est devenu du code mort.
 en silence. Il faut dire en clair « aucune carte constructible cette phase ».
 Réglé par MOT-1.
 
-### MOT-5 (Corentin, ligne 17) — Défausser pendant la Construction donne la main à l'autre
-[DÉCLARÉ 04-08 · À VÉRIFIER] Défausser des cartes pendant la phase Construction
-ferait passer la main à l'adversaire, **sans avoir joué de carte ni passé son
-tour**. Si c'est exact, c'est un défaut grave : un joueur perd son tour de
-construction pour avoir vendu.
+### MOT-5 (Corentin, ligne 17) — Défausser pendant la Construction donne la main à l'autre — RÉFUTÉ
+[VÉRIFIÉ 05-08 · mesuré] **Ce défaut n'existe plus.** La vente ne consomme rien
+et rend la main à personne : en Construction, l'occasion de vendre est posée
+avant le calcul des cartes payables, puis la question de pose revient **au même
+joueur** (`engine/src/flow.rs:4051-4058`). La vente a cessé d'être une action
+(`engine/src/policy.rs:38-48`) et l'écran ne fabrique jamais de « passer »
+(`web/webapp/vue/vente.js:211-238`).
 
-À reproduire d'abord, puis à situer : est-ce la vente qui consomme le tour, ou
-l'écran qui envoie une réponse « passer » à sa place ?
+**Mesure** : 12 graines, parties entières, on vend **partout où c'est offert** —
+**1 003 ventes, dont environ 270 en phase Construction, zéro passage de main**.
+
+Ce que Corentin a vu décrivait très probablement l'état d'avant le lot moteur
+(`ff40503`, la vente quitte la phase Action).
+
+### MOT-13 (trouvé par l'enquête du 05-08, personne ne l'avait signalé) — Vendre sa dernière carte fait disparaître une défausse imposée
+[VÉRIFIÉ 05-08 · mesuré] Quand un effet de carte **impose** une défausse
+(`engine/src/flow.rs:2230-2247`) et que le joueur en profite pour **vendre sa
+dernière carte**, il ne reste plus rien à défausser : le moteur sort sans poser
+la question (`return`, l. 2246). Conséquence — la défausse imposée s'évapore, le
+joueur encaisse les 3 mégacrédits de la vente **et** échappe au coût de l'effet,
+et la main passe à l'adversaire.
+
+**Fréquence** : 1 cas sur 1 003 ventes, 1 graine sur 12 (graine 5150). Rare, mais
+c'est un gain injuste, donc exploitable par une intelligence artificielle.
+
+**Correctif** : `engine/src/flow.rs` seul, vers la ligne 2236. **Aucune partie
+enregistrée cassée** — on ne déplace aucun point de décision.
 
 ### MOT-6 (Corentin, ligne 19 · recoupe MOT-1) — Vendre quand on ne peut rien payer — FAIT
 **[FAIT 05-08 (`ff40503`), audité.]** L'occasion de vendre est ouverte à chaque
@@ -146,11 +165,34 @@ l'autre.
 Gain pour l'intelligence artificielle : deux chemins qui mènent au même état
 gonflent l'arbre de recherche sans rien apporter. Ici on en supprime un.
 
-### MOT-8 (Corentin, ligne 8) — Le badge « ? » se choisit trop tard
-[DÉCLARÉ 04-08 · À VÉRIFIER] Corentin croit qu'on doit choisir le badge d'une
-carte à badge « ? » **avant même de la jouer**, et voudrait que le choix se fasse
-**au moment où l'on décide de la jouer**. À vérifier dans le moteur : où le point
-de décision est-il posé par rapport à la pose ?
+### MOT-8 (Corentin, ligne 8) — Le badge « ? » se choisit trop tôt — CONFIRMÉ
+[VÉRIFIÉ 05-08 · mesuré] Corentin a raison, et le titre de la fiche était à
+l'envers : le choix se fait trop **tôt**, pas trop tard. Le moteur parcourt
+**toute la main** et fait choisir le badge de chaque carte joker avant même de
+savoir si le joueur veut la jouer (`engine/src/flow.rs:489-502`, point de
+décision l. 466).
+
+**Mesure** : 14 graines, parties entières. Les trois cartes concernées sont
+*Local Market*, *Political Influence* et *Topographic Mapping*. **17 choix de
+badge, 17 sur 17 posés alors que la carte est encore en main, et 7 sur 17
+(41 %) portent sur une carte qui ne sera jamais jouée de la partie.**
+
+**Pourquoi c'est écrit ainsi**, et c'est une vraie raison (`flow.rs:420-427`) :
+le badge change le **prix** de la carte, par les savoir-faire Titane et Acier. Le
+moteur doit donc connaître le badge pour savoir si la carte est payable — et
+payer le même prix que celui qu'il a annoncé.
+
+**Correctif** : `engine/src/flow.rs`. Deux chemins possibles, à trancher — soit
+calculer le prix avec le meilleur badge possible puis poser la question à la
+pose, soit poser la question à la pose et recalculer le prix avec un chemin de
+renoncement si le joueur ne peut plus payer. Un demi-correctif à coût moindre
+existe : ne faire choisir le badge que des cartes **payables**, ce qui supprime
+les 41 % inutiles.
+
+⚠️ **Ce correctif casse toutes les parties enregistrées** : supprimer ou déplacer
+des points de décision décale la liste ordonnée des réponses. À grouper dans le
+même lot que MOT-3, qui a le même effet, pour ne refixer les empreintes qu'une
+seule fois.
 
 ### MOT-9 (Corentin, ligne 14) — Les deux joueurs doivent choisir leur phase en même temps
 [TRANCHÉ PAR ALEXIS 04-08 · Q6] Le livret demande un choix **simultané et face
@@ -165,8 +207,40 @@ exige de recevoir les réponses l'une après l'autre, l'écran garde la seconde 
 côté et l'envoie ensuite. Le travail est donc dans l'écran et le relais, **pas
 dans le moteur** — cela peut se faire hors du gros lot.
 
-### MOT-10 (Corentin, lignes 18 et 20) — La production affichée ignore les cartes à badges
-[DÉCLARÉ 04-08 · À VÉRIFIER] Le compteur de production de MC affiché ne comprend
+### MOT-10 (Corentin, lignes 18 et 20) — La production affichée ignore les cartes à badges — CONFIRMÉ
+[VÉRIFIÉ 05-08 · mesuré] Confirmé **dans les deux moitiés** : les badges ET les
+jetons Forêt. Le moteur ne publie que la piste de production de base
+(`engine/src/observe.rs:77-82`), alors qu'il verse en plus tout ce qui dépend des
+badges et des forêts (`engine/src/flow.rs:4289-4293`, calculé par
+`derived_production`, `flow.rs:2309-2321`). Ces montants ne touchent jamais la
+piste, donc rien ne les affiche. Quatorze cartes sont concernées.
+
+**Mesure**, sonde sur la vraie phase Production :
+
+| carte | annoncé | réellement versé | écart |
+|---|---|---|---|
+| *Cartel* (1 MC par badge Terre) | 0 | 1 | −1 |
+| *Cartel* × 2 | 0 | 4 | −4 |
+| *Lightning Harvest* (1 MC par badge Science) | 0 | 1 | −1 |
+| *Zeppelins* (1 MC par jeton Forêt), 2 forêts | 2 | 2 de plus | −2 |
+| *Immigration Shuttles*, production fixe — **témoin** | 3 | 3 | **0, correct** |
+
+Le témoin prouve que le compteur est juste pour les productions fixes : ce n'est
+donc pas le compteur qui est cassé, c'est une moitié du calcul qui n'est jamais
+publiée. Sur une partie réelle (graine 5150), un joueur voit **5** alors que la
+phase suivante lui versera **7**.
+
+**Correctif : peu coûteux.** Le nombre existe déjà et se lit
+(`flow::derived_production` est publique) : un champ à ajouter dans
+`engine/src/observe.rs`, puis `web/webapp/vue/joueurs.js`. **Aucune partie
+enregistrée cassée** — publier un nombre ne pose aucun point de décision.
+
+**Une seule chose à trancher** : le bonus de la phase Production dépend d'une
+phase que les joueurs n'ont pas encore choisie (`flow.rs:4282-4284`). Le nombre
+annoncé sera donc juste **hors bonus**. C'est le seul choix honnête : annoncer un
+bonus qui dépend d'un choix non fait serait deviner.
+
+**[DÉCLARÉ, texte d'origine]** Le compteur de production de MC affiché ne comprend
 pas les cartes qui produisent des MC **selon le nombre de badges** — ni,
 probablement, celles qui dépendent du nombre de jetons Forêt.
 
@@ -177,10 +251,38 @@ terraformation, plus tout ce qui dépend des badges et des jetons.
 C'est un travail d'affichage, mais le nombre doit venir du **moteur** : il n'y a
 qu'un seul endroit qui a le droit de calculer, et ce n'est pas la page.
 
-### MOT-11 (ancien E2) — Le joueur ne choisit pas quelle tuile océan retourner
-[DÉCLARÉ] Aujourd'hui le moteur tire au hasard. Alexis veut choisir. Facilité
-qu'il a lui-même autorisée : si toutes les tuiles restantes donnent le même
-résultat, le choix peut n'être que visuel. À confirmer contre le livret.
+### MOT-11 (ancien E2) — Le joueur ne choisit pas quelle tuile océan retourner — CONFIRMÉ, mais le correctif moteur est DÉCONSEILLÉ
+[VÉRIFIÉ 05-08 · lu dans le livret et dans le code] Le moteur mélange les neuf
+tuiles une seule fois, à la mise en place (`engine/src/flow.rs:75-76`), puis les
+prend **dans l'ordre** de ce mélange (`flow.rs:2984-2994`). Aucun point de
+décision océan n'existe. Les tuiles ne sont pas interchangeables : sept
+récompenses différentes sur neuf (`engine/src/state.rs:59-68`).
+
+**Mais le livret tranche la question, et pas dans le sens attendu.** Il dit bien
+« choisissez une tuile Océan » (`docs/regles/livret-base.md:72`) — seulement il
+dit aussi, ligne 203 : « Mélangez les tuiles **face bleue cachée** et placez-les
+**aléatoirement** ». **On choisit à l'aveugle**, et aucun emplacement ne porte la
+moindre information. Le tirage du moteur reproduit donc **exactement** la loi du
+livret : le choix du joueur ne change rien, ni au résultat, ni à son espérance.
+
+**Recommandation : ne toucher au moteur pour aucun prix.** Le choix visuel — le
+joueur désigne une tuile parmi celles qui restent, et l'on retourne celle que le
+moteur avait déjà tirée — coûte `web/webapp/vue/plateau.js` et une feuille de
+style, **zéro ligne de moteur, zéro partie enregistrée cassée**, et donne au
+joueur exactement le geste du livret. Un vrai point de décision, lui, casserait
+toutes les parties enregistrées pour un choix qui ne décide de rien.
+
+L'écran a déjà tout ce qu'il lui faut : l'identité des tuiles révélées est
+publiée (`engine/src/observe.rs:170`).
+
+### ⚠️ Trouvaille hors fiches (05-08) — le document du cerveau distant ne parle pas de la vente
+[VÉRIFIÉ 05-08] Un joueur ne peut vendre **qu'une seule fois par point de
+décision** ; une seconde tentative au même point est refusée
+(`web/webapp/wasm/src/lib.rs:830`). L'écran s'en garde par un verrou
+(`vue/vente.js:122` et `:269`), mais **`web/webapp/adversaire.md` — le document
+qui explique à un cerveau distant comment jouer — ne dit pas un mot de la
+vente**. Une intelligence artificielle branchée dessus empoisonnerait la partie
+sans le savoir. À corriger avant GRO-1.
 
 ### MOT-12 (ancien I2) — L'état du moteur recule parfois
 [DÉCLARÉ] 20 reculs sur 183 lectures, graine 5150. Jamais expliqué. À reprendre
