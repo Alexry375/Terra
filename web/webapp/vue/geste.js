@@ -163,11 +163,16 @@ export function armerCarte(figure) {
 
   figure.addEventListener("pointerdown", (e) => {
     if (e.button !== undefined && e.button !== 0) return;
-    if (figure.dataset.choix === undefined || !ouverte) return;
-    // Sans cela le navigateur commence sa propre sélection de texte ou son
-    // propre glisser d'image, et le geste nous échappe au premier pixel.
+    // CNF-1 — LE GESTE S'ARME TOUJOURS, MÊME QUAND LA CARTE N'EST PAS JOUABLE.
+    // Ce qu'il fera ne se décide pas ici mais au PREMIER PIXEL PARCOURU : poser
+    // la carte si le moteur vient de l'énumérer, sinon la déplacer dans la main.
+    // Sans cette entrée-là, trier sa main n'aurait été possible qu'au moment
+    // précis où une question de pose est ouverte, c'est-à-dire presque jamais.
+    //
+    // Un CLIC ne change rien : il ne parcourt aucun pixel, il ne déclenche donc
+    // ni l'un ni l'autre, et une carte non jouable cliquée ne fait toujours rien.
     e.preventDefault();
-    prise = { x: e.clientX, y: e.clientY, voyage: false };
+    prise = { x: e.clientX, y: e.clientY, volante: null, tri: false };
     try {
       figure.setPointerCapture(e.pointerId);
     } catch {
@@ -180,25 +185,39 @@ export function armerCarte(figure) {
     if (!prise) return;
     const dx = e.clientX - prise.x;
     const dy = e.clientY - prise.y;
-    if (!prise.volante && Math.hypot(dx, dy) < SEUIL) return;
-    if (!prise.volante) {
-      // ON SOULÈVE LA CARTE HORS DE LA MAIN. Un fac-similé part dans la couche de
-      // vol : la bande de la main est en `overflow: hidden`, et la carte y serait
-      // coupée net dès qu'elle en sortirait — on la verrait disparaître au lieu
-      // de la voir voyager. L'agrandissement au survol, lui, se referme : il
-      // n'a rien à faire au-dessus d'une carte qu'on est en train de porter.
+    if (!prise.volante && !prise.tri && Math.hypot(dx, dy) < SEUIL) return;
+    if (!prise.volante && !prise.tri) {
+      // L'agrandissement au survol se referme dans les deux cas : il n'a rien à
+      // faire au-dessus d'une carte qu'on est en train de porter ou de ranger.
       cacherLoupe();
-      figure.dataset.enMain = "oui";
-      prise.volante = attraper(figure);
+      if (posable(figure)) {
+        // ON SOULÈVE LA CARTE HORS DE LA MAIN. Un fac-similé part dans la couche de
+        // vol : la bande de la main est en `overflow: hidden`, et la carte y serait
+        // coupée net dès qu'elle en sortirait — on la verrait disparaître au lieu
+        // de la voir voyager.
+        figure.dataset.enMain = "oui";
+        prise.volante = attraper(figure);
+      } else {
+        prise.tri = true;
+        figure.dataset.triEnCours = "oui";
+      }
     }
-    tenir(prise.volante, dx, dy);
-    const t = table();
-    if (t) t.dataset.survolee = surLaTable(e.clientX, e.clientY) ? "oui" : "non";
+    if (prise.volante) {
+      tenir(prise.volante, dx, dy);
+      const t = table();
+      if (t) t.dataset.survolee = surLaTable(e.clientX, e.clientY) ? "oui" : "non";
+    }
+    // EN TRI, ON NE DÉPLACE RIEN AVANT D'AVOIR LÂCHÉ, et ce n'est pas un choix
+    // d'esthétique : `insertBefore` retire le noeud du document pour le
+    // réinsérer, ce qui RELÂCHE la capture du pointeur. Ranger la carte à
+    // chaque `pointermove` la ferait donc échapper au geste dès le premier
+    // déplacement, et le suivi s'arrêterait net. On retient l'abscisse, et la
+    // carte rejoint sa place une seule fois, au relâchement.
   });
 
   const lacher = (e) => {
     if (!prise) return;
-    const { volante } = prise;
+    const { volante, tri } = prise;
     prise = null;
     const t = table();
     if (t) delete t.dataset.survolee;
@@ -207,18 +226,73 @@ export function armerCarte(figure) {
     } catch {
       // Rien à relâcher : la capture n'avait pas été prise.
     }
-    if (!volante) {
-      parClic(figure);
+    if (tri) {
+      delete figure.dataset.triEnCours;
+      ranger(figure, e.clientX);
+      annoncerOrdre(figure);
+    } else if (!volante) {
+      // Un clic sur une carte que le moteur n'a pas énumérée ne joue rien.
+      if (posable(figure)) parClic(figure);
     } else if (surLaTable(e.clientX, e.clientY)) {
       parDepot(figure, volante);
     } else {
-      // Lâchée hors de la table : la carte revient en main, rien n'est joué.
+      // CNF-1 — LÂCHÉE HORS DE LA TABLE, ELLE SE RANGE. Rien n'est joué : la
+      // carte revient dans la main, et à la PLACE où on vient de la lâcher.
+      // C'est le même geste que le tri, achevé par-dessus une carte portée.
       relacher(volante);
       delete figure.dataset.enMain;
+      ranger(figure, e.clientX);
+      annoncerOrdre(figure);
     }
   };
   figure.addEventListener("pointerup", lacher);
   figure.addEventListener("pointercancel", lacher);
+}
+
+/** Le moteur a-t-il énuméré cette carte pour la décision ouverte ? */
+function posable(figure) {
+  return figure.dataset.choix !== undefined && !!ouverte;
+}
+
+/**
+ * CNF-1 — RANGE LA CARTE À L'ABSCISSE OÙ ON LA TIENT.
+ *
+ * On ne calcule pas un indice à partir de la géométrie théorique de la main :
+ * les cartes se chevauchent d'une quantité qui dépend de leur nombre et de la
+ * largeur disponible (`serrer`, dans `vue/mains.js`). On lit donc les boîtes
+ * RÉELLES des voisines et on insère devant la première dont le pointeur n'a
+ * pas dépassé le milieu — ce qui donne le même résultat quel que soit le
+ * serrage, y compris quand les cartes se recouvrent aux trois quarts.
+ *
+ * Le déplacement se fait DANS LE DOCUMENT : c'est l'ordre du document qui
+ * place les cartes (marges négatives), et c'est lui que `mains.js` relira.
+ */
+function ranger(figure, x) {
+  const rang = figure.parentElement;
+  if (!rang) return;
+  const voisines = [...rang.children].filter((f) => f !== figure);
+  const avant = voisines.find((f) => {
+    const r = f.getBoundingClientRect();
+    return x < r.left + r.width / 2;
+  });
+  const ou = avant || null;
+  // `insertBefore` avec la position déjà atteinte est un no-op pour le
+  // navigateur, mais on l'évite tout de même : déplacer un noeud le retire et
+  // le réinsère, ce qui interromprait un survol en cours à chaque `pointermove`.
+  if (ou === figure.nextElementSibling) return;
+  if (ou === null && figure === rang.lastElementChild) return;
+  rang.insertBefore(figure, ou);
+}
+
+/**
+ * Dit à qui tient la main que son ordre a changé. On passe par un événement
+ * plutôt que par un appel direct : `vue/mains.js` importe déjà ce module, et
+ * l'appeler en retour fermerait le cycle des importations.
+ */
+function annoncerOrdre(figure) {
+  const rang = figure.parentElement;
+  if (!rang) return;
+  rang.dispatchEvent(new CustomEvent("main-triee", { bubbles: true }));
 }
 
 /** PREMIÈRE ENTRÉE : on a cliqué la carte. Elle part seule se poser. */

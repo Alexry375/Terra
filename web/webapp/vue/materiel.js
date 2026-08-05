@@ -256,9 +256,10 @@ export function imageOcean() {
   return dosOcean();
 }
 
-export function imageForet() {
-  return piece("tuile-foret-compteur-hexagone-arbre");
-}
+// LIS-8 (05-08) — `imageForet()` a été retirée : son unique appelant était
+// l'hexagone des capacités (`vue/joueurs.js`), qui pose désormais le jeton
+// détouré. Le scan `tuile-foret-compteur-hexagone-arbre` reste dans les
+// ressources, mais plus rien ne l'affiche.
 
 /**
  * LES MÊMES DEUX JETONS, DÉTOURÉS — ceux qui illustrent une DÉCISION.

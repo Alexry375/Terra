@@ -93,8 +93,10 @@ LECTURE = """() => {
   return {
     crans: {temperature: lis('temperature'), oxygen: lis('oxygen')},
     repere: {temperature: rep('temperature'), oxygen: rep('oxygen')},
-    lecture: {temperature: nb('[data-arc-lecture="temperature"]'),
-              oxygen: nb('[data-arc-lecture="oxygen"]')},
+    // LIS-1 (05-08) — l'arc n'écrit plus son nombre : la valeur du plateau se
+    // lit maintenant dans la barre du haut, seule à la donner.
+    lecture: {temperature: nb('#param-temp [data-valeur="planet.temperature"]'),
+              oxygen: nb('#param-o2 [data-valeur="planet.oxygen"]')},
     moteur: {temperature: nb('[data-valeur="planet.temperature"]'),
              oxygen: nb('[data-valeur="planet.oxygen"]')},
   };

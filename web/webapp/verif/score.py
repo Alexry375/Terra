@@ -70,7 +70,7 @@ LECTURE = """() => {
   const out = {joueurs: [], provisoires: []};
   for (const j of [0, 1]) {
     const parts = {};
-    for (const p of ['tr', 'forests', 'cards', 'milestones', 'awards']) {
+    for (const p of ['tr', 'cards', 'milestones', 'awards']) {
       parts[p] = nb(`[data-valeur="players.${j}.score_parts.${p}"]`);
     }
     out.joueurs.push({
@@ -111,9 +111,15 @@ FINAL = """() => ({
     const t = e ? e.textContent.replace(/[^-0-9]/g, '') : '';
     return t === '' ? null : Number(t);
   }),
-  parts: [0, 1].map((j) => ['tr', 'forests', 'cards', 'milestones', 'awards']
-    .map((p) => {
-      const e = document.querySelector(`[data-valeur="players.${j}.score_parts.${p}"]`);
+  // LIS-8 — les forets ne sont plus dans la ventilation : leur terme se lit sur
+  // l'hexagone des capacites, seul endroit qui les ecrit encore.
+  parts: [0, 1].map((j) => [`players.${j}.score_parts.tr`,
+                            `players.${j}.score_parts.cards`,
+                            `players.${j}.score_parts.milestones`,
+                            `players.${j}.score_parts.awards`,
+                            `players.${j}.forests`]
+    .map((v) => {
+      const e = document.querySelector(`[data-valeur="${v}"]`);
       return e ? Number(e.textContent.replace(/[^-0-9]/g, '') || 0) : null;
     })),
   provisoires: [...document.querySelectorAll('[data-provisoire]')]
@@ -133,14 +139,19 @@ def controle(pg, rang):
             fautes.append(f"decision {rang}, joueur {j} : ventilation incomplete {parts}")
             continue
         vu["mesures"] += 1
-        if sum(parts.values()) != p["score"]:
-            fautes.append(f"decision {rang}, joueur {j} : {parts} ne fait pas {p['score']}")
+        # LIS-8 (05-08) — la ligne « Forests » de la ventilation a ete retiree :
+        # elle redisait, au point de victoire pres, le nombre de l'hexagone.
+        # L'invariant tient toujours, c'est l'hexagone qui fournit desormais ce
+        # terme : les quatre parts ecrites PLUS les forets font le score.
+        if p["forests"] is None:
+            fautes.append(f"decision {rang}, joueur {j} : hexagone des forets illisible")
+            continue
+        if sum(parts.values()) + p["forests"] != p["score"]:
+            fautes.append(f"decision {rang}, joueur {j} : {parts} + {p['forests']} foret(s) "
+                          f"ne fait pas {p['score']}")
         if parts["tr"] != p["tr"]:
             fautes.append(f"decision {rang}, joueur {j} : part TR {parts['tr']} "
                           f"alors que la barre affiche un TR de {p['tr']}")
-        if parts["forests"] != p["forests"]:
-            fautes.append(f"decision {rang}, joueur {j} : part forets {parts['forests']} "
-                          f"alors que la barre affiche {p['forests']} foret(s)")
         if parts["milestones"] % 3 or not 0 <= parts["milestones"] <= 9:
             fautes.append(f"decision {rang}, joueur {j} : jalons = {parts['milestones']}, "
                           "trois Reperes a 3 PV chacun")

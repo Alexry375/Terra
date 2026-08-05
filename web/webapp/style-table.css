@@ -125,6 +125,21 @@ body[data-geste="main"] .scene__geste { color: var(--or); }
 .main--mienne .carte--main[data-choix] { cursor: grab; }
 body[data-geste="main"] .main--mienne .carte--main[data-en-main="oui"] { cursor: grabbing; }
 
+/* CNF-1 — TRIER SA MAIN EN DÉPLAÇANT LES CARTES. Toute carte de la main
+   s'attrape, pas seulement celle que le moteur vient d'énumérer : c'est le
+   rangement du joueur, il n'appartient qu'à l'écran et ne remonte jamais au
+   moteur. La carte qu'on déplace se soulève et s'éclaircit le temps du geste,
+   pour qu'on voie CE QU'ON TIENT — elle rejoint sa nouvelle place au moment
+   où on la lâche. */
+.main--mienne .carte--main { cursor: grab; }
+.main--mienne .carte--main[data-tri-en-cours="oui"] {
+  cursor: grabbing;
+  transform: translateY(-20px) scale(1.04);
+  filter: brightness(1.15);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .75);
+  z-index: 40;
+}
+
 /* Ce qu'on peut jouer se soulève déjà un peu, sans attendre le survol : la main
    montre d'elle-même où sont les cartes vivantes. */
 .main--mienne .carte--main[data-choix] { transform: translateY(-6px); }
