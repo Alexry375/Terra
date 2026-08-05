@@ -722,8 +722,47 @@ qu'aucun barème soit recopié à l'écran. **La première moitié reste ouverte
 exactement le même chiffre qu'avant ce lot — non régressé, non réparé.
 
 ### LIS-4 (Corentin, ligne 15) — Les objectifs et récompenses sont flous
-[VÉRIFIÉ 04-08 · Q4 — décision à prendre] L'agrandissement au survol existe.
-Corentin le veut **plus gros**, et les images sont alors floues.
+⚠️ **[VÉRIFIÉ 05-08 · mesuré à l'écran par moi — la conclusion du 04-08 était
+fausse, et elle nous envoyait chercher une solution coûteuse pour rien]**
+
+**Il n'y a aucun plafond atteint. On peut agrandir presque cinq fois plus qu'à
+présent sans le moindre flou.** Mesure faite sur une partie réelle (graine 7,
+six tuiles à l'écran) :
+
+| | au repos | au survol | définition disponible | part utilisée |
+|---|---|---|---|---|
+| un objectif | 29 × 29 points | **151 × 151** | 900 × 293 | **17 %** |
+| une récompense | 29 × 29 points | **151 × 151** | 745 × 583 | **20 %** |
+
+L'agrandissement au survol vaut `scale(5,2)` (`style-monde.css:290`). Le plafond
+sans perte est de **×31 pour un objectif** (900 ÷ 29) et **×25 pour une
+récompense** (745 ÷ 29). On est donc à moins du quart du possible.
+
+**Un second défaut, plus gênant que le premier, que personne n'avait vu** : la
+pastille est un **carré** de 29 points (`style.css:284`), alors qu'un objectif
+imprimé est un **rectangle très allongé, trois fois plus large que haut**
+(900 × 293). Avec l'ajustement « tout faire tenir dedans » (`object-fit:
+contain`), l'image d'un objectif n'occupe donc que **29 × 9 points au repos, et
+151 × 49 au survol** : les deux tiers de la place sont perdus en haut et en bas,
+et c'est cela qui rend le texte illisible bien avant que la définition ne
+manque.
+
+**Conséquence sur les trois voies écrites le 04-08 : les voies 1 et 3 sont
+inutiles.** Ni ressource de meilleure qualité à chercher, ni agrandissement par
+intelligence artificielle. Il suffit d'agrandir davantage et de donner à
+l'agrandissement le **bon rapport largeur-hauteur**. La voie 2 (réécrire le
+texte net par-dessus) reste souhaitable mais devient un confort, plus un
+sauvetage.
+
+**Attention si l'on réécrit le texte** : le jeu s'affiche **en anglais**, comme
+les cartes imprimées d'Alexis et Corentin. Le fichier
+`objectifs-recompenses.json` est en **français** — il ne peut servir que de
+source de sens, pas de source d'affichage. Les noms anglais sont dans les noms
+des ressources (`jalon-space-baron-…`, `recompense-industrialist-…`).
+
+Ce qui suit est l'analyse du 04-08, conservée pour mémoire ; **son plafond de
+745 points est exact mais on en est très loin, donc sa conclusion ne tient
+pas.**
 
 **D'où viennent vraiment ces images** [VÉRIFIÉ 04-08 · Alexis avait raison,
 je m'étais trompé de source]. Le manifeste le dit noir sur blanc :
