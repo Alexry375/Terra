@@ -47,6 +47,17 @@ export const MOT = {
   plants: "Plants",
   cards: "Draw",
   hand: "Hand",
+  // ------------------------------------------- ce que le moteur ne disait pas
+  // (MOT-10) Le revenu RÉEL de la prochaine phase Production : piste de base,
+  // plus TR, plus tout ce qui dépend des badges et des jetons Forêt. La mention
+  // dit ce qui n'y est PAS, et pourquoi : le bonus du sélectionneur dépend d'une
+  // phase que personne n'a encore choisie. L'annoncer serait deviner.
+  nextIncome: "Next income",
+  nextIncomeNote: "phase bonus excluded — the phase isn't chosen yet",
+  // (MOT-14) Le badge choisi pour un badge joker, sur la carte posée.
+  jokerTag: "Joker tag",
+  // (MOT-15) Ce que les ressources posées sur la carte rapportent déjà.
+  vpFromResources: "VP from resources",
   // Le cadre à un seul point de vue : le siège du bas, l'adversaire en haut.
   opponent: "Opponent",
   oneCard: "card",

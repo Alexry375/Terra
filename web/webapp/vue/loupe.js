@@ -76,7 +76,12 @@ export function survolable(element, c) {
   // Deux cartes du jeu n'ont pas d'image découpée : `cartes.js` sait déjà les
   // montrer (un dos et leur nom en clair). On agrandit CE rendu-là plutôt que de
   // ne rien ouvrir — une carte qui ne s'agrandit pas est le défaut qu'on répare.
-  brancher(element, () => carte(n, { classe: "carte--loupe", muette: false }),
+  // `points: true` — (MOT-15) LA CARTE AGRANDIE DIT CE QUE SES RESSOURCES
+  // RAPPORTENT DÉJÀ. C'est le geste que LIS-3 demandait : on agrandit une carte
+  // pour la lire, et « 4 microbes » ne disait pas combien de points cela fait.
+  // La petite carte, elle, garde sa seule pastille de compte : il n'y a pas la
+  // place d'y écrire une phrase, et la loupe est à un survol.
+  brancher(element, () => carte(n, { classe: "carte--loupe", muette: false, points: true }),
     n.nom || String(n.id));
 }
 

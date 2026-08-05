@@ -5,7 +5,7 @@
 // Une option de construction emballe même la carte dans `option.carte`. Ce module
 // absorbe ces trois formes et rend toujours le même objet d'affichage.
 
-import { imageCarte, dosProjet, dosCorporation } from "./materiel.js";
+import { imageCarte, dosProjet, dosCorporation, imageBadge, nomBadge } from "./materiel.js";
 import { MOT } from "./mots.js";
 
 /** Ramène les trois formes du moteur à une seule. Ne calcule rien. */
@@ -28,7 +28,32 @@ export function normaliser(c) {
     prix: carte.prix ?? carte.price ?? null,
     pv: carte.pv ?? null,
     badges: carte.badges ?? null,
-    ressources: carte.resources ?? null,
+    // `ressources` se relit sous SES DEUX noms — celui du moteur et celui qu'on
+    // vient de lui donner. La loupe repasse dans `normaliser` une carte DÉJÀ
+    // normalisée (`loupe.js`) : sans cette seconde lecture, le compte se perdait
+    // au second passage, et la carte AGRANDIE — celle qu'on ouvre justement pour
+    // lire — était la seule à ne rien dire de ses ressources. C'est ce qui
+    // empêchait MOT-15 de s'afficher là où le contrat le demande.
+    ressources: carte.resources ?? carte.ressources ?? null,
+    // (MOT-14) LE BADGE CHOISI POUR LE BADGE JOKER de cette carte, tel que le
+    // moteur le publie (`observe.rs`, `played[].joker` — la chaîne de
+    // `Tag::as_str`, celle-là même qui nomme les familles de `players[].tags`).
+    // Absent des cartes sans badge joker. La page ne le devine pas : mémoriser
+    // sa propre réponse ne dirait rien du badge de l'adversaire, ni d'une partie
+    // reprise en cours de route.
+    //
+    // (MOT-15) CE QUE LES RESSOURCES POSÉES RAPPORTENT DÉJÀ, en points de
+    // victoire (`played[].pv_ressources`). Le compte de ressources ci-dessus ne
+    // suffit pas à le déduire : il faudrait le barème de la carte, et le
+    // recopier ici ferait un SECOND endroit qui compte les points. Le nombre
+    // vient du service unique du moteur (`flow::card_points`, celui que
+    // `score_breakdown` appelle), on ne fait que le lire.
+    //
+    // Les deux clefs gardent le nom du moteur, et non un nom d'affichage : la
+    // loupe repasse une carte DÉJÀ normalisée dans `normaliser`, et un champ
+    // renommé ne survivrait pas au second passage.
+    joker: carte.joker ?? null,
+    pv_ressources: carte.pv_ressources ?? null,
     id: carte.id ?? null,
   };
 }
@@ -58,8 +83,13 @@ export function cle(c) {
  * @param {string}  o.chemin  chemin dans `etat` des ressources posées, s'il est connu
  * @param {string}  o.dos     quel dos montrer quand la face manque :
  *                            « projet » (défaut) ou « corporation »
+ * @param {boolean} o.points  dire ce que les ressources posées rapportent déjà
+ *                            (MOT-15) : réservé à la carte AGRANDIE, où il y a
+ *                            la place de l'écrire en toutes lettres
  */
-export function carte(c, { classe = "", muette = true, chemin = null, dos = "projet" } = {}) {
+export function carte(c, {
+  classe = "", muette = true, chemin = null, dos = "projet", points = false,
+} = {}) {
   const n = normaliser(c);
   const f = document.createElement("figure");
   f.className = "carte " + classe;
@@ -93,11 +123,12 @@ export function carte(c, { classe = "", muette = true, chemin = null, dos = "pro
   }
   f.appendChild(im);
 
+  let plaque = null;
   if (!src || !muette) {
-    const p = document.createElement("figcaption");
-    p.className = "carte__plaque";
-    p.textContent = n.nom;
-    f.appendChild(p);
+    plaque = document.createElement("figcaption");
+    plaque.className = "carte__plaque";
+    plaque.textContent = n.nom;
+    f.appendChild(plaque);
   }
 
   // Les ressources posées sur une carte (microbes, animaux…) : le moteur les
@@ -109,6 +140,57 @@ export function carte(c, { classe = "", muette = true, chemin = null, dos = "pro
     j.textContent = String(n.ressources);
     if (chemin) j.dataset.valeur = chemin;
     f.appendChild(j);
+  }
+
+  // (MOT-14) LE BADGE CHOISI POUR LE BADGE JOKER, sur la carte posée — pour les
+  // DEUX joueurs, puisque `plateau.js` dessine les deux tables par ce même
+  // appel. Le rond gris « ? » de l'extension Découverte ne disait pas ce que le
+  // joueur en avait fait ; le jeton posé dessus le dit maintenant. On montre le
+  // jeton imprimé de la famille, celui-là même que la barre du joueur emploie
+  // pour compter les badges — jamais un dessin à part.
+  if (n.joker) {
+    // `jeton` et non `src` : la face de la carte, plus haut, s'appelle déjà
+    // `src` dans cette fonction. Deux `src` dans le même corps, et la prochaine
+    // lecture croit lire la carte là où on parle du jeton.
+    const jeton = imageBadge(n.joker);
+    const b = document.createElement("span");
+    b.className = "carte__joker";
+    b.title = MOT.jokerTag + " : " + nomBadge(n.joker);
+    if (jeton) {
+      const ib = document.createElement("img");
+      ib.src = jeton;
+      ib.alt = nomBadge(n.joker);
+      ib.draggable = false;
+      b.appendChild(ib);
+    } else {
+      // Famille inconnue de la planche de jetons : on écrit le mot plutôt que
+      // de laisser un rond vide. Le joueur doit voir le choix, pas une case.
+      b.textContent = nomBadge(n.joker);
+      b.classList.add("carte__joker--mot");
+    }
+    f.appendChild(b);
+  }
+
+  // (MOT-15) CE QUE LES RESSOURCES POSÉES RAPPORTENT DÉJÀ. Sur la carte
+  // agrandie seulement : c'est là qu'on lit une carte, et c'est là qu'il y a la
+  // place. Le nombre vient du moteur entier — la page n'additionne rien et ne
+  // connaît aucun barème.
+  //
+  // On l'écrit dès qu'il y a des ressources, même à zéro : « 3 microbes,
+  // 0 point » est une information, et son absence se lirait comme un oubli.
+  //
+  // La ligne se range DANS la plaque de nom, sous le nom — et non en bande
+  // séparée : la loupe se place d'après la hauteur de l'IMAGE seule, une bande
+  // de plus déborderait par le bas de l'écran sur les cartes du bord.
+  if (points && n.pv_ressources !== null && n.ressources) {
+    const v = document.createElement("span");
+    v.className = "carte__pv";
+    const b = document.createElement("b");
+    b.textContent = String(n.pv_ressources);
+    const i = document.createElement("i");
+    i.textContent = MOT.vpFromResources;
+    v.append(b, " ", i);
+    (plaque || f).appendChild(v);
   }
 
   return f;
