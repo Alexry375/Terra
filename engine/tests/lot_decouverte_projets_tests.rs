@@ -1010,18 +1010,20 @@ fn les_cinq_compteurs_sont_nuls_en_boite_de_base_seule() {
 
 #[test]
 fn l_empreinte_de_la_boite_de_base_est_inchangee() {
-    // NEVER 4, mesuré : même graine, même empreinte. Repère REFIXÉ le 04-08
-    // (moteur-questions-manquantes) : l'action standard de vente a été retirée
-    // de la phase Action, la liste d'options que `RandomPolicy` tire n'est donc
-    // plus la même, et le corps par défaut de `sell_card` — un tirage — a
-    // disparu avec elle. Les parties ne se déroulent plus pareil ; ce qui est
-    // vérifié à côté, c'est qu'elles vont toutes au bout sans casser
-    // d'invariant (`les_invariants_tiennent_avec_l_extension`).
-    // Repères précédents : 7dda3ea2e9b2901b (03-08), c1c52fcbe4e057b0 (01-08),
-    // d6a7267472501b13 (31-07).
+    // NEVER 4, mesuré : même graine, même empreinte. Repère REFIXÉ le 05-08
+    // (choix-au-bon-moment) : les TROIS points du lot déplacent ou suppriment
+    // des points de décision — les actions stériles quittent la liste d'options
+    // (MOT-2), le bonus de Construction se demande en deux temps au lieu d'un
+    // (MOT-3), et le badge joker n'est plus demandé pour toute la main (MOT-8).
+    // La liste ordonnée des réponses n'est donc plus la même, et `RandomPolicy`
+    // ne tire plus aux mêmes endroits. Ce qui est vérifié à côté, c'est que les
+    // parties vont toutes au bout sans casser d'invariant
+    // (`les_invariants_tiennent_avec_l_extension`).
+    // Repères précédents : bf70799ff3fee1d8 (04-08), 7dda3ea2e9b2901b (03-08),
+    // c1c52fcbe4e057b0 (01-08), d6a7267472501b13 (31-07).
     let db = CardsDb::load_boites(CARDS, BoiteSet::parse("base").unwrap()).expect("base");
     let s = run_simulation(&db, 1000, 2024, &mut RandomPolicy);
-    assert_eq!(format!("{:016x}", s.state_hash), "bf70799ff3fee1d8");
+    assert_eq!(format!("{:016x}", s.state_hash), "8e4ec5b0296470e6");
 }
 
 #[test]
