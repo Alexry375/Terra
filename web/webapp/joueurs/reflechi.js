@@ -78,12 +78,14 @@ export const REGLAGES = {
   actBase: 3.0, // III — Action
   actParMc: 0.22, // … l'action standard se paie en MC : plus on est riche, mieux
   actParPlante: 0.35, // … et les plantes ne servent qu'en phase Action
+  actFinDePartie: 0, // … et il faut savoir finir : la planète bientôt terminée
   proBase: 5.5, // IV — Production
   proDecroissance: 0.28, // … par point de production déjà acquis (elle sature)
   proFinDePartie: 6.0, // … et ne vaut plus rien quand la planète est finie
   recBase: 1.5, // V — Recherche
   recParCarteManquante: 1.9, // … par carte manquante sous `mainVisee`
   mainVisee: 5, // la main qu'on cherche à tenir
+  seuilMulligan: 0, // la barre sous laquelle une carte de départ est remplacée
 
   // — Les actions standard, en phase Action.
   forêtPlantes: 100, // une forêt payée en plantes : PV + oxygène, sans MC
@@ -236,7 +238,8 @@ function noterPhase(phase, moi, monde) {
       return (
         R.actBase +
         R.actParMc * Math.min(moi.mc, 40) +
-        R.actParPlante * Math.min(moi.plantes, 12)
+        R.actParPlante * Math.min(moi.plantes, 12) +
+        R.actFinDePartie * monde.avancement
       );
     case 4: // Production — un revenu qui rapporte à chaque manche restante
       return Math.max(
@@ -304,9 +307,11 @@ function decider(d, etat) {
   const forme = formeDeLaReponse(d);
 
   if (forme === "montant") {
-    // Le moteur ne propose un montant que pour une dépense qui rapporte : on
-    // dépense ce qu'il autorise. (Le minimum est le choix du joueur qui n'ose
-    // rien ; c'est celui du témoin, et il perd.)
+    // Le moteur ne propose un montant que pour une dépense qu'il vient
+    // d'autoriser, et qui rapporte quelque chose en face : on dépense le
+    // maximum. C'est le seul point où ce joueur parie sans pouvoir mesurer
+    // l'option par option — les montants sont trop rares (moins d'une décision
+    // sur cent) pour qu'une mesure les distingue du bruit.
     return d.maximum ?? d.minimum ?? 0;
   }
 
@@ -322,7 +327,7 @@ function decider(d, etat) {
         // chère sans point de victoire ne se posera jamais assez tôt.
         const aJeter = [];
         for (let i = 0; i < n; i++) {
-          if (valeurEnMain(options[i]) < 0) aJeter.push(i);
+          if (valeurEnMain(options[i]) < REGLAGES.seuilMulligan) aJeter.push(i);
         }
         return aJeter;
       }
@@ -343,8 +348,10 @@ function decider(d, etat) {
       return meilleur(n, (i) => noterPhase(options[i].phase, moi, monde));
 
     case "amelioration_carte_phase":
-      // Améliorer la phase qu'on choisira le plus souvent. À phase égale, la
-      // variante A : mesuré, les deux se valent, et il faut trancher.
+      // Améliorer la phase qu'on choisira le plus souvent. Entre la variante A
+      // et la B d'une même phase, le libellé ne dit rien qu'on sache lire sans
+      // connaître les règles : on tranche pour A, parce qu'il faut trancher et
+      // que le départage doit rester déterministe.
       return meilleur(
         n,
         (i) =>
