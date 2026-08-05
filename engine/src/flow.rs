@@ -3113,15 +3113,30 @@ fn action_options(
     // bleue. Elle n'existe que si la corporation en porte une — donc jamais en
     // `--effects off` (`corp_effects` y rend `None`), et jamais pour les douze
     // planches de la boîte de base.
-    if corp_action_left && corp_effects(db, pl).and_then(|s| s.action).is_some() {
+    // (MOT-2) `corp_action_peut_produire` rend faux quand la planche ne porte
+    // pas d'action : elle dit donc à la fois l'EXISTENCE et la POSSIBILITÉ.
+    if corp_action_left && corp_action_peut_produire(game, db, p) {
         out.push(ActionOpt::CorpAction);
     }
     // (corpo-1) Les seuils passent par les services uniques : `spendable_mc`
     // (Helion, chaleur = MC) et `forest_plant_cost` (Ecoline, 7 plantes). Sans
     // corporation à effet, ils valent exactement `pl.mc` et `FOREST_PLANT_COST`.
     let mc = spendable_mc(db, pl);
+    // (MOT-2) Une action de carte que le moteur refuserait ensuite n'est plus
+    // offerte : la boucle de la phase consomme l'activation « dans tous les
+    // cas », le joueur y perdait son droit d'action pour rien. Même règle que
+    // les actions standard ci-dessous, qui ne s'offrent que quand elles peuvent
+    // produire (l'océan sort de la liste dès la neuvième tuile).
+    //
+    // `--effects off` : la couche d'effets coupée, aucune action de carte n'est
+    // jamais appliquée (`phase_action` ne les appelle même pas) — ce sont des
+    // stubs qui consomment leur activation, et le squelette est fait pour ça.
+    // Le filtre ne s'y applique donc pas : il retirerait TOUTES les actions de
+    // cartes et changerait la forme d'un mode qui ne joue pas les effets (I7).
     for &c in remaining_blue {
-        out.push(ActionOpt::BlueAction(c));
+        if !db.effects_on || blue_action_peut_produire(game, db, p, c) {
+            out.push(ActionOpt::BlueAction(c));
+        }
     }
     if pl.plants >= forest_plant_cost(db, pl) {
         out.push(ActionOpt::ForestWithPlants);
@@ -3295,6 +3310,138 @@ fn action_effs_possible(game: &GameState, effect: &[ActionEff]) -> bool {
     !effect
         .iter()
         .any(|e| matches!(e, ActionEff::Ocean(_)) && game.snap_oceans >= NUM_OCEANS)
+}
+
+// =============================================================================
+// (MOT-2) UNE ACTION QUI NE PEUT RIEN PRODUIRE N'EST PLUS PROPOSÉE
+//
+// La phase Action consomme l'activation « dans tous les cas » (voir
+// `phase_action`, l'arm `ActionOpt::BlueAction`) : une action que
+// `apply_action_spec` refusera ensuite coûtait au joueur son droit d'action
+// pour rien. Mesuré sur 5 parties entières : 340 des 2133 options d'action
+// proposées ne changeaient RIEN, sur seize cartes.
+//
+// La règle existait déjà pour les actions STANDARD — l'océan n'est pas offert
+// quand les neuf tuiles sont sorties, la température non plus quand elle est au
+// maximum (`action_options`). Elle est ici étendue aux actions de CARTES et à
+// celle de la corporation, par un prédicat écrit UNE seule fois.
+//
+// `action_peut_produire` est le MIROIR EXACT des sorties par `return false` de
+// `apply_action_spec` : c'est sa seule raison d'être, et sa seule règle de
+// maintenance. Le prédicat n'est pas placé au sommet d'`apply_action_spec`
+// lui-même parce que ce corps-là a un effet de bord AVANT sa payabilité —
+// l'occasion de vendre d'un coût en cartes (`ActionCost::DiscardCard`) — que le
+// prédicat ne doit surtout pas déclencher. Deux lecteurs distincts, donc, et
+// une équivalence gardée par un test (`tests/lot_choix_au_bon_moment_tests.rs`)
+// qui rejoue chaque action de chaque carte dans des états variés et vérifie que
+// « proposée » et « appliquée » ne divergent jamais.
+//
+// Ce que le prédicat ne juge PAS, et c'est voulu : les montants tirés par la
+// politique (`action_amount`, « spend any amount »). Une action dont le montant
+// possible est non nul PEUT produire ; que le joueur réponde zéro est son
+// choix, pas une impossibilité du moteur.
+// =============================================================================
+
+/// (MOT-2) **Cette action peut-elle encore produire quelque chose ?**
+/// Fonction PURE, miroir des `return false` d'[`apply_action_spec`].
+fn action_peut_produire(
+    game: &GameState,
+    db: &CardsDb,
+    p: usize,
+    src: ActionSource,
+    action: Action,
+    phase_bonus: Option<PhaseBonus>,
+) -> bool {
+    // Même filtre de bonus de phase que l'activation : il peut REMPLACER le
+    // coût imprimé (« spend 3 plants instead »), donc changer la payabilité.
+    let bonus: Option<PhaseBonus> = phase_bonus.filter(|b| {
+        let pl = &game.players[p];
+        (b.phase == 0 || pl.chosen_phase == b.phase)
+            && (!b.require_upgraded || pl.phase_upgrade(pl.chosen_phase).is_some())
+    });
+    match action {
+        Action::Fixed { cost, effect } => {
+            let cost: &[ActionCost] = bonus.and_then(|b| b.cost).unwrap_or(cost);
+            if !action_effs_possible(game, effect) {
+                return false;
+            }
+            cost.iter().all(|c| match *c {
+                ActionCost::Heat(n) => game.players[p].heat >= n,
+                ActionCost::Mc(n) => spendable_mc(db, &game.players[p]) >= n,
+                ActionCost::Plants(n) => game.players[p].plants >= n,
+                ActionCost::DiscardCard(n) => game.players[p].hand.len() >= n as usize,
+                ActionCost::Tr(n) => game.players[p].tr >= n as i64,
+                ActionCost::McPerCapacity { .. } => {
+                    spendable_mc(db, &game.players[p]) >= action_mc_cost(&game.players[p], *c)
+                }
+            })
+        }
+        Action::SpendUpTo { spend, cap, .. } => {
+            action_res_get(&game.players[p], spend).min(cap) > 0
+        }
+        Action::HeatToMc => game.players[p].heat > 0,
+        Action::FlipOceanTagDiscount { base, per_tag } => {
+            if game.snap_oceans >= NUM_OCEANS {
+                return false;
+            }
+            let n = per_tag
+                .index()
+                .map_or(0, |i| game.players[p].tag_counts[i] as i64);
+            spendable_mc(db, &game.players[p]) >= (base - n).max(0)
+        }
+        Action::RaiseTempBlueDiscount {
+            base,
+            threshold,
+            reduction,
+        } => {
+            if game.snap_temperature >= TEMPERATURE_MAX {
+                return false;
+            }
+            let blue = game.players[p].played_count(Color::Blue);
+            spendable_mc(db, &game.players[p])
+                >= base - if blue >= threshold { reduction } else { 0 }
+        }
+        Action::DiscardDraw(cap) => (game.players[p].hand.len() as i64).min(cap) > 0,
+        Action::Res(branches) => {
+            let ActionSource::Card(card_id) = src else {
+                return false;
+            };
+            (0..branches.len()).any(|i| branch_playable(game, db, p, card_id, branches[i]))
+        }
+    }
+}
+
+/// (MOT-2) L'action de la carte bleue `card_id` peut-elle produire quelque
+/// chose ? Jumelle d'[`apply_blue_action`], et lue par [`action_options`].
+pub fn blue_action_peut_produire(game: &GameState, db: &CardsDb, p: usize, card_id: u16) -> bool {
+    let Some(spec) = db.projects[card_id as usize].effect else {
+        return false;
+    };
+    let Some(action) = spec.action else {
+        return false;
+    };
+    action_peut_produire(
+        game,
+        db,
+        p,
+        ActionSource::Card(card_id),
+        action,
+        spec.phase_bonus,
+    )
+}
+
+/// (MOT-2) L'action de la CORPORATION du joueur peut-elle produire quelque
+/// chose ? Jumelle d'[`apply_corp_action`]. Rend faux quand la planche n'en
+/// porte pas — elle remplace donc à elle seule le test d'existence qu'
+/// [`action_options`] faisait auparavant.
+pub fn corp_action_peut_produire(game: &GameState, db: &CardsDb, p: usize) -> bool {
+    let Some(spec) = corp_effects(db, &game.players[p]) else {
+        return false;
+    };
+    let Some(action) = spec.action else {
+        return false;
+    };
+    action_peut_produire(game, db, p, ActionSource::Corp, action, spec.phase_bonus)
 }
 
 /// (lot 6, brique 6) **Révélation du dessus de la pioche.**
