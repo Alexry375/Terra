@@ -222,10 +222,16 @@ pure** — pas de mémoire, pas de tirage, donc pas de partie apprise par cœur 
 il ne lit que son propre siège : une seule fonction du fichier touche
 `etat.players`, et elle prend le siège qui décide.
 
+Ses chiffres, sur les cent graines du contrat jouées aux deux sièges
+(200 parties) : **189 victoires sur 200 contre le hasard** (94,5 %, écart
+déclaré significatif) et **142 sur 200 contre le joueur témoin** — celui qui
+choisit l'option au libellé le plus long et ne comprend rien, mais gagne déjà
+73 % contre le hasard. C'est cette seconde mesure qui compte : battre le hasard
+ne prouve rien.
+
 Ce qu'il prouve : qu'on peut battre le hasard **nettement** sans explorer l'arbre
 des possibles, et qu'on a désormais une référence à laquelle comparer le
-prochain adversaire. Ses chiffres du jour sont dans `outputs/result.md` du
-chantier « le premier adversaire ».
+prochain adversaire.
 
 ## Ce qui n'a PAS à bouger
 
