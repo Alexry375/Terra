@@ -54,7 +54,9 @@ import { survolableImage } from "./loupe.js";
 import { ref } from "./ecrire.js";
 import { MOT } from "./mots.js";
 import { enPlanification, phaseEnCours } from "./phases.js";
-import { voler, coucher, duree } from "./anim.js";
+import {
+  voler, coucher, duree, mettreEnScene, oublierMiseEnScene,
+} from "./anim.js";
 
 // Ce que la table retient d'une manche à l'autre.
 let precedentes = [null, null]; // la phase de la manche d'avant, par joueur
@@ -105,6 +107,18 @@ export async function poserPhase(source, phase, siege, manche) {
  * @param {number} siege     le joueur assis en bas de l'écran
  */
 export function majTable(etat, decision, siege) {
+  // (cartes-qui-bougent) CE QUI VIENT D'ARRIVER SE MET EN SCÈNE ICI, et pas
+  // ailleurs. `interface.js` appelle `majTable` APRÈS `majPlateaux`, `majJoueurs`
+  // et `majMains` : les places d'arrivée (la main, les deux plateaux, les deux
+  // barres) sont déjà celles de l'état nouveau, et un vol qui les vise ne se
+  // trompe pas d'endroit. C'est le dernier point de rendu qui appartienne à ce
+  // chantier — `interface.js` ne lui appartient pas.
+  //
+  // L'appel est AVANT toute sortie anticipée de cette fonction : la table des
+  // phases, elle, ne se redessine que si sa signature a changé, et la plupart
+  // des évènements du jeu ne la changent pas.
+  mettreEnScene(etat, siege);
+
   const manche = etat.generation || 0;
 
   // LE RELEVÉ DU DÉBUT DE MANCHE — une seule fois, au premier `pick_phase`, pour
@@ -216,6 +230,10 @@ function dessinerCase(boite, phase, joueur, enJeu, couchee, code = null) {
 
 /** Remet la mémoire à zéro (nouvelle partie). */
 export function oublierTable() {
+  // (cartes-qui-bougent) La mémoire de la mise en scène part avec le reste :
+  // sans cet oubli, la première main de la partie suivante serait lue comme une
+  // pioche géante par rapport à la dernière de la précédente.
+  oublierMiseEnScene();
   precedentes = [null, null];
   mancheDesPrecedentes = 0;
   maPhase = null;

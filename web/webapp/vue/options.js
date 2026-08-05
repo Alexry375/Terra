@@ -29,6 +29,10 @@ import { oublierPhases } from "./phases.js";
 // cartes Phase posées devant chaque joueur après le retour au menu.
 import { oublierTable } from "./table.js";
 import { reglerAnimations, animationsActives } from "./anim.js";
+// COUTURE : `cartes-qui-bougent` ajoute une option de PARTIE, et non de confort.
+// Voir la défausse n'est pas une règle officielle — c'est un arrangement entre
+// les deux joueurs, qui s'allume et s'éteint comme le reste.
+import { reglerDefausse, defausseVisible } from "./defausse.js";
 import { oublierRefs } from "./ecrire.js";
 import { vueAide } from "./aide.js";
 import { MOT } from "./mots.js";
@@ -70,6 +74,23 @@ const REGLAGES = [
       // est finie, c'est le moment de le lire.
       if (actif) delete document.documentElement.dataset.pvMasques;
       else document.documentElement.dataset.pvMasques = "oui";
+    },
+  },
+  {
+    // (CNF-2) VOIR LA DÉFAUSSE. Ce n'est pas une règle du jeu : le livret ne
+    // donne pas le droit de fouiller la pile. C'est une option de partie, que
+    // les deux joueurs se donnent ou non — d'où sa place ici, et non dans le
+    // moteur. Éteinte, la pile ne montre rien et la fenêtre ne s'ouvre pas.
+    //
+    // L'écriture passe par `vue/defausse.js`, qui en est l'unique point : ce
+    // module-ci lit et demande, il ne pose pas l'attribut lui-même. C'est la
+    // leçon du réglage des animations, qui avait fini avec deux mémoires.
+    cle: "defausse",
+    nom: MOT.setDiscard,
+    note: MOT.setDiscardNote,
+    lire: () => defausseVisible(),
+    poser(actif) {
+      reglerDefausse(actif);
     },
   },
 ];

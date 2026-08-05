@@ -141,36 +141,125 @@ function boite(el) {
 }
 
 /**
- * ATTRAPER UNE CARTE. On fabrique un fac-similé posé exactement sur l'original,
- * dans la couche de vol. C'est LUI qu'on promène ensuite : l'original reste dans
- * la main, où le moteur le réécrira, et rien n'est jamais coupé par le bord d'une
- * bande.
+ * (cartes-qui-bougent) **CE QUI VOLE DIT CE QU'IL EST.**
  *
- * @param {Element} source  la carte affichée qu'on attrape
- * @returns {{noeud: Element, depart: DOMRect}|null}
+ * Tout nœud posé dans la couche `#vol` porte `data-vol="<motif>"` — `pioche`,
+ * `defausse`, `pose`, `jauge`, `mc`, `jeton`. C'est la seule contrainte de forme
+ * du contrat, et elle a une raison : de l'extérieur de la page, un observateur
+ * de mutations voit alors NON SEULEMENT que quelque chose a remué, mais QUOI.
+ * Sans cette marque, un banc ne peut plus distinguer un vol de carte d'un vol de
+ * jeton, et une mise en scène qui se trompe d'évènement passerait inaperçue.
+ *
+ * `pose` est le défaut : c'est le geste d'origine de ce module (`vue/geste.js`,
+ * qui n'a pas le droit d'être touché par ce chantier) et il n'a pas à se
+ * déclarer pour garder sa marque.
  */
-export function attraper(source) {
-  const depart = boite(source);
-  if (!depart) return null;
-  const image = source.querySelector("img");
+const MOTIFS = new Set(["pioche", "defausse", "pose", "jauge", "mc", "jeton"]);
+
+/**
+ * LE FAC-SIMILÉ, ET SON UNIQUE FABRIQUE. Carte attrapée dans une main, jeton
+ * d'une jauge, pièce de mégacrédits : tous les objets qui voyagent naissent ici,
+ * dans la même couche, et repartent ensuite par le même `poserSur`. Il n'y a
+ * qu'un mécanisme de vol dans cette page.
+ */
+function fabriquer({ depart, image, texte, motif, classe }) {
   const noeud = document.createElement("div");
-  noeud.className = "vol__carte";
+  noeud.className = "vol__carte" + (classe ? " " + classe : "");
+  noeud.dataset.vol = MOTIFS.has(motif) ? motif : "pose";
   noeud.style.left = depart.left + "px";
   noeud.style.top = depart.top + "px";
   noeud.style.width = depart.width + "px";
   noeud.style.height = depart.height + "px";
   if (image) {
     const im = document.createElement("img");
-    im.src = image.currentSrc || image.src;
+    im.src = image;
     im.alt = "";
     im.draggable = false;
     noeud.appendChild(im);
+  } else if (texte) {
+    const s = document.createElement("span");
+    s.className = "vol__mot";
+    s.textContent = texte;
+    noeud.appendChild(s);
   }
   couche().appendChild(noeud);
   // `echelle` suit la taille COURANTE du fac-similé. Sans elle, un second vol
   // repartait de `scale(1.1)` en dur alors que la carte venait de se poser à sa
   // taille d'arrivée : elle regonflait d'un coup avant de repartir.
   return { noeud, depart, dx: 0, dy: 0, echelle: 1 };
+}
+
+/**
+ * ATTRAPER UNE CARTE. On fabrique un fac-similé posé exactement sur l'original,
+ * dans la couche de vol. C'est LUI qu'on promène ensuite : l'original reste dans
+ * la main, où le moteur le réécrira, et rien n'est jamais coupé par le bord d'une
+ * bande.
+ *
+ * @param {Element} source  la carte affichée qu'on attrape
+ * @param {string}  motif   ce qui vole (voir `MOTIFS`) ; `pose` par défaut
+ * @returns {{noeud: Element, depart: DOMRect}|null}
+ */
+export function attraper(source, motif = "pose") {
+  const depart = boite(source);
+  if (!depart) return null;
+  // (cartes-qui-bougent) LA POSE DEPUIS LA MAIN SE SIGNALE ELLE-MÊME. Elle est
+  // déjà mise en scène par `vue/geste.js`, qui n'appartient pas à ce chantier :
+  // la mise en scène des évènements doit donc savoir qu'une carte vole DÉJÀ,
+  // sinon elle en lancerait une seconde par-dessus. On reconnaît le geste à ce
+  // qu'il attrape — une carte de la main, et rien d'autre ne porte cette classe.
+  if (source.classList && source.classList.contains("carte--main")) {
+    posesDeLaMain = performance.now();
+  }
+  const image = source.querySelector("img");
+  return fabriquer({
+    depart,
+    image: image ? image.currentSrc || image.src : null,
+    motif,
+  });
+}
+
+/**
+ * (cartes-qui-bougent) **FAIRE VOLER UNE MATIÈRE QUI N'EST PAS UNE CARTE** — un
+ * jeton de chaleur qui monte à la jauge de température, une pièce qui quitte la
+ * bourse, un « +2 » qui vient se poser sur une carte en jeu.
+ *
+ * Le mécanisme est le MÊME que celui d'une carte : même couche, même fabrique,
+ * même `poserSur`. Ce qui change tient en deux points — l'objet est carré et de
+ * taille choisie (une pièce n'a pas les proportions d'une carte), et son point
+ * de départ est le CENTRE d'un élément plutôt que sa boîte entière : on part du
+ * bac de mégacrédits, pas du rectangle de toute la barre d'équipage.
+ *
+ * @param {object}  o
+ * @param {Element} o.depuis  d'où l'objet part (on prend le centre de sa boîte)
+ * @param {Element} o.vers    où il arrive
+ * @param {string}  o.src     l'image de l'objet, si elle existe
+ * @param {string}  o.texte   à défaut d'image, le mot porté (« +2 »)
+ * @param {string}  o.motif   la marque `data-vol`
+ * @param {number}  o.cote    le côté de l'objet, en points
+ */
+export async function volerMatiere({
+  depuis, vers, src = null, texte = "", motif = "jeton", cote = 44, ratio = 1,
+  ms = 760, tour = 0, grossir = 1.3, cadrer = "jeton",
+}) {
+  const d = boite(depuis);
+  const a = boite(vers);
+  if (!d || !a) return;
+  const haut = cote * ratio;
+  const depart = {
+    left: d.left + d.width / 2 - cote / 2,
+    top: d.top + d.height / 2 - haut / 2,
+    width: cote,
+    height: haut,
+  };
+  const prise = fabriquer({
+    depart, image: src, texte, motif,
+    classe: src ? "vol__jeton" : "vol__jeton vol__jeton--mot",
+  });
+  try {
+    await poserSur(prise, vers, { ms, tour, grossir, cadrer });
+  } finally {
+    relacher(prise);
+  }
 }
 
 /** La carte suit la main : elle se tient un peu haut et un peu de travers. */
@@ -216,9 +305,17 @@ export async function poserSur(prise, cible, { ms = 900, tour = 0, grossir = 1.2
   // cale sur sa largeur. Sans cette seconde façon, une carte qui vient se poser
   // sur son emplacement définitif s'y arrêtait plus petite que lui, et le
   // raccord se voyait.
+  //
+  // (cartes-qui-bougent) « jeton » = l'objet GARDE SA TAILLE. Un jeton de
+  // chaleur qui monte à la jauge, une pièce qui quitte la bourse : ils arrivent
+  // SUR une cible qui n'a pas leur forme (un mot de bandeau large et bas, une
+  // carte en jeu haute et étroite). Les mettre à l'échelle de cette cible les
+  // écraserait ou les ferait remplir tout l'écran.
   const echelle = cadrer === "place"
     ? arrivee.width / depart.width
-    : Math.min(arrivee.width / depart.width, arrivee.height / depart.height, 1.6);
+    : cadrer === "jeton"
+      ? 1
+      : Math.min(arrivee.width / depart.width, arrivee.height / depart.height, 1.6);
   const fin = `translate(${dx}px, ${dy}px) scale(${echelle}) rotate(${tour}deg)`;
 
   // Le fac-similé se souvient d'où il est : un vol peut en suivre un autre.
@@ -310,7 +407,7 @@ export function attendrePlace(trouver, patience = 900) {
  * Phase qu'on désigne d'un clic et qui s'en va se poser toute seule.
  */
 export async function voler(source, cible, options = {}) {
-  const prise = attraper(source);
+  const prise = attraper(source, options.vol);
   if (!prise) return;
   try {
     await poserSur(prise, cible, options);
@@ -324,6 +421,221 @@ export async function voler(source, cible, options = {}) {
  * couche sur le côté. On anime l'élément lui-même : c'est sa boîte qui doit
  * finir plus large que haute, et une carte couchée se reconnaît à ça.
  */
+// ===========================================================================
+// (cartes-qui-bougent) LES ÉVÉNEMENTS QUI SE VOIENT — ANI-6 puis ANI-1
+// ===========================================================================
+//
+// LE DÉFAUT. « Les nombres changent et rien ne bouge » : une carte piochée
+// apparaissait dans la main, une carte défaussée disparaissait, l'oxygène
+// montait d'un cran — et le joueur ne voyait jamais que le RÉSULTAT, jamais le
+// geste. Mesuré au scellement : 95 évènements sur 199 changeaient un nombre à
+// l'écran sans que rien ne remue, l'oxygène et les jetons Forêt à 100 %.
+//
+// CE MODULE NE CONNAÎT AUCUNE RÈGLE, et ne devine aucun évènement. Il compare
+// l'état que le moteur vient de rendre à celui d'avant, exactement comme
+// `vue/monde.js` le fait déjà pour la planète, et met en scène l'écart qui a EU
+// LIEU. Jamais un écart attendu, jamais un écart calculé.
+//
+// TROIS RÈGLES QUI NE SE NÉGOCIENT PAS :
+//
+//   1. RIEN NE FAIT ATTENDRE LE MOTEUR. Aucun de ces vols n'est attendu par
+//      qui que ce soit : ils sont lancés et oubliés. `?animations=non` met
+//      leurs durées à zéro, et les décisions comme les scores restent
+//      identiques — c'est ce que le garde-fou compare.
+//   2. RIEN NE BLOQUE UN CLIC. Tout vit dans la couche `#vol`, qui est en
+//      `pointer-events: none`.
+//   3. RIEN NE SE REJOUE PENDANT LE RATTRAPAGE. Après un rechargement, la page
+//      repasse au moteur toutes les décisions déjà prises : ces évènements ont
+//      déjà eu lieu, les remettre en scène annoncerait comme neuf ce qui est
+//      vieux. On tient la mémoire à jour, et on se tait.
+//
+// DES DEUX CÔTÉS DE LA TABLE. Chaque évènement est mis en scène chez celui qui
+// agit ET chez celui qui regarde : la pioche de l'adversaire vole vers son
+// paquet de dos, sa dépense quitte sa bourse à lui.
+
+import { imageCarte, dosProjet } from "./materiel.js";
+
+const RATIO_CARTE = 569 / 409;
+
+// Ce que l'écran a vu au rendu précédent. `null` = premier rendu de la partie :
+// il n'y a pas d'avant, donc pas d'écart — sans cette garde, toute la mise en
+// place se mettrait en scène d'un coup.
+let vu = null;
+
+// AU PLUS TROIS OBJETS PAR ÉVÉNEMENT. Une phase Recherche défausse parfois sept
+// cartes d'un coup : sept fac-similés lancés ensemble donnent une bouillie que
+// personne ne lit, et autant de nœuds à animer à chaque image. Trois disent
+// « plusieurs cartes partent ».
+const PAR_EVENEMENT = 3;
+
+// LE PLAFOND EST PAR MOTIF, ET IL EST HAUT. Deux défauts mesurés par mon banc
+// `verif/vols-et-paquets.py`, et corrigés ici :
+//
+//   · un plafond GLOBAL laissait les familles se voler la place — les six vols
+//     de pioche des deux joueurs partaient d'abord, et il ne restait plus rien
+//     pour les défausses. Une famille d'évènements ne doit jamais pouvoir en
+//     éteindre une autre : le plafond est donc par motif ;
+//   · un plafond BAS (quatre) laissait encore tomber des vols en rafale.
+//     L'adversaire répond toutes les 180 ms et chaque réponse peut lancer trois
+//     vols, alors qu'un vol dure une demi-seconde : trois ou quatre rendus se
+//     chevauchent, et les derniers évènements passaient muets — 3 défausses et
+//     2 pioches sur une partie, à des rangs qui changeaient d'une exécution à
+//     l'autre, ce qui a mis le temps en cause plutôt que la géométrie.
+//
+// Le plafond ne sert plus qu'à empêcher une saturation franche : douze
+// fac-similés d'une même famille en l'air, c'est déjà plus que ce qu'un écran
+// montre. Il n'est jamais atteint dans une partie ordinaire.
+const EN_VOL_MAX = 12;
+const enVol = new Map();
+
+/** Lance un vol sans jamais l'attendre, et sans jamais laisser l'écran saturer. */
+function lancer(motif, faire) {
+  const n = enVol.get(motif) || 0;
+  if (n >= EN_VOL_MAX) return;
+  enVol.set(motif, n + 1);
+  Promise.resolve()
+    .then(faire)
+    .catch(() => {
+      // Un vol interrompu (élément retiré, partie abandonnée) n'est pas une
+      // panne : la mise en scène est un ornement, le jeu continue sans elle.
+    })
+    .finally(() => { enVol.set(motif, (enVol.get(motif) || 1) - 1); });
+}
+
+const trouver = (sel) => document.querySelector(sel);
+
+/**
+ * LE PREMIER DE CES ENDROITS QUI A VRAIMENT UNE BOÎTE.
+ *
+ * Un élément présent dans le document n'a pas forcément de surface : la rangée
+ * de la main est haute de zéro quand elle est VIDE, et c'est précisément
+ * l'instant où l'on défausse sa dernière carte. `boite` rend alors `null`, le vol
+ * est abandonné, et l'évènement passe muet — mon banc `verif/vols-et-paquets.py`
+ * en a compté 3 sur 49 défausses (graine 4242, rangs 30, 236, 256). On descend
+ * donc une liste d'endroits, du plus précis au plus sûr : la rangée, la bande qui
+ * la contient (elle, garde sa hauteur), puis la table.
+ */
+function premiereBoite(...selecteurs) {
+  for (const s of selecteurs) {
+    const e = trouver(s);
+    if (e && boite(e)) return e;
+  }
+  return null;
+}
+
+/** La rangée de cartes du joueur `j`, vue depuis le siège regardé. */
+function mainDe(j, siege) {
+  return j === siege
+    ? premiereBoite("#mienne-rang", "#main-mienne", "#milieu")
+    : premiereBoite("#adverse-rang", "#main-adverse", "#milieu");
+}
+
+/** Le nombre de cartes réellement DESSINÉES dans la main du siège regardé. */
+function cartesDessinees() {
+  return document.querySelectorAll("[data-main-siege] [data-carte-cle]").length;
+}
+
+/** Ce qu'on retient d'un état, et rien d'autre. */
+function relever(etat, siege) {
+  const d = etat.defausse || [];
+  return {
+    mains: (etat.players || []).map((p) => (p.hand || []).length),
+    dessinees: cartesDessinees(),
+    defausse: (etat.decks && etat.decks.discard) || 0,
+    tete: d.length ? String(d[0].id) : "",
+    siege,
+  };
+}
+
+/**
+ * ANI-6 — LA PIOCHE ET LA DÉFAUSSE ONT UN CHEMIN.
+ *
+ * Le sens est fixé par le contrat : la pioche ARRIVE PAR LA DROITE — le dock des
+ * paquets vit dans la colonne de droite (`vue/defausse.js`) — et la défausse s'en
+ * va en sens inverse, de la main vers ce même dock. Les deux se voient des deux
+ * côtés de la table.
+ */
+function piochesEtDefausses(avant, apres, etat) {
+  const pioche = trouver("[data-pioche]");
+  const pile = trouver("[data-defausse]");
+  const siege = apres.siege;
+
+  // LES PIOCHES. Au siège regardé, on compte les cartes DESSINÉES : `vue/mains.js`
+  // met dans la main les cartes que la question nomme et que l'état ne montre
+  // pas encore, et une carte qui PARAÎT doit se voir arriver, d'où qu'elle
+  // vienne. En face, il n'y a que des dos, et leur nombre est exactement
+  // `hand.length`.
+  for (const j of [0, 1]) {
+    const gagnees = j === siege
+      ? apres.dessinees - avant.dessinees
+      : (apres.mains[j] || 0) - (avant.mains[j] || 0);
+    if (gagnees <= 0 || !pioche) continue;
+    const cible = mainDe(j, siege);
+    if (!cible) continue;
+    for (let k = 0; k < Math.min(gagnees, PAR_EVENEMENT); k++) {
+      lancer("pioche", () => volerMatiere({
+        depuis: pioche, vers: cible, src: dosProjet(), motif: "pioche",
+        cote: 52, ratio: RATIO_CARTE, cadrer: "boite",
+        ms: 520 + k * 70, grossir: 1.15,
+      }));
+    }
+  }
+
+  // LES DÉFAUSSES. Le moteur publie la pile carte par carte, la plus récente en
+  // tête (`observe.rs`, clef `defausse`) : les cartes qui viennent d'y entrer
+  // sont les premières de cette liste, et ce sont elles qui volent, face
+  // découverte — on doit VOIR ce qui part.
+  const liste = etat.defausse || [];
+  const entrees = apres.defausse - avant.defausse;
+  const teteNeuve = apres.tete !== avant.tete && apres.tete !== "";
+  if (!pile || (!teteNeuve && entrees <= 0)) return;
+  const combien = Math.min(Math.max(entrees, teteNeuve ? 1 : 0), PAR_EVENEMENT);
+
+  // D'OÙ ELLE PART. De la main qui vient de se vider, si l'on peut la nommer ;
+  // sinon de la table, où se joue tout ce qui n'appartient à personne.
+  let depuis = null;
+  for (const j of [0, 1]) {
+    if ((apres.mains[j] || 0) < (avant.mains[j] || 0)) depuis = mainDe(j, siege);
+  }
+  if (!depuis) depuis = premiereBoite("#milieu", "#scene");
+  if (!depuis) return;
+
+  for (let k = 0; k < combien; k++) {
+    const c = liste[k];
+    if (!c) break;
+    lancer("defausse", () => volerMatiere({
+      depuis, vers: pile, src: imageCarte(c.name) || dosProjet(), motif: "defausse",
+      cote: 58, ratio: RATIO_CARTE, cadrer: "boite",
+      ms: 540 + k * 70, tour: 8, grossir: 1.2,
+    }));
+  }
+}
+
+/**
+ * LA MISE EN SCÈNE D'UN INSTANT. Appelée à chaque rendu, depuis `vue/table.js`
+ * — le dernier module de rendu de ce chantier, appelé APRÈS `majMains` et
+ * `majPlateaux` : les places d'arrivée existent déjà dans le document.
+ *
+ * @param {object} etat   l'état rendu par le moteur
+ * @param {number} siege  le joueur assis en bas de l'écran
+ */
+export function mettreEnScene(etat, siege) {
+  if (!etat || !etat.players) return;
+  const apres = relever(etat, siege);
+  const avant = vu;
+  vu = apres;
+  // Le rattrapage rejoue une partie déjà jouée : la mémoire se tient à jour, la
+  // scène se tait. Un changement de siège regardé n'est pas un évènement non
+  // plus — c'est le même instant, vu d'ailleurs.
+  if (rattrapage || !avant || avant.siege !== siege) return;
+  piochesEtDefausses(avant, apres, etat);
+}
+
+/** Remet la mémoire à zéro (nouvelle partie, table vidée). */
+export function oublierMiseEnScene() {
+  vu = null;
+}
+
 export async function coucher(el, ms = 700) {
   if (!el || !actives) return;
   const a = el.animate(

@@ -30,6 +30,18 @@ export const MOT = {
   oceanMap: "Ocean tiles",
   // Le paquet de cartes projet et sa defausse, dans le bandeau.
   deck: "Deck",
+  // (cartes-qui-bougent) Le dock des deux paquets, dans la colonne de droite :
+  // une carte piochee vient de la, une carte defaussee y va.
+  piles: "Deck & discard",
+  discardPile: "Discard pile",
+  // (CNF-2) La pile de defausse s'ouvre : la derniere carte jetee est posee
+  // dessus, face decouverte, et un clic montre toutes les autres.
+  discardOpen: "Click to see every discarded card",
+  discardCount: (n) => `${n} card${n === 1 ? "" : "s"} — most recent first`,
+  discardOff: "The discard pile shows nothing while this option is off",
+  setDiscard: "See the discard",
+  setDiscardNote: "the last discarded card stays face up, and a click opens the whole pile",
+  close: "Close",
   // La planche des océans quand une tuile est due : la consigne posée sur la
   // planche, et l'annonce qui traverse l'écran.
   oceanPick: "Pick a tile",
