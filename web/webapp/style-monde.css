@@ -126,24 +126,27 @@
 }
 
 /* Le cube transparent du plateau (livret l. 201), qui marque la valeur
-   courante et glisse d'une case à l'autre. */
+   courante et glisse d'une case à l'autre.
+ *
+ * LIS-1 + LIS-2 (05-08) — depuis que l'arc n'écrit plus son nombre, ce repère
+ * est le SEUL moyen de lire la jauge. Il était blanc (`#fff`, teinté en rose
+ * et en bleu par arc) : sur les cases BLANCHES du haut de piste — celles
+ * qu'on atteint en fin de partie — il disparaissait purement et simplement.
+ *
+ * Il devient un point NOIR, et le point cerclé cède la place au point simple
+ * que demandait le second joueur : le halo a disparu du dessin.
+ *
+ * Le noir seul ne suffirait pas : le bas de piste est violet foncé, presque
+ * aussi sombre que lui. D'où le liseré clair qui l'entoure — c'est le contour,
+ * et non la couleur de remplissage, qui le détache des cases sombres. Les deux
+ * ensemble donnent un repère lisible sur les vingt cases, du violet au blanc. */
 .arc__repere { transition: transform 620ms cubic-bezier(.2, .8, .2, 1); }
-.arc__repere-halo { fill: rgba(239, 228, 212, .16); stroke: rgba(239, 228, 212, .5); stroke-width: 1.1; }
-.arc__repere-oeil { fill: #fff; }
-.arc--temperature .arc__repere-oeil { fill: #ffd7c0; }
-.arc--oxygen .arc__repere-oeil { fill: #ddf3ff; }
-
-/* La valeur courante, en chiffres, posée dans la concavité de l'arc — du côté
-   de la table, là où le disque de Mars se trouve sur le plateau. */
-.arc__n {
-  position: absolute; top: 50%; transform: translateY(-50%);
-  text-align: center;
-  font-family: "TerraChiffre", monospace;
-  font-size: clamp(14px, 1.7vw, 24px); line-height: 1;
-  color: var(--os); text-shadow: 0 2px 10px #000;
+.arc__repere-oeil {
+  fill: #0b0d12;
+  stroke: rgba(255, 255, 255, .95);
+  stroke-width: 1.7;
+  paint-order: stroke;
 }
-.arc--temperature .arc__n { left: 34%; right: 3%; color: #ffb08a; }
-.arc--oxygen      .arc__n { left: 3%; right: 34%; color: #cfe9f5; }
 
 /* L'intitulé de l'arc. Le panneau est posé à même la photographie du sol, qui
    est claire par endroits : une ombre portée n'y suffit pas, il lui faut son

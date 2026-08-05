@@ -83,9 +83,11 @@ with serveur("outputs/web/webapp") as base:
                 if e:
                     e.screenshot(path=f"{SORTIE}/{nom}.png")
                     print(f"{nom}.png")
+            # LIS-1 (05-08) — les arcs n'écrivent plus leur valeur ; la barre du
+            # haut est désormais la seule à la donner, et c'est elle qu'on lit.
             etat = pg.evaluate("""() => ({
-              temperature: document.querySelector('[data-arc-lecture="temperature"]').textContent,
-              oxygen: document.querySelector('[data-arc-lecture="oxygen"]').textContent,
+              temperature: document.querySelector('#param-temp').innerText,
+              oxygen: document.querySelector('#param-o2').innerText,
               pas: [document.querySelector('[data-valeur="planet.temperature"]').textContent,
                     document.querySelector('[data-valeur="planet.oxygen"]').textContent],
               revelees: document.querySelectorAll('[data-ocean-revelee="oui"]').length,

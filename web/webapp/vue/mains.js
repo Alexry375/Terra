@@ -41,7 +41,7 @@
 
 import { carte, cle, normaliser } from "./cartes.js";
 import { dosProjet, nomJoueur } from "./materiel.js";
-import { survolable, survolableImage } from "./loupe.js";
+import { survolable } from "./loupe.js";
 import { armerCarte } from "./geste.js";
 import { ref } from "./ecrire.js";
 import { MOT } from "./mots.js";
@@ -343,9 +343,11 @@ function mainAdverse(j, combien) {
       im.alt = MOT.faceDown;
       im.draggable = false;
       f.appendChild(im);
-      // Agrandir un dos ne montre qu'un dos : rien n'en sort, et l'écran tient sa
-      // promesse — toute carte survolée s'agrandit.
-      survolableImage(f, dos, MOT.faceDown);
+      // LIS-13 (Alexis, 04-08) — PAS DE LOUPE SUR CES DOS. Ils sont tous
+      // identiques et ne montrent rien : les agrandir n'apprend rien à
+      // personne, et la loupe qui s'ouvrait à chaque passage de souris sur la
+      // main d'en face gênait la lecture du reste. La promesse « toute carte
+      // s'agrandit » vaut pour les cartes qui ont quelque chose à montrer.
       z.appendChild(f);
     }
   }

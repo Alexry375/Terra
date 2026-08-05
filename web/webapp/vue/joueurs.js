@@ -24,7 +24,7 @@
 
 import {
   imageEquipage, imageReserve, imageBadge, nomBadge, ORDRE_BADGES,
-  imageForet, EQUIPAGES, nomJoueur,
+  jetonForetDetoure, EQUIPAGES, nomJoueur,
 } from "./materiel.js";
 import { carte } from "./cartes.js";
 import { survolable } from "./loupe.js";
@@ -65,7 +65,13 @@ const PRODUCTIONS = [
  */
 const PARTS_SCORE = [
   ["tr", MOT.scoreTr, false],
-  ["forests", MOT.scoreForests, false],
+  // LIS-8 (tranché par Alexis le 04-08) — la part « Forests » a été RETIRÉE
+  // d'ici. Une forêt vaut un point de victoire : ce nombre était exactement
+  // celui de l'hexagone des capacités, quelques lignes plus bas, et le même
+  // nombre écrit deux fois dans une même barre se lit comme deux grandeurs.
+  // C'est l'hexagone qu'on garde ; la ligne du score, elle, n'est pas masquée,
+  // elle n'est plus construite. Le total, lui, ne bouge pas d'un point : il
+  // vient du moteur et n'a jamais été la somme de ces cases.
   ["cards", MOT.scoreCards, false],
   ["milestones", MOT.scoreMilestones, false],
   ["awards", MOT.scoreAwards, true],
@@ -118,7 +124,7 @@ export function construireJoueurs() {
       <div class="capacites">
         <span class="cap"><i>${MOT.steel}</i><b data-valeur="players.${j}.steel_capacity">0</b></span>
         <span class="cap"><i>${MOT.titanium}</i><b data-valeur="players.${j}.titanium_capacity">0</b></span>
-        <span class="cap cap--foret"><img src="${imageForet()}" alt="forests">
+        <span class="cap cap--foret"><img src="${jetonForetDetoure()}" alt="forests">
           <b data-valeur="players.${j}.forests">0</b></span>
         <span class="cap"><i>Phase</i><b data-valeur="players.${j}.chosen_phase">0</b></span>
       </div>

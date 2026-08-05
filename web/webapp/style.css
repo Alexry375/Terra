@@ -1010,6 +1010,24 @@ body[data-siege="1"][data-actif="0"] #scene[data-composition="contexte"] .scene_
   box-shadow: 0 0 14px rgba(237, 181, 78, .7);
 }
 
+/* LIS-7 (confirmé par Alexis le 04-08) — UNE CROIX, PAS UNE COCHE, AU PREMIER
+   TRI. À cet écran-là (`project_mulligan`, le remplacement des cartes de
+   départ), les cartes qu'on désigne sont celles qu'on JETTE. La coche dorée
+   disait exactement le contraire de ce qui allait se passer : on croyait
+   garder ce qu'on était en train de rendre.
+   La marque devient une croix, et sa pastille passe du doré à la braise —
+   la couleur que le reste de l'écran emploie déjà pour ce qui se défausse.
+   Partout ailleurs on désigne bien ce qu'on prend : la coche reste. */
+#scene[data-decision-type="project_mulligan"] .choix--pris::after {
+  content: "✕";
+  background: var(--braise); color: #fdeee8;
+  box-shadow: 0 0 14px rgba(226, 84, 43, .75);
+}
+#scene[data-decision-type="project_mulligan"] .choix--pris .carte img,
+#scene[data-decision-type="project_mulligan"] .choix--pris.choix--plaque {
+  box-shadow: 0 0 0 3px var(--braise), 0 10px 24px rgba(0, 0, 0, .6);
+}
+
 /* La barre de validation. */
 .scene__barre {
   display: flex; align-items: center; justify-content: center; gap: 16px;

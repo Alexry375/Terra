@@ -135,9 +135,25 @@ export function construirePlateaux() {
     `<div class="oceans__grille" id="oceans-grille"></div>`;
   document.body.appendChild(o);
 
-  // On agrandit la carte des océans pour la détailler ; on la referme d'un clic.
-  o.addEventListener("click", () => {
-    o.classList.toggle("oceans--grande");
+  // On agrandit la carte des océans pour la détailler.
+  //
+  // CNF-5 (05-08) — ON LA REFERME D'UN CLIC N'IMPORTE OÙ. Le clic était posé
+  // sur la planche elle-même : une fois agrandie, elle occupe le centre de
+  // l'écran, et il fallait retomber DESSUS pour la refermer — cliquer à côté,
+  // le geste naturel, ne faisait rien.
+  //
+  // L'écouteur vit donc sur le document. Ouverte, la planche se referme quel
+  // que soit l'endroit cliqué ; fermée, seul un clic sur elle l'ouvre. Un même
+  // clic ne peut pas faire les deux : le premier cas rend la main aussitôt.
+  //
+  // Désigner une tuile continue de fonctionner : la grille arrête ce clic-là
+  // (`stopPropagation` ci-dessous), il n'atteint jamais le document.
+  document.addEventListener("click", (ev) => {
+    if (o.classList.contains("oceans--grande")) {
+      o.classList.remove("oceans--grande");
+      return;
+    }
+    if (o.contains(ev.target)) o.classList.add("oceans--grande");
   });
 
   // DÉSIGNER L'EMPLACEMENT QUI SE RETOURNE. L'écouteur est posé sur la grille,

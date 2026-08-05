@@ -7,9 +7,11 @@
 // `maximum`, `a_choisir`, `cout`, `mc`, `taux`, `options.length`) ou de l'état
 // rendu par le moteur. Jamais devinés, jamais recalculés.
 //
-// Un seul endroit relit la phrase française : `sell_card`, dont le montant
-// (« … pour 3 MC ») n'existe dans aucun champ. C'est une reprise du gabarit
-// connu, bornée à un nombre, avec repli propre si le gabarit change.
+// Un seul endroit relit ce que le moteur publie : `choose_build` QUAND LA
+// LISTE EST VIDE (MOT-4). Le moteur y écrit la raison pour laquelle rien
+// n'est constructible, en anglais, et l'écran la relaie telle quelle — la
+// réécrire ici la ferait diverger le jour où le moteur la reformule. Partout
+// ailleurs la règle tient : l'écran rédige ses propres textes.
 //
 // Vocabulaire : l'écran dit les mots du jeu en toutes lettres — « Score »,
 // « Corporation », « Temperature », « Oceans », « Hand », « Phase card ». Ce
@@ -107,8 +109,10 @@ export const MOT = {
   award: "Award",
   // Les deux arcs du plateau imprimé. L'unité est dans l'intitulé : c'est la
   // graduation du plateau qu'ils portent, pas le compteur brut du moteur.
-  arcTemp: "Temperature °C",
-  arcOxygen: "Oxygen %",
+  // LIS-1 (05-08) — plus d'unité : l'arc n'écrit plus de chiffre qu'elle
+  // pourrait qualifier. Le nombre et son unité restent dans la barre du haut.
+  arcTemp: "Temperature",
+  arcOxygen: "Oxygen",
   // La ventilation du score, dans les cinq parts du livret (p.16-17). Elles
   // portent les noms que le moteur publie (`players[].score_parts`).
   scoreTr: "TR",
@@ -265,20 +269,35 @@ const QUESTIONS = {
     `Which project cards do you swap? (0 to ${(d.options || []).length})`,
   pick_corporation: () => "Choose your Corporation card",
   pick_phase: () => "Choose your Phase card",
-  choose_build: () => "Which card do you play?",
+  // MOT-4 (moitié écran, 05-08) — L'EXCEPTION À LA RÈGLE DU FICHIER, et elle
+  // est bornée au cas de la LISTE VIDE.
+  //
+  // Le moteur pose désormais la question même quand aucune carte n'est
+  // constructible, et publie alors dans `question` la raison — « No card can
+  // be built this phase. You may still sell cards from your hand. » L'écran
+  // rédigeait sa phrase en dur et ne lisait jamais ce champ : le joueur voyait
+  // « Which card do you play? » devant une liste vide, ce qui est faux.
+  //
+  // On RELAIE donc ce que le moteur publie, sans le recopier ici : si le
+  // moteur reformule sa phrase, l'écran suit sans qu'on y retouche. Le repli
+  // ne relaie rien — il constate ce que l'écran voit lui-même, une liste sans
+  // aucune option — et ne sert que si le moteur se tait.
+  //
+  // Liste NON vide : rien ne change, l'écran écrit son propre texte anglais.
+  choose_build: (d) => {
+    if ((d.options || []).length !== 0) return "Which card do you play?";
+    const duMoteur = (d.question || "").trim();
+    return duMoteur || "Nothing to build this phase.";
+  },
   construction_bonus: () => "Construction Phase selector bonus",
   research_keep: (d) =>
     `Keep ${d.a_choisir} card${s(d.a_choisir)} out of ${(d.options || []).length}`,
   action_choice: () => "Which action do you trigger?",
   discard_down: (d) => `Hand limit: discard ${d.a_choisir} card${s(d.a_choisir)}`,
   choose_option: () => "Choose a branch of the card text (printed order)",
-  sell_card: (d) => {
-    // Le montant n'est dans aucun champ du descripteur : on le reprend du
-    // gabarit français connu (« … pour N MC ? »). Si le gabarit change, la
-    // question reste juste, sans le montant.
-    const m = /pour (\d+) MC/.exec(d.question || "");
-    return m ? `Which card do you sell for ${m[1]} MC?` : "Which card do you sell?";
-  },
+  // `sell_card` a été retiré le 05-08 : le moteur ne pose plus cette question
+  // — la chaîne n'existe plus dans `terra.wasm` (vérifié) et aucun autre
+  // module de la page ne la nomme. C'était du code mort.
   action_amount: (d) =>
     `How much do you spend? (${d.minimum ?? 0} to ${d.maximum ?? 0})`,
   pick_joker_tag: () => "Choose the tag to add to this card",

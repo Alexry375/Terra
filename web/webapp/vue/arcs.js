@@ -144,11 +144,6 @@ const ARCS = {
     course: (pas) => pas / 19,
     fractionCran: (i) => i / 19,
     lecture: (pas) => -30 + 2 * pas,
-    // Le SIGNE, même quand il est positif : « +2 » se lit comme une
-    // température, « 2 » comme un compteur. Le bandeau écrit la même chose
-    // (`vue/monde.js`, `degre`) — les deux ne doivent jamais différer d'un
-    // caractère, sinon on croit lire deux grandeurs.
-    ecrire: (v) => (v > 0 ? "+" + v : String(v)),
   },
   oxygen: {
     // Panneau de DROITE : le miroir du précédent.
@@ -185,8 +180,8 @@ export function construireArcs() {
       class: "arc__dessin",
       viewBox: `0 0 ${VUE.l} ${VUE.h}`,
       preserveAspectRatio: "xMidYMid meet",
-      // Le dessin est redit en toutes lettres à côté (`arc__n`, `arc__mot`) :
-      // il n'apporte rien de plus à qui ne le voit pas.
+      // Le dessin est redit en toutes lettres à côté (`arc__mot`) et dans la
+      // barre du haut : il n'apporte rien de plus à qui ne le voit pas.
       "aria-hidden": "true",
       focusable: "false",
     });
@@ -235,20 +230,19 @@ export function construireArcs() {
     // glisse d'une case à l'autre quand le moteur fait monter le paramètre.
     const repere = svg("g", { class: "arc__repere" });
     repere.dataset.repere = quoi;
-    repere.appendChild(svg("circle", { class: "arc__repere-halo", cx: 0, cy: 0, r: 8.5 }));
-    repere.appendChild(svg("circle", { class: "arc__repere-oeil", cx: 0, cy: 0, r: 4.6 }));
+    // LIS-2 — un point SIMPLE, comme le demandait le second joueur : le halo
+    // qui le cerclait a été retiré. Sa couleur est en feuille de style.
+    repere.appendChild(svg("circle", { class: "arc__repere-oeil", cx: 0, cy: 0, r: 5.2 }));
     dessin.appendChild(repere);
 
     s.appendChild(dessin);
 
-    // La valeur courante, en chiffres, dans la concavité de l'arc. Elle est
-    // écrite en HTML et non dans le dessin : c'est du texte, il doit se
-    // mesurer, se sélectionner et se lire comme le reste de l'écran.
-    const n7 = document.createElement("b");
-    n7.className = "arc__n";
-    n7.dataset.arcLecture = quoi;
-    n7.textContent = "—";
-    s.appendChild(n7);
+    // LIS-1 (05-08) — l'arc n'écrit plus sa valeur en chiffres. Elle faisait
+    // doublon avec la barre du haut (`vue/monde.js`, `param--temp` et
+    // `param--o2`), qui reste la seule à donner le nombre. L'élément `arc__n`
+    // n'est pas masqué, il n'est plus créé : la page ne l'écrit plus du tout.
+    // Conséquence assumée (LIS-2) : le repère devient le seul moyen de lire la
+    // jauge, et il est donc rendu franchement visible sur toutes les cases.
 
     const mot = document.createElement("span");
     mot.className = "arc__mot";
@@ -287,12 +281,6 @@ function poserArc(quoi, pas) {
   const [x, y] = point(a.course(pas), RAYON, a.sens);
   const repere = s.querySelector("[data-repere]");
   if (repere) repere.setAttribute("transform", `translate(${x.toFixed(2)} ${y.toFixed(2)})`);
-
-  const lecture = s.querySelector("[data-arc-lecture]");
-  if (lecture) {
-    const v = a.lecture(pas);
-    lecture.textContent = a.ecrire ? a.ecrire(v) : String(v);
-  }
 }
 
 /** Remet la mémoire à zéro (nouvelle partie). */
