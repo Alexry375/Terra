@@ -42,6 +42,12 @@ export const MOT = {
   setDiscard: "See the discard",
   setDiscardNote: "the last discarded card stays face up, and a click opens the whole pile",
   close: "Close",
+  // (ANI-2) Le passage de main. Aucune de ces phrases ne nomme une carte ni une
+  // phase : elles disent QUI a la parole, jamais ce qu'il a choisi.
+  turnToOpponent: "Your turn is over — the other player is picking their Phase card",
+  turnToMe: "Your turn — pick your Phase card",
+  turnHandover: "The other player is playing",
+  turnBack: "Your turn",
   // La planche des océans quand une tuile est due : la consigne posée sur la
   // planche, et l'annonce qui traverse l'écran.
   oceanPick: "Pick a tile",

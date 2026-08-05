@@ -62,6 +62,47 @@ export function annoncePhases(etat) {
 }
 
 /**
+ * (cartes-qui-bougent, ANI-3) **UNE PHASE COMMENCE.**
+ *
+ * « On ne sait pas qu'une phase commence — la Production en particulier. » Les
+ * cinq phases de la manche se résolvaient l'une après l'autre sans que rien ne
+ * le dise : les compteurs changeaient, et c'était tout. La carte Phase qui
+ * s'ouvre traverse donc la bande, avec son chiffre romain et son nom.
+ *
+ * CE QU'ELLE NE RÉVÈLE PAS. La phase EN COURS DE RÉSOLUTION est publique — le
+ * moteur l'a révélée (livret l. 272), les deux cartes sont retournées sur la
+ * table. Cette annonce ne dit rien du choix SECRET de personne : elle nomme ce
+ * que le moteur est en train de résoudre, et rien d'autre. C'est la carte Phase
+ * IMPRIMÉE qu'elle montre, pas celle d'un joueur.
+ */
+export function annoncePhase(n) {
+  const d = document.createElement("div");
+  d.className = "annonce__debut";
+  d.innerHTML =
+    `<img src="${imagePhase(n)}" alt="Phase card ${phaseNom(n)}">` +
+    `<span class="annonce__debut-nom">${phaseRomain(n)} · ${phaseNom(n)}</span>`;
+  jouerAnnonce(d, 1300);
+}
+
+/**
+ * (cartes-qui-bougent, ANI-2) **LE TOUR PASSE À L'AUTRE.**
+ *
+ * « On ne comprend pas que son tour est fini et que l'autre doit choisir sa
+ * phase. » Une phrase, en clair, au moment où la main change de côté.
+ *
+ * ELLE NE LAISSE RIEN FILTRER. Elle ne nomme aucune carte, aucune phase, aucun
+ * choix : elle dit qui a la parole. La carte Phase de la manche EN COURS de
+ * l'adversaire ne doit apparaître nulle part tant que le moteur ne l'a pas
+ * révélée, et ce point a déjà coûté deux corrections à ce dépôt.
+ */
+export function annoncePassage(texte) {
+  const d = document.createElement("div");
+  d.className = "annonce__passage";
+  d.textContent = texte;
+  jouerAnnonce(d, 1200);
+}
+
+/**
  * L'écran final. Les deux scores viennent du moteur (`partie.scores`), et
  * l'élément qui les porte ne contient qu'eux — rien d'autre à lire dedans.
  */
