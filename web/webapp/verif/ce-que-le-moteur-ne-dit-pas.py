@@ -41,7 +41,14 @@ RACINE = os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else "web/webapp")
 # PLUSIEURS GRAINES, et on s'arrete des que les trois mesures ont eu lieu. Une
 # partie ne contient pas forcement de carte a badge joker, ni de carte porteuse
 # de ressources : une seule graine, et le banc serait vert pour n'avoir rien vu.
-GRAINES = (sys.argv[2] if len(sys.argv) > 2 else "4242,7,5150").split(",")
+#
+# ⚠️ LES GRAINES PAR DEFAUT SONT CELLES QUI MESURENT VRAIMENT (mesure du 05-08 :
+# 6+4+10+14+23 -> 1047 decisions, 725 jetons de badge vus, 246 lectures du
+# revenu reel dont 75 au-dessus de base+TR). Les precedentes (4242,7,5150) ne
+# posaient AUCUNE carte a badge joker : le banc s'arretait sur « la mesure MOT-14
+# n'a pas eu lieu » — un rouge honnete, mais un rouge par defaut, donc un banc
+# que personne ne relance. Un garde-fou rouge par construction ne garde rien.
+GRAINES = (sys.argv[2] if len(sys.argv) > 2 else "6,4,10,14,23").split(",")
 
 sys.path.insert(0, os.path.join(RACINE, "verif"))
 from pilote import serveur, page, choix_simple, choix_montant  # noqa: E402
