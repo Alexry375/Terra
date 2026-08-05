@@ -42,16 +42,25 @@
 // pas le pont, et ne regarde qu'un coup — celui qu'on lui demande.
 //
 // ─────────────────────────────────────────────────────────────────────────────
-// D'OÙ VIENNENT LES NOMBRES DE `REGLAGES`.
+// D'OÙ VIENNENT LES NOMBRES DE `REGLAGES` — ET CE QUI N'A PAS ÉTÉ MESURÉ.
 //
-// Ils ne sont pas déduits des règles : ils sont MESURÉS. Chaque valeur a été
-// choisie en faisant jouer le joueur sur des graines de réglage (5000 à 5099),
-// **disjointes des graines du contrat (1 à 100)**, puis confirmée sur celles du
-// contrat. Le détail des mesures est dans `outputs/journal.md`. Une échelle
-// réglée sur les graines qu'on va montrer ne serait pas une échelle, ce serait
-// une récitation.
+// Ce qui a été mesuré, exactement : NEUF variantes, chacune sur 24 parties
+// (12 graines × 2 sièges) contre le joueur témoin, sur les **graines 5000 à
+// 5011** — disjointes des graines du contrat (1 à 100), pour qu'aucun réglage ne
+// soit choisi sur les parties qu'on va montrer. Ces variantes ont fixé les
+// treize poids du choix de phase, le sens du prix à la pose et en main, et le
+// seuil du mulligan. À 24 parties, le bruit vaut environ ±10 points de taux :
+// c'est l'écart de score moyen, moins bruyant, qui a départagé.
+//
+// Ce qui n'a PAS été mesuré, et qui est donc choisi à la main : la valeur d'un
+// point de victoire (`pvEnMain`, `pvALaPose`), celle d'un badge, le barème des
+// actions standard (`forêtPlantes` … `actionDeCarte`), les poids de
+// `valeurProduction`, et les quelques constantes écrites dans les branches
+// (`corp_mulligan`, `reduction_plantes`, `construction_bonus`,
+// `bonus_selectionneur`, `valeurDuLibelle`). Elles sont plausibles, elles ne
+// sont pas prouvées. Le détail des mesures est dans le journal du chantier.
 
-import { formeDeLaReponse, nombreDeChoix } from "../fournisseurs.js";
+import { formeDeLaReponse } from "../fournisseurs.js";
 
 // ────────────────────────────────────────────────────────────── les réglages
 
@@ -95,6 +104,11 @@ export const REGLAGES = {
   passer: 0,
 };
 
+// FIGÉS POUR DE BON. Sans ce gel, n'importe quel importateur pourrait réécrire
+// l'échelle de valeur du joueur livré — et la mesure d'hier ne dirait plus rien
+// du joueur d'aujourd'hui.
+Object.freeze(REGLAGES);
+
 // ───────────────────────────────────────────────── ce que le joueur a le droit de voir
 
 /**
@@ -112,12 +126,13 @@ function monSiege(etat, siege) {
   return {
     main,
     // « payable » vient de MON `main_payable` : ce que J'AI les moyens de payer.
-    payable: main.map((_, i) => payable[i] !== false),
-    posees: Array.isArray(moi.played) ? moi.played : [],
+    // Le défaut est NON payable : un champ absent ou trop court doit retirer une
+    // carte du compte, jamais en ajouter — `devParCarte` et `conParCarte` sont
+    // les deux plus gros poids de la table, et un défaut permissif ne
+    // dégraderait pas le choix de phase, il l'inverserait.
+    payable: main.map((_, i) => payable[i] === true),
     mc: moi.mc || 0,
     plantes: moi.plants || 0,
-    chaleur: moi.heat || 0,
-    tr: moi.tr || 0,
     badges: moi.tags || {},
     production: {
       mc: prod.mc || 0,
@@ -283,9 +298,10 @@ function noterAction(libelle) {
  * l'occasion vient d'être dépensée, et une nouvelle ne s'ouvrira qu'après une
  * vraie réponse de mon siège.
  *
- * Or `etat.vente_offerte` vaut VRAI dans les deux cas — le drapeau a été armé
- * avant la vente et republié après (`vue/vente.js`, note K1 du 04-08). L'état ne
- * dit donc pas si l'occasion est encore ouverte. Un joueur SANS MÉMOIRE, comme
+ * Or `etat.vente_offerte` vaut VRAI dans les deux cas — le drapeau est armé
+ * avant la vente et republié après (`engine/src/flow.rs`, `occasion_de_vendre` ;
+ * la page en tire les mêmes conséquences, note K1 du 04-08 dans
+ * `vue/vente.js`). L'état ne dit donc pas si l'occasion est encore ouverte. Un joueur SANS MÉMOIRE, comme
  * celui-ci, ne peut pas faire la différence : mesuré, il vend une fois, revoit
  * la même question sans option, revend — et le moteur arrête la partie
  * (« aucune occasion de vendre n'est ouverte à ce point », graine 2, entrée 83).
@@ -344,7 +360,8 @@ function decider(d, etat) {
   }
 
   // ── choix simple ─────────────────────────────────────────────────────────
-  const total = nombreDeChoix(d); // options + « passer » s'il est offert
+  // L'indice de « passer », quand le moteur l'offre : c'est `options.length`
+  // (voir `nombreDeChoix` dans `fournisseurs.js`, qui compte cette issue de plus).
   const iPasser = d.passer ? n : -1;
 
   switch (d.type) {
@@ -387,19 +404,27 @@ function decider(d, etat) {
           2 * ((options[i].badges && options[i].badges.length) || 0),
       );
 
-    case "corp_mulligan":
+    case "corp_mulligan": {
       // « Garder » ou « Remplacer les 2 » : on garde si la meilleure des deux
-      // corporations en main vaut au moins un capital de départ moyen.
-      {
-        const corpos = d.corporations || [];
-        let mieux = 0;
-        for (const c of corpos) mieux = Math.max(mieux, c.mc_depart || 0);
-        const iGarder = meilleur(n, (i) =>
-          /garder/i.test(options[i].libelle) ? 1 : 0,
-        );
-        const iRemplacer = n - 1 - iGarder;
-        return mieux >= 24 ? iGarder : iRemplacer;
-      }
+      // corporations en main annonce au moins 24 MC de départ (valeur choisie à
+      // la main, non mesurée — les corporations vues vont de 20 à 26).
+      //
+      // Les deux indices sont cherchés PAR LEUR LIBELLÉ, jamais déduits l'un de
+      // l'autre : « l'autre option » n'a de sens que s'il y en a exactement
+      // deux, et le jour où le moteur en ajoutera une troisième, une
+      // soustraction silencieuse répondrait à côté. Si aucun libellé ne parle de
+      // garder, on garde l'option 0 — c'est le repli, et il est déclaré.
+      let mieux = 0;
+      for (const c of d.corporations || []) mieux = Math.max(mieux, c.mc_depart || 0);
+      const dit = (motif) => {
+        for (let i = 0; i < n; i++) if (motif.test(options[i].libelle || "")) return i;
+        return -1;
+      };
+      const iGarder = dit(/garder/i);
+      const iRemplacer = dit(/remplacer/i);
+      if (iGarder < 0 || iRemplacer < 0) return 0;
+      return mieux >= 24 ? iGarder : iRemplacer;
+    }
 
     case "pick_joker_tag":
       // Le badge dont on a déjà le plus : c'est la synergie la plus probable, et
@@ -473,7 +498,7 @@ function decider(d, etat) {
       const iBest = meilleur(n, (i) => valeurDuLibelle(options[i].libelle));
       const vBest = valeurDuLibelle(options[iBest].libelle);
       if (iPasser >= 0 && vBest < 0) return iPasser;
-      return Math.min(iBest, total - 1);
+      return iBest;
     }
   }
 }

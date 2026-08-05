@@ -104,15 +104,37 @@ let victoiresB = 0;
 let nuls = 0;
 let decisions = 0;
 let ecartTotal = 0;
+// CE QUE LA BALANCE NE DOIT PAS TAIRE. Une partie qui s'arrête sur le plafond de
+// manches n'a pas fini d'elle-même : son score est un instantané, pas un
+// résultat. Une partie que le moteur a refusé de continuer n'a pas eu lieu du
+// tout. Les deux sont comptées à part et IMPRIMÉES — un banc qui les noierait
+// dans le total dirait ce qu'on veut lui faire dire.
+let plafonnees = 0;
+let interrompues = 0;
+const premiereCasse = [];
 
 for (let g = 1; g <= graines; g++) {
   for (const echange of [false, true]) {
     const a = JOUEURS[nomA](graineDuCamp(g, 0), nomA);
     const b = JOUEURS[nomB](graineDuCamp(g, 1), nomB);
     const partie = creerPartie(pont, { graine: g, boites });
-    await jouerJusquAuBout(partie, echange ? [b, a] : [a, b], () => {
-      decisions++;
-    });
+    try {
+      await jouerJusquAuBout(partie, echange ? [b, a] : [a, b], () => {
+        decisions++;
+      });
+    } catch (e) {
+      // Une partie refusée par le moteur ne doit pas emporter les 199 autres :
+      // on la déclare, on la compte, et on continue.
+      interrompues++;
+      if (premiereCasse.length < 3) {
+        premiereCasse.push(
+          `graine ${g}, ${echange ? "sièges échangés" : "sièges directs"} : ` +
+            String((e && e.message) || e).split("\n")[0],
+        );
+      }
+      continue;
+    }
+    if (partie.partieComplete !== true) plafonnees++;
     const scores = partie.scores || [0, 0];
     const scoreA = echange ? scores[1] : scores[0];
     const scoreB = echange ? scores[0] : scores[1];
@@ -165,6 +187,12 @@ console.log(
 );
 console.log(`décisions jouées : ${decisions}`);
 console.log(
+  `parties arrêtées sur le plafond de manches : ${plafonnees} — leur score est ` +
+    `un instantané, il compte quand même dans le total`,
+);
+console.log(`parties interrompues par le moteur : ${interrompues}`);
+for (const c of premiereCasse) console.log(`  interruption — ${c}`);
+console.log(
   `parties décisives : ${decisives} — attendu à l'équilibre : ${attendu.toFixed(1)} victoires, ` +
     `écart typique : ${ecartTypique.toFixed(1)}`,
 );
@@ -174,3 +202,9 @@ console.log(
     ? `verdict : écart significatif — « ${ecarts > 0 ? nomA : nomB} » est le meilleur des deux`
     : "verdict : dans le bruit — cet écart ne distingue pas les deux joueurs",
 );
+if (interrompues) {
+  console.log(
+    `⚠ ${interrompues} partie(s) n'ont pas été jouées jusqu'au bout : le verdict ` +
+      `porte sur ${parties - interrompues} parties, pas sur ${parties}`,
+  );
+}
