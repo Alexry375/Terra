@@ -828,9 +828,28 @@ Personne ne l'a signalé en partie — le contour vert trompeur ne se remarque q
 si l'on essaie de jouer la carte. À traiter dans un lot d'affichage ultérieur ;
 pas glissé dans le chantier en cours, qui est déjà chargé.
 
-### LIS-10 (ancien J3) — Les logos Océan et Forêt ne sont pas détourés
-[DÉCLARÉ 04-08] Dans les décisions, ces deux jetons s'affichent sur un carré
-blanc, alors que le logo de la défausse est proprement détouré.
+### LIS-10 (ancien J3) — Les logos Océan et Forêt ne sont pas détourés — ✅ FAIT 04-08, fiche périmée corrigée le 05-08
+**[VÉRIFIÉ 05-08 · mesuré par moi]** Le carré blanc a disparu. Les deux images
+détourées existent et sont bien celles que la plaque de décision affiche :
+
+- `web/webapp/assets/plateau/jeton-ocean-detoure.webp` — 447 × 393, **24 % de
+  pixels entièrement transparents, les quatre coins transparents** ;
+- `web/webapp/assets/plateau/jeton-foret-detoure.webp` — 263 × 231, mêmes
+  chiffres.
+
+À comparer aux deux découpes d'origine, `tuile-ocean-dos-orange` et
+`tuile-foret-compteur-hexagone-arbre` : **0 % de transparent, aucun coin
+transparent** — c'est le rectangle blanc du reproche. Elles restent dans les
+ressources, mais la plaque de décision ne s'en sert plus.
+
+Chaîne d'affichage relue : `vue/scene.js:1030-1031` (`matiereAction`, la plaque
+de décision) appelle `jetonForetDetoure()` / `jetonOceanDetoure()`, définies en
+`vue/materiel.js:277-283`. Le jeton qui s'envole (`vue/anim.js:675`) et
+l'hexagone des capacités (`vue/joueurs.js:145`) prennent la même image détourée.
+
+**Pourquoi la fiche disait le contraire** : elle datait du 04-08 au matin, et le
+détourage a été fait le 04-08 dans la journée. Deuxième fiche périmée trouvée en
+deux jours — c'est pourquoi je remesure au lieu de recopier.
 
 ### LIS-11 (ancien I3) — Le prix d'origine n'est pas barré
 [DEMANDÉ] Quand une remise s'applique, afficher le prix d'origine barré à côté
