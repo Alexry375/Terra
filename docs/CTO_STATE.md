@@ -66,31 +66,75 @@ artificielle qui choisit ses phases doit connaître ces trois montants.
 - **LIS-3 n'est pas fini** : les 18 pastilles recouvertes sont toujours là,
   au même nombre exactement qu'avant le lot. Non régressé, non réparé.
 
-## 🚧 05-08 — CHANTIER EN COURS : « LES CHOIX SE POSENT AU BON MOMENT »
+## ✅ 05-08 — LE LOT « LES CHOIX SE POSENT AU BON MOMENT » EST FUSIONNÉ
 
-Scellé et lancé. **MOT-2, MOT-3, MOT-8** — trois défauts qui déplacent tous des
-points de décision, donc rendent injouables les parties enregistrées. Ils partent
-ensemble pour ne refixer les repères qu'**une seule fois**.
+Fusionné dans `main` (`c071409`) après audit complet par moi. **MOT-2, MOT-3,
+MOT-8** — trois défauts qui déplacent tous des points de décision. Ils sont
+partis ensemble pour ne refixer les repères qu'**une seule fois**, et c'est
+vérifié commit par commit : seul le dernier (`9554fc2`) change une valeur
+d'empreinte, et il ne fait que cela.
 
-| Point | Ce qui cloche | Mesuré au scellement |
+| Point | Avant | Après, rejoué par moi |
 |---|---|---|
-| MOT-2 | des actions proposées qui ne peuvent rien produire | **340 sur 2133** options essayées, sur **seize** cartes |
-| MOT-3 | le bonus de Construction tranché avant toute pose | 70 questions, **zéro** posée après une pose |
-| MOT-8 | le badge « ? » demandé pour des cartes injouables | 18 questions, **10** pour une carte non offerte |
+| MOT-2 actions stériles | 2133 options, **340 stériles** | 1419 options, **0 stérile** |
+| MOT-3 bonus de Construction | 70 questions, **0** après une pose, 1 liste | 108 questions, **17** après une pose, 2 listes |
+| MOT-8 badge « ? » | 18 questions, **10** inutiles | 10 questions, **0** inutile |
+| garde-fou | 25 suites | **26 suites**, 2102 pas sur 5 parties entières |
 
-**Une décision qui attend Alexis** : pour MOT-8 je n'ai demandé que le
-**demi-correctif** — ne plus poser la question pour les cartes de toute façon
-injouables. Le correctif complet (demander le badge au moment de poser) soulève
-un problème de règles non tranché : si le joueur choisit alors un badge moins
-avantageux, la carte peut devenir trop chère après coup. Ce choix appartient à
-Alexis et Corentin.
+Empreintes : `bf70799ff3fee1d8` → `8e4ec5b0296470e6`, aux trois endroits. J'ai
+aussi **reconstruit `terra.wasm` et comparé octet à octet** : le fichier que le
+navigateur exécute est bien celui du code livré.
 
-**Deux pièges de mesure trouvés en écrivant ces contrôles**, et écrits dans le
-contrat pour que l'agent ne les refasse pas : une action qui pose un microbe
-**sur une carte** ne change ni l'argent ni la planète — la compter stérile est
-faux ; et `main_payable` est une liste de oui/non parallèle à la main, pas une
-liste d'identifiants — y chercher des identifiants donne un rouge qui n'a rien
-mesuré.
+### ⛔ UNE DÉCISION DE RÈGLES ATTEND ALEXIS — MOT-8
+
+**Mon contrat se contredisait**, et l'agent l'a mesuré au lieu de le supposer :
+son titre disait « que le joueur peut **de toute façon** payer », sa puce disait
+« juge au badge le **plus favorable** ». Les deux ne désignent pas le même
+ensemble de cartes, et la lecture de la puce laissait le contrôle rouge quelle
+que soit la réponse.
+
+L'agent a retenu la lecture stricte, et il en écrit le coût sans le cacher : une
+carte payable **seulement sous certains badges** ne reçoit plus de question, donc
+plus de jeton, donc est jugée plein tarif et n'est pas offerte. Le joueur perd ce
+coup-là pour ce tour, jusqu'à devenir assez riche pour la payer quel que soit le
+badge. L'autre lecture lui rend le coup mais rouvre la question inutile — et un
+jeton posé **reste sur la carte pour toute la partie**, donc un mauvais badge la
+dégrade définitivement. Se renverse en un mot : `all` → `any`,
+`engine/src/flow.rs:628`.
+
+### ⚠️ MON CONTRÔLE CACHÉ A RENDU DEUX ÉCHECS, ET LES DEUX ÉTAIENT DE MOI
+
+Sixième et septième fois que je constate le même genre de défaut. Aucun des deux
+ne portait sur ce qu'il fallait vérifier ; les deux vérifiaient une **forme**
+plutôt qu'une **propriété** :
+
+1. Il cherchait un appel écrit noir sur blanc à `affordable` dans les lignes
+   ajoutées. L'agent a fait mieux : il a **extrait** le jugement commun
+   (`verdict_de_pose`) du corps de boucle d'`affordable`, et les deux lecteurs
+   l'appellent (`flow.rs:629` et `:2160`). Ils ne peuvent donc plus juger la même
+   carte différemment — ce qui **était** le défaut MOT-8.
+2. Il exigeait qu'un **seul** commit touche `engine/tests/`, alors que la
+   propriété voulue était qu'un seul **refixe les empreintes**. Ajouter un banc
+   de tests à chaque point est une bonne pratique, pas une infraction.
+
+### Deux défauts trouvés par la relecture adversariale de l'agent, pas par mes contrôles
+
+- Le badge pouvait encore être demandé **à la pose** — l'interdit explicite du
+  contrat — parce que la vente enrichissait le joueur entre la résolution et
+  l'énumération. Reproduit avant d'être corrigé : 4 cas sur 263 offres, en 300
+  parties, avec une politique qui vend à chaque occasion. **Mes contrôles ne
+  vendent jamais** : c'est précisément pourquoi leurs chiffres sont identiques
+  avant et après ce correctif-là.
+- Le second temps du bonus de Construction était demandé aussi à qui avait déjà
+  pioché au premier.
+
+### Ce que l'enquête a appris, et qui reste ouvert
+
+- La fiche MOT-3 se trompait : la carte améliorée **II-A n'a qu'une branche** et
+  ne pose aucune question. Seule II-B était concernée.
+- `action_effs_possible` ne garde que l'**océan** au maximum, pas la température
+  ni l'oxygène. Une action « 4 chaleurs → +1 oxygène » à oxygène plein prend les
+  chaleurs et ne rend rien. **Autre lot** : c'est une règle de jeu.
 
 ## 🔧 NUIT DU 04 AU 05-08 — LE LOT MOTEUR FUSIONNÉ, DEUX CHANTIERS D'ÉCRAN LANCÉS
 

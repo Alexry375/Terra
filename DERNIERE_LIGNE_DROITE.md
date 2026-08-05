@@ -57,7 +57,24 @@ bleues/rouges en main dont Solarpunk à 15 MC. Vendre 3 cartes (+9 MC) la mettai
 **Correctif** : poser la question même quand la liste est vide — avec la seule
 réponse « passer ». Règle du même coup MOT-4.
 
-### MOT-2 (ancien K5) — Une action de carte impossible reste proposée
+### MOT-2 (ancien K5) — Une action de carte impossible reste proposée — ✅ RÉPARÉ 05-08
+**[VÉRIFIÉ 05-08 · réparé, fusionné, rejoué par moi]** Correctif dans le lot
+« les choix se posent au bon moment » (`c071409`). `action_peut_produire` est
+le miroir exact des sorties par refus d'`apply_action_spec`, écrit une seule
+fois et lu par `action_options`. **Mesure d'après, rejouée par moi : 1419
+options d'action essayées sur 5 parties entières, 0 stérile** (avant : 2133
+options, 340 stériles). Le prédicat n'est pas placé au sommet
+d'`apply_action_spec` parce que ce corps-là offre l'occasion de vendre avant de
+juger la payabilité — un prédicat ne doit pas déclencher d'effet de bord.
+Contre-témoin gardé : une action qui pose une ressource **sur une carte**
+produit quelque chose et reste proposée (*Birds*).
+
+**Reste ouvert, déclaré par l'agent, autre lot** : le prédicat ne garde que
+l'océan au maximum, pas la température ni l'oxygène. Une action « 4 chaleurs →
++1 oxygène » à oxygène plein prend les chaleurs et ne rend rien.
+
+Ce qui suit est l'état d'avant, gardé pour mémoire.
+
 [VÉRIFIÉ 04-08] Les neuf océans sont révélés et « Aquifer Pumping » est encore
 offerte. `engine/src/flow.rs:3291` refuse l'effet avant tout paiement — aucun MC
 n'est perdu — mais la boucle de la phase Action consomme l'activation « dans
@@ -93,7 +110,26 @@ ont tous disparu une fois les ressources posées sur les cartes prises en compte
 Toute vérification doit regarder **les cartes posées elles-mêmes**, pas seulement
 leur nombre.
 
-### MOT-3 (ancien K6) — Le bonus de la phase Construction est tranché trop tôt
+### MOT-3 (ancien K6) — Le bonus de la phase Construction est tranché trop tôt — ✅ RÉPARÉ 05-08
+**[VÉRIFIÉ 05-08 · réparé, fusionné, rejoué par moi]** Deux temps, deux
+questions. Premier temps, avant toute pose : « piocher tout de suite, avant de
+poser ? », deux issues. Puis, la première carte posée : « piocher, ou poser une
+seconde carte ? », deux issues. **Mesure d'après, rejouée par moi : 108
+questions de bonus sur 6 parties, dont 17 posées APRÈS une carte posée pendant
+la phase, et 2 listes d'options distinctes** (avant : 70 questions, 0 après une
+pose, 1 seule liste). L'ancienne question à trois issues est conservée pour les
+chemins qui n'ont pas de moment — la sonde et les tests.
+
+**Un défaut trouvé par la relecture adversariale de l'agent, pas par mes
+contrôles** : le second temps était demandé aussi à qui avait déjà pioché au
+premier.
+
+**La fiche se trompait sur un point**, vérifié par l'agent dans la table des
+cartes : la carte améliorée II-A n'a qu'une seule branche et ne pose aucune
+question. Seule II-B était concernée.
+
+Ce qui suit est l'état d'avant, gardé pour mémoire.
+
 [VÉRIFIÉ 04-08 contre le livret et contre le code] Livret,
 `docs/regles/livret-base.md:336` : « piocher une carte **avant ou après** avoir
 joué une carte ». Le moteur, lui, appelle `policy.construction_bonus(...)` avant
@@ -208,7 +244,53 @@ l'autre.
 Gain pour l'intelligence artificielle : deux chemins qui mènent au même état
 gonflent l'arbre de recherche sans rien apporter. Ici on en supprime un.
 
-### MOT-8 (Corentin, ligne 8) — Le badge « ? » se choisit trop tôt — CONFIRMÉ
+### MOT-8 (Corentin, ligne 8) — Le badge « ? » se choisit trop tôt — ⚠️ DEMI-CORRECTIF 05-08, UNE DÉCISION ATTEND ALEXIS
+**[VÉRIFIÉ 05-08 · demi-correctif fusionné, rejoué par moi]** Le périmètre de la
+question a changé, **pas son moment** : le badge reste choisi avant le calcul du
+prix, parce qu'il EST un facteur du prix. **Mesure d'après, rejouée par moi : 10
+questions de badge sur 12 parties, 10 confrontées à la question de pose qui
+suit, 0 inutile** (avant : 18 questions, 10 inutiles).
+
+Le code a été amélioré au passage, et c'est ce qui rend le défaut impossible à
+revenir : `verdict_de_pose` est extrait du corps de boucle d'`affordable`, et les
+**deux** lecteurs l'appellent — celui qui énumère les cartes posables
+(`flow.rs:2160`) et celui qui décide s'il faut demander le badge
+(`flow.rs:629`). Ils ne peuvent donc plus juger la même carte différemment, ce
+qui était exactement le défaut.
+
+**⛔ LA DÉCISION QUI ATTEND ALEXIS — c'est une règle de jeu, pas de la
+technique.** Le contrat que j'avais écrit se contredisait, l'agent l'a mesuré au
+lieu de le supposer, et a retenu la lecture la plus stricte : la carte est jugée
+sur les **dix** badges, et la question n'est posée que si les dix la laissent
+posable. Conséquence assumée : **une carte payable seulement sous certains
+badges ne reçoit plus de question, donc plus de jeton, donc est jugée plein tarif
+et n'est pas offerte** — le joueur perd ce coup-là pour ce tour, et ne le
+retrouve que lorsqu'il devient assez riche pour la payer quel que soit le badge.
+
+L'autre lecture, « juger au badge le plus favorable », rend le coup au joueur mais
+rouvre la question inutile : mesuré, graine 808 rang 39, *Topographic Mapping* à
+10 MC devant un joueur à 8 MC et 1 savoir-faire Acier — deux badges sur dix la
+rendent payable, huit non ; le joueur en choisit un des huit et la carte n'est
+pas offerte. Et le jeton, une fois posé, **reste sur la carte pour toute la
+partie** : un mauvais badge la dégrade définitivement.
+
+Se renverse en changeant `all` en `any` dans `posable_quel_que_soit_le_badge`
+(`engine/src/flow.rs:628`), le coût étant écrit dans le code à cet endroit.
+
+**Le correctif complet — demander le badge au moment de poser, ce que Corentin
+demandait — n'est PAS fait, délibérément.** Il pose le même problème de règles,
+en pire : le prix annoncé ne serait plus le prix payé.
+
+**Un défaut trouvé par la relecture adversariale de l'agent, pas par mes
+contrôles** : le badge pouvait encore être demandé à la pose, l'interdit
+explicite du contrat, parce que la vente enrichissait le joueur entre la
+résolution et l'énumération. Reproduit avant d'être corrigé : 4 cas sur 263
+offres, en 300 parties, avec une politique qui vend à chaque occasion. Mes
+contrôles ne vendent jamais — c'est pourquoi leurs chiffres sont identiques
+avant et après ce correctif-là.
+
+Ce qui suit est l'état d'avant, gardé pour mémoire.
+
 [VÉRIFIÉ 05-08 · mesuré] Corentin a raison, et le titre de la fiche était à
 l'envers : le choix se fait trop **tôt**, pas trop tard. Le moteur parcourt
 **toute la main** et fait choisir le badge de chaque carte joker avant même de
