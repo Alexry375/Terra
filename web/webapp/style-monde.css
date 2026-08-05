@@ -169,12 +169,27 @@
  * trois quarts de la largeur d'une tuile, et une colonne sur deux descend d'une
  * demi-tuile. C'est ce décalage, et lui seul, qui fait le nid d'abeille.
  */
+/* 05-08 (LIS-5) — DEUX COLONNES, ET PLUS JAMAIS TROIS.
+ *
+ * La planche avait deux dispositions : trois colonnes au repos, deux pendant le
+ * court moment où l'on désigne l'emplacement d'une tuile révélée
+ * (`style-oceans.css`, règle `#oceans.oceans--choix`), puis retour. Mesuré sur
+ * deux parties entières jouées AVEC les mises en scène : 2 556 relevés, la
+ * planche entre 246 fois en mode « choix » et bascule 30 fois de disposition.
+ * Le propriétaire du projet préfère la disposition à deux colonnes et la veut
+ * permanente : elle devient donc la SEULE, ici, dans la règle de base — et la
+ * feuille du choix n'a plus rien à dire de la géométrie.
+ *
+ * Le remplissage et le centrage viennent de la règle du choix, sans quoi les
+ * colonnes n'auraient pas la même LARGEUR d'un moment à l'autre : « une seule
+ * disposition » se mesure en points, pas en nombre de colonnes. */
 .oceans__grille {
   /* `minmax(0, …)` : sans lui, la largeur minimale d'une tuile fait gonfler sa
      colonne et la planche déborde du panneau par la droite. */
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: center;
   gap: 0;
-  padding: 0 6% 8%;
+  padding: 0 12% 6%;
 }
 .ocean {
   perspective: 460px;
@@ -184,7 +199,9 @@
   width: 133.33%;
   margin-left: -16.67%;
 }
-.oceans__grille > .ocean:nth-child(3n + 2) { transform: translateY(50%); }
+/* (LIS-5) Le nid d'abeille suit les colonnes : sur deux colonnes, c'est une
+   tuile sur deux qui descend d'une demi-tuile. */
+.oceans__grille > .ocean:nth-child(2n) { transform: translateY(50%); }
 
 /* Le scan est un hexagone posé sur un fond blanc : on le découpe à sa forme,
    sinon la planche est une grille de carrés blancs. */
