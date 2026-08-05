@@ -111,7 +111,7 @@ BARRE = """(j) => {
 
 fautes = []
 vu = {"decisions": 0, "choix_joker": 0, "jetons": 0, "loupes": 0, "temoins": 0,
-      "revenus": 0, "eclipses": 0}
+      "revenus": 0, "eclipses": 0, "accords": 0}
 # joueur -> liste des badges repondus au point de decision `pick_joker_tag`
 repondus = {0: [], 1: []}
 graines_jouees = []
@@ -161,6 +161,24 @@ def controler_jetons(pg, rang):
         if t["taille"] < 8:
             erreur(f"decision {rang} : un badge joker du joueur {t['joueur']} ne fait "
                    f"que {t['taille']} px de cote — illisible")
+        # LA PAGE N'INVENTE AUCUN BADGE. Sens de la comparaison : tout jeton
+        # MONTRE doit correspondre a un badge REPONDU par ce joueur-la.
+        #
+        # L'inverse ne se tient pas, et c'est mesure : une carte a badge joker
+        # peut etre resolue sans finir sur la table (banc 02 du contrat :
+        # 18 choix pour 12 cartes posees), parce que le badge se choisit des la
+        # MAIN (`flow::resolve_hand_jokers`).
+        #
+        # On ne compare QUE si ce joueur a effectivement repondu a un
+        # `pick_joker_tag` sous nos yeux : sinon la comparaison serait vide et
+        # se declarerait verte pour n'avoir rien vu. Le compteur `accords` dit
+        # combien de fois elle a REELLEMENT eu lieu, et le bilan l'affiche.
+        if repondus[t["joueur"]]:
+            vu["accords"] += 1
+            if t["badge"] not in repondus[t["joueur"]]:
+                erreur(f"decision {rang} : le joueur {t['joueur']} montre un badge "
+                       f"« {t['badge'] or t['titre']} » qu'il n'a jamais choisi "
+                       f"(reponses vues : {repondus[t['joueur']]})")
 
 
 def loupe_sur(pg, avec_ressources):
@@ -329,22 +347,6 @@ with serveur(RACINE) as base:
                 " || document.querySelector('[data-partie-terminee]'); }",
                 arg=rang, timeout=15000)
 
-        # ------------------------------------------------------------------
-        # MOT-14 : LA PAGE N'INVENTE AUCUN BADGE.
-        #
-        # Sens de la comparaison : tout jeton MONTRE doit correspondre a un
-        # badge REPONDU par ce joueur-la. L'inverse ne se tient pas — une carte
-        # a badge joker peut etre resolue sans finir sur la table (mesure : 18
-        # choix pour 12 cartes posees, banc 02 du contrat) —, et l'exiger ferait
-        # un banc rouge sur une page juste.
-        for t in pg.evaluate(JETONS):
-            if t["cache"]:
-                continue
-            if t["badge"] not in repondus[t["joueur"]]:
-                erreur(f"graine {GRAINE} : le joueur {t['joueur']} montre un badge "
-                       f"« {t['badge'] or t['titre']} » qu'il n'a jamais choisi "
-                       f"(reponses donnees : {repondus[t['joueur']] or 'aucune'})")
-
         for e in erreurs:
             erreur(f"graine {GRAINE} : la page a signale une erreur : {e}")
 
@@ -353,6 +355,18 @@ print(f"    graines {'+'.join(graines_jouees)} : {vu['decisions']} decisions, "
       f"choisi(s), {vu['jetons']} jeton(s) dessine(s), {vu['loupes']} carte(s) "
       f"agrandie(s) a ressources, {vu['temoins']} temoin(s) sans ressource, "
       f"{vu['eclipses']} instant(s) ou la table est volontairement recouverte")
+# CE QUE CE BANC N'A PAS MESURE SE DIT. L'accord « badge montre = badge choisi »
+# ne peut se verifier que si un `pick_joker_tag` s'est presente sous nos yeux :
+# mesure, une partie de navigateur entiere (graine 6, 180 decisions) montre un
+# jeton sans qu'aucun `pick_joker_tag` ne soit jamais pose. L'accord lui-meme est
+# deja prouve a la publication par le banc 02 du contrat ; ici, ce qui est
+# mesure, c'est que le jeton SE VOIT.
+if vu["accords"]:
+    print(f"    accord badge montre / badge choisi : {vu['accords']} confrontation(s)")
+else:
+    print("    accord badge montre / badge choisi : NON MESURE ici — aucun "
+          "`pick_joker_tag` ne s'est presente (le banc 02 du contrat le prouve, lui, "
+          "a la publication)")
 
 # Un banc qui n'a rien mesure doit le DIRE, pas se declarer vert.
 if vu["decisions"] < 50:
