@@ -319,19 +319,27 @@ html[data-animations="non"] .honneur { transition-duration: 1ms; }
   font-size: 15px; line-height: 1; white-space: nowrap;
   color: #8ff2a6;
   text-shadow: 0 0 8px rgba(0, 0, 0, .95), 0 1px 3px #000;
-  animation: gain-monte 1900ms cubic-bezier(.2, .7, .3, 1) forwards;
+  /* (cartes-qui-bougent, ANI-4) 3 400 ms, et non plus 1 900 : « le +3 de la
+     defausse passe trop vite, il doit durer assez longtemps pour etre lu ». Les
+     etapes du mouvement sont recalees pour que le nombre reste IMMOBILE ET
+     PLEIN plus longtemps — c'est la lecture qu'on allonge, pas le voyage.
+     La meme duree est ecrite dans `vue/joueurs.js`, qui retire le noeud. */
+  animation: gain-monte 3400ms cubic-bezier(.2, .7, .3, 1) forwards;
   z-index: 40;
 }
 .reserve--heat  .gain { color: #ffb27a; }
 .reserve--plants .gain { color: #9ff09a; }
 .reserve--mc    .gain { color: #ffdf8a; }
 
+/* `--rang` est le nombre de gains DEJA poses sur ce bac (`vue/joueurs.js`) :
+   chacun se pose plus haut que le precedent au lieu de le chasser. Sans lui, un
+   « +3 » pouvait etre efface six millisecondes apres sa naissance. */
 @keyframes gain-monte {
-  0%   { opacity: 0; transform: translate(-50%, 8px) scale(.7); }
-  12%  { opacity: 1; transform: translate(-50%, -4px) scale(1.15); }
-  22%  { opacity: 1; transform: translate(-50%, -2px) scale(1); }
-  74%  { opacity: 1; transform: translate(-50%, -8px) scale(1); }
-  100% { opacity: 0; transform: translate(-50%, -22px) scale(.92); }
+  0%   { opacity: 0; transform: translate(-50%, calc(8px - var(--rang, 0) * 19px)) scale(.7); }
+  7%   { opacity: 1; transform: translate(-50%, calc(-4px - var(--rang, 0) * 19px)) scale(1.15); }
+  12%  { opacity: 1; transform: translate(-50%, calc(-2px - var(--rang, 0) * 19px)) scale(1); }
+  86%  { opacity: 1; transform: translate(-50%, calc(-8px - var(--rang, 0) * 19px)) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, calc(-22px - var(--rang, 0) * 19px)) scale(.92); }
 }
 
 /* Le coupe-circuit des animations ne fait pas DISPARAÎTRE le gain : il le rend
@@ -340,7 +348,7 @@ html[data-animations="non"] .honneur { transition-duration: 1ms; }
    empêche certains navigateurs de signaler la fin d'une animation. */
 html[data-animations="non"] .gain {
   animation: none;
-  opacity: 1; transform: translate(-50%, -6px);
+  opacity: 1; transform: translate(-50%, calc(-6px - var(--rang, 0) * 19px));
 }
 
 /* Le paquet de cartes projet et sa defausse. Le second nombre est ecrit en

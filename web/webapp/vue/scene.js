@@ -20,7 +20,7 @@ import { MOT, question as questionAnglaise, libelleOption, sorteAction } from ".
 import { decisionDeMain, LARGEUR as LARGEUR_MAIN } from "./mains.js";
 import { ouvrirGeste, fermerGeste, poserLaCarte } from "./geste.js";
 import { poserPhase } from "./table.js";
-import { voler } from "./anim.js";
+import { voler, rattrapageEnCours } from "./anim.js";
 
 const RATIO = 569 / 409; // les images de cartes, telles qu'elles ont été découpées
 const ECART = 12;
@@ -147,6 +147,10 @@ export function viderScene() {
   if (m) m.textContent = "";
   enCours = null;
   phaseEnVol = false;
+  // (cartes-qui-bougent) Le rang des questions repart de zéro à la partie
+  // suivante : sans cet oubli, sa première question serait prise pour un
+  // redessin de la dernière de la précédente, et rien ne viendrait de la table.
+  dernierRangDesigne = -1;
   fermerScene();
 }
 
@@ -331,6 +335,50 @@ function dessiner(d, etat) {
   if (forme === "montant") montant(d, zone, barre);
   else if (forme === "multiple") multiple(d, zone, barre, etat);
   else simple(d, zone, etat);
+
+  designerLesCartesEnJeu(d);
+}
+
+// (cartes-qui-bougent) LA CARTE DONT IL EST QUESTION VIENT DE SA PLACE.
+//
+// Certaines décisions portent sur une carte DÉJÀ POSÉE : sur laquelle poser une
+// ressource, laquelle rejouer. La scène en montre alors une copie au milieu de
+// l'écran (`data-carte-en-jeu`, posé par `choix` ci-dessous), et cette copie
+// APPARAISSAIT — d'un coup, sans qu'on sache de quelle carte du plateau elle
+// parle. Mesuré sur la graine 4242 : deux fois par partie, une carte de plus à
+// l'écran sans que rien n'ait bougé (rangs 182 et 246, décisions
+// `choose_res_target`), et le joueur devait retrouver lui-même, parmi trente
+// cartes posées, celle qu'on lui désignait.
+//
+// Elle vient donc de sa place : un fac-similé quitte la carte du plateau et se
+// pose sur l'option. Ce n'est pas un ornement — c'est le seul lien visible entre
+// la question et la table.
+//
+// UNE FOIS PAR QUESTION, jamais à chaque redessin : `replacerScene` refait le
+// dessin à chaque changement de taille de fenêtre, et rejouer le voyage à ce
+// moment-là ferait un tic. Et rien pendant le rattrapage, où la question a déjà
+// été posée il y a longtemps.
+let dernierRangDesigne = -1;
+
+function designerLesCartesEnJeu(d) {
+  if (rattrapageEnCours()) return;
+  if (d.rang === dernierRangDesigne) return;
+  dernierRangDesigne = d.rang;
+  // Les boîtes n'existent qu'une fois la scène mise en page.
+  requestAnimationFrame(() => {
+    const m = document.getElementById("scene");
+    if (!m || Number(m.dataset.decisionRang) !== d.rang) return;
+    for (const option of m.querySelectorAll("[data-carte-en-jeu]")) {
+      const id = option.dataset.carteEnJeu;
+      const surLaTable = document.querySelector(`.pile [data-carte-en-jeu="${CSS.escape(id)}"]`);
+      if (!surLaTable) continue;
+      voler(surLaTable, option, { ms: 560, grossir: 1.15, cadrer: "place", vol: "pose" })
+        .catch(() => {
+          // Un voyage interrompu (question changée, carte retirée) n'est pas une
+          // panne : la question, elle, est posée et reste jouable.
+        });
+    }
+  });
 }
 
 function entete(d) {

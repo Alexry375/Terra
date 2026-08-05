@@ -54,7 +54,13 @@ import { survolableImage } from "./loupe.js";
 import { ref } from "./ecrire.js";
 import { MOT } from "./mots.js";
 import { enPlanification, phaseEnCours } from "./phases.js";
-import { voler, coucher, duree } from "./anim.js";
+import {
+  voler, coucher, duree, mettreEnScene, oublierMiseEnScene, rattrapageEnCours,
+} from "./anim.js";
+// (cartes-qui-bougent) ANI-2 et ANI-3 : le passage de main et le début d'une
+// phase se disent dans la bande d'annonce, qui existait déjà pour le tour de
+// manche et la révélation des phases.
+import { annoncePhase, annoncePassage } from "./annonce.js";
 
 // Ce que la table retient d'une manche à l'autre.
 let precedentes = [null, null]; // la phase de la manche d'avant, par joueur
@@ -105,6 +111,19 @@ export async function poserPhase(source, phase, siege, manche) {
  * @param {number} siege     le joueur assis en bas de l'écran
  */
 export function majTable(etat, decision, siege) {
+  // (cartes-qui-bougent) CE QUI VIENT D'ARRIVER SE MET EN SCÈNE ICI, et pas
+  // ailleurs. `interface.js` appelle `majTable` APRÈS `majPlateaux`, `majJoueurs`
+  // et `majMains` : les places d'arrivée (la main, les deux plateaux, les deux
+  // barres) sont déjà celles de l'état nouveau, et un vol qui les vise ne se
+  // trompe pas d'endroit. C'est le dernier point de rendu qui appartienne à ce
+  // chantier — `interface.js` ne lui appartient pas.
+  //
+  // L'appel est AVANT toute sortie anticipée de cette fonction : la table des
+  // phases, elle, ne se redessine que si sa signature a changé, et la plupart
+  // des évènements du jeu ne la changent pas.
+  mettreEnScene(etat, siege);
+  annoncerLesPassages(decision, siege);
+
   const manche = etat.generation || 0;
 
   // LE RELEVÉ DU DÉBUT DE MANCHE — une seule fois, au premier `pick_phase`, pour
@@ -147,6 +166,70 @@ export function majTable(etat, decision, siege) {
     // moment où la manche s'ouvre. Ailleurs (redessin ordinaire) elle est déjà en
     // place, et rejouer la rotation serait un tic.
     if (changementDeManche && neuve) coucher(neuve, 700);
+  }
+}
+
+// ================== (cartes-qui-bougent) LES DEUX PASSAGES QU'ON RATAIT ======
+//
+// ANI-3 — LE DÉBUT D'UNE PHASE. « On ne sait pas qu'une phase commence, la
+// Production en particulier. » La phase que le moteur résout est déjà marquée
+// sur cette table (`data-phase-en-cours`) ; ce qui manquait, c'est qu'on le VOIE
+// arriver. La bande d'annonce montre donc la carte Phase qui s'ouvre.
+//
+// ANI-2 — LE PASSAGE DE MAIN. « On ne comprend pas que son tour est fini et que
+// l'autre doit choisir sa phase. » Deux gestes, et pas un de plus :
+//
+//   · la barre du joueur qui prend la parole s'allume un instant, à CHAQUE
+//     passage — c'est fréquent, et cela doit donc rester discret ;
+//   · la bande d'annonce ne parle qu'au passage dont il est question, celui du
+//     CHOIX DE PHASE. Une annonce à chaque décision ne dirait plus rien : elle
+//     ferait remuer l'écran en permanence sans rapport avec l'évènement, ce que
+//     la clause anti-shortcut du contrat interdit nommément.
+//
+// CE QUI NE FILTRE PAS. Aucune de ces deux mises en scène ne nomme la carte
+// Phase de personne. Celle de la manche en cours de l'adversaire ne paraît nulle
+// part tant que le moteur ne l'a pas révélée — ce point a déjà coûté deux
+// corrections à ce dépôt, et rien de ce qui est ajouté ici ne le rouvre : on
+// n'annonce QUE la phase que le moteur résout, publique par définition, et le
+// NOM du joueur qui a la parole.
+
+let phaseAnnoncee = 0;
+let joueurPrecedent = null;
+
+function annoncerLesPassages(decision, siege) {
+  const enJeu = phaseEnCours();
+  const joueur = decision ? decision.joueur : null;
+  // La page rejoue une partie déjà jouée : ces passages ont eu lieu il y a
+  // longtemps. On tient la mémoire à jour, et on se tait.
+  if (rattrapageEnCours()) {
+    phaseAnnoncee = enJeu;
+    joueurPrecedent = joueur;
+    return;
+  }
+
+  if (enJeu && enJeu !== phaseAnnoncee) annoncePhase(enJeu);
+  phaseAnnoncee = enJeu;
+
+  if (joueur !== null && joueurPrecedent !== null && joueur !== joueurPrecedent) {
+    prendLaMain(joueur);
+    if (decision.type === "pick_phase") {
+      annoncePassage(joueur === siege ? MOT.turnToMe : MOT.turnToOpponent);
+    }
+  }
+  joueurPrecedent = joueur;
+}
+
+/** La barre de celui qui vient de prendre la parole s'allume un instant. */
+function prendLaMain(j) {
+  for (const k of [0, 1]) {
+    const b = ref("#equipage-" + k);
+    if (!b) continue;
+    delete b.dataset.prendLaMain;
+    if (k !== j) continue;
+    // On relance l'animation même quand la main revient au même joueur après un
+    // aller-retour : sans ce temps mort, le navigateur ne la rejoue pas.
+    void b.offsetWidth;
+    b.dataset.prendLaMain = "oui";
   }
 }
 
@@ -216,6 +299,12 @@ function dessinerCase(boite, phase, joueur, enJeu, couchee, code = null) {
 
 /** Remet la mémoire à zéro (nouvelle partie). */
 export function oublierTable() {
+  // (cartes-qui-bougent) La mémoire de la mise en scène part avec le reste :
+  // sans cet oubli, la première main de la partie suivante serait lue comme une
+  // pioche géante par rapport à la dernière de la précédente.
+  oublierMiseEnScene();
+  phaseAnnoncee = 0;
+  joueurPrecedent = null;
   precedentes = [null, null];
   mancheDesPrecedentes = 0;
   maPhase = null;

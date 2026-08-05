@@ -30,6 +30,9 @@ import { carte } from "./cartes.js";
 import { survolable } from "./loupe.js";
 import { ref, poser, poserValeur } from "./ecrire.js";
 import { estPlanification } from "./phases.js";
+// (cartes-qui-bougent) Le rattrapage rejoue une partie déjà jouée : les gains
+// d'alors ont déjà été touchés, et les annoncer serait annoncer du vieux.
+import { rattrapageEnCours } from "./anim.js";
 import { MOT } from "./mots.js";
 
 const RESERVES = [
@@ -266,19 +269,55 @@ function montrerGain(a, j, cle, valeur) {
   // Premier rendu : il n'y a pas d'avant, donc pas d'écart. Sans cette garde,
   // toute la mise en place de la partie s'annoncerait comme un gain.
   if (precedent === undefined || valeur <= precedent) return;
+  // LE RATTRAPAGE NE REJOUE PAS LES GAINS. Défaut trouvé par la relecture
+  // adversariale : après un rechargement, la page repasse au moteur toutes les
+  // décisions déjà prises — 132 gains par partie, en moins d'une demi-seconde.
+  // Chacun vivant 3 400 ms et s'empilant sur le précédent, la colonne montait à
+  // plusieurs centaines de points au-dessus du bac, figée (le rattrapage éteint
+  // les durées). La mémoire, elle, est déjà à jour deux lignes plus haut : au
+  // retour à la normale, le prochain vrai gain sera juste.
+  if (rattrapageEnCours()) return;
   const bac = a.querySelector(".reserve--" + cle);
   if (!bac) return;
   const d = document.createElement("span");
   d.className = "gain";
   d.textContent = "+" + (valeur - precedent);
-  // Le gain précédent, s'il tient encore, s'en va : deux nombres superposés sur
-  // le même bac ne se lisent ni l'un ni l'autre.
-  bac.querySelector(".gain")?.remove();
+  // (cartes-qui-bougent, ANI-4) LES GAINS S'EMPILENT AU LIEU DE S'EFFACER.
+  //
+  // Le gain précédent était RETIRÉ dès qu'un nouveau arrivait — deux nombres
+  // superposés sur le même bac ne se lisent ni l'un ni l'autre, et c'était juste.
+  // Mais allonger la durée pour qu'on ait le temps de lire (ANI-4) a retourné
+  // cette règle contre elle-même : mesuré par mon banc `verif/passages-et-duree.py`
+  // sur la graine 4242, le plus court des 131 gains chronométrés ne vivait plus
+  // que 6 MILLISECONDES, tué par le suivant. Un « +3 » de vente pouvait donc
+  // disparaître avant d'avoir paru — exactement le défaut qu'ANI-4 demande de
+  // réparer.
+  //
+  // Chacun garde donc sa vie entière, et se pose PLUS HAUT que celui qui est
+  // déjà là (`--rang`, lu par `style-monde.css`). Ils ne se recouvrent pas, ils
+  // se suivent — et comme chacun s'efface tout seul, la colonne se vide d'elle-
+  // même.
+  // LE PLAFOND. Mesuré sur deux fenêtres et deux graines, une même réserve ne
+  // porte jamais plus de CINQ « +N » à la fois. Six est donc une borne qu'une
+  // partie ordinaire n'atteint pas — elle n'existe que pour qu'une rafale
+  // imprévue ne fasse pas monter la colonne indéfiniment au-dessus du bac.
+  const dejaLa = bac.querySelectorAll(".gain");
+  if (dejaLa.length >= 6) dejaLa[0].remove();
+  d.style.setProperty("--rang", String(bac.querySelectorAll(".gain").length));
   bac.appendChild(d);
-  // 1 900 ms : « qui dure un peu de temps », demandé le 04-08. Assez long pour
-  // qu'on lève les yeux dessus, assez court pour ne pas suivre la décision
-  // suivante. L'animation, elle, se coupe par le réglage habituel.
-  setTimeout(() => d.remove(), 1900);
+  // (cartes-qui-bougent, ANI-4) 3 400 ms, et non plus 1 900.
+  //
+  // « Le "+3" de la défausse passe trop vite — il doit durer assez longtemps
+  // pour être lu. » Ce « +3 » est celui-ci : vendre une carte projet rapporte
+  // 3 MC (livret l. 96), et le gain monte du bac de mégacrédits comme tous les
+  // autres. À 1 900 ms, l'animation ne le laissait pleinement lisible qu'un peu
+  // plus d'une seconde — le reste étant l'apparition et l'effacement — et le
+  // joueur qui regardait sa main au moment de vendre le manquait.
+  //
+  // La durée est celle de l'animation qui l'efface (`style-monde.css`,
+  // `gain-monte`) : les deux nombres disent la même chose et changent ensemble,
+  // sans quoi le nœud disparaîtrait avant la fin de son propre effacement.
+  setTimeout(() => d.remove(), 3400);
 }
 
 /**

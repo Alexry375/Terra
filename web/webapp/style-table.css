@@ -323,3 +323,220 @@ body[data-siege="1"] #dock-1 { order: 2; }
 #loupe .carte { width: 100%; }
 #loupe .carte img { width: 100%; height: auto; display: block; }
 #loupe .carte__plaque { font-size: 15px; padding: 8px 10px; }
+
+
+/* ============================ LES DEUX PAQUETS (cartes-qui-bougent, ANI-6) */
+
+/* Une carte piochée doit ARRIVER DE QUELQUE PART et une carte défaussée PARTIR
+ * QUELQUE PART. Les deux points vivent dans la colonne de droite — le contrat
+ * fixe le sens : « la pioche arrive par la droite, la défausse s'en va en sens
+ * inverse ».
+ *
+ * OÙ EXACTEMENT, ET POURQUOI LÀ. La colonne de droite porte déjà la planche des
+ * océans sur toute sa hauteur (`grid-row: 5 / 8`), mais la planche n'occupe que
+ * le HAUT de cette case : mesuré 152 points sur 413 en 1600 × 1000, et 112 sur
+ * 220 en 1100 × 620, la plus petite fenêtre du contrat. Les deux paquets se
+ * posent donc dans la même case, calés en BAS. C'est la seule place réellement
+ * libre à droite, et rien d'une autre feuille n'est réécrit.
+ *
+ * ------------------------------------------------------------------------
+ * ET LA PLANCHE REPREND TOUTE LA PLACE QUAND ELLE EN A BESOIN.
+ * ------------------------------------------------------------------------
+ *
+ * Défaut trouvé par la relecture adversariale, puis MESURÉ. Quand une tuile
+ * océan est due, la planche passe à deux colonnes et cinq rangées et réclame
+ * alors presque toute la colonne (`style-oceans.css`). En 1100 × 620 — la plus
+ * petite fenêtre du contrat — elle a besoin de 200 des 220 points de sa case :
+ * il n'en reste pas pour le dock, et le dock, qui passe au-dessus, VOLAIT LE
+ * CLIC DE QUATRE TUILES SUR NEUF (mesuré, `outputs/work/diag-oceans-1100.txt`).
+ * Désigner un emplacement redevenait impossible sur ces quatre-là.
+ *
+ * Le dock s'efface donc le temps du choix : il passe DERRIÈRE la planche et ne
+ * reçoit plus aucun clic. Il garde sa boîte — les vols de pioche et de défausse
+ * partent et arrivent toujours au même endroit, l'opacité n'y change rien — et
+ * il revient dès que la tuile est posée, c'est-à-dire au bout de deux secondes
+ * et demie. Pendant ce temps, c'est la planche le sujet. */
+#oceans.oceans--choix ~ #paquets {
+  z-index: 0;
+  pointer-events: none;
+  opacity: .3;
+}
+
+#paquets {
+  grid-column: 3;
+  grid-row: 5 / 8;
+  align-self: end;
+  justify-self: stretch;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-bottom: 2px;
+}
+
+.paquets__mot {
+  font-size: 8.5px; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--os-faible); text-align: center;
+}
+
+.paquets__rang { display: flex; gap: 7px; justify-content: center; align-items: flex-end; }
+
+.paquet {
+  position: relative;
+  width: clamp(34px, 42%, 56px);
+  aspect-ratio: 409 / 569;
+  border-radius: 4px;
+  flex: 0 0 auto;
+}
+.paquet img { width: 100%; height: 100%; object-fit: contain; border-radius: 4px; }
+
+/* La pioche est un paquet ÉPAIS : deux ombres décalées disent l'empilement, sans
+   qu'aucune carte de plus n'entre dans le document. */
+.paquet--pioche img {
+  box-shadow:
+    2px 2px 0 rgba(239, 228, 212, .10), 4px 4px 0 rgba(239, 228, 212, .06),
+    0 6px 14px rgba(0, 0, 0, .7);
+}
+
+/* La défausse vide est un EMPLACEMENT, pas un trou : on doit voir qu'il attend
+   quelque chose. */
+.paquet--defausse {
+  border: 1px dashed rgba(239, 228, 212, .26);
+  background: rgba(6, 8, 14, .46);
+}
+
+/* =============================== CE QUI VOLE, ET QUI N'EST PAS UNE CARTE */
+
+/* Un jeton de chaleur qui monte à la jauge, une pièce qui quitte la bourse, un
+   « +2 » qui se pose sur une carte en jeu. Même couche, même vol — seule
+   l'apparence change. */
+.vol__jeton img { border-radius: 50%; box-shadow: 0 6px 18px rgba(0, 0, 0, .8); }
+.vol__jeton--mot {
+  display: grid; place-items: center;
+  border-radius: 999px;
+  background: var(--or); color: #0d1206;
+  font-weight: 700; font-size: 15px; letter-spacing: .02em;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .8), 0 0 0 1px rgba(13, 18, 6, .3);
+}
+
+
+/* ================ LA PILE DE DÉFAUSSE, ET CE QU'ON Y LIT (CNF-2) */
+
+/* LA DERNIÈRE CARTE DÉFAUSSÉE EST TOUJOURS VISIBLE, face découverte, posée sur
+   la pile. Elle remplit l'emplacement — c'est elle, l'emplacement, dès qu'il y a
+   quelque chose dedans. */
+.paquet--defausse { cursor: pointer; }
+.paquet--defausse .carte,
+.paquet--defausse .carte img { width: 100%; height: 100%; }
+.paquet--defausse .carte img { object-fit: contain; }
+/* La pile pleine n'est plus un emplacement qui attend : le pointillé s'efface. */
+.paquet--defausse:has(.carte) { border-color: transparent; background: none; }
+.paquet--defausse .carte__plaque { font-size: 7px; padding: 2px; }
+
+/* ELLE RESTE ATTEIGNABLE JUSQU'AU BOUT. L'écran final (`#final`, z-index 80)
+   couvre toute la fenêtre : sans ce niveau-ci, la pile serait recouverte à
+   l'instant précis où l'on veut relire ce qui s'est joué — et « toujours
+   visible » cesserait d'être vrai à la dernière décision. */
+#paquets { z-index: 82; }
+
+/* L'OPTION ÉTEINTE : la pile ne montre RIEN. Le dock reste — il est le point de
+   départ et d'arrivée des vols de cartes (ANI-6), qui n'ont rien à voir avec
+   cette option — mais aucune face n'y paraît, et `vue/defausse.js` n'y pose
+   aucune carte. */
+html[data-voir-defausse="non"] .paquet--defausse { cursor: default; }
+
+/* ------------------------------------------------ LA FENÊTRE DE LA DÉFAUSSE */
+
+/* Toutes les cartes défaussées, CINQ PAR LIGNE, la plus récente en haut à
+   gauche. Elles sont à la taille d'une carte Phase au moment où l'on en choisit
+   une — c'est la demande, et c'est ce qui permet de les lire SANS AGRANDIR :
+   il n'y a pas de loupe ici, et cliquer une carte ne fait rien. */
+.fdef {
+  position: fixed; inset: 0; z-index: 130;
+  display: flex; align-items: center; justify-content: center;
+  padding: 3vh 3vw;
+  background: radial-gradient(90% 70% at 50% 40%, rgba(6, 9, 16, .93), rgba(2, 3, 6, .97));
+}
+.fdef__cadre {
+  /* 900 et non 1080 : à cinq par ligne, une carte de la fenêtre mesurait 199
+     points de large quand une carte Phase, au moment où l'on en choisit une,
+     en mesure 139 (mesuré en 1600 × 1000, graine 4242). « À peu près la taille
+     d'une carte Phase » veut dire à peu près, pas de moitié plus grande. À 900,
+     elles tombent vers 163 — lisibles sans agrandissement, et à leur taille. */
+  width: min(900px, 94vw);
+  max-height: 90vh;
+  display: flex; flex-direction: column; min-height: 0;
+  background: rgba(9, 12, 20, .94);
+  border: 1px solid var(--trait);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, .8);
+}
+.fdef__tete {
+  display: flex; align-items: baseline; gap: 14px;
+  padding: 14px 18px; border-bottom: 1px solid var(--trait);
+}
+.fdef__titre {
+  margin: 0; font-size: 15px; font-weight: 700;
+  letter-spacing: .22em; text-transform: uppercase; color: var(--os);
+}
+.fdef__dit { font-size: 11px; letter-spacing: .14em; color: var(--os-faible); flex: 1 1 auto; }
+.fdef__fermer {
+  font: inherit; font-size: 11px; letter-spacing: .2em; text-transform: uppercase;
+  cursor: pointer; padding: 7px 16px;
+  color: var(--os); background: rgba(239, 228, 212, .08); border: 1px solid var(--trait);
+}
+.fdef__fermer:hover { background: rgba(239, 228, 212, .16); }
+
+/* C'EST LA GRILLE QUI DÉFILE, et c'est elle qui porte la marque : « avec un
+   défilement » se mesure sur l'élément qui déborde, pas sur celui qui l'entoure. */
+.fdef__grille {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  padding: 16px 18px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.fdef__grille .carte { width: 100%; }
+.fdef__grille .carte img { width: 100%; height: auto; }
+/* Pas de curseur de main, pas de survol qui grossit : rien ici ne s'ouvre. */
+.fdef__grille .carte { cursor: default; }
+
+
+/* ============ LES DEUX PASSAGES QU'ON RATAIT (cartes-qui-bougent) */
+
+/* ANI-3 — UNE PHASE COMMENCE. La carte Phase qui s'ouvre traverse la bande
+   d'annonce, avec son chiffre romain et son nom. La bande est déjà en
+   `pointer-events: none` (`style.css`) : rien de ceci ne peut avaler un clic. */
+.annonce__debut { display: flex; align-items: center; gap: 14px; }
+.annonce__debut img {
+  height: calc(var(--h-bandeau) * 1.7);
+  max-height: 128px;
+  width: auto;
+  border-radius: 5px;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, .85), 0 0 0 1px rgba(239, 228, 212, .22);
+}
+.annonce__debut-nom {
+  font-size: clamp(17px, 3.2vh, 30px);
+  font-weight: 700; letter-spacing: .2em; text-transform: uppercase;
+  color: var(--or);
+  text-shadow: 0 2px 18px rgba(0, 0, 0, .9);
+}
+
+/* ANI-2 — LE TOUR PASSE. Une phrase, en clair. Elle ne nomme aucune carte. */
+.annonce__passage {
+  font-size: clamp(14px, 2.4vh, 22px);
+  letter-spacing: .16em; text-transform: uppercase;
+  color: var(--os);
+  text-shadow: 0 2px 18px rgba(0, 0, 0, .95);
+}
+
+/* Et la barre de celui qui prend la parole s'allume un instant. Discret, parce
+   que la main change souvent : c'est un repère, pas une annonce. */
+.equipage[data-prend-la-main="oui"] {
+  animation: prend-la-main 900ms cubic-bezier(.2, .8, .2, 1);
+}
+@keyframes prend-la-main {
+  0%   { box-shadow: inset 0 0 0 0 rgba(237, 181, 78, 0); }
+  22%  { box-shadow: inset 0 0 44px 0 rgba(237, 181, 78, .34); }
+  100% { box-shadow: inset 0 0 0 0 rgba(237, 181, 78, 0); }
+}

@@ -30,6 +30,10 @@ import { survolable } from "./loupe.js";
 import { ref } from "./ecrire.js";
 import { MOT } from "./mots.js";
 import { avantLaFinDuRattrapage } from "./anim.js";
+// (cartes-qui-bougent) Le dock des deux paquets vit dans la colonne de droite,
+// sous cette planche. Il est bâti ici parce que c'est ce module qui construit
+// cette colonne, et qu'`interface.js` n'appartient pas à ce chantier.
+import { construireDefausse, majDefausse, oublierDefausse } from "./defausse.js";
 
 const RATIO = 569 / 409; // les cartes, telles qu'elles ont été découpées
 const LARGEUR = 110; // largeur d'une carte AVANT réduction
@@ -195,6 +199,11 @@ export function construirePlateaux() {
     d.appendChild(pivot);
     g.appendChild(d);
   }
+
+  // (cartes-qui-bougent) Les deux paquets, sous la planche : la place est là —
+  // la planche n'occupe que le haut de sa case (mesuré : 152 points sur 413 en
+  // 1600 × 1000). Voir `vue/defausse.js`.
+  construireDefausse();
 }
 
 /**
@@ -241,6 +250,10 @@ export function majPlateaux(etat, decision, siege = 0) {
   // celui qu'`interface.js` déclare sur le corps du document. La planche s'en
   // sert pour ne rien laisser en attente à la fin de la partie.
   oceans(etat.planet.oceans_revealed_tiles || [], !!etat.game_over);
+  // (CNF-2) La pile de défausse est réécrite ici, avec le reste de la colonne de
+  // droite : elle lit `etat.defausse`, publiée par le moteur la plus récente en
+  // tête, et n'en change pas l'ordre.
+  majDefausse(etat);
 }
 
 /**
@@ -758,6 +771,9 @@ export function oublierPlateaux() {
     }
   }
   oublierChoixOceans();
+  // (CNF-2) La pile de défausse appartient à la partie qu'on quitte : elle s'en
+  // va avec elle, fenêtre comprise.
+  oublierDefausse();
   partieFinie = false;
   const g = ref("#oceans-grille");
   if (g) {
