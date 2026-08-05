@@ -449,3 +449,125 @@ fn les_deux_bouts_du_premier_temps() {
         "sans pioche immédiate, la vraie question doit toujours venir"
     );
 }
+
+// =========================================================================
+// 3 bis. MOT-8 — le badge n'est demandé que pour une carte posable
+// =========================================================================
+
+/// Espion des badges. Il confronte chaque question de badge à la question de
+/// POSE qui suit pour le même joueur : si la carte est encore en main et que le
+/// moteur ne l'offre pas, la question n'avait pas lieu d'être.
+///
+/// Ce chemin est celui du MOTEUR, sans le pont ni le rejeu de décisions : c'est
+/// une seconde mesure, pas la même.
+struct Espion8 {
+    base: RandomPolicy,
+    /// Badge imposé, pour éprouver le cas le plus défavorable.
+    badge: Option<usize>,
+    main: [Vec<u16>; NUM_PLAYERS],
+    attente: Vec<(usize, u16)>,
+    questions: usize,
+    confrontees: usize,
+    inutiles: usize,
+}
+
+impl Espion8 {
+    fn new(badge: Option<usize>) -> Espion8 {
+        Espion8 {
+            base: RandomPolicy,
+            badge,
+            main: [Vec::new(), Vec::new()],
+            attente: Vec::new(),
+            questions: 0,
+            confrontees: 0,
+            inutiles: 0,
+        }
+    }
+}
+
+impl Policy for Espion8 {
+    fn observe(&mut self, game: &GameState, player: usize) {
+        self.main[player] = game.players[player].hand.clone();
+    }
+    fn corp_mulligan(&mut self, r: &mut StdRng, p: usize, c: &[u16]) -> bool {
+        self.base.corp_mulligan(r, p, c)
+    }
+    fn project_mulligan(&mut self, r: &mut StdRng, p: usize, h: &[u16]) -> Vec<usize> {
+        self.base.project_mulligan(r, p, h)
+    }
+    fn pick_corporation(&mut self, r: &mut StdRng, p: usize, c: &[u16]) -> usize {
+        self.base.pick_corporation(r, p, c)
+    }
+    fn pick_phase(&mut self, r: &mut StdRng, p: usize, a: &[u8]) -> u8 {
+        self.base.pick_phase(r, p, a)
+    }
+    fn pick_joker_tag(&mut self, r: &mut StdRng, p: usize, card: u16, tc: &[u32]) -> usize {
+        self.questions += 1;
+        self.attente.push((p, card));
+        match self.badge {
+            Some(i) => i,
+            None => self.base.pick_joker_tag(r, p, card, tc),
+        }
+    }
+    fn choose_build(&mut self, r: &mut StdRng, p: usize, aff: &[usize]) -> Option<usize> {
+        let main = self.main[p].clone();
+        let offertes: Vec<u16> = aff.iter().filter_map(|&i| main.get(i).copied()).collect();
+        let mut reste = Vec::new();
+        for &(j, carte) in &self.attente {
+            if j != p {
+                reste.push((j, carte));
+                continue;
+            }
+            // Une carte qui a quitté la main entre-temps ne prouve rien.
+            if !main.contains(&carte) {
+                continue;
+            }
+            self.confrontees += 1;
+            if !offertes.contains(&carte) {
+                self.inutiles += 1;
+            }
+        }
+        self.attente = reste;
+        self.base.choose_build(r, p, aff)
+    }
+    fn construction_bonus(&mut self, r: &mut StdRng, p: usize) -> ConstructionBonus {
+        self.base.construction_bonus(r, p)
+    }
+    fn action_choice(&mut self, r: &mut StdRng, p: usize, o: &[ActionOpt]) -> Option<usize> {
+        self.base.action_choice(r, p, o)
+    }
+    fn research_keep(&mut self, r: &mut StdRng, p: usize, d: &[u16], k: usize) -> Vec<usize> {
+        self.base.research_keep(r, p, d, k)
+    }
+    fn discard_down(&mut self, r: &mut StdRng, p: usize, h: &[u16], n: usize) -> Vec<usize> {
+        self.base.discard_down(r, p, h, n)
+    }
+}
+
+/// Aucune question de badge ne porte sur une carte que le moteur n'offrira pas
+/// — et cela QUEL QUE SOIT le badge que le joueur choisit. Les trois politiques
+/// éprouvées le disent : celle du dépôt, et deux têtues qui répondent toujours
+/// le premier ou le dernier badge de la liste.
+///
+/// C'est ce « quel que soit » qui exige de juger la carte au badge le MOINS
+/// favorable. Avec le seul badge le PLUS favorable, ce même banc rendait
+/// 2 questions inutiles sur 43 (mesuré) : la carte était payable pour deux
+/// badges sur dix, la question était posée, et le joueur en choisissait un
+/// autre.
+#[test]
+fn aucun_badge_n_est_demande_pour_une_carte_que_le_moteur_n_offrira_pas() {
+    let db = db();
+    for badge in [None, Some(0), Some(JOKER_TAG_CHOICES.len() - 1)] {
+        let mut e = Espion8::new(badge);
+        for g in 0..40u64 {
+            engine::sim::play_game(&db, g, &mut e);
+        }
+        println!(
+            "    badge {badge:?} : {} question(s), {} confrontée(s), {} inutile(s)",
+            e.questions, e.confrontees, e.inutiles
+        );
+        assert!(e.questions >= 20, "{} question(s) seulement", e.questions);
+        assert!(e.confrontees >= 20, "{} confrontée(s) seulement", e.confrontees);
+        assert_eq!(e.inutiles, 0, "badge {badge:?}");
+    }
+}

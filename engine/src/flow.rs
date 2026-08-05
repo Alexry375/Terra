@@ -502,6 +502,111 @@ pub fn resolve_hand_jokers(
 }
 
 // =============================================================================
+// (MOT-8) LE BADGE NE SE DEMANDE QUE POUR UNE CARTE QU'ON PEUT DE TOUTE FAÇON
+// POSER — DEMI-CORRECTIF
+//
+// Le moteur parcourait TOUTE la main et faisait choisir le badge de chaque
+// carte joker avant même de savoir si le joueur voudrait la jouer. Mesure sur
+// 14 graines : 17 choix, 17 sur 17 posés carte encore en main, et 7 sur 17
+// (41 %) sur une carte qui ne serait jamais jouée de la partie.
+//
+// L'ORDRE NE CHANGE PAS, et c'est le point. Le badge reste choisi AVANT le
+// calcul du prix, parce qu'il EST un facteur du prix (savoir-faire Titane et
+// Acier, `card_discount`) : le prix annoncé reste donc le prix payé (I2). Ce
+// qui change, c'est le PÉRIMÈTRE de la question — on ne la pose plus pour une
+// carte qu'aucun badge ne rendrait jouable à cet instant.
+//
+// « DE TOUTE FAÇON PAYER » : QUEL QUE SOIT LE BADGE CHOISI. La carte est donc
+// jugée sur les DIX badges, et la question n'est posée que si les dix la
+// laissent posable — le moins favorable compris. Juger sur le seul badge le
+// PLUS favorable ne suffit pas, et ce n'est pas une vue de l'esprit : mesuré
+// sur ce dépôt, graine 808, rang 39, une carte joker à 10 MC devant un joueur
+// à 8 MC et 1 savoir-faire Acier — deux badges sur dix la rendent payable,
+// huit non. La question posée, le joueur en choisit un des huit, et
+// le moteur ne lui offre pas la carte : la question n'aura servi à rien. C'est
+// exactement ce que ce demi-correctif enlève, et c'est aussi le phénomène que
+// le correctif COMPLET, lui, ne saurait pas éviter (« un badge moins favorable
+// choisi à la pose peut rendre la carte impayable après coup »).
+//
+// La condition « pas payable même au meilleur badge → ne pas demander » reste
+// vraie : elle est impliquée par celle-ci, qui est plus stricte.
+//
+// Les badges hypothétiques sont réellement posés puis retirés, de sorte que le
+// prix passe par le service unique `card_discount` — aucune formule n'est
+// dupliquée ici, et l'hypothèse voit exactement ce que le paiement verrait.
+//
+// CE QUI N'EST PAS FAIT, et ne doit pas l'être ici : déplacer la question au
+// moment de la pose. C'est le correctif complet, il pose un problème de règles
+// non tranché (un badge moins favorable choisi à la pose peut rendre la carte
+// impayable après coup) et cette décision appartient au propriétaire du projet.
+// =============================================================================
+
+/// (MOT-8) **Pose le jeton sur les badges jokers des cartes de la main que le
+/// joueur pourrait de toute façon poser**, avec la permission et la remise de
+/// l'énumération qui suit immédiatement. Remplace [`resolve_hand_jokers`] aux
+/// quatre sites qui énumèrent l'abordabilité.
+///
+/// [`resolve_hand_jokers`] reste, elle, le chemin des poses FORCÉES qui
+/// n'énumèrent rien (la sonde) : là, toute carte de la main peut être posée, et
+/// toute carte joker a donc besoin de son jeton.
+pub fn resolve_hand_jokers_posables(
+    game: &mut GameState,
+    db: &CardsDb,
+    p: usize,
+    policy: &mut dyn Policy,
+    grant: &BuildGrant,
+    discount: i64,
+) {
+    if !db.effects_on {
+        return;
+    }
+    // Les trois valeurs que l'énumération calculera elle aussi, lues au même
+    // instant et sur le même état : le verdict rendu ici est donc celui
+    // qu'`affordable` rendra dans la foulée.
+    let discount = discount + next_card_discount(&game.players[p]);
+    let payable_disc = microbe_discount(game, db, p).map_or(0, |(_, _, a)| a);
+    let plant_red = plant_reduction(db, &game.players[p]);
+    let hand = game.players[p].hand.clone();
+    for c in hand {
+        // Ni carte joker, ni jeton déjà posé : `ensure_joker_tag` sortirait de
+        // toute façon, on s'épargne le verdict.
+        if !has_joker_tag(db, c) || game.players[p].joker_tags.contains_key(&c) {
+            continue;
+        }
+        if !posable_quel_que_soit_le_badge(game, db, p, c, grant, discount, payable_disc, plant_red)
+        {
+            continue;
+        }
+        ensure_joker_tag(game, db, p, c, policy);
+    }
+}
+
+/// (MOT-8) La carte `c` serait-elle offerte à la pose QUEL QUE SOIT le badge
+/// que le joueur choisira ? Les dix jetons hypothétiques sont posés puis
+/// RETIRÉS un à un : l'état ressort inchangé, et le choix définitif reste celui
+/// de `ensure_joker_tag`.
+///
+/// Un seul badge qui la rendrait impayable suffit à ne pas poser la question :
+/// c'est celui-là que le joueur choisirait, et il aurait décidé pour rien.
+fn posable_quel_que_soit_le_badge(
+    game: &mut GameState,
+    db: &CardsDb,
+    p: usize,
+    c: u16,
+    grant: &BuildGrant,
+    discount: i64,
+    payable_disc: i64,
+    plant_red: Option<(i64, i64)>,
+) -> bool {
+    JOKER_TAG_CHOICES.iter().all(|&tag| {
+        game.players[p].joker_tags.insert(c, tag);
+        let v = verdict_de_pose(game, db, p, c, grant, discount, payable_disc, plant_red);
+        game.players[p].joker_tags.remove(&c);
+        v == Verdict::Posable
+    })
+}
+
+// =============================================================================
 // (lot acier-titane) LE COMPTE D'ACIERS ET DE TITANES
 //
 // Aucune de nos sources ne dit « cette carte donne 2 aciers ». Elle n'en a pas
@@ -1911,7 +2016,7 @@ fn drain_pending_builds(
         // main d'APRÈS la vente, sinon leurs indices désigneraient d'autres
         // cartes que celles que le joueur a sous les yeux. Le point de décision
         // ne reçoit donc qu'une observation nue (voir `observer`).
-        resolve_hand_jokers(game, db, p, policy);
+        resolve_hand_jokers_posables(game, db, p, policy, &grant, disc);
         occasion_de_vendre(game, db, policy);
         let opts = affordable(game, db, p, &grant, disc);
         // « You MAY play an additional card » : renoncer est une option, et
@@ -2026,42 +2131,80 @@ pub fn affordable(
     let plant_red = plant_reduction(db, &game.players[p]);
     for i in 0..hand_len {
         let c = game.players[p].hand[i];
-        let card = &db.projects[c as usize];
-        // (lot cartes-8) Couleur ET plafond de prix IMPRIMÉ : les deux critères
-        // de la permission, jugés ensemble par le service unique
-        // `BuildGrant::admits`, le même que celui du paiement (I2).
-        if !grant.admits(card.color, card.price) {
-            continue;
+        match verdict_de_pose(game, db, p, c, grant, discount, payable_disc, plant_red) {
+            Verdict::Posable => out.push(i),
+            // Carte payable, autorisée par l'état courant, refusée par
+            // l'instantané de début de phase : c'est exactement l'écart E6.
+            Verdict::BloqueeParInstantane => blocked += 1,
+            Verdict::Non => {}
         }
-        // (lot cartes-8) Permission OFFERTE (« without paying its MC cost ») :
-        // aucun budget à vérifier. Seuls les prérequis de la carte restent
-        // opposables — ils ne sont pas son prix.
-        if grant.free {
-            if requirements_met(game, db, p, c) {
-                out.push(i);
-            } else if requirements_met_now(game, db, p, c) {
-                blocked += 1;
-            }
-            continue;
-        }
+    }
+    game.prereq_snapshot_blocks += blocked;
+    out
+}
+
+/// (MOT-8) Ce qu'une carte de la main peut devenir dans une énumération.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Verdict {
+    /// Elle sera offerte à la question de pose.
+    Posable,
+    /// Payable et autorisée maintenant, refusée par l'instantané de début de
+    /// phase (écart E6) — comptée, jamais offerte.
+    BloqueeParInstantane,
+    /// Ni l'un ni l'autre.
+    Non,
+}
+
+/// (MOT-8) **Le verdict d'UNE carte de la main**, extrait du corps de boucle
+/// d'[`affordable`] sans en changer une condition.
+///
+/// Deux lecteurs, et c'est toute la raison de l'extraction (même motif que
+/// `prix_et_bourse`) : [`affordable`], qui énumère les options d'une pose, et
+/// [`resolve_hand_jokers_posables`], qui décide s'il vaut la peine de demander
+/// son badge à une carte joker. Les deux ne peuvent donc pas juger la même
+/// carte différemment — sans quoi le moteur demanderait un badge pour une carte
+/// qu'il n'offrirait pas ensuite, ce qui EST le défaut MOT-8.
+///
+/// Les trois valeurs passées en paramètre (remise déjà augmentée de la remise
+/// armée, réduction en microbes, réduction en plantes déclarée) ne dépendent
+/// pas de la carte : l'appelant les calcule une fois pour toute la main.
+fn verdict_de_pose(
+    game: &GameState,
+    db: &CardsDb,
+    p: usize,
+    c: u16,
+    grant: &BuildGrant,
+    discount: i64,
+    payable_disc: i64,
+    plant_red: Option<(i64, i64)>,
+) -> Verdict {
+    let card = &db.projects[c as usize];
+    // (lot cartes-8) Couleur ET plafond de prix IMPRIMÉ : les deux critères
+    // de la permission, jugés ensemble par le service unique
+    // `BuildGrant::admits`, le même que celui du paiement (I2).
+    if !grant.admits(card.color, card.price) {
+        return Verdict::Non;
+    }
+    // (lot cartes-8) Permission OFFERTE (« without paying its MC cost ») :
+    // aucun budget à vérifier. Seuls les prérequis de la carte restent
+    // opposables — ils ne sont pas son prix.
+    if !grant.free {
         // (regles-de-la-vente) Prix et bourse par le point de calcul UNIQUE,
         // partagé avec `main_payable` : le contour vert de l'écran et
         // l'énumération des options ne peuvent pas juger la même carte
         // différemment.
         let (cost, mc) = prix_et_bourse(game, db, p, c, discount, payable_disc, plant_red);
         if !payable(mc, cost) {
-            continue;
-        }
-        if requirements_met(game, db, p, c) {
-            out.push(i);
-        } else if requirements_met_now(game, db, p, c) {
-            // Carte payable, autorisée par l'état courant, refusée par
-            // l'instantané de début de phase : c'est exactement l'écart E6.
-            blocked += 1;
+            return Verdict::Non;
         }
     }
-    game.prereq_snapshot_blocks += blocked;
-    out
+    if requirements_met(game, db, p, c) {
+        Verdict::Posable
+    } else if requirements_met_now(game, db, p, c) {
+        Verdict::BloqueeParInstantane
+    } else {
+        Verdict::Non
+    }
 }
 
 /// Applique les dépenses de prérequis puis les effets de pose d'une carte du
@@ -4114,7 +4257,7 @@ fn phase_development(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy
         // main d'APRÈS la vente, sinon leurs indices désigneraient d'autres
         // cartes que celles que le joueur a sous les yeux. Le point de décision
         // ne reçoit donc qu'une observation nue (voir `observer`).
-        resolve_hand_jokers(game, db, p, policy);
+        resolve_hand_jokers_posables(game, db, p, policy, &GRANT_DEVELOPMENT, discount);
         occasion_de_vendre(game, db, policy);
         let opts = affordable(game, db, p, &GRANT_DEVELOPMENT, discount);
         observer(game, p, policy);
@@ -4211,7 +4354,7 @@ fn phase_construction(game: &mut GameState, db: &CardsDb, policy: &mut dyn Polic
         // main d'APRÈS la vente, sinon leurs indices désigneraient d'autres
         // cartes que celles que le joueur a sous les yeux. Le point de décision
         // ne reçoit donc qu'une observation nue (voir `observer`).
-        resolve_hand_jokers(game, db, p, policy);
+        resolve_hand_jokers_posables(game, db, p, policy, &GRANT_CONSTRUCTION, 0);
         occasion_de_vendre(game, db, policy);
         let opts = affordable(game, db, p, &GRANT_CONSTRUCTION, 0);
         observer(game, p, policy);
@@ -4271,7 +4414,7 @@ fn phase_construction(game: &mut GameState, db: &CardsDb, policy: &mut dyn Polic
                 // main d'APRÈS la vente, sinon leurs indices désigneraient d'autres
                 // cartes que celles que le joueur a sous les yeux. Le point de décision
                 // ne reçoit donc qu'une observation nue (voir `observer`).
-                resolve_hand_jokers(game, db, p, policy);
+                resolve_hand_jokers_posables(game, db, p, policy, grant, 0);
                 occasion_de_vendre(game, db, policy);
                 let opts = affordable(game, db, p, grant, 0);
                 observer(game, p, policy);
