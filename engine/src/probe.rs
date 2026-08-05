@@ -403,6 +403,15 @@ impl Policy for ProbePolicy {
     fn construction_bonus(&mut self, rng: &mut StdRng, p: usize) -> ConstructionBonus {
         self.inner.construction_bonus(rng, p)
     }
+    // (MOT-3) Les deux temps sont relayés explicitement, comme
+    // `ObservingPolicy` : un corps par défaut retomberait sur la méthode
+    // ci-dessus et escamoterait la politique enveloppée.
+    fn construction_bonus_avant(&mut self, rng: &mut StdRng, p: usize) -> bool {
+        self.inner.construction_bonus_avant(rng, p)
+    }
+    fn construction_bonus_apres(&mut self, rng: &mut StdRng, p: usize) -> ConstructionBonus {
+        self.inner.construction_bonus_apres(rng, p)
+    }
     fn action_choice(&mut self, rng: &mut StdRng, p: usize, o: &[ActionOpt]) -> Option<usize> {
         self.inner.action_choice(rng, p, o)
     }

@@ -4149,9 +4149,25 @@ fn phase_construction(game: &mut GameState, db: &CardsDb, policy: &mut dyn Polic
         // en choisit la branche ET le moment, depuis le lot 3 (C2). Les cartes
         // AMÉLIORÉES ont leur propre forme : II-A donne les deux à la fois,
         // II-B est un « ou » à deux branches tranché par `Policy::choose_option`.
-        let bonus = if sb.is_selector && sb.upgraded.is_none() {
+        //
+        // (MOT-3) LES DEUX TEMPS. Le « ou » à trois issues de la carte de base
+        // était tranché ICI, en une fois, avant le calcul des options de pose :
+        // le joueur arrêtait « piocher après » ou « poser une seconde carte »
+        // sans savoir ce qu'il pourrait poser, et le « avant ou après » du
+        // livret (l. 336) n'était plus un choix. Il se demande désormais en
+        // deux temps — ici, la seule moitié qui DOIT se trancher avant (la
+        // pioche immédiate, qui peut encore changer ce qu'on posera) ; plus
+        // bas, la carte posée, la vraie question. Aucune issue n'est ajoutée
+        // ni retirée : elles sont demandées au moment où on peut y répondre.
+        let base_selector = sb.is_selector && sb.upgraded.is_none();
+        let piocher_avant = if base_selector {
             avant_decision(game, db, p, policy);
-            Some(policy.construction_bonus(&mut game.rng, p))
+            policy.construction_bonus_avant(&mut game.rng, p)
+        } else {
+            false
+        };
+        let bonus = if piocher_avant {
+            Some(ConstructionBonus::DrawCardBefore)
         } else {
             None
         };
@@ -4215,6 +4231,22 @@ fn phase_construction(game: &mut GameState, db: &CardsDb, policy: &mut dyn Polic
         // sélectionneur : ce sont deux droits distincts, et celui-ci naît de la
         // carte qu'on vient de poser.
         drain_pending_builds(game, db, p, 0, policy);
+
+        // (MOT-3) SECOND TEMPS. La carte est posée — ou n'a pas pu l'être, et
+        // c'est aussi un renseignement. Le joueur tranche maintenant, en
+        // connaissance de cause, entre piocher et poser une seconde carte.
+        // Demandé aux seuls sélectionneurs de la carte de BASE qui n'ont pas
+        // déjà pioché au premier temps : celui qui a pioché a consommé son
+        // bonus, il n'y a plus rien à lui demander (et lui reposer la question
+        // serait le réglage de jeu nouveau que ce lot interdit).
+        let bonus = match bonus {
+            Some(b) => Some(b),
+            None if base_selector => {
+                avant_decision(game, db, p, policy);
+                Some(policy.construction_bonus_apres(&mut game.rng, p))
+            }
+            None => None,
+        };
 
         match bonus {
             // (C2) Pioche APRÈS la pose — même donnée que la pioche « avant » :

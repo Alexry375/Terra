@@ -289,3 +289,163 @@ fn la_boite_porte_bien_des_cartes_joker() {
     assert!(n >= 3, "seulement {n} carte(s) joker dans base+Découverte");
     assert_eq!(JOKER_TAG_CHOICES.len(), 10, "dix badges au choix");
 }
+
+// =========================================================================
+// 2. MOT-3 — le bonus de Construction se demande en DEUX TEMPS
+// =========================================================================
+
+/// Espion des deux temps. Il DÉCIDE du premier temps (pour éprouver les deux
+/// réponses) et enregistre, à chaque question, le nombre de cartes que le
+/// joueur a en jeu — lu sur l'état que `Policy::observe` reçoit juste avant la
+/// question, jamais reconstruit.
+struct Espion {
+    base: RandomPolicy,
+    /// Réponse imposée au premier temps : `None` = alternée.
+    piocher_avant: Option<bool>,
+    alterne: bool,
+    vu: [usize; NUM_PLAYERS],
+    /// (joueur, cartes en jeu) à chaque premier temps.
+    avant: Vec<(usize, usize)>,
+    /// (joueur, cartes en jeu) à chaque second temps.
+    apres: Vec<(usize, usize)>,
+    avant_vrai: usize,
+    /// Cartes en jeu au dernier premier temps, par joueur.
+    dernier_avant: [Option<usize>; NUM_PLAYERS],
+    /// Seconds temps posés APRÈS qu'une carte a été posée depuis le premier.
+    apres_une_pose: usize,
+}
+
+impl Espion {
+    fn new(piocher_avant: Option<bool>) -> Espion {
+        Espion {
+            base: RandomPolicy,
+            piocher_avant,
+            alterne: false,
+            vu: [0; NUM_PLAYERS],
+            avant: Vec::new(),
+            apres: Vec::new(),
+            avant_vrai: 0,
+            dernier_avant: [None; NUM_PLAYERS],
+            apres_une_pose: 0,
+        }
+    }
+}
+
+impl Policy for Espion {
+    fn observe(&mut self, game: &GameState, player: usize) {
+        self.vu[player] = game.players[player].played.len();
+    }
+    fn corp_mulligan(&mut self, r: &mut StdRng, p: usize, c: &[u16]) -> bool {
+        self.base.corp_mulligan(r, p, c)
+    }
+    fn project_mulligan(&mut self, r: &mut StdRng, p: usize, h: &[u16]) -> Vec<usize> {
+        self.base.project_mulligan(r, p, h)
+    }
+    fn pick_corporation(&mut self, r: &mut StdRng, p: usize, c: &[u16]) -> usize {
+        self.base.pick_corporation(r, p, c)
+    }
+    fn pick_phase(&mut self, r: &mut StdRng, p: usize, a: &[u8]) -> u8 {
+        self.base.pick_phase(r, p, a)
+    }
+    fn choose_build(&mut self, r: &mut StdRng, p: usize, a: &[usize]) -> Option<usize> {
+        self.base.choose_build(r, p, a)
+    }
+    fn construction_bonus(&mut self, r: &mut StdRng, p: usize) -> ConstructionBonus {
+        self.base.construction_bonus(r, p)
+    }
+    fn construction_bonus_avant(&mut self, _r: &mut StdRng, p: usize) -> bool {
+        self.avant.push((p, self.vu[p]));
+        self.dernier_avant[p] = Some(self.vu[p]);
+        let rep = match self.piocher_avant {
+            Some(b) => b,
+            None => {
+                self.alterne = !self.alterne;
+                self.alterne
+            }
+        };
+        if rep {
+            self.avant_vrai += 1;
+        }
+        rep
+    }
+    fn construction_bonus_apres(&mut self, r: &mut StdRng, p: usize) -> ConstructionBonus {
+        self.apres.push((p, self.vu[p]));
+        if let Some(n) = self.dernier_avant[p] {
+            if self.vu[p] > n {
+                self.apres_une_pose += 1;
+            }
+        }
+        self.base.construction_bonus_apres(r, p)
+    }
+    fn action_choice(&mut self, r: &mut StdRng, p: usize, o: &[ActionOpt]) -> Option<usize> {
+        self.base.action_choice(r, p, o)
+    }
+    fn research_keep(&mut self, r: &mut StdRng, p: usize, d: &[u16], k: usize) -> Vec<usize> {
+        self.base.research_keep(r, p, d, k)
+    }
+    fn discard_down(&mut self, r: &mut StdRng, p: usize, h: &[u16], n: usize) -> Vec<usize> {
+        self.base.discard_down(r, p, h, n)
+    }
+}
+
+fn parties(espion: &mut Espion, db: &CardsDb, graines: std::ops::Range<u64>) {
+    for g in graines {
+        engine::sim::play_game(db, g, espion);
+    }
+}
+
+/// Le second temps n'est demandé QU'À qui n'a pas déjà pioché au premier — et
+/// il l'est à tous les autres. Le compte est une ÉGALITÉ, pas une inégalité :
+/// une question de trop est un réglage de jeu ajouté, une question de moins est
+/// un bonus perdu.
+#[test]
+fn le_second_temps_ne_se_demande_qu_a_qui_n_a_pas_deja_pioche() {
+    let db = db();
+    let mut e = Espion::new(None); // alterné : les deux réponses sont éprouvées
+    parties(&mut e, &db, 0..12);
+    println!(
+        "    {} premier(s) temps ({} « piocher tout de suite »), {} second(s) \
+         temps, dont {} après une pose",
+        e.avant.len(),
+        e.avant_vrai,
+        e.apres.len(),
+        e.apres_une_pose
+    );
+    assert!(e.avant.len() >= 20, "{} premier(s) temps seulement", e.avant.len());
+    assert!(e.avant_vrai > 0 && e.avant_vrai < e.avant.len(), "une seule réponse éprouvée");
+    assert_eq!(
+        e.apres.len(),
+        e.avant.len() - e.avant_vrai,
+        "le second temps doit être demandé exactement aux joueurs qui n'ont pas \
+         pioché au premier"
+    );
+    // Le second temps arrive bien APRÈS une pose dans un nombre de cas
+    // substantiel : c'est tout l'intérêt du déplacement.
+    assert!(
+        e.apres_une_pose >= 5,
+        "seulement {} second(s) temps posé(s) après une pose réelle",
+        e.apres_une_pose
+    );
+}
+
+/// Les deux bouts de l'éventail, pour que le compte ci-dessus ne puisse pas
+/// être vrai par accident : qui pioche toujours au premier temps n'a jamais de
+/// second ; qui n'y pioche jamais en a toujours un.
+#[test]
+fn les_deux_bouts_du_premier_temps() {
+    let db = db();
+
+    let mut toujours = Espion::new(Some(true));
+    parties(&mut toujours, &db, 0..8);
+    assert!(toujours.avant.len() >= 15, "mesure trop maigre");
+    assert_eq!(toujours.apres.len(), 0, "piocher tout de suite consomme le bonus");
+
+    let mut jamais = Espion::new(Some(false));
+    parties(&mut jamais, &db, 0..8);
+    assert!(jamais.avant.len() >= 15, "mesure trop maigre");
+    assert_eq!(
+        jamais.apres.len(),
+        jamais.avant.len(),
+        "sans pioche immédiate, la vraie question doit toujours venir"
+    );
+}
