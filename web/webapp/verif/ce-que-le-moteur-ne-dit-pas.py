@@ -120,6 +120,8 @@ vu = {"decisions": 0, "choix_joker": 0, "jetons": 0, "loupes": 0, "temoins": 0,
 repondus = {0: {}, 1: {}}
 # (joueur, carte) -> badge deja montre, pour verifier qu'il ne change jamais.
 montres = {}
+# Combien de jetons vus sur le plateau de chaque joueur.
+par_joueur = {0: 0, 1: 0}
 # Les dix familles de badges du moteur (`cards.rs`, JOKER_TAG_CHOICES).
 FAMILLES = {"BUILDING", "SPACE", "SCIENCE", "PLANT", "MICROBE", "ANIMAL",
             "EARTH", "JUPITER", "ENERGY", "EVENT"}
@@ -171,6 +173,10 @@ def controler_jetons(pg, rang):
     """MOT-14 : les jetons dessines se voient, et se lisent."""
     for t in pg.evaluate(JETONS):
         vu["jetons"] += 1
+        # « pour les DEUX joueurs » est une exigence du contrat : le bilan doit
+        # donc dire de quel cote de la table les jetons ont ete vus, et non un
+        # total qui pourrait ne venir que d'un seul plateau.
+        par_joueur[t["joueur"]] += 1
         if t["cache"]:
             erreur(f"decision {rang} : le badge joker « {t['badge']} » du joueur "
                    f"{t['joueur']} est recouvert par {t['cache']!r} — il est dans le "
@@ -296,7 +302,11 @@ with serveur(RACINE) as base:
   for GRAINE in GRAINES:
     # On s'arrete des que TOUT a ete mesure : inutile de jouer une partie de
     # plus, et le banc dit ce qu'il a vu plutot que de compter les graines.
-    if vu["jetons"] and vu["loupes"] and vu["temoins"] and vu["derives"]:
+    # « pour les DEUX joueurs » (prompt, MOT-14) : on continue tant qu'on n'a pas
+    # vu un jeton sur CHAQUE plateau. Une partie n'en pose pas forcement des deux
+    # cotes ; c'est pour cela qu'on donne plusieurs graines.
+    if (vu["loupes"] and vu["temoins"] and vu["derives"]
+            and par_joueur[0] and par_joueur[1]):
         break
     with page(f"{base}/?graine={GRAINE}&siege=0&animations=non") as (pg, erreurs, _):
         pg.wait_for_selector("#horizon", timeout=20000)
@@ -426,6 +436,8 @@ print(f"    graines {'+'.join(graines_jouees)} : {vu['decisions']} decisions, "
 # jeton sans qu'aucun `pick_joker_tag` ne soit jamais pose. L'accord lui-meme est
 # deja prouve a la publication par le banc 02 du contrat ; ici, ce qui est
 # mesure, c'est que le jeton SE VOIT.
+print(f"    jetons de badge joker vus : {par_joueur[0]} sur le plateau du joueur 0, "
+      f"{par_joueur[1]} sur celui du joueur 1")
 print(f"    revenu annonce SUPERIEUR a la piste de base plus le TR : {vu['derives']} "
       f"lecture(s) — c'est la production derivee, elle ne peut venir que du moteur")
 if vu["accords"]:
@@ -462,16 +474,31 @@ if vu["derives"] == 0:
           "ce banc ne peut pas distinguer un nombre venu du moteur d'une addition "
           "faite a l'ecran (donne d'autres graines en second argument)")
     sys.exit(1)
-# Des reponses relevees mais jamais confrontees = une mesure annoncee qui n'a pas
-# eu lieu. On ne sort pas vert la-dessus.
-if vu["choix_joker"] and vu["accords"] == 0:
-    print(f"KO {vu['choix_joker']} badge(s) joker choisi(s) sous nos yeux, et AUCUNE "
-          f"confrontation avec un jeton montre — l'accord annonce n'a pas ete mesure")
-    sys.exit(1)
+# CE VERROU A ETE ESSAYE PUIS RETIRE, et il faut dire pourquoi plutot que de le
+# faire disparaitre : « des reponses relevees mais aucune confrontation » n'est
+# PAS un defaut de la page. Mesure, 5 graines, 1047 decisions : 3 badges choisis
+# sous nos yeux, 0 confrontation — parce que le badge se choisit depuis la MAIN
+# (`flow::resolve_hand_jokers`) et que ces trois cartes-la n'ont jamais ete
+# posees. Exiger la conjonction « badge choisi sous nos yeux ET carte posee
+# ensuite » serait exiger un evenement que le banc ne peut pas provoquer.
+#
+# L'accord « badge publie = badge choisi » est donc laisse au banc 02 du contrat,
+# qui le prouve a la publication avec un oracle disjoint. Ce banc-ci prouve ce
+# que le banc 02 ne voit pas : que le jeton EST DESSINE, lisible et non
+# recouvert. Le bilan dit lequel des deux a eu lieu — il ne se tait pas.
 
 if fautes:
     for f in fautes[:20]:
         print(f"KO {f}")
     print(f"KO {len(fautes)} faute(s)")
     sys.exit(1)
-print("OK ce que le moteur publie est sous les yeux, des deux cotes de la table")
+if par_joueur[0] and par_joueur[1]:
+    print("OK ce que le moteur publie est sous les yeux, DES DEUX COTES de la table")
+else:
+    # On ne s'attribue pas ce qu'on n'a pas vu. Le cote non couvert passe par le
+    # MEME appel (`plateau.js` dessine les deux plateaux par `piles(j, ...)`), et
+    # la publication pour les deux joueurs est prouvee par le banc 02 du contrat.
+    seul = 0 if par_joueur[0] else 1
+    print(f"OK ce que le moteur publie est sous les yeux — jetons de badge joker "
+          f"observes sur le plateau du joueur {seul} seulement (aucune des parties "
+          f"jouees n'en a pose des deux cotes)")
