@@ -21,7 +21,19 @@ import socketserver
 import sys
 import threading
 
-RACINE = os.path.abspath("outputs/web/webapp")
+# LA RACINE PAR DEFAUT, ET POURQUOI ELLE A CHANGE LE 05-08.
+#
+# Elle valait `outputs/web/webapp` : un chemin de WORKSPACE, c'est-a-dire le
+# dossier ou un chantier depose sa livraison. Ce dossier n'existe pas dans le
+# depot, et il ne depend meme pas d'ou vit ce fichier — il dependait du
+# repertoire courant du shell. Resultat : tous les bancs qui ne precisaient pas
+# la racine servaient un dossier vide, attendaient une page qui ne venait jamais,
+# et mouraient sur « waiting for locator("[data-decision-rang]") ». On les
+# croyait casses ; ils cherchaient simplement la page au mauvais endroit.
+#
+# Elle se calcule desormais depuis CE fichier : `verif/` vit dans `web/webapp`,
+# donc le dossier a servir est son parent. Un banc deplace suit tout seul.
+RACINE = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 
 
 def choix_simple(rang, nb):

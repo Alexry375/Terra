@@ -20,7 +20,7 @@ s'allonger jusqu'à treize. À chaque occasion et aux quatre tailles du contrôl
 Il ÉCHOUE aussi s'il n'a rien éprouvé de sérieux : zéro faute sur zéro occasion
 ne prouve rien.
 
-Usage : PYTHONDONTWRITEBYTECODE=1 python3 outputs/web/webapp/verif/vente-place-reservee.py
+Usage : PYTHONDONTWRITEBYTECODE=1 python3 web/webapp/verif/vente-place-reservee.py
         (depuis la racine du workspace)
 """
 import sys
@@ -60,7 +60,7 @@ compte = {"occasions": 0, "cartes": 0, "max": 0, "max_petite": 0, "longues": 0}
 
 
 def main():
-    with serveur("outputs/web/webapp") as base:
+    with serveur() as base:
         for largeur, hauteur, graine in TAILLES:
             url = f"{base}/index.html?graine={graine}&siege=0&animations=non"
             with page(url, largeur=largeur, hauteur=hauteur) as (pg, erreurs, _ext):

@@ -41,7 +41,7 @@ des oceans.
 
 Depuis la racine du workspace :
 
-    python3 outputs/web/webapp/verif/arcs.py [graine]
+    python3 web/webapp/verif/arcs.py [graine]
 """
 import os
 import sys
@@ -179,7 +179,7 @@ graine = sys.argv[1] if len(sys.argv) > 1 else "4242"
 # reglage, une mesure prise juste apres le changement d'etat trouve le repere
 # entre deux cases et accuse a tort la page. Le reglage ne change QUE la duree —
 # la case visee, elle, est la meme (c'est ce que ce banc verifie, 320 fois).
-with serveur("outputs/web/webapp") as base:
+with serveur() as base:
     with page(f"{base}/?graine={graine}&siege=0&animations=non") as (pg, erreurs, _):
         pg.wait_for_selector("[data-decision-rang]", state="attached", timeout=20000)
         controle(pg, 0)

@@ -10,7 +10,7 @@ graine 5150), donc deux passages rendent la meme image.
 
 Depuis la racine du workspace :
 
-    python3 outputs/web/webapp/verif/captures.py [dossier]
+    python3 web/webapp/verif/captures.py [dossier]
 
 Par defaut : `outputs/captures/`.
 """
@@ -67,7 +67,7 @@ def avance(pg, combien):
 
 
 os.makedirs(SORTIE, exist_ok=True)
-with serveur("outputs/web/webapp") as base:
+with serveur() as base:
     for (L, H) in [(1600, 1000), (1280, 640)]:
         with page(f"{base}/?graine={GRAINE}&siege=0&animations=non",
                   largeur=L, hauteur=H) as (pg, err, _):

@@ -35,7 +35,7 @@ Trois trous, tous mesures ici sur une partie ENTIERE :
      la page ENTIERE a chaque decision tant que je n'ai pas choisi la mienne,
      et on y cherche, une fois qu'on la connait, la corporation d'en face.
 
-Depuis la racine du workspace :  python3 outputs/web/webapp/verif/cadre.py [graine]
+Depuis la racine du workspace :  python3 web/webapp/verif/cadre.py [graine]
 """
 import json
 import sys

@@ -32,7 +32,7 @@ la planche. Le defaut est signale dans `outputs/journal.md`, non corrige.
 
 Depuis la racine du workspace :
 
-    python3 outputs/web/webapp/verif/oceans.py [graine]
+    python3 web/webapp/verif/oceans.py [graine]
 """
 import os
 import sys
@@ -137,7 +137,7 @@ def controle(pg, rang):
 
 
 graine = sys.argv[1] if len(sys.argv) > 1 else "5150"
-with serveur("outputs/web/webapp") as base:
+with serveur() as base:
     with page(f"{base}/?graine={graine}&siege=0") as (pg, erreurs, _):
         controle(pg, 0)
         jouer(pg, apres=controle)

@@ -26,7 +26,7 @@ Deux passages, parce qu'ils n'éprouvent pas la même chose :
     la vente.
 
 Usage :
-    PYTHONDONTWRITEBYTECODE=1 python3 outputs/web/webapp/verif/vente-a-chaque-rang.py \
+    PYTHONDONTWRITEBYTECODE=1 python3 web/webapp/verif/vente-a-chaque-rang.py \
         [--graine 2024] [--mode vendre|alterner|annuler] [--max-decisions 400]
 
 Sortie : une ligne par faute, puis un décompte. Code 0 si tout passe.
@@ -115,7 +115,7 @@ def main():
     offertes = 0
     vus = 0
 
-    with serveur("outputs/web/webapp") as base:
+    with serveur() as base:
         url = (f"{base}/index.html?graine={a.graine}&siege=0&animations=non")
         with page(url) as (pg, erreurs, externes):
             for _ in range(a.max_decisions):

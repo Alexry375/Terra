@@ -10,13 +10,13 @@ decision precedente : `generation`, `planet.temperature`, `planet.oxygen` ou
 Il se lance indifferemment sur la livraison ou sur le depot d'origine, et rend
 le meme verdict sur les deux — c'est tout l'interet :
 
-    python3 outputs/web/webapp/verif/recul-etat.py outputs/web/webapp
-    python3 outputs/web/webapp/verif/recul-etat.py inputs/web/webapp
+    python3 web/webapp/verif/recul-etat.py outputs/web/webapp
+    python3 web/webapp/verif/recul-etat.py inputs/web/webapp
 
 Le banc du depot le voit deja, hors navigateur, donc du cote du moteur ou du
 pont, et non du cote de l'affichage :
 
-    (cd outputs/web/webapp && node verif/tests.mjs)   -> KO « les parametres
+    (cd web/webapp && node verif/tests.mjs)   -> KO « les parametres
                                                           planetaires ne
                                                           reculent jamais »
     (cd inputs/web/webapp  && node verif/tests.mjs)   -> le meme KO
@@ -50,7 +50,7 @@ LECTURE = """() => {
 }"""
 CHAMPS = ("generation", "temperature", "oxygen", "oceans")
 
-racine = sys.argv[1] if len(sys.argv) > 1 else "outputs/web/webapp"
+racine = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 graine = sys.argv[2] if len(sys.argv) > 2 else "5150"
 
 lectures = []

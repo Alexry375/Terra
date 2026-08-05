@@ -42,7 +42,7 @@ cas de cette boite mais n'est pas une verite generale.
 
 Depuis la racine du workspace :
 
-    python3 outputs/web/webapp/verif/score.py [graine]
+    python3 web/webapp/verif/score.py [graine]
 """
 import itertools
 import os
@@ -180,7 +180,7 @@ def controle(pg, rang):
 
 
 graine = sys.argv[1] if len(sys.argv) > 1 else "5150"
-with serveur("outputs/web/webapp") as base:
+with serveur() as base:
     with page(f"{base}/?graine={graine}&siege=0") as (pg, erreurs, _):
         # La toute premiere decision : c'est LA que le joueur a vu « 17 » sans
         # comprendre. On attend que l'ecran soit rendu — avant, la page porte
