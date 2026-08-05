@@ -111,7 +111,7 @@ BARRE = """(j) => {
 
 fautes = []
 vu = {"decisions": 0, "choix_joker": 0, "jetons": 0, "loupes": 0, "temoins": 0,
-      "revenus": 0}
+      "revenus": 0, "eclipses": 0}
 # joueur -> liste des badges repondus au point de decision `pick_joker_tag`
 repondus = {0: [], 1: []}
 graines_jouees = []
@@ -189,13 +189,41 @@ def loupe_sur(pg, avec_ressources):
         pg.wait_for_selector("#loupe.loupe--visible", timeout=4000)
     except Exception:
         return {"id": cible["id"], "ouverte": False, "pv": None}
-    lu = pg.evaluate(VISIBLE, "#loupe .carte__pv")
+    # LA LOUPE EST CLICK-THROUGH PAR CONSTRUCTION (`#loupe { pointer-events:
+    # none }`, et c'est tout l'objet de `loupe.js` : elle ne doit jamais
+    # recouvrir un choix cliquable). `elementFromPoint` y repond donc toujours
+    # ce qui est DESSOUS — on l'a mesure : « recouverte par IMG », l'image d'une
+    # carte de la table. Ce test-la ne veut rien dire ici.
+    #
+    # Ce qu'on exige a la place, et qui a un sens : la ligne a une boite non
+    # vide, elle est DEDANS la carte agrandie, et la carte agrandie est dans
+    # l'ecran. Une ligne de hauteur nulle, ou posee hors du cadre, ne se lit pas.
+    lu = pg.evaluate("""() => {
+      const l = document.getElementById('loupe');
+      const e = l && l.querySelector('.carte__pv');
+      if (!e) return null;
+      const r = e.getBoundingClientRect(), R = l.getBoundingClientRect();
+      return {texte: (e.textContent || '').trim(),
+              haut: Math.round(r.height), large: Math.round(r.width),
+              dedans: r.top >= R.top - 1 && r.bottom <= R.bottom + 1
+                   && r.left >= R.left - 1 && r.right <= R.right + 1,
+              ecran: R.top >= 0 && R.left >= 0
+                  && R.bottom <= window.innerHeight && R.right <= window.innerWidth};
+    }""")
     pv = None
-    if lu and lu[0]["texte"]:
-        chiffres = "".join(c for c in lu[0]["texte"] if c.isdigit() or c == "-")
+    if lu and lu["texte"]:
+        chiffres = "".join(c for c in lu["texte"] if c.isdigit() or c == "-")
         pv = int(chiffres) if chiffres else None
+    illisible = None
+    if lu:
+        if lu["haut"] < 6 or lu["large"] < 10:
+            illisible = f"boite de {lu['large']}x{lu['haut']} px"
+        elif not lu["dedans"]:
+            illisible = "posee HORS de la carte agrandie"
+        elif not lu["ecran"]:
+            illisible = "la carte agrandie sort de l'ecran"
     return {"id": cible["id"], "ouverte": True, "pv": pv,
-            "cache": lu[0]["cache"] if lu else None, "texte": lu[0]["texte"] if lu else None}
+            "cache": illisible, "texte": lu["texte"] if lu else None}
 
 
 with serveur(RACINE) as base:
@@ -219,16 +247,28 @@ with serveur(RACINE) as base:
             joueur = int(porteur.get_attribute("data-joueur") or 0)
             vu["decisions"] += 1
 
+            # LA PAGE POSE PARFOIS LE CHOIX EN GRAND PAR-DESSUS LA TABLE
+            # (`#scene[data-mode="superposition"]` : remplacement des cartes de
+            # depart, choix de la corporation). A cet instant-la, les deux
+            # plateaux sont recouverts A DESSEIN — mesurer la visibilite d'un
+            # jeton de carte posee n'aurait aucun sens. On compte ces instants
+            # plutot que de les taire : un banc qui les sauterait TOUS ne
+            # mesurerait plus rien, et on le verrait au compteur.
+            eclipse = bool(pg.query_selector('#scene[data-mode="superposition"]'))
+            if eclipse:
+                vu["eclipses"] += 1
+
             # Le revenu reel se controle regulierement : a chaque decision ce
             # serait des centaines de lectures pour rien ; jamais, ce serait ne
             # rien mesurer.
-            if rang % 25 == 0:
+            if rang % 25 == 0 and not eclipse:
                 controler_revenu(pg, rang)
-            controler_jetons(pg, rang)
+            if not eclipse:
+                controler_jetons(pg, rang)
 
             # MOT-15 se mesure DES QU'une carte posee porte des ressources —
             # pas a la fin : une partie peut finir sans qu'il en reste une.
-            if not loupe_faite:
+            if not loupe_faite and not eclipse:
                 avec = loupe_sur(pg, True)
                 if avec is not None:
                     loupe_faite = True
@@ -311,7 +351,8 @@ with serveur(RACINE) as base:
 print(f"    graines {'+'.join(graines_jouees)} : {vu['decisions']} decisions, "
       f"{vu['revenus']} lectures du revenu reel, {vu['choix_joker']} badge(s) joker "
       f"choisi(s), {vu['jetons']} jeton(s) dessine(s), {vu['loupes']} carte(s) "
-      f"agrandie(s) a ressources, {vu['temoins']} temoin(s) sans ressource")
+      f"agrandie(s) a ressources, {vu['temoins']} temoin(s) sans ressource, "
+      f"{vu['eclipses']} instant(s) ou la table est volontairement recouverte")
 
 # Un banc qui n'a rien mesure doit le DIRE, pas se declarer vert.
 if vu["decisions"] < 50:
