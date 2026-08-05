@@ -826,7 +826,22 @@ sur la carte.
 JETTE**. La coche actuelle dit donc le contraire de ce qui se passe. Mettre une
 croix.
 
-### LIS-8 (Alexis, 04-08) — Le compteur de jetons Forêt est affiché deux fois
+### LIS-8 (Alexis, 04-08) — Le compteur de jetons Forêt est affiché deux fois — ✅ FAIT 05-08, fiche périmée corrigée
+**[VÉRIFIÉ 05-08 · relu à la source par moi]** Les deux moitiés de la décision
+d'Alexis sont appliquées :
+
+- la part « Forests » **a été retirée** de la ventilation du score
+  (`web/webapp/vue/joueurs.js:69-75`, la liste `PARTS_SCORE` ; le retrait est
+  écrit et justifié sur place) ;
+- l'hexagone des capacités affiche désormais le **jeton détouré**
+  (`joueurs.js:145`, `jetonForetDetoure()`), et l'ancienne fonction
+  `imageForet()` a été **supprimée** de `vue/materiel.js` — son commentaire de
+  suppression, ligne 259, note que plus rien n'affiche l'ancienne découpe.
+
+Troisième fiche périmée trouvée le 05-08, après ANI-5 et LIS-10.
+
+Ce qui suit est le constat d'origine.
+
 [VÉRIFIÉ 04-08] Il apparaît bel et bien deux fois dans la même barre de joueur :
 `web/webapp/vue/joueurs.js:121` (l'hexagone avec le nombre de forêts) et
 `joueurs.js:68` (la ventilation du score, ligne « Forests »). Les deux nombres
