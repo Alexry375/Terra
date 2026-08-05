@@ -39,7 +39,12 @@ la liste des choix, pas des noms. Ajouter, retirer ou déplacer un choix décale
 tout ce qui suit. **Ces travaux se font donc en un seul lot, hors partie**, avec
 une seule campagne de contrôles.
 
-### MOT-1 (ancien K8) — Une question sautée quand rien n'est payable
+### MOT-1 (ancien K8) — Une question sautée quand rien n'est payable — FAIT
+**[FAIT 05-08, fusionné dans `main` (`ff40503`), audité.]** La question est
+désormais posée même sans carte payable, avec « passer » pour seule issue et
+l'occasion de vendre ouverte. Mesuré : 4 232 questions de ce type sur douze
+graines — le cas était fréquent, pas rare.
+
 [VÉRIFIÉ 04-08] `web/webapp/wasm/src/lib.rs:1269` — `if affordable.is_empty()
 { return None; }`. Quand aucune carte n'est payable, aucun point de décision
 n'est créé : la seconde pose du bonus Construction n'est jamais proposée, et
@@ -74,7 +79,16 @@ II-B ont le même défaut (`selector_branch`, même endroit).
 avant de poser ? ») ; puis, la première carte posée, la vraie question entre
 « piocher » et « poser une seconde ».
 
-### MOT-4 (ancien K3, seconde moitié) — La phase s'arrête sans un mot
+### MOT-4 (ancien K3, seconde moitié) — La phase s'arrête sans un mot — FAIT CÔTÉ MOTEUR
+**[FAIT 05-08 dans le moteur (`ff40503`) — PAS ENCORE À L'ÉCRAN.]** La phrase
+publiée est « No card can be built this phase. You may still sell cards from
+your hand. », lue à la graine 4242, rang 17. Mais `web/webapp/vue/mots.js:268`
+rédige la question de `choose_build` **en dur** et ne lit jamais `d.question` :
+la phrase n'atteindra l'écran que lorsque ce fichier traitera le cas « aucune
+option ». **C'est un travail du chantier « ce qu'on voit ».** Tant qu'il n'est
+pas fait, le joueur voit toujours « Which card do you play? » sans aucune carte.
+Au passage, le libellé `sell_card` de `mots.js:275` est devenu du code mort.
+
 [VÉRIFIÉ 04-08] Quand la question de pose n'offre aucune option, la phase passe
 en silence. Il faut dire en clair « aucune carte constructible cette phase ».
 Réglé par MOT-1.
@@ -88,13 +102,26 @@ construction pour avoir vendu.
 À reproduire d'abord, puis à situer : est-ce la vente qui consomme le tour, ou
 l'écran qui envoie une réponse « passer » à sa place ?
 
-### MOT-6 (Corentin, ligne 19 · recoupe MOT-1) — Vendre quand on ne peut rien payer
+### MOT-6 (Corentin, ligne 19 · recoupe MOT-1) — Vendre quand on ne peut rien payer — FAIT
+**[FAIT 05-08 (`ff40503`), audité.]** L'occasion de vendre est ouverte à chaque
+point de décision des phases où l'on dépense, y compris quand rien n'est
+payable.
+
 [DÉCLARÉ 04-08] Quand on n'a pas de quoi acheter une carte ou payer une action,
 la seule issue offerte est « passer ». Il faut que « vendre des cartes » soit
 toujours une issue possible à ces moments-là. C'est le même correctif que MOT-1,
 étendu à la phase Action.
 
-### MOT-7 (Corentin, ligne 23) — Vendre ne doit pas coûter un échange de la phase Action
+### MOT-7 (Corentin, ligne 23) — Vendre ne doit pas coûter un échange de la phase Action — FAIT
+**[FAIT 05-08 (`ff40503`), audité — le plus vérifié des quatre.]** L'action
+« Défausser 1 carte pour du MC » n'existe plus dans le moteur. Mesures : zéro
+occurrence sur trois parties entières (466, 390 et 485 décisions) là où il y en
+avait 281 ; un contrôle caché, écrit sur un chemin totalement disjoint (une
+politique espionne à l'intérieur du moteur, qui compte ce que le moteur propose
+sans passer par l'écran), confirme zéro sur cinq graines. Le taux n'a pas bougé :
+c'est le même service unique qui crédite. Mille parties automatiques s'achèvent
+sans casser aucun invariant.
+
 [TRANCHÉ PAR ALEXIS 04-08 · Q3] Livret `docs/regles/livret-base.md:96` : « à tout
 moment, vous pouvez défausser une carte Projet de votre main pour gagner 3 MC ».
 
