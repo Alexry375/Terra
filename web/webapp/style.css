@@ -665,37 +665,65 @@ html[data-pv-masques="oui"] [data-role="vp"] { display: none; }
   50% { transform: translateY(-5px); }
 }
 
-/* (regles-de-la-vente) DEUX FAITS, DEUX MARQUES — et il en fallait deux.
+/* (LIS-14) DEUX FAITS, DEUX MARQUES — ET LE CONTOUR VERT N'EN DIT QU'UN À LA FOIS.
 
-   `data-jouable="oui"` disait « le moteur vient d'énumérer cette carte » ; il dit
-   désormais « j'ai de quoi la payer » (`main_payable`). C'est ce que le contour
-   vert doit suivre : c'est LUI qui annonçait jouable une carte à 17 MC à un
-   joueur qui en avait 13. Mais payable ne veut pas dire jouable à l'instant : en
-   phase III on ne pose aucune carte de sa main, et une main de quinze cartes
-   toutes payables se serait allumée en entier sans qu'une seule réponde au clic.
-   Un écran qui allume quinze cartes mortes ment autant que celui d'avant.
+   Il en fallait deux, et l'erreur passée fut de les faire tenir dans le même
+   attribut. `data-jouable="oui"` a d'abord dit « le moteur vient d'énumérer
+   cette carte », puis « j'ai de quoi la payer » (`main_payable`). La seconde
+   version allumait des cartes que le moteur n'offre pas — `main_payable` ne
+   connaît ni la couleur autorisée par la phase, ni les permissions, ni les
+   prérequis. Mesuré par `verif/jouable.py` : des cartes marquées jouables que le
+   moteur n'offre pas, huit d'un coup sur une seule décision.
 
-   D'où deux marques, l'une dans l'autre :
-     · PAYABLE (`[data-jouable="oui"]`) — un liseré vert calme. « Tu as les
-       moyens. » C'est ce qui s'allume quand on vend.
-     · JOUABLE MAINTENANT (`[data-choix]`, posé par le moteur sur les seules
-       options de la question en cours) — le contour vert franc et le halo. « Et
-       c'est maintenant. » S'y ajoute le soulèvement de `style-table.css`.
+   Les deux faits vivent donc dans deux attributs (`vue/mains.js`) :
+     · `data-jouable`  — le moteur offre cette carte À L'INSTANT ;
+     · `data-payable`  — j'ai de quoi la payer.
+
+   Et le contour vert montre celui des deux qui répond à la question du moment,
+   le rang portant `data-pose` pour le dire :
+
+     · PENDANT UNE QUESTION QUI SE JOUE DEPUIS LA MAIN (`[data-pose="oui"]`) — le
+       contour franc et le halo désignent EXACTEMENT les cartes que le moteur
+       offre. Une carte payable que le moteur n'offre pas est grisée comme les
+       autres : la seule chose qu'on puisse faire à cet instant, c'est répondre.
+       S'y ajoute le soulèvement de `style-table.css` (`[data-choix]`).
+     · LE RESTE DU TEMPS (`[data-pose="non"]`) — aucune carte ne se joue, et le
+       liseré vert calme reprend son office : « tu as les moyens. » C'est lui
+       qu'on regarde pour savoir ce qu'on peut s'offrir, et c'est lui qui grandit
+       quand on vend. En phase III, où l'on ne pose aucune carte, la main dit
+       ainsi ce qu'elle vaut sans promettre un clic qui n'aboutirait pas.
+
    Ce qu'on ne peut pas payer reste grisé, comme avant. */
-.carte--main[data-jouable="oui"] img {
-  box-shadow:
-    0 0 0 2px rgba(70, 255, 163, .55),
-    0 0 10px 1px rgba(70, 255, 163, .22),
-    0 6px 18px rgba(0, 0, 0, .6);
-}
-.carte--main[data-jouable="oui"][data-choix] img {
+.main__rang[data-pose="oui"] .carte--main[data-jouable="oui"] img {
   box-shadow:
     0 0 0 3px #46ffa3,
     0 0 20px 5px rgba(70, 255, 163, .72),
     0 0 46px 10px rgba(70, 255, 163, .3),
     0 6px 18px rgba(0, 0, 0, .6);
 }
-.carte--main[data-jouable="non"] img { filter: grayscale(.34) brightness(.74); }
+.main__rang[data-pose="oui"] .carte--main[data-jouable="non"] img {
+  filter: grayscale(.34) brightness(.74);
+}
+.main__rang[data-pose="non"] .carte--main[data-payable="oui"] img {
+  box-shadow:
+    0 0 0 2px rgba(70, 255, 163, .55),
+    0 0 10px 1px rgba(70, 255, 163, .22),
+    0 6px 18px rgba(0, 0, 0, .6);
+}
+.main__rang[data-pose="non"] .carte--main[data-payable="non"] img {
+  filter: grayscale(.34) brightness(.74);
+}
+/* Une décision qui offre des cartes de la main SANS se jouer depuis la main
+   (options de natures mêlées : la scène les dessine alors au milieu, entières).
+   Le contour franc suit tout de même le moteur — ces cartes-là se jouent bien. */
+.main__rang[data-pose="non"] .carte--main[data-jouable="oui"] img {
+  box-shadow:
+    0 0 0 3px #46ffa3,
+    0 0 20px 5px rgba(70, 255, 163, .72),
+    0 0 46px 10px rgba(70, 255, 163, .3),
+    0 6px 18px rgba(0, 0, 0, .6);
+  filter: none;
+}
 
 /* ================================================ LES PHASES DE LA MANCHE */
 

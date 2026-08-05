@@ -15,28 +15,43 @@
 // NOMBRE. Rendre une carte transparente ou la pousser hors de l'écran ne serait
 // pas la cacher — il suffirait d'ouvrir les outils du navigateur pour la lire.
 //
-// CE QU'ON PEUT PAYER — et c'est bien de PAYER qu'il s'agit.
+// DEUX FAITS, DEUX ATTRIBUTS — et il ne faut surtout pas les confondre.
 //
-// (regles-de-la-vente) `data-jouable="oui"` disait jusqu'ici « le moteur vient
-// d'énumérer cette carte parmi les options de la décision en cours ». Il dit
-// désormais « le moteur dit que j'ai de quoi la payer » : c'est
-// `players[].main_payable`, rendu par `flow::main_payable` — le même point de
-// calcul que l'énumération des options d'une pose, réductions comprises.
+// (LIS-14) `data-jouable` a voulu dire deux choses successivement, et la
+// deuxième était une faute de SENS, pas de calcul. Le chantier
+// « regles-de-la-vente » lui a fait dire « j'ai de quoi la payer »
+// (`players[].main_payable`, rendu par `flow::main_payable`). Or `main_payable`
+// répond à « ai-je de quoi PAYER cette carte ? » — sans la couleur autorisée par
+// la phase, sans les permissions, sans les prérequis (`engine/src/flow.rs`,
+// lignes 2104-2121). En faire un « je peux JOUER cette carte », c'est promettre
+// autre chose que ce que le moteur tient : mesuré par `verif/jouable.py`, des
+// cartes marquées jouables que le moteur n'offre pas — huit d'un coup à la
+// décision 4 d'une partie. Un contour vert trompeur ne se remarque qu'en
+// essayant de jouer la carte ; personne ne le signale, et il ment quand même.
 //
-// POURQUOI CE CHANGEMENT. Le contour vert est ce que le propriétaire du projet
-// regarde pour savoir ce qu'il peut s'offrir : c'est LUI qui annonçait jouable
-// une carte à 17 MC à un joueur qui en avait 13. Adossé aux options d'une
-// décision, il ne disait rien du tout hors des poses — main de onze cartes, 26
-// MC en poche, pas un contour — et il pouvait S'ÉTEINDRE en vendant, puisque
-// vendre change la décision en cours. Adossé aux MC réels, il ne peut que
-// grandir quand on vend, ce qui est la propriété qu'on veut voir.
+// Chaque attribut a donc UNE définition, et une seule :
 //
-// CE QUI EST JOUABLE MAINTENANT reste dit, et par le même moyen qu'avant :
-// `data-choix`, l'indice que le moteur attend, porté par la carte. Deux
-// attributs, deux faits distincts — « je peux la payer » et « je peux la jouer
-// à l'instant » — chacun avec une seule définition.
+//   · `data-jouable`  — « le moteur vient d'énumérer cette carte parmi les
+//     options de la décision en cours, POUR MON SIÈGE ». C'est la seule liste
+//     qui dit ce qui se joue à l'instant, et c'est le moteur qui l'écrit.
+//   · `data-payable`  — « le moteur dit que j'ai de quoi la payer »
+//     (`main_payable`). Utile à tout instant de la partie, y compris hors d'une
+//     question : main de onze cartes, 26 MC en poche, on veut savoir ce qu'on
+//     peut s'offrir. Il grandit quand on vend, ce qui est la propriété qu'on
+//     voulait voir.
 //
-// Recopie, pas jugement, dans les deux cas : la page ne sait toujours pas ce
+// CE QUE LE CONTOUR VERT MONTRE, feuille de style à l'appui (`style.css`) :
+// pendant une question qui se joue DEPUIS LA MAIN, il suit `data-jouable` et
+// désigne donc exactement les cartes que le moteur offre ; le reste du temps il
+// suit `data-payable` et dit ce qu'on a les moyens de payer. L'information de la
+// bourse ne disparaît pas — elle cesse seulement de parler par-dessus la seule
+// question posée. Le rang porte `data-pose="oui|non"` pour que la feuille sache
+// laquelle des deux règles s'applique.
+//
+// CE QUI EST JOUABLE MAINTENANT reste aussi dit par `data-choix`, l'indice que
+// le moteur attend, porté par la carte — c'est lui que le geste recopie.
+//
+// Recopie, pas jugement, dans les trois cas : la page ne sait toujours pas ce
 // qu'une carte coûte.
 
 import { carte, cle, normaliser } from "./cartes.js";
@@ -182,7 +197,7 @@ export function majMains(etat, decision, siege) {
   const clesEnMain = new Set(cartes.map((c) => cle(c)).filter(Boolean));
   plan = active ? planDeLaDecision(decision, clesEnMain) : null;
 
-  // (regles-de-la-vente) CE QUE JE PEUX PAYER, carte par carte, tel que le
+  // CE QUE JE PEUX PAYER, carte par carte, tel que le
   // moteur le rend (`main_payable`, dans l'ordre de `hand`). Les cartes que la
   // question NOMME sans que l'état ne les montre encore (voir `cartesEnMain`)
   // n'y figurent pas : le moteur vient de les proposer, elles sont donc
@@ -324,13 +339,23 @@ function maMain(j, cartes, proposees, payables) {
       z.appendChild(f);
     }
   }
+  // LA QUESTION SE JOUE-T-ELLE DEPUIS LA MAIN ? C'est ce qui décide lequel des
+  // deux faits le contour vert montre (`style.css`). On l'écrit sur le rang, et
+  // toujours — « non » est une réponse, l'absence n'en est pas une.
+  z.dataset.pose = plan ? "oui" : "non";
+
   for (const f of z.children) {
     const k = f.dataset.carteCle;
-    // (regles-de-la-vente) Le contour suit la BOURSE, à tout instant de la
-    // partie — pas seulement quand une question m'est posée. Une carte que la
-    // question nomme et que l'état ne montre pas encore est payable par
+    // (LIS-14) CE QUE LE MOTEUR OFFRE, ET RIEN D'AUTRE. `proposees` est
+    // l'énumération de la décision en cours pour MON siège — pas un calcul de la
+    // page, pas une liste que la page tiendrait elle-même. Hors décision, ou
+    // pendant celle de l'adversaire, elle est vide : aucune carte de ma main
+    // n'est jouable à cet instant, et l'écran le dit.
+    f.dataset.jouable = proposees.has(k) ? "oui" : "non";
+    // CE QUE J'AI LES MOYENS DE PAYER, à tout instant de la partie. Une carte
+    // que la question nomme et que l'état ne montre pas encore est payable par
     // construction : le moteur vient de la proposer.
-    f.dataset.jouable = (payables.has(k) || proposees.has(k)) ? "oui" : "non";
+    f.dataset.payable = (payables.has(k) || proposees.has(k)) ? "oui" : "non";
     // L'INDICE DE LA RÉPONSE, PORTÉ PAR LA CARTE. C'est le moteur qui vient de
     // l'énumérer ; la page ne fait que le recopier sur l'objet qu'on touche.
     const indice = plan ? plan.indices.get(k) : undefined;
@@ -508,6 +533,7 @@ export function oublierMains() {
     if (!z) continue;
     delete z.dataset.signature;
     delete z.dataset.combien;
+    delete z.dataset.pose;
     z.textContent = "";
   }
   adversaireAgit(null);
