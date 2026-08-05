@@ -5,6 +5,55 @@
 
 Dernière mise à jour : 2026-08-05
 
+## ✅ 05-08 — LE PREMIER ADVERSAIRE EST FUSIONNÉ (`97e2cdf`) — GRO-1 COMMENCÉ
+
+**C'est le premier lot qui vise l'objectif du projet lui-même.** Livré, audité et
+**entièrement rejoué par moi**, jamais cru sur parole. Quatre fichiers, tous dans
+le territoire autorisé, **zéro ligne** d'`engine/`, de `wasm/`, du pont, de
+l'affichage ou des images.
+
+| Ce que j'ai rejoué | Mesure |
+|---|---|
+| 01 · la balance se répète au caractère près ; hasard contre hasard | 97 / 99 / 4 nuls, 74 460 décisions, **« dans le bruit »** (−0,14 écart typique, seuil 2), **0** partie plafonnée, **0** interrompue |
+| 02 · `reflechi` contre le hasard | **189 / 200 = 94,5 %** (seuil 75 %) |
+| 02 · `reflechi` contre le témoin volontairement bête, **duel direct** | **142 / 200 = 71,0 %**, 391 826 décisions (seuil 60 %) |
+| 03 · la main d'en face **remplacée sous lui** | 6 304 décisions, **9 366 occasions**, **0** réponse qui bouge |
+| 04 · `adversaire.md` traite la vente et la règle des deux mains | 52 paragraphes |
+| contrôle caché, graines **9000-9099** | **187 / 200 = 93,5 %** |
+| garde-fou du moteur, après fusion | **26 suites, 842 tests, 0 échec** |
+
+### ⚠️ MON CONTRÔLE CACHÉ ÉTAIT PERCÉ, ET CE N'EST PAS L'AGENT QUI A TRICHÉ
+
+Il pesait le joueur sur les graines **5000-5099**, que son propre en-tête décrit
+comme « jamais vues ». L'agent, libre de choisir, a réglé ses neuf variantes sur
+**5000-5011** : douze graines sur cent lui étaient connues. Mon contrat ne lui
+imposait aucune plage de réglage, il n'a donc enfreint aucune règle — **c'est le
+contrat qui était incomplet**. « Loin des graines du contrat » laisse 5000 comme
+premier nombre rond disponible, et deux esprits qui cherchent « loin et rond »
+tombent au même endroit.
+
+J'ai relancé sur **9000-9099**, plage nommée nulle part : **93,5 %**, un point
+sous les graines du contrat. Le joueur transporte donc ce qu'il sait, il ne le
+récite pas. Leçon écrite en mémoire durable : **le contrat doit imposer où
+l'agent a le droit de régler**, sinon la réserve cachée se contamine toute seule.
+
+### Ce que ce lot ne prouve PAS, et il faut le dire
+
+Battre le hasard ne veut rien dire : un joueur **volontairement bête** (il
+préfère les options aux longs libellés) y arrive à 73,0 %. Le seul chiffre qui
+compte est le **duel direct contre ce témoin, 71,0 %** — et il reste très loin
+d'un humain qui connaît le jeu. Ce lot livre l'instrument de mesure et le premier
+échelon, pas l'adversaire.
+
+### La réserve déclarée par l'agent, vérifiée par moi : le joueur ne vend jamais
+
+La cause est dans le moteur. Après une première vente, l'état republie
+« tu peux vendre » alors que l'occasion vient d'être dépensée : le drapeau interne
+`occasion_ouverte` est consommé par `observer` (`engine/src/flow.rs:1853`), mais
+rien à l'extérieur ne distingue **le droit de vendre** d'**une occasion ouverte
+ici**. Un joueur sans mémoire ne peut pas faire la différence, revend, et le
+moteur arrête la partie. **Chantier suivant**, avec MOT-13.
+
 ## ✅ 05-08 — LES QUATRE BANCS « CASSÉS » : DEUX ÉTAIENT SAINS (`2b545ae`)
 
 La carte d'état portait depuis des jours une dette : « quatre bancs cassés du

@@ -1205,10 +1205,46 @@ recopier à la main la liste des décisions, ce qu'on a dû faire une fois le 04
 
 ## 5. GROS CHANTIERS
 
-### GRO-1 (ancien I9) — L'intelligence artificielle
-**C'est l'objectif du projet.** Non commencé. Tout ce qui précède existe pour que
-le jeu soit jouable et juste ; l'adversaire artificiel, lui, reste entièrement à
-construire.
+### GRO-1 (ancien I9) — L'intelligence artificielle — 🚧 COMMENCÉ 05-08, PREMIER ÉCHELON FUSIONNÉ (`97e2cdf`)
+
+**C'est l'objectif du projet.** Le premier échelon est livré, audité et rejoué
+par moi : **une balance** qui pèse deux joueurs l'un contre l'autre, et **un
+premier joueur qui réfléchit** (`web/webapp/verif/duel.mjs`,
+`web/webapp/joueurs/reflechi.js`, `web/webapp/adversaire.md`).
+
+| Ce que j'ai rejoué moi-même | Mesure |
+|---|---|
+| la balance se répète au caractère près, hasard contre hasard | 97 / 99 / 4 nuls, 74 460 décisions, **« dans le bruit »** (−0,14 écart typique, seuil 2), 0 partie plafonnée, 0 interrompue |
+| `reflechi` contre le hasard | **189 / 200, soit 94,5 %** (seuil du contrat : 75 %) |
+| `reflechi` contre le témoin volontairement bête, duel direct | **142 / 200, soit 71,0 %**, 391 826 décisions (seuil : 60 %) |
+| regarde-t-il la main d'en face ? — elle est remplacée sous lui | 6 304 décisions, **9 366 occasions**, **0 réponse qui bouge** |
+| contrôle caché, graines que personne n'avait nommées (9000-9099) | **187 / 200, soit 93,5 %** — un point sous les graines du contrat |
+| garde-fou du moteur après fusion | **26 suites, 842 tests, 0 échec** |
+
+**⚠️ Mon contrôle caché était percé, et je l'écris.** Il pesait le joueur sur les
+graines 5000-5099 en les décrivant comme « jamais vues » ; l'agent, libre de
+choisir, avait réglé ses neuf variantes sur **5000-5011**. Douze graines sur cent
+étaient donc connues de lui. Le contrat ne lui imposait aucune plage de réglage —
+c'est le contrat qui était incomplet, pas l'agent qui a triché. J'ai relancé sur
+9000-9099, plage nommée nulle part, et c'est ce chiffre-là (93,5 %) qui compte.
+
+**Le joueur ne vend jamais, et la cause est dans le moteur.** Après une première
+vente, l'état republie « tu peux vendre » alors que l'occasion vient d'être
+dépensée (`engine/src/flow.rs`, `observer`, l. 1853 : le drapeau interne
+`occasion_ouverte` est consommé, mais rien ne distingue à l'extérieur « le droit
+de vendre » de « une occasion ouverte ici »). Un joueur sans mémoire ne peut pas
+faire la différence et se fait arrêter par le moteur. **Chantier suivant**, avec
+MOT-13.
+
+**Ce que ce premier échelon ne prouve pas.** Battre le hasard ne veut rien dire —
+un joueur volontairement bête y arrive à 73 %. Battre ce témoin à 71 % est le
+vrai résultat, et il reste très loin d'un humain qui connaît le jeu. La suite est
+un joueur qui anticipe, pas un joueur qui note des cartes.
+
+Ce qui suit est le constat d'origine.
+
+[Non commencé au 04-08.] Tout ce qui précède existe pour que le jeu soit jouable
+et juste ; l'adversaire artificiel, lui, reste entièrement à construire.
 
 **Point à retenir dès maintenant — la défausse visible (CNF-2).** Alexis a
 demandé si cette option avantagerait la machine. Réponse : **oui, nettement**,
