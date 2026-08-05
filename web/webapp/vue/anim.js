@@ -468,6 +468,12 @@ import { imageCarte, dosProjet, imageReserve, jetonForetDetoure } from "./materi
 // L'option « voir la défausse » gouverne aussi ce qui VOLE vers la pile : voir
 // `piochesEtDefausses`. C'est `vue/defausse.js` qui la tient, et lui seul.
 import { defausseVisible } from "./defausse.js";
+// (GRO-2, 05-08) LA POSE D'UNE CARTE S'ENTEND. Le bruit est branché ici et non
+// dans le rendu, parce que c'est ce module — et lui seul — qui sait DISTINGUER
+// un évènement d'un redessin : `relever` garde ce qui était posé au rendu
+// d'avant, et `mettreEnScene` ne fait quelque chose que sur l'écart. Un bruit
+// posé dans `interface.js` sonnerait à chaque image de la partie.
+import { sonCarte } from "./son.js";
 
 const RATIO_CARTE = 569 / 409;
 
@@ -829,8 +835,39 @@ export function mettreEnScene(etat, siege) {
   // scène se tait. Un changement de siège regardé n'est pas un évènement non
   // plus — c'est le même instant, vu d'ailleurs.
   if (rattrapage || !avant || avant.siege !== siege) return;
+  bruitsDeLInstant(avant, apres);
   piochesEtDefausses(avant, apres, etat);
   actionsDeLaListe(avant, apres, etat);
+}
+
+/**
+ * (GRO-2) CE QUE L'INSTANT FAIT ENTENDRE.
+ *
+ * Un seul évènement pour l'instant : une carte vient d'être posée, d'un côté ou
+ * de l'autre de la table. On compare les listes de cartes en jeu que le moteur
+ * publie (`players[].played`), exactement comme `actionsDeLaListe` un peu plus
+ * bas — jamais le document, qui montre aussi des cartes déjà posées dans la
+ * scène d'une question.
+ *
+ * UNE SEULE FOIS PAR INSTANT, MÊME SI DEUX CARTES ARRIVENT. Une action qui en
+ * pose deux est un geste, et deux `sonCarte` superposés ne s'entendraient pas
+ * comme deux poses mais comme un raclement.
+ *
+ * CE BRUIT N'EST PAS UNE ANIMATION : il sonne même sous `?animations=non`, qui
+ * ne règle que des DURÉES. Il se coupe par son propre interrupteur (`?sons=non`
+ * ou le panneau d'options), et par lui seul.
+ */
+function bruitsDeLInstant(avant, apres) {
+  for (let j = 0; j < apres.posees.length; j++) {
+    const anciennes = (avant.posees[j] || "").split(",");
+    const posee = (apres.posees[j] || "").split(",")
+      .filter(Boolean)
+      .some((id) => !anciennes.includes(id));
+    if (posee) {
+      sonCarte();
+      return;
+    }
+  }
 }
 
 /** Remet la mémoire à zéro (nouvelle partie, table vidée). */

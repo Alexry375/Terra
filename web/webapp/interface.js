@@ -147,6 +147,12 @@ function lireCadre() {
     // la même. Sans ce réglage, aucun contrôle automatique ne pourrait jouer une
     // partie entière — il mesurerait l'animation au lieu du jeu.
     animations: p.get("animations") !== "non",
+    // (GRO-2) `?sons=non` éteint les cinq bruits, exactement comme
+    // `?animations=non` éteint les durées — et pour la même raison : sans un
+    // réglage lisible dans l'adresse, aucun contrôle automatique ne peut
+    // vérifier que l'extinction éteint vraiment. Il ne change RIEN de ce qui
+    // est décidé ni affiché.
+    sons: p.get("sons") !== "non",
   };
 }
 
@@ -176,6 +182,10 @@ function batir() {
   document.body.dataset.siege = String(cadre.siege);
   document.body.dataset.decide = cadre.decide;
   reglerAnimations(cadre.animations);
+  // (GRO-2) Le son est réglé AVANT la première décision : le premier bruit de
+  // la partie est celui du début de manche, et il ne doit pas sortir d'une page
+  // ouverte avec `?sons=non`.
+  son.reglerSons(cadre.sons);
   // TOUT ce qui est mesuré en pixels doit être remesuré quand la fenêtre change
   // de taille : les deux plateaux, les deux barres de joueur, et la grille des
   // choix de la décision en cours. On attend la fin du geste plutôt que de tout

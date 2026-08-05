@@ -1,4 +1,4 @@
-// LE SON — trois bruits, pas de musique, aucun fichier.
+// LE SON — cinq bruits, pas de musique, aucun fichier.
 //
 // Tout est synthétisé dans la page : rien n'est téléchargé, rien n'est stocké.
 // Le contexte audio n'existe qu'à partir du PREMIER clic (les navigateurs
@@ -9,7 +9,43 @@
 let ctx = null;
 let coupe = false;
 
+// ------------------------------------------------------------------ l'option
+//
+// (GRO-2, 05-08) L'INTERRUPTEUR DU SON, ET SON UNIQUE POINT D'ÉCRITURE.
+//
+// Pourquoi maintenant et pas avant : jusqu'ici trois bruits seulement étaient
+// branchés, et tous les trois sont RARES — début de manche, réponse à une
+// question, fin de partie. En branchant la pose d'une carte et le cran de
+// terraformation, on passe à des dizaines de bruits par partie. Sans
+// interrupteur, on impose le bruit aux deux joueurs assis devant le même écran.
+//
+// Il vit ICI, avec les sons, et `vue/options.js` le lit et le pose par ces deux
+// fonctions — jamais en écrivant quoi que ce soit lui-même. C'est la leçon du
+// réglage des animations, qui avait fini avec deux mémoires et un interrupteur
+// qui mentait (en-tête de `vue/anim.js`).
+//
+// ÉTEINT, AUCUN DES CINQ NE SORT : le verrou est posé sur le CONTEXTE audio,
+// c'est-à-dire en amont de tout ce que ce fichier fabrique. Un sixième bruit
+// qu'on ajouterait un jour serait éteint lui aussi, sans rien à y penser.
+//
+// L'attribut sur le document n'est pas la mémoire — c'est sa déclaration, pour
+// qu'on puisse lire de l'extérieur de la page ce que le réglage vaut.
+let sonnant = true;
+
+/** Le son est-il allumé ? */
+export function sonsActifs() {
+  return sonnant;
+}
+
+/** L'unique écriture du réglage : `?sons=non` comme l'interrupteur du panneau. */
+export function reglerSons(oui) {
+  sonnant = !!oui;
+  if (sonnant) delete document.documentElement.dataset.sons;
+  else document.documentElement.dataset.sons = "non";
+}
+
 function contexte() {
+  if (!sonnant) return null;
   if (coupe) return null;
   if (ctx) return ctx;
   try {

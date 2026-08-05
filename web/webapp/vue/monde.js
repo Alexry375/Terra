@@ -15,6 +15,10 @@ import { ref, poser, poserValeur } from "./ecrire.js";
 import { construireMasqueVP } from "./plateau.js";
 import { construireArcs, majArcs, oublierArcs } from "./arcs.js";
 import { MOT } from "./mots.js";
+// (GRO-2, 05-08) Le cran de terraformation s'entend. Le bruit est branché sur
+// `ressentir`, plus bas — l'endroit qui REMARQUE le cran, et le seul de la page
+// qui les remarque tous les trois (température, oxygène, océans).
+import { sonCran } from "./son.js";
 
 const CIEL_FROID = [[6, 10, 20], [16, 26, 42]];
 const CIEL_CHAUD = [[26, 6, 3], [125, 44, 16]];
@@ -313,6 +317,16 @@ function ressentir(etat) {
   if (b.oxygen > a.oxygen) evenements.push(["param-o2", "o2"]);
   if (b.oceans > a.oceans) evenements.push(["param-mer", "mer"]);
   if (!evenements.length) return;
+
+  // (GRO-2) UN CRAN GAGNÉ S'ENTEND — UNE FOIS. Le bruit est ici et pas dans le
+  // rendu : `ressentir` n'est pas appelé à chaque redessin, il ne fait quelque
+  // chose que quand une jauge a MONTÉ entre l'état d'avant et celui d'après.
+  //
+  // Une seule fois, quoi qu'il arrive : une jauge qui monte de trois crans d'un
+  // coup est un événement, pas trois — et deux jauges qui montent ensemble non
+  // plus. Trois `sonCran` superposés (0,9 s de grave chacun) seraient le
+  // vacarme que le contrat interdit, pas une information.
+  sonCran();
 
   for (const [id, teinte] of evenements) {
     const e = document.getElementById(id);
