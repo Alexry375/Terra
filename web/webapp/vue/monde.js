@@ -204,6 +204,57 @@ function variable(nom, valeur) {
   document.documentElement.style.setProperty(nom, valeur);
 }
 
+// ------------------------------------------------ LIS-4 : LA TUILE SE LIT
+//
+// La pastille du bandeau est un CARRÉ d'une trentaine de points ; les tuiles
+// imprimées, elles, n'ont pas le même rapport largeur-hauteur d'une famille à
+// l'autre (un objectif est trois fois plus large que haut, une récompense à
+// peine plus large que haute). Agrandir le carré ne servait donc qu'à moitié :
+// avec `object-fit: contain`, l'image d'un objectif n'occupait qu'un tiers du
+// carré agrandi, les deux autres tiers restant vides en haut et en bas.
+//
+// L'agrandissement du survol reçoit donc ICI sa taille, calculée POUR CHAQUE
+// TUILE à partir de la définition du fichier (`naturalWidth` / `naturalHeight`)
+// — aucun nombre par famille n'est écrit en dur, et une image qu'on
+// remplacerait par une autre définition suivrait toute seule.
+//
+// Deux bornes, dans cet ordre :
+//   · la surface visée est celle où le texte imprimé se lit sans effort ;
+//   · elle est RABOTÉE à la définition du fichier si elle la dépassait —
+//     au-delà, on n'agrandit plus, on rend flou. Ni un objectif (900 × 293) ni
+//     une récompense (745 × 583) ne touchent cette borne à la surface visée ;
+//     elle est là pour l'image qui serait un jour moins définie.
+//
+// La feuille de style (`style-monde.css`) lit ces deux nombres et ne fait que
+// les poser : c'est elle qui garde la place au repos, par des marges négatives.
+const SURFACE_LISIBLE = 120000;
+
+/** La taille de l'agrandissement d'une image, au rapport de cette image. */
+function tailleLisible(nw, nh) {
+  const rapport = nw / nh;
+  let l = Math.sqrt(SURFACE_LISIBLE * rapport);
+  let h = l / rapport;
+  const rabot = Math.min(1, nw / l, nh / h);
+  return [Math.round(l * rabot), Math.round(h * rabot)];
+}
+
+/**
+ * Pose sur la pastille la taille de son agrandissement. L'image n'est pas
+ * forcément décodée quand elle entre dans le document : `naturalWidth` vaut
+ * alors 0, et on attend `load`. Sans cette attente, la première tuile de la
+ * partie garderait la taille de repli.
+ */
+function mesurerHonneur(d, im) {
+  const poser = () => {
+    if (!im.naturalWidth || !im.naturalHeight) return;
+    const [l, h] = tailleLisible(im.naturalWidth, im.naturalHeight);
+    d.style.setProperty("--honneur-l", l + "px");
+    d.style.setProperty("--honneur-h", h + "px");
+  };
+  if (im.complete) poser();
+  im.addEventListener("load", poser, { once: true });
+}
+
 /** Objectifs et récompenses : les tuiles imprimées, éteintes tant qu'à prendre. */
 function honneurs(etat) {
   const zj = ref("#jalons");
@@ -216,6 +267,7 @@ function honneurs(etat) {
       const im = document.createElement("img");
       im.src = imageJalon(m.kind);
       im.alt = MOT.milestone + " " + titre(m.kind);
+      mesurerHonneur(d, im);
       d.appendChild(im);
       zj.appendChild(d);
     }
@@ -240,6 +292,7 @@ function honneurs(etat) {
       const im = document.createElement("img");
       im.src = imageRecompense(a);
       im.alt = MOT.award + " " + titre(a);
+      mesurerHonneur(d, im);
       d.appendChild(im);
       zr.appendChild(d);
     }
