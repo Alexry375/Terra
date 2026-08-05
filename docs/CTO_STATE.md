@@ -5,6 +5,44 @@
 
 Dernière mise à jour : 2026-08-05
 
+## 🚧 05-08 — CHANTIER EN COURS : « LE PLATEAU SE LIT ET S'ENTEND »
+
+Quatre choses que le plateau montre mal ou pas du tout. **Aucune règle du jeu ne
+change, et `engine/` est interdit en entier.**
+
+| Ce qui manque | Mesuré par moi au scellement |
+|---|---|
+| les tuiles d'objectifs et de récompenses sont illisibles (LIS-4) | 6 tuiles sur 6 trop petites : une image occupe **151 × 49 points** alors que **900 × 293** sont disponibles |
+| le remélange de la défausse ne se voit pas (LIS-12) | 6 parties, 1 135 décisions : **2 remélanges, 0 montré**, 0 fausse alerte |
+| poser une carte et faire monter une jauge sont muets (GRO-2) | **2,30 bruits** par décision avec événement contre **2,20** sans : aucune différence |
+| la planche des océans change de disposition (LIS-5) | 2 parties, 2 556 relevés : **246 moments de choix, 30 basculements** |
+
+**Deux surprises trouvées en mesurant, et elles changent le travail** :
+
+- **LIS-4 n'est pas un problème de qualité d'image.** On n'utilise que 17 à 20 %
+  de la définition disponible, et le vrai coupable est que la pastille est
+  **carrée** alors qu'un objectif imprimé est trois fois plus large que haut. Il
+  n'y a donc plus de décision à prendre par Alexis sur ce point.
+- **GRO-2 n'était pas « jamais commencé »** : les sons existent, trois sur cinq
+  sont branchés. Il en manque deux, et le chantier doit **ajouter un
+  interrupteur** — on passe de trois bruits rares à deux bruits très fréquents,
+  et sans interrupteur on imposerait le bruit aux deux joueurs.
+
+**Six fois où mes propres mesures se sont trompées avant d'être scellées.** Le
+nombre mérite d'être écrit : un contrôle qui ne voyait que 3 tuiles sur 6 (une
+tuile survolée recouvre ses voisines) ; un qui criait **145 fausses alertes**
+parce qu'il acceptait le mot « pioche », qui nomme le mouvement ordinaire d'une
+carte piochée ; un qui était **vrai partout donc inutile** (le bruit du choix est
+joué à chaque décision) ; un qui comptait **zéro basculement sans avoir jamais
+ouvert le cas** ; et deux versions du contrôle caché du lot précédent qui
+jugeaient une forme au lieu de la chose. Tous corrigés et éprouvés **dans les
+deux sens**.
+
+**Mon contrôle caché de ce lot vise le défaut qui a failli passer la dernière
+fois** : un élément ajouté qui **recouvre** ce sur quoi il faut cliquer. Éprouvé
+vert sur le dépôt (165 emplacements d'océan rencontrés, 0 couvert) et **rouge
+sur une copie sabotée** (247 sur 247 couverts, avec le nom du coupable).
+
 ## ✅ 05-08 — LE LOT « CE QUE L'ÉCRAN DIT DE MA MAIN » EST FUSIONNÉ, DEUX TRAVAUX SUR TROIS
 
 **Deux points livrés et vérifiés par moi, un point déclaré bloqué avec une
