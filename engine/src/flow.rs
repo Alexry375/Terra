@@ -531,6 +531,20 @@ pub fn resolve_hand_jokers(
 // La condition « pas payable même au meilleur badge → ne pas demander » reste
 // vraie : elle est impliquée par celle-ci, qui est plus stricte.
 //
+// ⚠️ CE QUE CETTE RÈGLE COÛTE, et il faut le dire : plus strict veut aussi dire
+// qu'une carte payable SEULEMENT sous certains badges ne reçoit plus de
+// question — donc plus de jeton, donc un prix jugé plein tarif, donc pas
+// d'offre. Le joueur qui aurait choisi le bon badge perd ce coup-là pour ce
+// tour-ci (la carte reste en main, la question reviendra quand elle sera
+// payable sous tous les badges). Sur les douze parties du contrôle, la règle
+// stricte retire deux questions par rapport à la règle « au meilleur badge »,
+// et le cas mesuré (graine 808, rang 39) était payable sous deux badges sur
+// dix. C'est l'arbitrage que le contrat laisse ouvert entre son titre (« de
+// toute façon payer ») et sa puce (« au badge le plus favorable ») ; il est
+// détaillé dans `outputs/result.md` §Not done, et il appartient au
+// propriétaire du projet de le confirmer. Une seule ligne le renverse : le
+// `all` de `posable_quel_que_soit_le_badge` devient un `any`.
+//
 // Les badges hypothétiques sont réellement posés puis retirés, de sorte que le
 // prix passe par le service unique `card_discount` — aucune formule n'est
 // dupliquée ici, et l'hypothèse voit exactement ce que le paiement verrait.
@@ -560,23 +574,35 @@ pub fn resolve_hand_jokers_posables(
     if !db.effects_on {
         return;
     }
-    // Les trois valeurs que l'énumération calculera elle aussi, lues au même
-    // instant et sur le même état : le verdict rendu ici est donc celui
-    // qu'`affordable` rendra dans la foulée.
-    let discount = discount + next_card_discount(&game.players[p]);
-    let payable_disc = microbe_discount(game, db, p).map_or(0, |(_, _, a)| a);
-    let plant_red = plant_reduction(db, &game.players[p]);
-    let hand = game.players[p].hand.clone();
-    for c in hand {
-        // Ni carte joker, ni jeton déjà posé : `ensure_joker_tag` sortirait de
-        // toute façon, on s'épargne le verdict.
-        if !has_joker_tag(db, c) || game.players[p].joker_tags.contains_key(&c) {
-            continue;
-        }
-        if !posable_quel_que_soit_le_badge(game, db, p, c, grant, discount, payable_disc, plant_red)
-        {
-            continue;
-        }
+    // POINT FIXE, et ce n'est pas de la coquetterie. Poser un jeton passe par
+    // `ensure_joker_tag`, donc par `avant_decision`, donc par une OCCASION DE
+    // VENDRE : le joueur peut s'enrichir entre deux cartes joker de sa propre
+    // main. Un verdict calculé une fois pour toutes en tête de fonction serait
+    // alors périmé pour les cartes suivantes — et une carte laissée sans jeton
+    // que l'énumération offrirait quand même se ferait demander son badge À LA
+    // POSE, dans `build_card_granted`. C'est exactement ce que le contrat
+    // interdit. On recalcule donc à chaque tour, sur l'état du moment, et on
+    // s'arrête quand plus aucune carte ne demande de jeton. La boucle termine :
+    // chaque tour pose un jeton, et il n'y en a qu'un nombre fini en main.
+    //
+    // (Défaut trouvé par la relecture adversariale, avec l'ordre inverse :
+    // la résolution passait AVANT l'occasion de vendre hoistée. Elle passe
+    // maintenant après, au plus près de l'énumération.)
+    loop {
+        // Les trois valeurs que l'énumération calculera elle aussi, relues sur
+        // l'état COURANT : le verdict rendu ici est celui qu'`affordable`
+        // rendra dans la foulée.
+        let disc = discount + next_card_discount(&game.players[p]);
+        let payable_disc = microbe_discount(game, db, p).map_or(0, |(_, _, a)| a);
+        let plant_red = plant_reduction(db, &game.players[p]);
+        let suivante = game.players[p].hand.clone().into_iter().find(|&c| {
+            // Ni carte joker, ni jeton déjà posé : `ensure_joker_tag` sortirait
+            // de toute façon, on s'épargne le verdict.
+            has_joker_tag(db, c)
+                && !game.players[p].joker_tags.contains_key(&c)
+                && posable_quel_que_soit_le_badge(game, db, p, c, grant, disc, payable_disc, plant_red)
+        });
+        let Some(c) = suivante else { return };
         ensure_joker_tag(game, db, p, c, policy);
     }
 }
@@ -2016,8 +2042,8 @@ fn drain_pending_builds(
         // main d'APRÈS la vente, sinon leurs indices désigneraient d'autres
         // cartes que celles que le joueur a sous les yeux. Le point de décision
         // ne reçoit donc qu'une observation nue (voir `observer`).
-        resolve_hand_jokers_posables(game, db, p, policy, &grant, disc);
         occasion_de_vendre(game, db, policy);
+        resolve_hand_jokers_posables(game, db, p, policy, &grant, disc);
         let opts = affordable(game, db, p, &grant, disc);
         // « You MAY play an additional card » : renoncer est une option, et
         // c'est `Policy` qui tranche — jamais le moteur (I4).
@@ -4257,8 +4283,8 @@ fn phase_development(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy
         // main d'APRÈS la vente, sinon leurs indices désigneraient d'autres
         // cartes que celles que le joueur a sous les yeux. Le point de décision
         // ne reçoit donc qu'une observation nue (voir `observer`).
-        resolve_hand_jokers_posables(game, db, p, policy, &GRANT_DEVELOPMENT, discount);
         occasion_de_vendre(game, db, policy);
+        resolve_hand_jokers_posables(game, db, p, policy, &GRANT_DEVELOPMENT, discount);
         let opts = affordable(game, db, p, &GRANT_DEVELOPMENT, discount);
         observer(game, p, policy);
         if let Some(idx) = policy.choose_build(&mut game.rng, p, &opts) {
@@ -4354,8 +4380,8 @@ fn phase_construction(game: &mut GameState, db: &CardsDb, policy: &mut dyn Polic
         // main d'APRÈS la vente, sinon leurs indices désigneraient d'autres
         // cartes que celles que le joueur a sous les yeux. Le point de décision
         // ne reçoit donc qu'une observation nue (voir `observer`).
-        resolve_hand_jokers_posables(game, db, p, policy, &GRANT_CONSTRUCTION, 0);
         occasion_de_vendre(game, db, policy);
+        resolve_hand_jokers_posables(game, db, p, policy, &GRANT_CONSTRUCTION, 0);
         let opts = affordable(game, db, p, &GRANT_CONSTRUCTION, 0);
         observer(game, p, policy);
         if let Some(idx) = policy.choose_build(&mut game.rng, p, &opts) {
@@ -4386,7 +4412,17 @@ fn phase_construction(game: &mut GameState, db: &CardsDb, policy: &mut dyn Polic
             Some(b) => Some(b),
             None if base_selector => {
                 avant_decision(game, db, p, policy);
-                Some(policy.construction_bonus_apres(&mut game.rng, p))
+                // `DrawCardBefore` n'a plus de sens ici : la pose a eu lieu. Le
+                // moteur le lit comme « piocher », le seul sens qui reste au
+                // vœu exprimé — et c'est ce que `Policy` documente. Sans cette
+                // normalisation, une politique qui le rendrait perdrait son
+                // bonus SANS UN MOT, le bras du `match` ci-dessous ne faisant
+                // rien de ce variant (défaut trouvé par la relecture
+                // adversariale : la doc et le code se contredisaient).
+                Some(match policy.construction_bonus_apres(&mut game.rng, p) {
+                    ConstructionBonus::SecondBuild => ConstructionBonus::SecondBuild,
+                    _ => ConstructionBonus::DrawCard,
+                })
             }
             None => None,
         };
@@ -4414,8 +4450,8 @@ fn phase_construction(game: &mut GameState, db: &CardsDb, policy: &mut dyn Polic
                 // main d'APRÈS la vente, sinon leurs indices désigneraient d'autres
                 // cartes que celles que le joueur a sous les yeux. Le point de décision
                 // ne reçoit donc qu'une observation nue (voir `observer`).
-                resolve_hand_jokers_posables(game, db, p, policy, grant, 0);
                 occasion_de_vendre(game, db, policy);
+                resolve_hand_jokers_posables(game, db, p, policy, grant, 0);
                 let opts = affordable(game, db, p, grant, 0);
                 observer(game, p, policy);
                 if let Some(idx) = policy.choose_build(&mut game.rng, p, &opts) {

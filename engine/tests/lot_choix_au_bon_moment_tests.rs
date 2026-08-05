@@ -465,10 +465,23 @@ struct Espion8 {
     /// Badge imposé, pour éprouver le cas le plus défavorable.
     badge: Option<usize>,
     main: [Vec<u16>; NUM_PLAYERS],
+    /// Cartes joker dont le jeton est DÉJÀ posé, lues sur l'état observé.
+    resolus: [Vec<u16>; NUM_PLAYERS],
     attente: Vec<(usize, u16)>,
     questions: usize,
     confrontees: usize,
     inutiles: usize,
+    /// Cartes joker OFFERTES à la pose alors qu'elles n'ont pas encore de
+    /// jeton : leur badge serait demandé À LA POSE, ce que le contrat interdit.
+    offertes_sans_jeton: usize,
+    /// Occasions de juger — sans elles le compteur ci-dessus ne prouve rien.
+    offres_joker: usize,
+    /// Ventes que l'espion fait réellement, pour exercer l'occasion de vendre
+    /// que `RandomPolicy` n'ouvre jamais (elle rend toujours une liste vide).
+    ventes: usize,
+    vend: bool,
+    /// Les identifiants des cartes à badge joker de la boîte, lus une fois.
+    jokers: Vec<u16>,
 }
 
 impl Espion8 {
@@ -477,17 +490,33 @@ impl Espion8 {
             base: RandomPolicy,
             badge,
             main: [Vec::new(), Vec::new()],
+            resolus: [Vec::new(), Vec::new()],
             attente: Vec::new(),
             questions: 0,
             confrontees: 0,
             inutiles: 0,
+            offertes_sans_jeton: 0,
+            offres_joker: 0,
+            ventes: 0,
+            vend: false,
+            jokers: Vec::new(),
         }
+    }
+    fn vendeuse(badge: Option<usize>, db: &CardsDb) -> Espion8 {
+        Espion8 { vend: true, ..Espion8::avec(badge, db) }
+    }
+    fn avec(badge: Option<usize>, db: &CardsDb) -> Espion8 {
+        let jokers = (0..db.projects.len() as u16)
+            .filter(|&c| has_joker_tag(db, c))
+            .collect();
+        Espion8 { jokers, ..Espion8::new(badge) }
     }
 }
 
 impl Policy for Espion8 {
     fn observe(&mut self, game: &GameState, player: usize) {
         self.main[player] = game.players[player].hand.clone();
+        self.resolus[player] = game.players[player].joker_tags.keys().copied().collect();
     }
     fn corp_mulligan(&mut self, r: &mut StdRng, p: usize, c: &[u16]) -> bool {
         self.base.corp_mulligan(r, p, c)
@@ -501,6 +530,19 @@ impl Policy for Espion8 {
     fn pick_phase(&mut self, r: &mut StdRng, p: usize, a: &[u8]) -> u8 {
         self.base.pick_phase(r, p, a)
     }
+    /// Vend la première carte de la main à CHAQUE occasion (tant qu'il en
+    /// reste plus d'une) : c'est ce qui met la résolution des badges à
+    /// l'épreuve d'un état QUI BOUGE entre l'occasion de vendre et
+    /// l'énumération. Une vente d'une occasion sur trois ne suffisait pas —
+    /// mesuré : elle ne reproduisait pas le défaut.
+    fn vendre_librement(&mut self, _r: &mut StdRng, _j: usize, main: &[u16]) -> Vec<usize> {
+        if self.vend && main.len() > 1 && self.ventes < 20000 {
+            self.ventes += 1;
+            vec![0]
+        } else {
+            Vec::new()
+        }
+    }
     fn pick_joker_tag(&mut self, r: &mut StdRng, p: usize, card: u16, tc: &[u32]) -> usize {
         self.questions += 1;
         self.attente.push((p, card));
@@ -512,6 +554,17 @@ impl Policy for Espion8 {
     fn choose_build(&mut self, r: &mut StdRng, p: usize, aff: &[usize]) -> Option<usize> {
         let main = self.main[p].clone();
         let offertes: Vec<u16> = aff.iter().filter_map(|&i| main.get(i).copied()).collect();
+        // (MOT-8) Une carte joker OFFERTE dont le jeton n'est pas encore posé
+        // se le verrait demander À LA POSE (`build_card_granted`), ce que le
+        // contrat interdit. Le compteur doit rester nul.
+        for &c in &offertes {
+            if self.jokers.contains(&c) {
+                self.offres_joker += 1;
+                if !self.resolus[p].contains(&c) {
+                    self.offertes_sans_jeton += 1;
+                }
+            }
+        }
         let mut reste = Vec::new();
         for &(j, carte) in &self.attente {
             if j != p {
@@ -558,7 +611,7 @@ impl Policy for Espion8 {
 fn aucun_badge_n_est_demande_pour_une_carte_que_le_moteur_n_offrira_pas() {
     let db = db();
     for badge in [None, Some(0), Some(JOKER_TAG_CHOICES.len() - 1)] {
-        let mut e = Espion8::new(badge);
+        let mut e = Espion8::avec(badge, &db);
         for g in 0..40u64 {
             engine::sim::play_game(&db, g, &mut e);
         }
@@ -570,4 +623,59 @@ fn aucun_badge_n_est_demande_pour_une_carte_que_le_moteur_n_offrira_pas() {
         assert!(e.confrontees >= 20, "{} confrontée(s) seulement", e.confrontees);
         assert_eq!(e.inutiles, 0, "badge {badge:?}");
     }
+}
+
+/// **Le badge n'est JAMAIS demandé à la pose** — l'interdit explicite du
+/// contrat. Le moyen de le vérifier de l'extérieur : aucune carte joker ne doit
+/// être OFFERTE à la question de pose sans avoir déjà son jeton, sans quoi
+/// `build_card_granted` le lui demanderait au moment de la poser.
+///
+/// La politique VEND ici, à chaque occasion. C'est le point : la vente est
+/// ouverte au même endroit que la résolution des badges, elle enrichit le
+/// joueur, et une carte jugée impayable puis devenue payable se retrouverait
+/// offerte sans jeton. `RandomPolicy` ne vend jamais — sans cette politique-ci,
+/// le banc serait vert sans avoir rien mesuré.
+///
+/// ÉPROUVÉ : avec l'ordre d'avant la relecture adversariale (résolution AVANT
+/// l'occasion de vendre hoistée), ce banc rend **4 cartes joker offertes sans
+/// jeton sur 263 offres, en 300 parties** — le badge y était donc bien demandé
+/// à la pose. Une vente d'une occasion sur trois, elle, ne reproduisait rien :
+/// c'est l'agressivité de la vente qui fait la mesure.
+#[test]
+fn aucune_carte_joker_n_est_offerte_sans_son_jeton() {
+    let db = db();
+    let mut e = Espion8::vendeuse(None, &db);
+    for g in 0..300u64 {
+        engine::sim::play_game(&db, g, &mut e);
+    }
+    println!(
+        "    {} vente(s), {} offre(s) de carte joker, {} offerte(s) SANS jeton",
+        e.ventes, e.offres_joker, e.offertes_sans_jeton
+    );
+    assert!(e.ventes >= 2000, "{} vente(s) seulement : l'occasion n'a pas été exercée", e.ventes);
+    assert!(e.offres_joker >= 100, "{} offre(s) seulement", e.offres_joker);
+    assert_eq!(
+        e.offertes_sans_jeton, 0,
+        "une carte joker offerte sans jeton se verrait demander son badge À LA POSE"
+    );
+}
+
+/// (MOT-3) Ce que les cartes Phase AMÉLIORÉES de la Construction portent
+/// vraiment, lu dans la table et non affirmé : II-A n'a **qu'une branche**,
+/// donc `selector_branch` ne pose aucune question pour elle — il n'y a aucun
+/// point de décision à déplacer. II-B en a deux, et c'est un vrai « ou », mais
+/// l'une de ses branches verse des MC AVANT la pose : le déplacer retirerait au
+/// joueur de quoi payer. Les deux sont hors du « Demandé » du contrat.
+#[test]
+fn les_cartes_phase_ameliorees_de_construction_ne_portent_pas_le_meme_choix() {
+    let ii_a = &engine::effects::PHASE_UPGRADED[1][0];
+    let ii_b = &engine::effects::PHASE_UPGRADED[1][1];
+    assert_eq!(ii_a.branches.len(), 1, "II-A ne pose aucune question : rien à déplacer");
+    assert_eq!(ii_b.branches.len(), 2, "II-B est un vrai « ou »");
+    assert!(
+        ii_b.branches.iter().any(|g| g.mc > 0),
+        "une branche de II-B verse des MC, et c'est ce qui interdit de la déplacer après la pose"
+    );
+    // La carte de BASE, elle, porte bien les trois issues que ce lot scinde.
+    assert_eq!(engine::effects::PHASE_BASE[1].branches.len(), 2);
 }
