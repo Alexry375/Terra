@@ -121,6 +121,23 @@ c'est un gain injuste, donc exploitable par une intelligence artificielle.
 **Correctif** : `engine/src/flow.rs` seul, vers la ligne 2236. **Aucune partie
 enregistrée cassée** — on ne déplace aucun point de décision.
 
+⚠️ **NON REPRODUIT INDÉPENDAMMENT — retiré du lot moteur du 05-08.** J'ai écrit
+un contrôle qui compare deux futurs de la même partie au même point (vendre
+toute sa main devant une défausse imposée, ou ne pas vendre) et je n'ai **pas
+réussi à ouvrir la situation** : sur 18 tentatives, le moteur **refuse** la
+vente à ce point précis (« aucune occasion de vendre n'est ouverte à ce
+point »), alors que le champ `vente_offerte` de l'état vaut pourtant *vrai*.
+
+Mon contrôle était donc **vert par accident** : il avalait le refus et comptait
+la tentative comme une réussite — exactement la faute que j'interdis aux
+agents. Deux choses restent à établir avant d'en faire un lot :
+
+1. Pourquoi `vente_offerte` vaut *vrai* alors qu'aucune occasion n'est ouverte.
+   C'est peut-être **cela**, le vrai défaut : l'état annonce une possibilité que
+   le moteur refuse ensuite.
+2. La suite exacte de réponses qui a produit le cas pendant l'enquête (graine
+   5150, vente n° 103, entrée n° 417), qui n'a pas été conservée.
+
 ### MOT-6 (Corentin, ligne 19 · recoupe MOT-1) — Vendre quand on ne peut rien payer — FAIT
 **[FAIT 05-08 (`ff40503`), audité.]** L'occasion de vendre est ouverte à chaque
 point de décision des phases où l'on dépense, y compris quand rien n'est
