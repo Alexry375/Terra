@@ -130,6 +130,52 @@ if (REGLAGE) {
 
 // La page est en anglais, volontairement — comme les cartes. Seul le code, et
 // ce que le serveur écrit dans sa fenêtre, sont en français.
+// CE QUE L'AUTRE EST EN TRAIN DE FAIRE, question par question (CNF-4, relevé le
+// 04-08 en partie à deux). « Waiting for the other player… » ne disait pas si
+// l'attente serait d'une seconde ou d'une minute : trier ses cartes de départ
+// n'a rien à voir avec choisir une phase. Le texte est une FONCTION du type de
+// la décision que le moteur a posée à l'autre, et de rien d'autre — ni compteur,
+// ni horloge : deux attentes du même type donnent le même texte.
+//
+// La liste couvre TOUS les types que le moteur peut poser (`wasm/src/lib.rs` et
+// les onze natures de `engine/src/choice.rs`, mêmes clefs que la table des
+// questions de `vue/mots.js`). Le message général ne sert plus qu'à un type
+// qu'on ne connaîtrait pas — une question ajoutée au moteur après ce jour-ci.
+const ATTENTE_PAR_TYPE = {
+  corp_mulligan: "The other player is choosing Corporation cards…",
+  project_mulligan: "The other player is choosing project cards…",
+  pick_corporation: "The other player is picking a Corporation…",
+  pick_phase: "The other player is choosing a Phase card…",
+  choose_build: "The other player is picking a card to play…",
+  construction_bonus: "The other player is taking the Construction bonus…",
+  action_choice: "The other player is choosing an action…",
+  action_amount: "The other player is deciding how much to spend…",
+  choose_res_source: "The other player is taking a resource from a card…",
+  choose_res_target: "The other player is placing a resource on a card…",
+  pick_joker_tag: "The other player is choosing a tag…",
+  research_keep: "The other player is looking through the cards drawn…",
+  revelation_pioche: "The other player is looking at a revealed card…",
+  discard_down: "The other player is discarding down to the hand limit…",
+  sell_card: "The other player is selling a card…",
+  choose_option: "The other player is choosing a branch of a card…",
+  corp_tr_boost: "The other player is settling a Corporation bonus…",
+  amelioration_carte_phase: "The other player is upgrading a Phase card…",
+  alternative_carte: "The other player is choosing how a card applies…",
+  alternative_action: "The other player is choosing how an action applies…",
+  reduction_microbes: "The other player is spending microbes…",
+  reduction_plantes: "The other player is spending plants…",
+  paiement_chaleur: "The other player is paying with heat…",
+  defausser_pour_piocher: "The other player is discarding to draw…",
+  montant_depense: "The other player is deciding how much to spend…",
+  bonus_selectionneur: "The other player is taking the selector bonus…",
+  rejouer_production: "The other player is replaying a production…",
+};
+
+/** Le texte d'attente d'un type de décision ; le général pour un inconnu. */
+function texteAttente(type) {
+  return (type && ATTENTE_PAR_TYPE[type]) || BANDEAU.attente;
+}
+
 const BANDEAU = {
   attente: "Waiting for the other player…",
   absent: "The other player is away — the game resumes when they come back.",
@@ -210,7 +256,7 @@ function rafraichirBandeau(canal) {
   else if (!canal.vivant) montrerBandeau(BANDEAU.panne);
   else if (canal.rejeu) montrerBandeau(BANDEAU.reprise);
   else if (!present) montrerBandeau(BANDEAU.absent);
-  else if (attente === "lui") montrerBandeau(BANDEAU.attente);
+  else if (attente === "lui") montrerBandeau(texteAttente(canal.typeAttendu));
   else if (attente === "moi") montrerBandeau(BANDEAU.aMoi);
   else montrerBandeau("");
 }
@@ -285,6 +331,14 @@ function creerCanal(reglage) {
     resync: null,
     attentes: new Map(),
     source: null,
+    /** Le type de la décision que l'autre est en train de traiter (bandeau). */
+    typeAttendu: null,
+    /** Le rang que le rendez-vous attend, tel qu'il l'annonce lui-même. */
+    rangAttendu: 0,
+    /** Ce qui attend qu'un rang soit annoncé : rang -> résoudre. */
+    rendezVousDeRang: new Map(),
+    /** Les réponses gardées de côté : rang -> { decision, promesse }. */
+    gardees: new Map(),
   };
 
   /** Une réponse déjà connue pour ce rang, ou `undefined`. */
@@ -307,6 +361,29 @@ function creerCanal(reglage) {
     servirLesAttentes();
   }
 
+  /**
+   * LE RANG QUE LE RENDEZ-VOUS ANNONCE ATTENDRE. Une réponse gardée de côté ne
+   * DEVINE jamais son rang : elle attend que le point de rendez-vous dise qu'il
+   * en est là. C'est la seule chose qui garantisse qu'elle parte au bon moment —
+   * et le serveur peut l'annoncer sans rien révéler, puisque savoir QUE l'autre
+   * a répondu n'apprend rien de CE qu'il a répondu.
+   */
+  canal.noterRangAttendu = (n) => {
+    if (!Number.isInteger(n) || n <= canal.rangAttendu) return;
+    canal.rangAttendu = n;
+    for (const [rang, resoudre] of [...canal.rendezVousDeRang]) {
+      if (canal.rangAttendu >= rang) {
+        canal.rendezVousDeRang.delete(rang);
+        resoudre();
+      }
+    }
+  };
+
+  canal.quandLeRangArrive = (rang) => {
+    if (canal.rangAttendu >= rang) return Promise.resolve();
+    return new Promise((resoudre) => canal.rendezVousDeRang.set(rang, resoudre));
+  };
+
   canal.presence = (joueurs) => {
     if (!Array.isArray(joueurs)) return;
     canal.joueurs = [joueurs[0] === true, joueurs[1] === true];
@@ -314,8 +391,11 @@ function creerCanal(reglage) {
     rafraichirBandeau(canal);
   };
 
-  canal.attendre = (nom) => {
+  canal.attendre = (nom, type = null) => {
     poser("data-attente", nom);
+    // Le bandeau doit dire CE QUE l'autre fait : on retient donc le type de la
+    // question qu'il traite, et rien d'autre de son contenu.
+    canal.typeAttendu = nom === "lui" ? type : null;
     rafraichirBandeau(canal);
   };
 
@@ -332,10 +412,20 @@ function creerCanal(reglage) {
     });
   };
 
-  /** Dit au serveur ce que le MOTEUR vient de dire : ce rang est à ce siège. */
-  canal.annoncerTour = async (rang, siege) => {
+  /**
+   * Dit au serveur ce que le MOTEUR vient de dire : ce rang est à ce siège.
+   *
+   * `groupe` — `{ debut, taille }` ou `null` — dit en plus que ce rang fait
+   * partie d'un choix FACE CACHÉE : le serveur ne publiera aucune des réponses
+   * du groupe avant qu'elles y soient toutes. Là non plus il n'apprend aucune
+   * règle : ce sont les deux moteurs qui le lui disent, et ils se corroborent.
+   *
+   * Rend ce que le serveur a retenu, pour que l'appelant sache si le rideau est
+   * réellement tiré avant de poser quoi que ce soit à l'écran.
+   */
+  canal.annoncerTour = async (rang, siege, groupe = null) => {
     const { code, objet } = await envoyerJson(
-      "relais/tour", { partie: canal.code, rang, siege });
+      "relais/tour", { partie: canal.code, rang, siege, groupe });
     // Une annonce refusée est le SEUL signe que les deux moteurs ne voient pas
     // la même partie. Elle ne doit pas mourir dans la fenêtre de commandes, que
     // personne ne regardera : on la met sous les yeux du joueur.
@@ -344,6 +434,7 @@ function creerCanal(reglage) {
       canal.alerte = BANDEAU.desaccord;
       rafraichirBandeau(canal);
     }
+    return code >= 200 && code < 300 ? objet : null;
   };
 
   /** Envoie notre réponse. Rend la réponse retenue par le serveur. */
@@ -353,6 +444,7 @@ function creerCanal(reglage) {
     });
     if (code >= 200 && code < 300) {
       if (canal.decisions[rang] === undefined) canal.decisions[rang] = reponse;
+      canal.noterRangAttendu(rang + 1);
       return reponse;
     }
     // LE SERVEUR A REFUSÉ, ET IL A DIT POURQUOI. Un refus ne s'avale JAMAIS en
@@ -426,6 +518,7 @@ export async function ouvrirRendezVous() {
   canal.graine = etat.graine;
   canal.boites = etat.boites;
   canal.adopter(etat.decisions);
+  canal.noterRangAttendu(etat.rang_attendu);
   canal.presence(etat.joueurs);
 
   // Le flux d'évènements : chaque décision retenue y arrive, et la connexion
@@ -447,7 +540,14 @@ export async function ouvrirRendezVous() {
     canal.vivant = true;
     const o = JSON.parse(e.data);
     canal.adopter(o.decisions);
+    canal.noterRangAttendu(o.rang_attendu);
     canal.presence(o.joueurs);
+  });
+  // Le rendez-vous a avancé sans rien révéler : une réponse d'un choix face
+  // cachée vient d'arriver, et c'est le signal qu'attend une réponse gardée de
+  // côté pour partir à son tour.
+  source.addEventListener("avancement", (e) => {
+    canal.noterRangAttendu(JSON.parse(e.data).rang_attendu);
   });
   source.addEventListener("joueurs", (e) => {
     canal.presence(JSON.parse(e.data).joueurs);
@@ -457,6 +557,7 @@ export async function ouvrirRendezVous() {
     const liste = canal.decisions.slice();
     liste[o.rang] = o.reponse;
     canal.adopter(liste);
+    canal.noterRangAttendu(o.rang + 1);
   });
 
   // Filet de sécurité : si un évènement s'est perdu (réseau qui hoquette,
@@ -467,6 +568,7 @@ export async function ouvrirRendezVous() {
     const frais = await lireEtat(canal.code);
     if (frais) {
       canal.adopter(frais.decisions);
+      canal.noterRangAttendu(frais.rang_attendu);
       canal.presence(frais.joueurs);
     }
   }, DELAI_RESYNC);
@@ -476,6 +578,163 @@ export async function ouvrirRendezVous() {
 
   rafraichirBandeau(canal);
   return canal;
+}
+
+// ------------------------------------------- les deux choisissent en même temps
+//
+// LE DÉFAUT (MOT-9, relevé le 04-08 en partie à deux). Le livret veut un choix
+// de phase SIMULTANÉ ET FACE CACHÉE (`docs/regles/livret-base.md`, l. 268 et
+// 629). Le moteur, lui, pose ses questions l'une après l'autre : la phase du
+// joueur 0 au rang R, celle du joueur 1 au rang R+1. Le second regardait donc
+// son écran sans rien pouvoir faire pendant que le premier réfléchissait — à
+// chaque manche, dix ou douze fois par partie.
+//
+// CE QU'ON NE POUVAIT PAS FAIRE. Recopier la question du premier sur l'écran du
+// second : les deux listes d'options DIFFÈRENT (chacun ne peut pas reprendre la
+// phase qu'il vient de jouer), et une réponse est un numéro de position dans sa
+// propre liste. La déduire de l'état, ce serait recopier une règle du jeu dans
+// la page — ce que ce fichier n'a pas le droit de faire (`adversaire.md`).
+//
+// CE QU'ON FAIT. On DEMANDE au moteur. « La partie est la graine plus la liste
+// des décisions » : avec la liste des réponses déjà données, on peut lui faire
+// rejouer la partie et lui demander la question du rang R+1 — c'est le « essayer
+// un coup dans le vide » d'`adversaire.md`. On le fait pour CHACUNE des réponses
+// possibles au rang R, et l'on n'affiche la question anticipée que si le moteur
+// rend exactement la même des deux, des trois, des cinq fois : ce qu'on montre
+// alors ne contient, PAR CONSTRUCTION, aucune information sur le choix de
+// l'autre. Si la question suivante dépendait de sa réponse, on ne l'affiche pas
+// et le tour reste séquentiel, comme avant.
+//
+// Mesuré sur trois graines (90210, 1, 7) : 155 paires de `pick_phase` sur 155
+// invariantes, ~1,4 ms par sonde — cinq sondes par manche.
+//
+// L'ÉTAT AFFICHÉ EST CELUI D'AVANT, jamais celui d'après. L'état du rang R+1
+// contient `chosen_phase` du joueur 0 en clair : le rendre serait exactement la
+// fuite qu'on doit interdire. La question anticipée est donc posée sur l'état
+// que les deux pages ont déjà sous les yeux.
+
+/** Le seul type de décision que le livret veut simultané et face cachée. */
+const CHOIX_SIMULTANE = "pick_phase";
+
+/**
+ * Un moteur À NOUS, pour REGARDER et rien d'autre : on ne lui fait jamais
+ * avancer la partie, on lui pose des questions dans le vide. Il n'est ouvert
+ * qu'à la première question de phase d'une partie en ligne — une page qui joue
+ * en local n'en paie jamais le prix.
+ */
+let pontDeLecture = null;
+
+function moteurDeLecture() {
+  if (!pontDeLecture) {
+    pontDeLecture = import("./pont.js")
+      .then((m) => m.ouvrirPontDepuis("."))
+      .catch((e) => {
+        // Une seule tentative ratée ne condamne pas la partie : on retombe sur
+        // le tour séquentiel, et l'on pourra réessayer à la manche suivante.
+        pontDeLecture = null;
+        throw e;
+      });
+  }
+  return pontDeLecture;
+}
+
+/**
+ * LA QUESTION SUIVANTE, SI ELLE NE DIT RIEN DE LA RÉPONSE À CELLE-CI.
+ *
+ * Rend le descripteur de la décision de rang `d.rang + 1` si — et seulement si —
+ * il est le MÊME pour toutes les réponses possibles à `d`, qu'il est lui aussi
+ * un choix de phase, et qu'il revient à l'autre joueur. `null` dans tous les
+ * autres cas : on ne montre jamais une question dont la forme dépendrait de ce
+ * que l'autre vient de choisir.
+ */
+async function questionSuivanteInvariante(canal, d) {
+  if (!d || d.type !== CHOIX_SIMULTANE) return null;
+  // Un choix simple, sans « passer », sans montant et sans sélection multiple :
+  // les réponses possibles sont alors exactement les indices des options, et on
+  // peut donc toutes les essayer. Ailleurs, on ne saurait pas les énumérer.
+  if (d.passer || d.montant || d.multiple) return null;
+  const options = d.options || [];
+  if (!options.length) return null;
+  if (!Number.isInteger(d.rang) || !Number.isInteger(canal.graine)) return null;
+  const avant = canal.decisions.slice(0, d.rang);
+  // La liste doit être complète jusqu'ici, sans trou : sinon le moteur ne
+  // rejouerait pas la même partie que celle qu'on est en train de jouer.
+  if (avant.length !== d.rang || avant.some((r) => r === undefined)) return null;
+
+  let pont;
+  try {
+    pont = await moteurDeLecture();
+  } catch {
+    return null;
+  }
+
+  let empreinte = null;
+  let suivante = null;
+  for (let choix = 0; choix < options.length; choix++) {
+    let pas;
+    try {
+      pas = pont.pas(canal.graine, canal.boites, [...avant, choix]);
+    } catch {
+      // Le moteur refuse cette réponse : on ne peut plus prouver l'invariance,
+      // donc on n'anticipe pas.
+      return null;
+    }
+    const dd = pas && pas.decision;
+    if (!dd) return null;
+    const vue = JSON.stringify(dd);
+    if (empreinte === null) {
+      empreinte = vue;
+      suivante = dd;
+    } else if (vue !== empreinte) {
+      // LA QUESTION SUIVANTE DÉPEND DE CETTE RÉPONSE-CI : l'afficher
+      // maintenant, ce serait en dire quelque chose. On s'arrête là.
+      return null;
+    }
+  }
+  if (!suivante) return null;
+  if (suivante.type !== CHOIX_SIMULTANE) return null;
+  if (suivante.rang !== d.rang + 1) return null;
+  if (suivante.joueur === d.joueur) return null;
+  return suivante;
+}
+
+/** Deux descripteurs de décision sont-ils la même question, mot pour mot ? */
+function memeQuestion(a, b) {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+/**
+ * POSER MA QUESTION EN MÊME TEMPS QUE LA SIENNE, ET GARDER MA RÉPONSE DE CÔTÉ.
+ *
+ * Le moteur n'acceptera ma réponse qu'à son rang, après celle de l'autre : je
+ * la garde donc, et je l'envoie dès que le point de rendez-vous ANNONCE qu'il
+ * attend ce rang — je ne le devine pas.
+ *
+ * Une réponse gardée de côté est FERME : elle est déjà partie du point de vue
+ * du joueur, qui a vu sa carte se poser. Si la page se ferme entre le clic et
+ * l'envoi, elle est perdue et rien n'est écrit nulle part : la partie reste
+ * cohérente, le groupe face cachée reste incomplet, et la page rechargée repose
+ * la même question puisqu'elle reprend au même rang.
+ */
+function garderDeCote(canal, local, d, etat, siege, groupe) {
+  if (canal.gardees.has(d.rang)) return;
+  const promesse = (async () => {
+    // Le rendez-vous doit savoir à qui revient ce rang, et qu'il se joue face
+    // cachée, AVANT que quiconque puisse y répondre.
+    const retenu = await canal.annoncerTour(d.rang, siege, groupe);
+    if (!retenu || !retenu.groupe || retenu.groupe.debut !== groupe.debut) {
+      throw new Error("le rendez-vous n'a pas retenu le choix face cachée");
+    }
+    canal.attendre("moi", d.type);
+    const reponse = await local.decider(d, etat);
+    canal.attendre("lui", d.type);
+    await canal.quandLeRangArrive(d.rang);
+    return canal.publier(d.rang, reponse);
+  })();
+  // L'erreur éventuelle est relevée par celui qui reprendra la réponse ; on
+  // l'accroche ici pour qu'elle ne remonte pas en « rejet non traité ».
+  promesse.catch(() => {});
+  canal.gardees.set(d.rang, { decision: d, promesse });
 }
 
 // ------------------------------------------------------------ les fournisseurs
@@ -504,6 +763,26 @@ export function brancherEnLigne(canal, fournisseurs, siege, regarder) {
   fournisseurs[siege] = {
     nom: local.nom + " (en ligne)",
     async decider(d, etat) {
+      // 0. LA QUESTION A DÉJÀ ÉTÉ POSÉE, en même temps que celle de l'autre :
+      //    ma réponse est prise depuis longtemps, elle n'attendait que son
+      //    rang. Le joueur, lui, a déjà vu sa carte se poser.
+      const gardee = canal.gardees.get(d.rang);
+      if (gardee) {
+        canal.gardees.delete(d.rang);
+        if (!memeQuestion(gardee.decision, d)) {
+          // Impossible si l'invariance a été prouvée — et c'est justement pour
+          // cela qu'on ne l'avale pas en silence : ce serait le signe que les
+          // deux moteurs ne voient plus la même partie.
+          canal.alerte = BANDEAU.desaccord;
+          rafraichirBandeau(canal);
+          throw new Error(
+            `La question de rang ${d.rang} n'est plus celle à laquelle vous avez ` +
+            `répondu. Rechargez cette page : la partie reprendra où elle en est.`);
+        }
+        const retenue = await gardee.promesse;
+        canal.attendre("aucune");
+        return retenue;
+      }
       const connue = canal.reponseConnue(d.rang);
       if (connue !== undefined) {
         marquerRejeu(canal, true);
@@ -514,8 +793,14 @@ export function brancherEnLigne(canal, fournisseurs, siege, regarder) {
       // Le moteur vient de dire à qui revient ce rang. On le rapporte au
       // serveur : c'est ainsi, et seulement ainsi, qu'il peut refuser qu'un
       // siège réponde à la place de l'autre — sans connaître une seule règle.
-      canal.attendre("moi");
-      await canal.annoncerTour(d.rang, d.joueur);
+      canal.attendre("moi", d.type);
+      // MA QUESTION EST-ELLE LA PREMIÈRE D'UN CHOIX FACE CACHÉE ? Si oui, le
+      // rendez-vous doit le savoir AVANT que je puisse répondre, sans quoi il
+      // publierait ma réponse et l'autre la lirait avant de choisir. C'est
+      // pourquoi on l'annonce, et qu'on l'attend, avant de poser la question.
+      const suivante = await questionSuivanteInvariante(canal, d);
+      const groupe = suivante ? { debut: d.rang, taille: 2 } : null;
+      await canal.annoncerTour(d.rang, d.joueur, groupe);
       const reponse = await local.decider(d, etat);
       const retenue = await canal.publier(d.rang, reponse);
       canal.attendre("aucune");
@@ -539,8 +824,20 @@ export function brancherEnLigne(canal, fournisseurs, siege, regarder) {
       // L'écran continue de montrer la partie pendant qu'il réfléchit : sans
       // cela, mon écran se figerait sans que rien ne dise pourquoi.
       if (regarder) regarder(d, etat);
-      canal.attendre("lui");
-      await canal.annoncerTour(d.rang, d.joueur);
+      canal.attendre("lui", d.type);
+      // SA QUESTION EST-ELLE LA PREMIÈRE D'UN CHOIX FACE CACHÉE, DONT LA MIENNE
+      // EST LA SECONDE ? Alors je n'ai aucune raison d'attendre : je pose la
+      // mienne tout de suite, et je garde ma réponse de côté.
+      const suivante = await questionSuivanteInvariante(canal, d);
+      const groupe = suivante ? { debut: d.rang, taille: 2 } : null;
+      const retenu = await canal.annoncerTour(d.rang, d.joueur, groupe);
+      // On n'anticipe QUE si le rendez-vous a bien tiré le rideau : sans cela il
+      // publierait la réponse de l'autre, et je pourrais la lire avant de
+      // choisir. Le doute se paie par une attente, jamais par une fuite.
+      if (suivante && suivante.joueur === siege
+          && retenu && retenu.groupe && retenu.groupe.debut === d.rang) {
+        garderDeCote(canal, local, suivante, etat, siege, groupe);
+      }
       const reponse = await canal.attendreReponse(d.rang);
       canal.attendre("aucune");
       return reponse;
@@ -566,5 +863,9 @@ export function finDeLaPartieEnLigne(canal) {
     clearInterval(canal.resync);
     canal.resync = null;
   }
+  // Plus rien n'attend son rang : une réponse gardée de côté qui survivrait à la
+  // partie attendrait une annonce qui ne viendra jamais.
+  canal.gardees.clear();
+  canal.rendezVousDeRang.clear();
   canal.attendre("aucune");
 }

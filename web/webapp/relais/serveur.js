@@ -82,6 +82,11 @@ function partieDe(code, souhaits = {}) {
       decisions: [],
       // rang -> siège, tel que le moteur des pages l'a annoncé.
       tours: new Map(),
+      // LES CHOIX FACE CACHÉE (voir plus bas). `groupes` : rang de départ ->
+      // nombre de décisions du groupe ; `groupeDuRang` : rang -> rang de départ
+      // de son groupe. Les deux viennent des pages, jamais d'une règle du jeu.
+      groupes: new Map(),
+      groupeDuRang: new Map(),
       // siège -> ensemble des flux ouverts. Une connexion ouverte, c'est un
       // joueur présent : rien n'est déduit, rien n'est affirmé d'avance.
       flux: [new Set(), new Set()],
@@ -121,13 +126,98 @@ function joueursDe(p) {
   return [p.flux[0].size > 0, p.flux[1].size > 0];
 }
 
+// ------------------------------------------------------- les choix face cachée
+//
+// Le livret veut que les deux joueurs choisissent leur phase EN MÊME TEMPS et
+// FACE CACHÉE. Faire choisir les deux en même temps ouvre une porte que l'ordre
+// séquentiel tenait fermée : si le premier a répondu et que le serveur publie sa
+// réponse, le second peut la lire AVANT de choisir — et il n'y a pas de plus
+// grand avantage dans ce jeu.
+//
+// LE SERVEUR NE SAIT TOUJOURS PAS CE QU'EST UNE PHASE, et ne le saura jamais.
+// Ce sont les pages qui lui DÉCLARENT qu'un rang appartient à un groupe de
+// décisions face cachée (`POST /relais/tour`, champ `groupe { debut, taille }`),
+// exactement comme elles lui déclarent déjà à quel siège revient un rang : les
+// deux moteurs disent la même chose, donc les deux déclarations se corroborent.
+//
+// Ce qu'il en fait, et rien de plus : tant que le groupe n'est pas complet, il
+// NE PUBLIE PAS les réponses qu'il contient — ni dans `/relais/etat`, ni dans le
+// flux d'évènements. Il continue en revanche à dire quel rang il attend : savoir
+// QUE l'autre a répondu n'apprend rien de CE qu'il a répondu, et c'est
+// précisément ce que la réponse gardée de côté attend pour partir.
+
+/**
+ * Jusqu'où la liste des réponses peut être publiée : le premier rang d'un
+ * groupe encore incomplet ferme le rideau, pour tout le monde.
+ */
+function limiteVisible(p) {
+  let limite = p.decisions.length;
+  for (const [debut, taille] of p.groupes) {
+    if (p.decisions.length < debut + taille && debut < limite) limite = debut;
+  }
+  return limite;
+}
+
+/** Le groupe face cachée auquel ce rang appartient, ou `null`. */
+function groupeDe(p, rang) {
+  const debut = p.groupeDuRang.get(rang);
+  if (debut === undefined) return null;
+  return { debut, taille: p.groupes.get(debut) };
+}
+
+/** Ce rang appartient-il à un groupe dont les réponses sont encore cachées ? */
+function encoreCache(p, rang) {
+  const g = groupeDe(p, rang);
+  return g !== null && p.decisions.length < g.debut + g.taille;
+}
+
+/**
+ * Lit la déclaration de groupe qui accompagne une annonce de tour. Rend
+ * `{ groupe }`, `{ groupe: null }` si rien n'est déclaré, ou `{ erreur }`.
+ */
+function lireGroupe(brut, rang) {
+  if (brut === undefined || brut === null) return { groupe: null };
+  if (typeof brut !== "object") {
+    return { erreur: "Un groupe de décisions face cachée s'annonce sous la forme " +
+                     "{ debut, taille }." };
+  }
+  const { debut, taille } = brut;
+  if (!Number.isInteger(debut) || !Number.isInteger(taille)) {
+    return { erreur: `Le groupe { debut: ${debut}, taille: ${taille} } n'est pas ` +
+                     `fait de deux entiers.` };
+  }
+  // Deux décisions au moins — un groupe d'une seule n'aurait rien à cacher — et
+  // pas plus que la table ne compte de sièges à cette question.
+  if (debut < 0 || taille < 2 || taille > 8) {
+    return { erreur: `Le groupe { debut: ${debut}, taille: ${taille} } est hors ` +
+                     `des bornes : debut ≥ 0 et 2 ≤ taille ≤ 8.` };
+  }
+  if (rang < debut || rang >= debut + taille) {
+    return { erreur: `Le rang ${rang} n'appartient pas au groupe annoncé ` +
+                     `(${debut} à ${debut + taille - 1}).` };
+  }
+  return { groupe: { debut, taille } };
+}
+
 function etatDe(p) {
   return {
     partie: p.code,
     graine: p.graine,
     boites: p.boites,
-    decisions: p.decisions.slice(),
+    // Tronquée au premier groupe face cachée encore incomplet : ce qui n'a pas
+    // été révélé aux deux joueurs n'est lisible par personne.
+    decisions: p.decisions.slice(0, limiteVisible(p)),
     joueurs: joueursDe(p),
+    rang_attendu: p.decisions.length,
+    siege_attendu: p.tours.has(p.decisions.length)
+      ? p.tours.get(p.decisions.length)
+      : null,
+  };
+}
+
+/** Ce que le serveur attend maintenant — sans rien dire d'aucune réponse. */
+function avancementDe(p) {
+  return {
     rang_attendu: p.decisions.length,
     siege_attendu: p.tours.has(p.decisions.length)
       ? p.tours.get(p.decisions.length)
@@ -283,13 +373,23 @@ async function recevoirDecision(requete, reponse) {
       `attend le rang ${attendu}.`, `partie « ${code} »`);
     return;
   }
-  if (corps.rang !== attendu) {
-    const raison = corps.rang < attendu
-      ? `la décision de rang ${corps.rang} a déjà été donnée`
+  const rang = corps.rang;
+
+  // UNE RÉPONSE ENCORE FACE CACHÉE PEUT ÊTRE REDONNÉE PAR SON PROPRE SIÈGE.
+  // Personne ne l'a vue : la changer ne prend aucun avantage, et c'est la seule
+  // chose qui permette à une page fermée entre son envoi et la révélation de
+  // reprendre la partie. Sans cela elle serait bloquée pour de bon : elle ne
+  // peut ni relire sa réponse (le rideau est tiré) ni la redonner (le rang est
+  // pris). Dès que le groupe est complet, la carte est retournée sur la table :
+  // le refus ordinaire reprend.
+  const redonnee = rang < attendu && encoreCache(p, rang);
+  if (rang !== attendu && !redonnee) {
+    const raison = rang < attendu
+      ? `la décision de rang ${rang} a déjà été donnée`
       : `le serveur n'a pas encore reçu les décisions qui la précèdent`;
     refuser(reponse, 409,
       `Rang inattendu : ${raison}. Le serveur attend la décision de rang ` +
-      `${attendu}, pas celle de rang ${corps.rang}.`, `partie « ${code} »`);
+      `${attendu}, pas celle de rang ${rang}.`, `partie « ${code} »`);
     return;
   }
 
@@ -306,15 +406,25 @@ async function recevoirDecision(requete, reponse) {
   // il le tient des moteurs, qui le lui ont déclaré (`POST /relais/tour`). Tant
   // qu'aucun moteur ne s'est prononcé, le premier siège à répondre fixe le tour
   // et l'autre est refusé — jamais les deux.
-  const proprietaire = p.tours.get(attendu);
+  const proprietaire = p.tours.get(rang);
   if (proprietaire !== undefined && proprietaire !== siege) {
     refuser(reponse, 403,
       `Ce n'est pas au siège ${siege} de répondre : la décision de rang ` +
-      `${attendu} revient au siège ${proprietaire}. Personne ne répond à la ` +
+      `${rang} revient au siège ${proprietaire}. Personne ne répond à la ` +
       `place de l'autre.`, `partie « ${code} »`);
     return;
   }
-  if (proprietaire === undefined) p.tours.set(attendu, siege);
+  // Redonner une réponse face cachée n'est permis qu'à celui à qui elle revient,
+  // et il faut donc que le tour ait été annoncé : sans propriétaire connu, ce
+  // n'est plus une reprise, c'est quelqu'un qui écrase la réponse d'un autre.
+  if (redonnee && proprietaire === undefined) {
+    refuser(reponse, 403,
+      `La décision de rang ${rang} est déjà donnée et le serveur ne sait pas à ` +
+      `quel siège elle revient : elle ne peut pas être redonnée.`,
+      `partie « ${code} »`);
+    return;
+  }
+  if (proprietaire === undefined) p.tours.set(rang, siege);
 
   if (corps.reponse === undefined || corps.reponse === null) {
     refuser(reponse, 400,
@@ -323,11 +433,33 @@ async function recevoirDecision(requete, reponse) {
     return;
   }
 
-  p.decisions.push(corps.reponse);
-  dire(`partie « ${code} » : décision ${attendu} reçue du siège ${siege} ` +
-       `— réponse ${JSON.stringify(corps.reponse)}`);
-  diffuser(p, "decision", { rang: attendu, siege, reponse: corps.reponse });
-  repondreJson(reponse, 200, { ok: true, rang: attendu, siege });
+  const avant = limiteVisible(p);
+  if (redonnee) p.decisions[rang] = corps.reponse;
+  else p.decisions.push(corps.reponse);
+  const apres = limiteVisible(p);
+  const cachee = rang >= apres;
+
+  dire(`partie « ${code} » : décision ${rang} ${redonnee ? "redonnée" : "reçue"} ` +
+       `du siège ${siege}` +
+       (cachee
+         ? " — gardée face cachée jusqu'à ce que le groupe soit complet"
+         : ` — réponse ${JSON.stringify(corps.reponse)}`));
+
+  // Ce qui vient d'être RÉVÉLÉ part sur le flux, dans l'ordre des rangs : une
+  // décision ordinaire, c'est elle seule ; la dernière d'un groupe face cachée,
+  // c'est tout le groupe d'un coup.
+  for (let r = avant; r < apres; r++) {
+    diffuser(p, "decision", {
+      rang: r,
+      siege: p.tours.has(r) ? p.tours.get(r) : siege,
+      reponse: p.decisions[r],
+    });
+  }
+  // Et dans tous les cas : quel rang le rendez-vous attend maintenant. C'est
+  // l'annonce qu'attend une réponse gardée de côté pour partir — elle ne devine
+  // pas son rang, elle attend qu'on le lui dise.
+  diffuser(p, "avancement", avancementDe(p));
+  repondreJson(reponse, 200, { ok: true, rang, siege, cachee });
 }
 
 // ------------------------------------------------------------- déclarer le tour
@@ -370,7 +502,47 @@ async function recevoirTour(requete, reponse) {
     p.tours.set(corps.rang, siege);
     dire(`partie « ${code} » : la décision ${corps.rang} revient au siège ${siege}`);
   }
-  repondreJson(reponse, 200, { ok: true, rang: corps.rang, siege });
+
+  // LE GROUPE FACE CACHÉE, s'il en vient un. Même règle que le tour : la page
+  // l'annonce, le serveur le retient, et une annonce qui en contredirait une
+  // autre est refusée — jamais arbitrée.
+  const lu = lireGroupe(corps.groupe, corps.rang);
+  if (lu.erreur) {
+    repondreJson(reponse, 400, { ok: false, erreur: lu.erreur });
+    return;
+  }
+  if (lu.groupe) {
+    const { debut, taille } = lu.groupe;
+    const tailleConnue = p.groupes.get(debut);
+    const debutConnu = p.groupeDuRang.get(corps.rang);
+    if ((tailleConnue !== undefined && tailleConnue !== taille)
+        || (debutConnu !== undefined && debutConnu !== debut)) {
+      dire(`partie « ${code} » : annonce de groupe refusée au rang ${corps.rang} — ` +
+           `déjà annoncé { debut: ${debutConnu}, taille: ${tailleConnue} }, ` +
+           `on annonce maintenant { debut: ${debut}, taille: ${taille} }`);
+      repondreJson(reponse, 409, {
+        ok: false,
+        erreur: `Le rang ${corps.rang} a déjà été annoncé dans un autre groupe de ` +
+                `décisions face cachée : les deux moteurs ne disent pas la même chose.`,
+      });
+      return;
+    }
+    if (tailleConnue === undefined) {
+      p.groupes.set(debut, taille);
+      dire(`partie « ${code} » : les décisions ${debut} à ${debut + taille - 1} se ` +
+           `jouent face cachée — aucune ne sera publiée avant que toutes soient là`);
+    }
+    if (debutConnu === undefined) p.groupeDuRang.set(corps.rang, debut);
+  }
+
+  repondreJson(reponse, 200, {
+    ok: true,
+    rang: corps.rang,
+    siege,
+    // Ce que le serveur a réellement retenu : la page n'anticipe rien tant
+    // qu'elle n'a pas la confirmation que le rideau est tiré.
+    groupe: groupeDe(p, corps.rang),
+  });
 }
 
 // ----------------------------------------------------------- servir un fichier
