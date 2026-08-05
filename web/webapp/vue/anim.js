@@ -164,7 +164,14 @@ function boite(el) {
  * qui n'a pas le droit d'être touché par ce chantier) et il n'a pas à se
  * déclarer pour garder sa marque.
  */
-const MOTIFS = new Set(["pioche", "defausse", "pose", "jauge", "mc", "jeton"]);
+// (LIS-12, 05-08) `remelange` rejoint la liste : la défausse reversée dans la
+// pioche est un évènement de plus, pas un second vocabulaire de mise en scène.
+// Il porte son propre motif pour la raison même qui fait exister cette liste —
+// de l'extérieur, un vol de remélange ne doit pas se confondre avec le vol
+// ordinaire d'une carte piochée, qui s'appelle `pioche`.
+const MOTIFS = new Set([
+  "pioche", "defausse", "pose", "jauge", "mc", "jeton", "remelange",
+]);
 
 /**
  * LE FAC-SIMILÉ, ET SON UNIQUE FABRIQUE. Carte attrapée dans une main, jeton
@@ -474,6 +481,10 @@ import { defausseVisible } from "./defausse.js";
 // d'avant, et `mettreEnScene` ne fait quelque chose que sur l'écart. Un bruit
 // posé dans `interface.js` sonnerait à chaque image de la partie.
 import { sonCarte } from "./son.js";
+// (LIS-12, 05-08) Le remélange de la défausse dans la pioche se DIT autant qu'il
+// se montre. Le vocabulaire de l'annonce existe déjà : on s'en sert, on n'en
+// écrit pas un second.
+import { annonceRemelange } from "./annonce.js";
 
 const RATIO_CARTE = 569 / 409;
 
@@ -578,6 +589,10 @@ function relever(etat, siege) {
     mains: joueurs.map((p) => (p.hand || []).length),
     dessinees: cartesDessinees(),
     defausse: (etat.decks && etat.decks.discard) || 0,
+    // (LIS-12) L'épaisseur de la PIOCHE, telle que le moteur la publie
+    // (`decks.deck`). C'est le second des deux seuls nombres qui trahissent le
+    // remélange — voir `remelangeDuPaquet`.
+    pioche: (etat.decks && etat.decks.deck) || 0,
     tete: d.length ? String(d[0].id) : "",
     // ANI-1 — ce que la liste dictée demande de voir bouger.
     temperature: Number(etat.planet ? etat.planet.temperature : 0) || 0,
@@ -745,6 +760,56 @@ function actionsDeLaListe(avant, apres, etat) {
 }
 
 /**
+ * (LIS-12, 05-08) **LA DÉFAUSSE EST REVERSÉE DANS LA PIOCHE, ET ÇA SE VOIT.**
+ *
+ * Quand la pioche est vide, le moteur y reverse la défausse et la mélange
+ * (`engine/src/flow.rs:32-42`, livret p. 15). Mesuré graine 77, partie entière :
+ * un seul remélange, au rang 422, où la pioche passe de 0 à 168 cartes et la
+ * défausse de 171 à 2 d'un seul coup. Rien ne le montrait — deux nombres du
+ * bandeau changeaient, et c'était tout.
+ *
+ * LE MOTEUR N'EN DIT RIEN, ET N'A PAS À EN DIRE PLUS. Aucun signal de remélange
+ * n'est publié (`engine/src/observe.rs`) et ce chantier n'en fait pas publier :
+ * les deux nombres qu'il publie déjà, `decks.deck` et `decks.discard`
+ * (`observe.rs:254-257`), suffisent à reconnaître l'évènement.
+ *
+ * LA RÈGLE, ET POURQUOI ELLE NE PEUT PAS SE TROMPER. La pioche ne REMONTE
+ * jamais autrement : `draw_card` la dépile, et la seule ligne du moteur qui la
+ * remplit est le reversement (`std::mem::swap(&mut game.deck, &mut game.discard)`).
+ * « La pioche remonte PENDANT QUE la défausse s'effondre » ne peut donc décrire
+ * qu'un reversement. C'est bien la deuxième moitié qui compte : en début de
+ * partie et à la distribution les deux nombres bougent beaucoup, mais toujours
+ * dans l'autre sens — la pioche descend, la défausse monte.
+ *
+ * UNE FOIS, ET SANS INTERROMPRE LE JEU. L'écart n'est vrai qu'au rendu qui suit
+ * le reversement ; au rendu d'après, la pioche redescend. Les vols sont lancés
+ * et oubliés (`lancer`), l'annonce ne prend aucun clic. On ne change rien à ce
+ * qui est décidé.
+ */
+const REMELANGE_CARTES = 3;
+
+function remelangeDuPaquet(avant, apres) {
+  if (!(apres.pioche > avant.pioche && apres.defausse < avant.defausse)) return;
+
+  // On le DIT.
+  annonceRemelange();
+
+  // Et on le MONTRE : la pile de défausse s'en va dans celle de la pioche, en
+  // sens inverse du vol de défausse ordinaire. Trois cartes disent « la pile
+  // entière » — c'est la règle de tout ce module (`PAR_EVENEMENT`).
+  const depuis = premiereBoite("[data-defausse]", "#paquets");
+  const vers = premiereBoite("[data-pioche]", "#paquets");
+  if (!depuis || !vers) return;
+  for (let k = 0; k < REMELANGE_CARTES; k++) {
+    lancer("remelange", () => volerMatiere({
+      depuis, vers, src: dosProjet(), motif: "remelange",
+      cote: 46, ratio: RATIO_CARTE, cadrer: "boite",
+      ms: 620, tour: 14, grossir: 1.25,
+    }));
+  }
+}
+
+/**
  * ANI-6 — LA PIOCHE ET LA DÉFAUSSE ONT UN CHEMIN.
  *
  * Le sens est fixé par le contrat : la pioche ARRIVE PAR LA DROITE — le dock des
@@ -836,6 +901,7 @@ export function mettreEnScene(etat, siege) {
   // plus — c'est le même instant, vu d'ailleurs.
   if (rattrapage || !avant || avant.siege !== siege) return;
   bruitsDeLInstant(avant, apres);
+  remelangeDuPaquet(avant, apres);
   piochesEtDefausses(avant, apres, etat);
   actionsDeLaListe(avant, apres, etat);
 }
