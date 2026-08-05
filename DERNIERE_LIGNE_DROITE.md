@@ -284,6 +284,40 @@ qui explique à un cerveau distant comment jouer — ne dit pas un mot de la
 vente**. Une intelligence artificielle branchée dessus empoisonnerait la partie
 sans le savoir. À corriger avant GRO-1.
 
+### MOT-14 (05-08) — Le badge choisi pour un joker n'est jamais publié
+[VÉRIFIÉ 05-08] Bloque **LIS-6** (« rien ne dit quel badge a été choisi »),
+déclaré tel quel par le chantier d'affichage et vérifié par moi.
+
+Le moteur **sait** quel badge a été choisi pour chaque carte joker : il le range
+carte par carte (`engine/src/state.rs:357`, `joker_tags`, une entrée par carte et
+jamais par joueur, jamais réécrite une fois posée). Mais il ne le publie nulle
+part : une carte posée sort avec **cinq champs et pas un de plus** — couleur,
+identifiant, nom, prix, ressources (`engine/src/observe.rs:103-108`).
+
+L'écran ne peut donc rien afficher, ni pour soi ni pour l'adversaire, et il
+aurait tort de le deviner : mémoriser sa propre réponse ne dirait rien du badge
+de l'autre joueur, ni d'une partie reprise en cours de route.
+
+**Correctif : une ligne de publication.** `engine/src/observe.rs`, puis
+`web/webapp/vue/`. **Aucune partie enregistrée cassée** — publier un champ ne
+pose aucun point de décision. À faire dans le même lot que MOT-10, qui est
+exactement le même geste.
+
+### MOT-15 (05-08) — Les points déjà rapportés par les ressources posées ne sont pas calculables à l'écran
+[VÉRIFIÉ 05-08] Bloque la **seconde moitié de LIS-3** (« quand on agrandit une
+carte, afficher les points de victoire que ses ressources rapportent déjà »).
+
+Le moteur publie `resources` : un **compte** (« 4 »), et rien d'autre. Ni la
+nature de ces ressources (microbe, animal, jeton Science), ni le barème propre à
+la carte (« 1 point par animal », « 1 point pour 2 microbes »), ni le total qui
+en découle. L'écran ne peut pas le calculer sans recopier le barème de chaque
+carte — ce qui créerait un **second endroit qui compte les points**, à côté de
+`flow::score_breakdown`. Deux comptes finissent toujours par diverger.
+
+**Correctif** : publier le nombre depuis le service unique de comptage,
+`engine/src/observe.rs`. **Aucune partie enregistrée cassée.** Même lot que
+MOT-10 et MOT-14.
+
 ### MOT-12 (ancien I2) — L'état du moteur recule parfois
 [DÉCLARÉ] 20 reculs sur 183 lectures, graine 5150. Jamais expliqué. À reprendre
 après le lot moteur, car les changements ci-dessus peuvent le déplacer.
@@ -370,11 +404,35 @@ tout se joue à l'affichage.
 ne le voit plus. Le passer en noir. Et Corentin préfère **un simple point** au
 point cerclé actuel — il présente cela comme un avis, pas comme une exigence.
 
-### LIS-3 (Corentin, ligne 22) — On ne voit pas les ressources posées sur les cartes
+### LIS-3 (Corentin, ligne 22) — On ne voit pas les ressources posées sur les cartes — EN GRANDE PARTIE FAIT, PAS FINI
 [DEMANDÉ] Les microbes, animaux et jetons Science accumulés sur une carte ne se
 voient pas. Demandé en plus : quand on agrandit une carte, afficher **le nombre
 de points de victoire que ses ressources rapportent déjà**, pour les cartes dont
 les ressources valent des points.
+
+**Première moitié — la cause était la place, pas la taille** [VÉRIFIÉ 05-08]. La
+pastille existait déjà et le moteur publiait déjà le nombre. Elle était posée au
+coin **haut-droit** de la carte : exactement la partie que la carte suivante de
+la pile recouvre. Aucun réglage de superposition ne pouvait la sauver — elle vit
+dans le plan de sa propre carte. Elle est passée en bas à gauche.
+
+⚠️ **Mais ce n'est pas fini, et le rapport de livraison disait le contraire.**
+Le banc écrit pour ce point, `web/webapp/verif/ressources-visibles.py`, rend
+**18 pastilles encore recouvertes sur 330** (graine 4242, décisions 174, 209 et
+237, cartes 33 et 67, recouvertes par une image). Le rapport annonçait « aucune
+recouverte ». [VÉRIFIÉ 05-08] J'ai mesuré **des deux côtés** — dans la copie de
+travail du chantier et sur `main` après fusion — et j'obtiens **exactement les
+mêmes 18**, aux mêmes décisions : ce n'est ni la fusion, ni la taille de la
+fenêtre, ni un aléa. L'explication la plus probable est que la mesure a été faite
+avant le dernier réglage d'échelle et n'a pas été rejouée après.
+
+**Ce qui reste à faire** : les cas où les piles sont serrées. La bande de carte
+qui reste découverte n'y fait qu'environ treize points d'écran, et repousser
+l'échelle d'agrandissement au-delà de 1,8 remet dix-huit pastilles sous leur
+voisine. Ce n'est donc pas un réglage à pousser mais une disposition à revoir.
+
+**La seconde moitié est bloquée par le moteur** : voir MOT-15. L'écran ne peut
+pas calculer les points des ressources sans recopier le barème de chaque carte.
 
 ### LIS-4 (Corentin, ligne 15) — Les objectifs et récompenses sont flous
 [VÉRIFIÉ 04-08 · Q4 — décision à prendre] L'agrandissement au survol existe.
