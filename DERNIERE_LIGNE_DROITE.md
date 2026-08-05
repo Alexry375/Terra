@@ -67,6 +67,32 @@ tous les cas » (`flow.rs:4198`) : le joueur perd son droit d'action pour rien.
 bleue dont l'action ne peut rien produire, exactement comme l'action standard
 Océan l'est déjà (`flow.rs:3146`).
 
+⚠️ **[VÉRIFIÉ 05-08 · mesuré par moi] LE DÉFAUT EST BIEN PLUS LARGE QUE CETTE
+FICHE NE LE DISAIT.** *Aquifer Pumping* n'est qu'un cas sur seize. En rejouant
+chaque option d'action possible à chaque point de décision — l'état du moteur est
+reproductible, on peut donc essayer toutes les branches sans jouer la partie
+plusieurs fois — sur 5 parties entières :
+
+```
+2133 options d'action essayées
+ 340 ne changent RIEN du tout (16 %) et n'ouvrent aucune question de suite
+```
+
+Réparties sur **seize cartes** : *Wood Burning Stoves* (66), *Volcanic Pools*
+(64), *Steelworks* (49), *Aquifer Pumping* (37), *Symbiotic Fungus* (32),
+*Decomposing Fungus* (29), *Ironworks* (23), *Solarpunk* (18), *Water Import from
+Europa* (13), *Think Tank* (5), *Farmers Market* (4), et quelques autres. La
+cause commune n'est pas seulement « les neuf océans sont sortis » : c'est aussi
+« le joueur n'a pas la ressource qu'il faut dépenser ».
+
+**Un piège que ma propre mesure a d'abord raté**, et qui vaut pour qui écrira le
+correctif : une action qui pose un microbe sur une carte ne change ni les
+mégacrédits, ni la planète, ni le nombre de cartes en jeu. Ma première mesure la
+comptait donc comme stérile, à tort — *Tardigrades* apparaissait avec 27 cas qui
+ont tous disparu une fois les ressources posées sur les cartes prises en compte.
+Toute vérification doit regarder **les cartes posées elles-mêmes**, pas seulement
+leur nombre.
+
 ### MOT-3 (ancien K6) — Le bonus de la phase Construction est tranché trop tôt
 [VÉRIFIÉ 04-08 contre le livret et contre le code] Livret,
 `docs/regles/livret-base.md:336` : « piocher une carte **avant ou après** avoir
