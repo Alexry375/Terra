@@ -66,31 +66,63 @@ artificielle qui choisit ses phases doit connaître ces trois montants.
 - **LIS-3 n'est pas fini** : les 18 pastilles recouvertes sont toujours là,
   au même nombre exactement qu'avant le lot. Non régressé, non réparé.
 
-## 🚧 05-08 — CHANTIER EN COURS : « LES CARTES QUI BOUGENT ET LA DÉFAUSSE »
+## ✅ 05-08 — LE LOT « LES CARTES QUI BOUGENT ET LA DÉFAUSSE » EST FUSIONNÉ
 
-Scellé et lancé. C'est le chantier D du plan, et le plus gros manque de confort
-restant : **les nombres changent, et rien ne bouge**. Quatre travaux dans
-l'ordre — le chemin de la pioche et de la défausse (ANI-6), la fenêtre de
-défausse (CNF-2), les actions qui se voient (ANI-1), puis les passages et le
-« +3 » (ANI-2, ANI-3, ANI-4).
+Chantier D du plan, fusionné dans `main` (`cfec28a`) après audit complet par moi.
+C'était **le plus gros manque de confort restant** : les nombres changeaient, et
+rien ne bougeait.
 
-**Aucune règle du jeu ne change, et aucune partie enregistrée ne cesse d'être
-rejouable** : `engine/` est interdit en entier. C'est la propriété qui fait la
-cohérence du lot, et mon contrôle caché la vérifie.
+| Ce qui manquait | Au scellement | Après, rejoué par moi |
+|---|---|---|
+| les actions ne se voient pas (ANI-1) | 199 événements, **95 muets** | 199 événements, **0 muet** |
+| la défausse ne se voit pas (CNF-2, ANI-6) | **aucune carte** jamais montrée | 49 dessus relevés, **0 caché**, fenêtre de 152 cartes dans le bon ordre |
+| le début de phase ne se voit pas (ANI-3) | 57 débuts, **32 muets** | 57 débuts, **0 muet** |
+| le « +3 » passe trop vite (ANI-4) | le plus court durait **6 millisecondes** | le plus court dure **3 392 millisecondes** |
+| garde-fou | vert | vert — 26 suites, 2102 pas, 414 décisions à l'écran |
 
-| Contrôle | Mesuré par moi au scellement |
-|---|---|
-| ce qui change se voit bouger | 172 décisions jouées à l'écran, **199 événements observés, 95 sans que rien ne bouge** — l'oxygène (14 sur 14) et les jetons Forêt (15 sur 15) sont muets à 100 % |
-| la défausse se voit | 172 observations de la pile, **aucune carte jamais montrée sur le dessus** |
-| le début de phase se voit | 242 décisions jouées, **57 débuts de phase, 32 muets** |
-| garde-fou (déjà vert) | 26 suites du moteur, 2102 pas par le pont, **414 décisions jouées à l'écran sans une erreur** |
+**Aucune règle du jeu n'a changé, et toutes les parties enregistrées restent
+rejouables** : pas une ligne de `engine/`. C'était la propriété qui faisait la
+cohérence du lot, et c'est vérifié.
 
-**Un demi-banc que j'ai retiré plutôt que de le garder muet.** Ma première
-version mesurait aussi le changement de tour (ANI-2) et comptait **zéro
-occasion** sur 242 décisions : la page ne publie rien qui désigne le joueur à qui
-la question s'adresse. Un contrôle qui juge sans avoir rien observé rend un
-verdict sur le vide — je l'ai donc supprimé et écrit dans le banc pourquoi. ANI-2
-reste au contrat, vérifié autrement.
+**Vérifié à la source par moi, parce que c'est ce qui empêche le défaut de
+revenir** : il n'existe qu'**une seule** fabrique qui pose un objet dans la
+couche de vol (`vue/anim.js:195`), et la fenêtre de défausse lit `etat.defausse`
+sans le trier ni le renverser (`vue/defausse.js:151`) — une liste tenue par la
+page divergerait au premier remélange.
+
+### ⚠️ MON CONTRÔLE CACHÉ S'EST ENCORE TROMPÉ DEUX FOIS
+
+Troisième et quatrième fois cette nuit, et toujours le même genre : il vérifiait
+une **forme** plutôt qu'une **propriété**.
+
+1. « 1 objet volant sur 457 ne se déplace pas de 12 points d'écran. » C'est une
+   carte attrapée puis relâchée sur place — un geste annulé, où rien ne **doit**
+   bouger. Le même cas unique existait avant le chantier.
+2. « La fenêtre montre 152 cartes, le moteur en publie 144. » Ma partie de
+   référence jouait **466 décisions** là où l'écran en joue **172** : je
+   comparais deux parties **différentes**. Et la défausse n'est pas une pile qui
+   ne fait que grandir — le remélange la reverse dans la pioche — donc même le
+   sens de l'écart ne prouvait rien.
+
+### Sept défauts trouvés par la relecture adversariale de l'agent
+
+Le plus grave, et il aurait été invisible dans un contrôle : le porte-cartes
+ajouté à droite **recouvrait la planche des océans**. En fenêtre de 1100 sur 620,
+**quatre tuiles sur neuf** ne recevaient plus le clic — désigner un emplacement
+devenait impossible. Reproduit, corrigé, puis gardé par un banc neuf.
+
+Autres, du même passage : la carte défaussée traversait l'écran **face
+découverte** alors que l'option était éteinte ; les « +N » ne se taisaient pas
+pendant le rattrapage qui suit un rechargement.
+
+### Deux réserves déclarées par l'agent, et elles sont justes
+
+- **`aw check` sans réglage rend 2 sur 3** : mon contrôle 03 joue 242 décisions
+  animées et prend 149 secondes, contre un plafond de 120. Mesuré à **139,65
+  secondes sur le dépôt d'avant le chantier** — c'est mon chronomètre, pas sa
+  livraison.
+- **Le siège 1 n'est éprouvé par aucun banc du dépôt**, ni les siens ni ceux qui
+  existaient. Le code est symétrique, mais la mesure n'existe pas.
 
 ## ✅ 05-08 — LE LOT « LES CHOIX SE POSENT AU BON MOMENT » EST FUSIONNÉ
 

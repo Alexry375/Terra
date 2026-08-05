@@ -504,23 +504,74 @@ Demande générale d'Alexis et de Corentin, formulée plusieurs fois : **on ne v
 pas ce que fait l'adversaire, ni ce qu'on fait soi-même.** Les nombres changent,
 rien ne bouge. C'est le plus gros manque de confort restant.
 
-### ANI-1 — Les actions doivent se voir, les siennes comme celles de l'autre
+### ANI-1 — Les actions doivent se voir, les siennes comme celles de l'autre — ✅ FAIT 05-08
+**[VÉRIFIÉ 05-08 · rejoué par moi]** Lot « les cartes qui bougent » (`cfec28a`).
+Les six entrées de la liste sont traitées. **Mesure d'après, rejouée par moi sur
+une partie entière jouée à l'écran : 199 événements observés, 0 sans que rien ne
+bouge** — au scellement, 95 sur 199 étaient muets, dont l'oxygène (14 sur 14) et
+les jetons Forêt (15 sur 15) à 100 %.
+
+Le banc de l'agent est plus strict que le mien : il exige que le mouvement
+**dise** l'événement, pas seulement qu'il y en ait un. Il a trouvé une septième
+famille que personne ne mesurait — le gain de ressources posées sur une carte.
+
+Ce qui suit est la demande d'origine.
+
 [DEMANDÉ 04-08] Liste dictée : pose de carte, hausse de la température, hausse
 de l'oxygène, dépense de MC, gain de jetons Forêt, gain de ressources sur une
 carte. Chaque événement doit produire un mouvement visible, du côté du joueur
 qui agit **et** du côté de celui qui regarde.
 
-### ANI-2 (Corentin, ligne 10) — Le changement de tour ne se voit pas
+### ANI-2 (Corentin, ligne 10) — Le changement de tour ne se voit pas — ✅ FAIT 05-08
+**[DÉCLARÉ par l'agent, mesuré par son banc, pas par le mien]** La barre de celui
+qui prend la parole s'allume à chaque passage, et la bande d'annonce parle au
+passage dont il est question. Son banc mesure **212 passages de main, 0 muet**.
+
+⚠️ **Mon propre contrôle ne mesurait PAS ce point**, et je l'ai écrit dans le
+banc plutôt que de le laisser croire : la page ne publie rien qui désigne le
+joueur à qui la question s'adresse, et ma première version comptait **zéro
+occasion** sur 242 décisions. Un demi-banc muet vaut moins que pas de banc.
+
+Ce qui suit est la demande d'origine.
+
 [DEMANDÉ] On ne comprend pas que son tour est fini et que l'autre doit choisir
 sa phase.
 
-### ANI-3 (Corentin, ligne 11) — Le début de phase ne se voit pas
+### ANI-3 (Corentin, ligne 11) — Le début de phase ne se voit pas — ✅ FAIT 05-08
+**[VÉRIFIÉ 05-08 · rejoué par moi]** La carte Phase qui s'ouvre traverse la bande
+d'annonce, Production comprise. **Mesure d'après, rejouée par moi : 57 débuts de
+phase, 0 muet** (32 muets au scellement).
+
+Ce qui suit est la demande d'origine.
+
 [DEMANDÉ] En particulier la phase de Production : on ne sait pas qu'elle commence.
 
-### ANI-4 (Corentin, ligne 24) — Le « +3 » de la défausse passe trop vite
+### ANI-4 (Corentin, ligne 24) — Le « +3 » de la défausse passe trop vite — ✅ FAIT 05-08
+**[DÉCLARÉ par l'agent, mesuré par son banc]** Le gain dure **3 392 millisecondes
+au plus court** sur 130 gains chronométrés. Le vrai défaut n'était pas la durée
+réglée mais l'**empilement** : deux gains rapprochés se chassaient l'un l'autre,
+et le plus court durait **6 millisecondes**. Ils s'empilent désormais.
+
+Déclaré par l'agent, et c'est juste : la correction vaut pour **tous** les « +N »
+de tous les bacs, pas seulement celui de la défausse — il n'y a qu'un seul point
+d'affichage.
+
+Ce qui suit est la demande d'origine.
+
 [DEMANDÉ] Rallonger la durée d'affichage du gain quand on défausse une carte.
 
-### ANI-6 (Alexis, 04-08) — Les pioches et les défausses doivent se voir
+### ANI-6 (Alexis, 04-08) — Les pioches et les défausses doivent se voir — ✅ FAIT 05-08
+**[VÉRIFIÉ 05-08 · rejoué par moi]** Un porte-cartes de deux paquets se pose dans
+la colonne de droite. Une carte piochée en vient, une carte défaussée y va, des
+deux côtés de la table. **Mesure : 40 pioches et 49 défausses, aucune muette**,
+le trajet faisant plus de 200 points d'écran.
+
+**Vérifié à la source par moi** : il n'existe qu'**une seule** fabrique qui pose
+un objet dans la couche de vol (`web/webapp/vue/anim.js:195`), et elle pose la
+marque à chaque fois. Aucun second mécanisme de vol n'a été écrit à côté.
+
+Ce qui suit est la demande d'origine.
+
 [DEMANDÉ] Deux mouvements, visibles **chez soi et chez l'adversaire** :
 - **pioche** : la carte arrive par la **droite de l'écran** et rejoint la main ;
 - **défausse** : la carte quitte la main et rejoint la pile de défausse — c'est
@@ -737,7 +788,27 @@ Reste seulement à le **montrer** au joueur quand cela arrive.
 ### CNF-1 (Corentin, ligne 6) — Trier sa main en déplaçant les cartes
 [DEMANDÉ] Pouvoir réordonner les cartes de sa main en les faisant glisser.
 
-### CNF-2 (ancien K4) — Voir la défausse — SPÉCIFIÉE PAR ALEXIS
+### CNF-2 (ancien K4) — Voir la défausse — ✅ FAIT 05-08
+**[VÉRIFIÉ 05-08 · rejoué par moi]** Les trois exigences et les précisions sont
+tenues. **Mesure d'après, rejouée par moi : 49 dessus de pile différents relevés
+sur une partie entière, aucun caché ; la fenêtre s'ouvre au clic, montre 152
+cartes, défile, et se lit du plus récent au plus ancien.** L'option de partie
+éteint la pile, la fenêtre, **et** la face de la carte qui s'envole.
+
+**Vérifié à la source par moi** : la fenêtre lit `etat.defausse`, la liste que le
+moteur publie, sans la trier ni la renverser (`web/webapp/vue/defausse.js:151`).
+C'est le point qui compte : une liste tenue par la page divergerait au premier
+remélange de la défausse dans la pioche.
+
+⚠️ **Mon contrôle caché a cru trouver un écart ici, et il avait tort.** Il
+comparait le nombre de cartes de la fenêtre à celui d'une partie de référence
+qui jouait **466 décisions** là où l'écran en joue **172** — deux parties
+différentes. Et la défausse n'est pas une pile qui ne fait que grandir : le
+remélange la reverse dans la pioche, donc même le sens de l'écart ne prouvait
+rien.
+
+Ce qui suit est la spécification d'origine.
+
 [SPÉCIFIÉ 04-08, mot pour mot] Trois exigences, dans cet ordre :
 
 1. **La dernière carte défaussée est toujours visible, face découverte**, posée
