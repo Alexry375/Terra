@@ -353,6 +353,20 @@ demande explicite d'Alexis. **Ce comportement reste.**
 Les agrandir ne montre rien et n'a aucun intérêt : retirer la loupe sur ces
 cartes-là.
 
+### LIS-14 (trouvé par la machine le 05-08, personne ne l'avait signalé) — Le contour vert ment parfois
+[VÉRIFIÉ 05-08] Le banc `web/webapp/verif/jouable.py` compare, à chaque
+décision, les cartes de ma main marquées « jouable » (contour vert) et les
+cartes que le moteur offre réellement. Il relève **cinq désaccords** sur une
+partie entière, tous du même sens : des cartes **marquées jouables que le moteur
+n'offre pas**. Exemple : décision 4, huit cartes marquées à tort.
+
+**Ce n'est pas une régression du lot moteur** : mesuré à l'identique sur le dépôt
+d'avant la fusion (même cinq désaccords, même décision 4).
+
+Personne ne l'a signalé en partie — le contour vert trompeur ne se remarque que
+si l'on essaie de jouer la carte. À traiter dans un lot d'affichage ultérieur ;
+pas glissé dans le chantier en cours, qui est déjà chargé.
+
 ### LIS-10 (ancien J3) — Les logos Océan et Forêt ne sont pas détourés
 [DÉCLARÉ 04-08] Dans les décisions, ces deux jetons s'affichent sur un carré
 blanc, alors que le logo de la défausse est proprement détouré.
