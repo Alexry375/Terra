@@ -384,8 +384,54 @@ html[data-pv-masques="oui"] [data-role="vp"] { display: none; }
    loupe qui l'agrandit, et l'escalier doit rester mesurable au pixel près. */
 .pile .carte--jeu:hover { z-index: 999; }
 .pile .carte--jeu:hover img { box-shadow: 0 0 0 2px var(--glace), 0 8px 26px rgba(0, 0, 0, .85); }
+/* LIS-3 (Corentin, ligne 22) — LES RESSOURCES POSÉES SUR UNE CARTE NE SE
+   VOYAIENT PAS, et ce n'était pas une question de taille : la pastille était
+   posée en HAUT À DROITE, précisément le coin que la carte suivante recouvre.
+   Dans une pile, la carte d'indice i+1 est décalée de `DECALAGE_X` vers la
+   DROITE et de `DECALAGE_Y` vers le HAUT (`vue/plateau.js`), et elle passe
+   par-dessus (`z-index: i + 1`). Le compteur de chaque carte disparaissait
+   donc sous la suivante — toutes sauf la dernière posée.
+
+   Aucun `z-index` n'y peut rien : la pastille vit dans le contexte
+   d'empilement de sa propre carte, qui est sous la suivante. C'est la PLACE
+   qu'il faut changer.
+
+   Elle passe donc en BAS À GAUCHE, dans la bande que la pile laisse toujours
+   découverte : les 40 % de largeur à gauche (`DECALAGE_X`) et le bandeau du
+   bas (`DECALAGE_Y`). Elle grossit aussi un peu — les piles sont mises à
+   l'échelle par `reduire()`, et 17 px réduits ne se lisaient plus.
+
+   ET ELLE RÉSISTE À CETTE MISE À L'ÉCHELLE. Mesuré sur une vraie partie
+   (`verif/ressources-visibles.py`, graine 4242) : découverte, la pastille
+   tombait tout de même à 8 px de côté — les piles se réduisent jusqu'à ce
+   qu'elles tiennent dans leur cadre, et le nombre devenait illisible. Elle
+   reprend donc à son compte l'inverse de l'échelle que `vue/plateau.js` pose
+   sur `#piles-N` (`--echelle`), ce qui lui rend une taille à peu près
+   constante à l'œil, que le plateau soit serré ou au large.
+
+   Le facteur est BORNÉ À 1.8, et ce plafond n'est pas décoratif — c'est de la
+   géométrie. La bande découverte à gauche vaut `DECALAGE_X` × la largeur, soit
+   44 px sur 110. Agrandie au-delà, la pastille repasse sous la carte voisine :
+   on aurait réparé la taille en recréant le défaut d'origine.
+
+   ET CE N'EST PAS UN CALCUL DE COIN DE TABLE, C'EST UNE MESURE. À 1.9,
+   `verif/ressources-visibles.py` retrouve 18 pastilles recouvertes sur la
+   graine 4242 — par l'image de la carte voisine, et par la bande de la main
+   quand la pastille déborde du plateau. À 1.8, aucune.
+
+   LE PRIX EN EST ASSUMÉ : quand une pile est très réduite, la bande découverte
+   ne fait plus qu'une douzaine de pixels à l'écran, et la pastille ne peut pas
+   être plus grande que la place qu'on lui laisse. Mesuré sur la graine 4242,
+   au pire moment de la partie : 8 px avant, 11 px après, et jamais recouverte.
+   Aller plus loin demanderait de desserrer l'escalier des piles
+   (`DECALAGE_X`) — c'est-à-dire de redessiner le plateau, et ce n'est pas
+   ce lot. */
 .pile .carte--jeu .carte__ressources {
-  top: -4px; right: -4px; min-width: 17px; height: 17px; font-size: 11px;
+  top: auto; right: auto; bottom: 3px; left: 3px;
+  min-width: 21px; height: 21px; font-size: 13px;
+  box-shadow: 0 0 0 1.5px rgba(6, 8, 14, .85), 0 0 10px rgba(237, 181, 78, .75);
+  transform: scale(clamp(.5, calc(1 / var(--echelle, 1)), 1.8));
+  transform-origin: bottom left;
 }
 
 /* ======================================================== LA CARTE DES OCÉANS */

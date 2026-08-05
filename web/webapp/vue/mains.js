@@ -90,6 +90,14 @@ export function construireMains() {
     `<span class="main__geste" id="mienne-geste"></span></div>` +
     `<div class="main__rang" id="mienne-rang"></div>`;
   document.body.appendChild(mienne);
+
+  // CNF-1 — `vue/geste.js` déplace la carte dans le document au fil du
+  // glissement, puis annonce que la rangée a changé. On relit alors la rangée
+  // telle qu'elle est : c'est le document qui fait foi, et l'ordre retenu
+  // survit ainsi au prochain rendu, quand une pioche ou une pose reconstruira
+  // la main. On écoute une fois pour toutes, la rangée n'étant jamais recréée.
+  const rangee = mienne.querySelector("#mienne-rang");
+  rangee.addEventListener("main-triee", () => retenirOrdre(rangee));
 }
 
 // Le plan de la décision en cours, quand elle se joue DEPUIS LA MAIN :
@@ -245,10 +253,46 @@ function cartesEnMain(etat, p, decision, active) {
   return cartes;
 }
 
+/**
+ * CNF-1 — L'ORDRE QUE LE JOUEUR S'EST DONNÉ, carte par carte.
+ *
+ * Le moteur publie la main dans SON ordre, et il a raison de le faire : c'est
+ * son état. Le rangement, lui, est une affaire d'écran — il ne remonte jamais
+ * au moteur et ne change aucune réponse. La réponse rendue est l'indice que le
+ * moteur a énuméré, retrouvé PAR LA CLÉ de la carte (`plan.indices`), jamais
+ * par sa place dans la rangée : trier sa main ne peut donc pas jouer une autre
+ * carte que celle qu'on touche.
+ *
+ * Clé de carte -> rang voulu. Une carte inconnue (celle qu'on vient de piocher)
+ * n'a pas de rang : elle prend la fin, dans l'ordre du moteur.
+ */
+const ORDRE = new Map();
+
+/** Relit la rangée telle qu'elle est, et retient cet ordre-là. */
+function retenirOrdre(z) {
+  ORDRE.clear();
+  [...z.children].forEach((f, i) => {
+    if (f.dataset.carteCle) ORDRE.set(f.dataset.carteCle, i);
+  });
+}
+
+/** Range les cartes du moteur selon l'ordre voulu, sans en perdre aucune. */
+function selonMonOrdre(cartes) {
+  if (ORDRE.size === 0) return cartes;
+  const rang = (c) => {
+    const r = ORDRE.get(cle(c));
+    return r === undefined ? Number.MAX_SAFE_INTEGER : r;
+  };
+  // Tri STABLE (celui de `Array.prototype.sort` l'est) : deux cartes sans rang
+  // voulu restent dans l'ordre où le moteur les a données.
+  return [...cartes].sort((a, b) => rang(a) - rang(b));
+}
+
 /** Ma main, en bas, en clair — et c'est d'ici qu'on joue. */
 function maMain(j, cartes, proposees, payables) {
   const z = ref("#mienne-rang");
   if (!z) return;
+  cartes = selonMonOrdre(cartes);
   ref("#mienne-mot").textContent = `${MOT.hand} · ${nomJoueur(j)} · ${cartes.length}`;
   // Le mode d'emploi du geste, et seulement quand il y a un geste à faire.
   ref("#mienne-geste").textContent = plan ? MOT.dragHint : "";
@@ -456,6 +500,9 @@ export function adversaireAgit(quoi) {
 /** Remet la mémoire à zéro (nouvelle partie). */
 export function oublierMains() {
   plan = null;
+  // Le rangement de la main appartient à la partie qui s'achève : la suivante
+  // repart de l'ordre du moteur.
+  ORDRE.clear();
   for (const s of ["#mienne-rang", "#adverse-rang"]) {
     const z = ref(s);
     if (!z) continue;
