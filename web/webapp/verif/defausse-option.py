@@ -106,6 +106,18 @@ def cliquer_la_pile(pg):
         pg.wait_for_timeout(300)
 
 
+def refermer(pg):
+    """Referme la fenetre si elle est ouverte, par son bouton — le chemin du
+    joueur. Ce n'est pas une politesse : une fenetre laissee ouverte recouvre
+    tout l'ecran et le geste SUIVANT du banc echouerait sur elle, ce qui
+    rendrait un timeout illisible a la place d'un verdict. Un banc doit dire ce
+    qu'il a trouve, y compris — et surtout — quand il a trouve un defaut."""
+    b = pg.query_selector("[data-fermer-defausse]")
+    if b:
+        b.click()
+        pg.wait_for_timeout(150)
+
+
 def main():
     fautes = []
     with serveur(RACINE) as url:
@@ -159,6 +171,7 @@ def main():
             if pg.evaluate(ETAT)["fenetre"]:
                 fautes.append("option eteinte et la fenetre s'ouvre quand meme — "
                               "« la fenetre ne s'ouvre pas » (CNF-2)")
+                refermer(pg)
 
             # 3. RALLUMÉE.
             avant2, apres2 = basculer(pg)
@@ -174,6 +187,7 @@ def main():
             cliquer_la_pile(pg)
             if not pg.evaluate(ETAT)["fenetre"]:
                 fautes.append("option rallumee et la fenetre ne s'ouvre plus")
+            refermer(pg)
 
             if erreurs:
                 fautes.append(f"la page a leve {len(erreurs)} erreur(s) : {erreurs[0]}")
