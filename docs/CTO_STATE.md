@@ -5,6 +5,67 @@
 
 Dernière mise à jour : 2026-08-05
 
+## ✅ 05-08 — LE LOT « CE QUE LE MOTEUR NE DIT PAS » EST FUSIONNÉ
+
+Trois nombres que le moteur connaissait et ne disait à personne. **Aucune règle
+du jeu ne change, et aucune partie enregistrée ne cesse d'être rejouable** —
+c'est la propriété qui faisait la cohérence du lot, et elle est vérifiée : aucun
+fichier de test n'a été touché, aucune empreinte de partie de référence n'a
+bougé, les vingt-cinq suites passent.
+
+| Point | Ce qui est publié | Où on le voit |
+|---|---|---|
+| **MOT-10** | `production.mc_reel`, le revenu réel de la prochaine phase Production | à côté de la production de base |
+| **MOT-14** | `joker`, le badge choisi pour une carte à badge « ? » | un jeton sur la carte posée, **pour les deux joueurs** — débloque LIS-6 |
+| **MOT-15** | `pv_ressources`, ce que les ressources posées rapportent déjà | sur la carte agrandie — seconde moitié de LIS-3 |
+
+Les trois nombres viennent du **service unique** du moteur : aucun barème de
+carte n'est recopié à l'écran, et le contrôle caché qui vérifie ce point précis
+est vert. C'est l'exigence la plus importante du lot : deux comptes qui disent la
+même chose aujourd'hui divergent le jour où une carte change.
+
+### ⚠️ UN SIXIÈME CONTRÔLE FAUX, ET TROIS ERREURS DANS LE MÊME
+
+Mon contrôle de la production a signalé **81 écarts** qui n'en étaient pas.
+Trois erreurs distinctes, toutes du même genre que les cinq de la veille — la
+mesure était bonne, les **conditions** de la mesure étaient fausses :
+
+1. Il ignorait le **bonus du joueur qui choisit la phase Production**, que mon
+   propre contrat demandait pourtant d'exclure du nombre annoncé.
+2. Il retenait des intervalles commençant **pendant la phase d'Action**, où une
+   action déplace de l'argent : les deux sommes se mélangeaient.
+3. Il lisait la phase choisie **sur l'état d'avant**, qui porte encore le choix
+   de la manche précédente — il attribuait le bonus au mauvais joueur, 27 fois.
+
+Un quatrième défaut m'a été signalé par l'agent, et il avait raison : mon filtre
+exigeait la main inchangée, ce qui écartait d'office tout joueur ayant de la
+production de cartes.
+
+**Le contrôle réparé est éprouvé dans les deux sens** : vert sur la livraison
+(190 encaissements mesurés, 190 justes), rouge sur un sabotage « un mégacrédit de
+moins » (190 sur 190 attrapés), rouge sur une reconstitution du vrai défaut
+MOT-10 (59 sur 190 attrapés — exactement les cas à production dérivée).
+
+### Ce que l'enquête a appris sur le jeu lui-même
+
+Le bonus du sélectionneur de la phase Production n'a pas un montant, il en a
+**trois** selon la carte Phase IV détenue : **+4** avec la carte de base, **+1**
+avec la version améliorée IV-A (plus le rejeu de la production d'une carte
+verte), **+7** avec IV-B. C'est vérifié à la sonde sur la vraie phase, et fermé
+par lecture exhaustive : la phase Production n'a que **deux** endroits qui
+versent des mégacrédits. Cela compte pour la suite : une intelligence
+artificielle qui choisit ses phases doit connaître ces trois montants.
+
+### Deux choses honnêtes à garder en tête
+
+- **L'agent est mort trois fois** — deux coupures de liaison avec le service, une
+  fois le chien de garde du harnais — et **chaque fois avec du travail terminé et
+  rien d'enregistré**, malgré la consigne écrite. J'ai sauvé son travail à la
+  main les trois fois. La consigne « commite chaque point » ne suffit pas : il
+  faut la répéter à chaque relance.
+- **LIS-3 n'est pas fini** : les 18 pastilles recouvertes sont toujours là,
+  au même nombre exactement qu'avant le lot. Non régressé, non réparé.
+
 ## 🔧 NUIT DU 04 AU 05-08 — LE LOT MOTEUR FUSIONNÉ, DEUX CHANTIERS D'ÉCRAN LANCÉS
 
 ### Ce qui est entré dans le dépôt

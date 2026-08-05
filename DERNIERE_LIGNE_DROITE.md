@@ -224,8 +224,28 @@ exige de recevoir les réponses l'une après l'autre, l'écran garde la seconde 
 côté et l'envoie ensuite. Le travail est donc dans l'écran et le relais, **pas
 dans le moteur** — cela peut se faire hors du gros lot.
 
-### MOT-10 (Corentin, lignes 18 et 20) — La production affichée ignore les cartes à badges — CONFIRMÉ
-[VÉRIFIÉ 05-08 · mesuré] Confirmé **dans les deux moitiés** : les badges ET les
+### MOT-10 (Corentin, lignes 18 et 20) — La production affichée ignore les cartes à badges — ✅ RÉPARÉ 05-08
+[VÉRIFIÉ 05-08 · fusionné] `production.mc_reel` publie le revenu réel de la
+prochaine phase Production, depuis le service unique `flow::derived_production`.
+L'écran l'affiche à côté de la production de base.
+
+**Ce que l'enquête a appris en plus, et qui n'était pas dans la fiche** : le
+bonus du joueur qui choisit la phase Production n'a pas un montant mais
+**trois**, selon la carte Phase IV qu'il détient — **+4** avec la carte de base,
+**+1** avec la version améliorée dite IV-A (plus le rejeu de la production d'une
+carte verte, dont le montant dépend d'un troisième choix), **+7** avec IV-B
+(`effects.rs:3029-3042`, `3188-3202`, `3204-3217`, versés par `flow.rs:4284`).
+Tous les trois sont **hors du nombre annoncé**, pour la raison écrite plus bas :
+ils dépendent d'une phase pas encore choisie. Deux champs déjà publiés
+permettent à un observateur de les retrouver : `chosen_phase` et
+`phase_upgrades`.
+
+**Preuve de complétude** : dans toute la phase Production il n'existe que
+**deux** endroits qui versent des mégacrédits (`flow.rs:4291` et le rejeu de
+IV-A en `flow.rs:4309`). Le nombre annoncé couvre le premier moins le bonus.
+Rien d'autre ne peut manquer.
+
+[VÉRIFIÉ 05-08 · mesuré, constat d'origine] Confirmé **dans les deux moitiés** : les badges ET les
 jetons Forêt. Le moteur ne publie que la piste de production de base
 (`engine/src/observe.rs:77-82`), alors qu'il verse en plus tout ce qui dépend des
 badges et des forêts (`engine/src/flow.rs:4289-4293`, calculé par
@@ -301,8 +321,15 @@ qui explique à un cerveau distant comment jouer — ne dit pas un mot de la
 vente**. Une intelligence artificielle branchée dessus empoisonnerait la partie
 sans le savoir. À corriger avant GRO-1.
 
-### MOT-14 (05-08) — Le badge choisi pour un joker n'est jamais publié
-[VÉRIFIÉ 05-08] Bloque **LIS-6** (« rien ne dit quel badge a été choisi »),
+### MOT-14 (05-08) — Le badge choisi pour un joker n'est jamais publié — ✅ RÉPARÉ 05-08
+[VÉRIFIÉ 05-08 · fusionné] Une carte posée publie `joker`, la chaîne de
+`Tag::as_str()` — exactement celle que le point de décision met dans les options
+qu'il propose, donc une seule source de noms. L'écran pose un jeton **en haut à
+gauche** de la carte posée : le coin haut-droit est recouvert par la carte
+suivante de la pile, leçon tirée de LIS-3. **LIS-6 est donc débloqué et fait.**
+Contrôle : 18 choix de badge observés, 12 cartes posées ensuite, aucune muette.
+
+[VÉRIFIÉ 05-08, constat d'origine] Bloque **LIS-6** (« rien ne dit quel badge a été choisi »),
 déclaré tel quel par le chantier d'affichage et vérifié par moi.
 
 Le moteur **sait** quel badge a été choisi pour chaque carte joker : il le range
@@ -320,8 +347,20 @@ de l'autre joueur, ni d'une partie reprise en cours de route.
 pose aucun point de décision. À faire dans le même lot que MOT-10, qui est
 exactement le même geste.
 
-### MOT-15 (05-08) — Les points déjà rapportés par les ressources posées ne sont pas calculables à l'écran
-[VÉRIFIÉ 05-08] Bloque la **seconde moitié de LIS-3** (« quand on agrandit une
+### MOT-15 (05-08) — Les points déjà rapportés par les ressources posées ne sont pas calculables à l'écran — ✅ RÉPARÉ 05-08
+[VÉRIFIÉ 05-08 · fusionné] Une carte posée publie `pv_ressources`, pris dans
+`flow::card_points` — la fonction que le décompte général appelle déjà carte par
+carte. Aucun barème recopié nulle part : le contrôle caché « un seul endroit
+compte » le vérifie et il est vert. L'écran l'affiche sur la **carte agrandie**,
+là où il y a la place de l'écrire en toutes lettres. **La seconde moitié de
+LIS-3 est donc faite** ; la première (les pastilles recouvertes) reste ouverte.
+
+Un défaut trouvé en chemin et réparé : l'adaptateur des cartes perdait le compte
+de ressources au **second** passage, et la loupe repasse par lui — la carte
+agrandie, celle qu'on ouvre justement pour lire, était donc la seule à ne rien
+dire.
+
+[VÉRIFIÉ 05-08, constat d'origine] Bloque la **seconde moitié de LIS-3** (« quand on agrandit une
 carte, afficher les points de victoire que ses ressources rapportent déjà »).
 
 Le moteur publie `resources` : un **compte** (« 4 »), et rien d'autre. Ni la
@@ -334,6 +373,18 @@ carte — ce qui créerait un **second endroit qui compte les points**, à côt�
 **Correctif** : publier le nombre depuis le service unique de comptage,
 `engine/src/observe.rs`. **Aucune partie enregistrée cassée.** Même lot que
 MOT-10 et MOT-14.
+
+### MOT-16 (05-08) — Un badge joker s'affiche alors que personne ne l'a choisi à l'écran
+[DÉCLARÉ par l'agent du lot, non re-vérifié par moi] Le banc d'écran du chantier
+a observé un jeton de badge joker posé sur une carte alors qu'**aucune question
+« quel badge choisis-tu ? » n'avait jamais été posée à l'écran** dans cette
+partie. Deux lectures possibles, et je n'ai pas tranché : soit une carte joker
+est arrivée en jeu par un chemin qui choisit le badge sans demander (un effet qui
+pose une carte directement), et c'est alors normal ; soit l'état publié annonce
+un badge qui n'a pas été choisi, et c'est un cousin de MOT-12.
+
+**À reprendre à part**, avec la partie exacte et le rang de la décision. Ne pas
+mélanger avec le lot A3.
 
 ### MOT-12 (ancien I2) — L'état du moteur recule parfois
 [DÉCLARÉ] 20 reculs sur 183 lectures, graine 5150. Jamais expliqué. À reprendre
@@ -448,8 +499,11 @@ qui reste découverte n'y fait qu'environ treize points d'écran, et repousser
 l'échelle d'agrandissement au-delà de 1,8 remet dix-huit pastilles sous leur
 voisine. Ce n'est donc pas un réglage à pousser mais une disposition à revoir.
 
-**La seconde moitié est bloquée par le moteur** : voir MOT-15. L'écran ne peut
-pas calculer les points des ressources sans recopier le barème de chaque carte.
+**La seconde moitié est FAITE 05-08** : MOT-15 réparé, la carte agrandie dit
+maintenant ce que ses ressources rapportent déjà, en points de victoire, sans
+qu'aucun barème soit recopié à l'écran. **La première moitié reste ouverte** :
+`verif/ressources-visibles.py` rend toujours **18 pastilles recouvertes**,
+exactement le même chiffre qu'avant ce lot — non régressé, non réparé.
 
 ### LIS-4 (Corentin, ligne 15) — Les objectifs et récompenses sont flous
 [VÉRIFIÉ 04-08 · Q4 — décision à prendre] L'agrandissement au survol existe.
@@ -494,9 +548,23 @@ lui-même.
 lignes de trois à deux lignes de quatre et cinq, puis revient. Corentin trouve
 la disposition en 4 et 5 plus lisible et voudrait qu'elle soit **la seule**.
 
-### LIS-6 (Corentin, ligne 7) — Rien ne dit quel badge a été choisi
-[DEMANDÉ] Les cartes à badge « ? » ne montrent pas le badge retenu. Demandé,
-idéalement : **poser le badge choisi à l'emplacement du « ? »** sur la carte.
+### LIS-6 (Corentin, ligne 7) — Rien ne dit quel badge a été choisi — ✅ FAIT 05-08
+[VÉRIFIÉ 05-08 · fusionné] Le badge choisi est posé en jeton sur la carte posée,
+pour les deux joueurs, une fois MOT-14 réparé. **Un écart assumé avec la demande
+d'origine** : le jeton est en **haut à gauche** et non à l'emplacement du « ? ».
+Raison mesurée : dans une pile, la carte suivante recouvre le coin haut-droit —
+c'est exactement le défaut que LIS-3 a mis trois mesures à faire admettre. Un
+badge posé au bon endroit mais invisible ne répond pas à la demande.
+
+**Deux limites que le banc d'écran dit lui-même** : les 725 jetons observés sont
+tous du côté du joueur 1 (aucune partie mesurée n'en a posé des deux côtés), et
+l'accord « badge montré = badge choisi » n'a pas pu être vérifié **à l'écran**,
+parce que le badge se choisit depuis la main et que la page ne pose jamais cette
+question dans les parties du banc. Cet accord est prouvé au niveau du moteur.
+
+[DEMANDÉ, texte d'origine] Les cartes à badge « ? » ne montrent pas le badge
+retenu. Demandé, idéalement : **poser le badge choisi à l'emplacement du « ? »**
+sur la carte.
 
 ### LIS-7 (Corentin, ligne 4) — Une croix, pas une coche, pour le premier tri
 [CONFIRMÉ PAR ALEXIS 04-08 · Q5] À cet écran, **on désigne les cartes qu'on
