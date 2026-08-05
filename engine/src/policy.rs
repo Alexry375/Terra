@@ -107,7 +107,54 @@ pub trait Policy {
         -> Option<usize>;
 
     /// Bonus du sélectionneur en phase construction.
+    ///
+    /// **(MOT-3) Ce n'est plus un point de décision du déroulement**, mais le
+    /// choix de FOND de la politique — « qu'est-ce que je veux de ce bonus ? ».
+    /// Le déroulement, lui, le demande en DEUX TEMPS, par les deux méthodes
+    /// ci-dessous. Une politique qui n'a qu'un avis global n'a rien à changer :
+    /// les deux temps retombent dessus par leurs corps par défaut.
     fn construction_bonus(&mut self, rng: &mut StdRng, player: usize) -> ConstructionBonus;
+
+    /// **(MOT-3) PREMIER TEMPS du bonus de Construction : « piocher tout de
+    /// suite, avant de poser ? »**
+    ///
+    /// Livret `docs/regles/livret-base.md:336` : « piocher une carte **avant ou
+    /// après** avoir joué une carte lors de cette phase OU jouer une carte
+    /// bleue/rouge supplémentaire ». Les trois issues étaient tranchées d'un
+    /// coup, avant la moindre pose : le joueur devait choisir « piocher après »
+    /// ou « poser une seconde carte » sans savoir ce qu'il pourrait poser — et
+    /// le « avant ou après » du livret n'était plus un choix, mais une
+    /// formalité.
+    ///
+    /// Ce premier temps ne pose donc que la question qui DOIT se trancher
+    /// avant : la pioche immédiate, celle qui peut encore changer ce qu'on
+    /// posera. Vrai = piocher maintenant, le bonus est consommé. Faux = ne rien
+    /// décider d'autre pour l'instant ; la vraie question viendra une fois la
+    /// carte posée.
+    ///
+    /// **Aucun réglage de jeu nouveau** : le nombre d'issues du bonus reste
+    /// trois, on ne fait que les demander au moment où le joueur peut y
+    /// répondre.
+    fn construction_bonus_avant(&mut self, rng: &mut StdRng, player: usize) -> bool {
+        self.construction_bonus(rng, player) == ConstructionBonus::DrawCardBefore
+    }
+
+    /// **(MOT-3) SECOND TEMPS, la carte posée : piocher, ou poser une seconde
+    /// carte bleue/rouge ?**
+    ///
+    /// Demandé seulement aux joueurs qui n'ont pas déjà pioché au premier
+    /// temps. C'est ici que le joueur sait enfin ce qu'il a pu poser — et donc
+    /// si une seconde pose lui servirait à quelque chose.
+    ///
+    /// Rendre [`ConstructionBonus::DrawCardBefore`] n'a plus de sens à cet
+    /// instant : la pose a eu lieu. Le moteur le lit comme « piocher », le seul
+    /// sens qui reste au vœu exprimé.
+    fn construction_bonus_apres(&mut self, rng: &mut StdRng, player: usize) -> ConstructionBonus {
+        match self.construction_bonus(rng, player) {
+            ConstructionBonus::SecondBuild => ConstructionBonus::SecondBuild,
+            _ => ConstructionBonus::DrawCard,
+        }
+    }
 
     /// Une décision de la phase action : Some(indice dans options) ou None (stop).
     fn action_choice(&mut self, rng: &mut StdRng, player: usize, options: &[ActionOpt])

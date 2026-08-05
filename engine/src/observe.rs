@@ -469,6 +469,18 @@ impl<P: Policy> Policy for ObservingPolicy<'_, P> {
         self.inner.construction_bonus(rng, player)
     }
 
+    // (MOT-3) Les DEUX TEMPS du bonus de Construction sont relayés
+    // explicitement. Sans cela, les corps par défaut de `Policy` retomberaient
+    // sur `construction_bonus` ci-dessus, et la politique enveloppée perdrait
+    // en silence ses propres réponses aux deux temps.
+    fn construction_bonus_avant(&mut self, rng: &mut StdRng, player: usize) -> bool {
+        self.inner.construction_bonus_avant(rng, player)
+    }
+
+    fn construction_bonus_apres(&mut self, rng: &mut StdRng, player: usize) -> ConstructionBonus {
+        self.inner.construction_bonus_apres(rng, player)
+    }
+
     fn action_choice(
         &mut self,
         rng: &mut StdRng,

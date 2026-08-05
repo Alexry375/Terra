@@ -300,7 +300,14 @@ const QUESTIONS = {
     const duMoteur = (d.question || "").trim();
     return duMoteur || "Nothing to build this phase.";
   },
-  construction_bonus: () => "Construction Phase selector bonus",
+  // (MOT-3) Deux temps, deux phrases : le champ `temps` du descripteur dit
+  // lequel. Sans lui — la question à trois issues des chemins sans moment —
+  // c'est l'intitulé d'avant.
+  construction_bonus: (d) => {
+    if (d.temps === "avant") return "Draw a card right now, before playing?";
+    if (d.temps === "apres") return "Selector bonus: draw, or play a second card?";
+    return "Construction Phase selector bonus";
+  },
   research_keep: (d) =>
     `Keep ${d.a_choisir} card${s(d.a_choisir)} out of ${(d.options || []).length}`,
   action_choice: () => "Which action do you trigger?",
@@ -451,10 +458,18 @@ const PREFIXES = [
   ["Action de ", (n) => `Use ${n}`],
 ];
 
+// (MOT-3) LE BONUS DE CONSTRUCTION SE DEMANDE EN DEUX TEMPS. Les trois libellés
+// d'un seul coup restent lus : le pont sert encore la question à trois issues
+// aux chemins qui n'ont pas de moment (sonde, tests). Les quatre suivants sont
+// ceux des deux temps du déroulement — « tout de suite, avant de poser ? »,
+// puis, la carte posée, « piocher ou en poser une seconde ? ».
 const BONUS = {
   "Piocher 1 carte AVANT de poser": "Draw 1 card BEFORE playing",
   "Piocher 1 carte APRÈS avoir posé": "Draw 1 card AFTER playing",
   "Poser une carte bleue/rouge supplémentaire": "Play an extra blue/red card",
+  "Piocher 1 carte tout de suite": "Draw 1 card right now",
+  "Décider après avoir posé": "Decide after playing",
+  "Piocher 1 carte": "Draw 1 card",
 };
 
 const MULLIGAN = {

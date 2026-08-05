@@ -859,8 +859,8 @@ fn la_boite_de_base_est_intacte_et_l_extension_a_change() {
     let s = run_simulation(&base, 1000, 2024, &mut pol);
     assert_eq!(
         format!("{:016x}", s.state_hash),
-        "bf70799ff3fee1d8",
-        "empreinte de la boîte de base, REFIXÉE le 04-08 (moteur-questions-manquantes) : l'action standard de vente a quitté la phase Action, la liste d'options tirée par RandomPolicy change et le tirage par défaut de sell_card disparaît — les parties ne se déroulent donc plus pareil. Repères précédents : 7dda3ea2e9b2901b (03-08), c1c52fcbe4e057b0 (01-08), d6a7267472501b13 (31-07)"
+        "8e4ec5b0296470e6",
+        "empreinte de la boîte de base, REFIXÉE le 05-08 (choix-au-bon-moment) : les trois points du lot déplacent ou suppriment des points de décision — les actions stériles quittent la liste (MOT-2), le bonus de Construction se demande en deux temps (MOT-3), le badge joker n'est plus demandé pour toute la main (MOT-8). La liste ordonnée des réponses se décale, RandomPolicy ne tire plus aux mêmes endroits, les parties ne se déroulent donc plus pareil. Repères précédents : bf70799ff3fee1d8 (04-08), 7dda3ea2e9b2901b (03-08), c1c52fcbe4e057b0 (01-08), d6a7267472501b13 (31-07)"
     );
 
     let db = db();

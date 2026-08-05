@@ -4,8 +4,8 @@
 
 use engine::cards::{CardsDb, Color};
 use engine::flow::{
-    allowed_phases, assign_milestones, award_points, install_corporation, play_round, score,
-    setup_game,
+    allowed_phases, assign_milestones, award_points, blue_action_peut_produire,
+    install_corporation, play_round, score, setup_game,
 };
 use engine::policy::{ActionOpt, ConstructionBonus, Policy, RandomPolicy};
 use engine::sim::{check_invariants, run_simulation, InvariantTracker, MAX_GENERATIONS};
@@ -639,20 +639,39 @@ fn forced_conversions_skip_parameters_already_maxed() {
 #[test]
 fn blue_action_stub_consumes_activation() {
     let db = db();
-    let mut pol = TestPolicy::new();
-    let mut game = setup_game(&db, 25, &mut pol);
-    // Met une carte bleue en jeu par le flux réel de construction.
     // Une carte bleue entre en jeu (mise en jeu directe : l'objet de CE test
     // est l'activation en phase action ; la construction est couverte par les
     // autres tests). La carte est retirée de la pioche pour la conservation.
-    let blue_id = game
-        .deck
-        .iter()
-        .copied()
-        .find(|&c| db.projects[c as usize].color == Color::Blue)
-        .unwrap();
-    game.deck.retain(|&c| c != blue_id);
-    game.players[0].put_in_play(blue_id, &db);
+    //
+    // (MOT-2, « les choix se posent au bon moment ») La carte n'est plus la
+    // PREMIÈRE bleue venue : une action qui ne peut rien produire n'est
+    // désormais plus proposée, et ce test-ci porte sur la CONSOMMATION de
+    // l'activation, pas sur le choix de la carte. On prend donc la première
+    // bleue dont l'action peut produire dans l'état préparé — le joueur reçoit
+    // de quoi payer, sans quoi aucune ne le pourrait. `setup_game` étant
+    // déterministe, l'état retenu est exactement celui qu'on a éprouvé.
+    let candidates: Vec<u16> = {
+        let mut pol = TestPolicy::new();
+        let g = setup_game(&db, 25, &mut pol);
+        g.deck
+            .iter()
+            .copied()
+            .filter(|&c| db.projects[c as usize].color == Color::Blue)
+            .collect()
+    };
+    let (blue_id, mut game, mut pol) = candidates
+        .into_iter()
+        .find_map(|cand| {
+            let mut pol = TestPolicy::new();
+            let mut g = setup_game(&db, 25, &mut pol);
+            g.deck.retain(|&c| c != cand);
+            g.players[0].put_in_play(cand, &db);
+            g.players[0].mc = 50;
+            g.players[0].heat = 50;
+            g.players[0].plants = 50;
+            blue_action_peut_produire(&g, &db, 0, cand).then_some((cand, g, pol))
+        })
+        .expect("aucune carte bleue dont l'action puisse produire à la graine 25");
     pol.phase_script = VecDeque::from(vec![3, 4]);
     pol.action_script = VecDeque::from(vec![
         Some(ActionOpt::BlueAction(blue_id)),

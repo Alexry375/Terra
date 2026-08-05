@@ -1322,6 +1322,12 @@ impl Policy for Harnais<'_> {
         }
     }
 
+    /// **(MOT-3) Le bonus de Construction n'est plus une question, mais DEUX.**
+    ///
+    /// Cette méthode-ci n'est plus appelée par le déroulement : elle reste le
+    /// choix de fond de la politique, et le pont la sert par les deux temps.
+    /// Le corps est conservé pour les chemins qui n'ont pas de moment (la
+    /// sonde, les tests) et rend la même chose qu'avant.
     fn construction_bonus(&mut self, rng: &mut StdRng, player: usize) -> ConstructionBonus {
         let desc = json!({
             "type": "construction_bonus",
@@ -1341,6 +1347,47 @@ impl Policy for Harnais<'_> {
                 None => ConstructionBonus::DrawCard,
             },
             None => self.defaut.construction_bonus(rng, player),
+        }
+    }
+
+    /// (MOT-3) PREMIER TEMPS — la seule moitié qui doit se trancher avant la
+    /// pose. Deux issues, pas trois : la question réduite du livret.
+    fn construction_bonus_avant(&mut self, rng: &mut StdRng, player: usize) -> bool {
+        let desc = json!({
+            "type": "construction_bonus",
+            "joueur": player,
+            "temps": "avant",
+            "question": "Piocher 1 carte tout de suite, avant de poser ?",
+            "options": [
+                { "libelle": "Piocher 1 carte tout de suite" },
+                { "libelle": "Décider après avoir posé" },
+            ],
+        });
+        match self.prendre(desc) {
+            Some(r) => self.indice(&r, 2).map(|i| i == 0).unwrap_or(false),
+            None => self.defaut.construction_bonus_avant(rng, player),
+        }
+    }
+
+    /// (MOT-3) SECOND TEMPS — la carte posée, le joueur sait enfin ce qu'il a
+    /// pu poser. Deux issues : piocher, ou poser une seconde carte.
+    fn construction_bonus_apres(&mut self, rng: &mut StdRng, player: usize) -> ConstructionBonus {
+        let desc = json!({
+            "type": "construction_bonus",
+            "joueur": player,
+            "temps": "apres",
+            "question": "Bonus du sélectionneur : piocher, ou poser une seconde carte ?",
+            "options": [
+                { "libelle": "Piocher 1 carte" },
+                { "libelle": "Poser une carte bleue/rouge supplémentaire" },
+            ],
+        });
+        match self.prendre(desc) {
+            Some(r) => match self.indice(&r, 2) {
+                Some(1) => ConstructionBonus::SecondBuild,
+                _ => ConstructionBonus::DrawCard,
+            },
+            None => self.defaut.construction_bonus_apres(rng, player),
         }
     }
 
