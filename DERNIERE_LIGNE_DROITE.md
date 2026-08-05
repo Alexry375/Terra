@@ -17,6 +17,30 @@ Convention : `[VÉRIFIÉ JJ-MM]` = relu à la source ou mesuré, avec le
 Les identifiants sont neufs et parlants. L'ancien repère est rappelé entre
 parenthèses quand il existe.
 
+## ⚠️ RELECTURE GÉNÉRALE DU 05-08 — quinze fiches ne disaient plus la vérité
+
+Trois fiches ont été trouvées périmées dans la même journée. J'ai donc fait
+relire **toutes** les fiches non marquées faites, en lecture seule, contre le
+code d'aujourd'hui. Résultat sur **30 fiches examinées** :
+
+| Verdict | Nombre | Lesquelles |
+|---|---|---|
+| **déjà réglé, fiche périmée** | 15 | ANI-5 (2 points sur 3), LIS-1, LIS-2, LIS-7, LIS-8, LIS-10, LIS-11, LIS-13, CNF-1, CNF-4, CNF-5, MOT-4, MOT-9, MOT-11, MOT-12 |
+| **fait à moitié** | 3 | GRO-2 (3 sons sur 5 branchés), MOT-13 (le premier préalable est résolu), LIS-3 (déjà dit) |
+| **encore vrai** | 11 | MOT-2 (part restante), MOT-8, LIS-4, LIS-5, LIS-12, CNF-3, CNF-6, GRO-1, GRO-3, `adversaire.md`, ANI-5 point 1 |
+| **incertain, à mesurer** | 4 | ANI-5 point 1, VIE-1, VIE-2, VIE-3 |
+
+**La cause est structurelle, pas un oubli isolé** : deux branches entières ont
+été fusionnées dans le dépôt sans que la liste suive — celle des jauges et du
+tri de la main, et celle des phases simultanées. À elles deux, elles règlent
+huit fiches. Deux bancs de vérification qu'elles ont livrés dorment dans le
+dépôt depuis ce jour-là ; leur seule présence aurait dû nous alerter.
+
+**Conséquence pour la suite : ne plus jamais ouvrir un chantier sur la foi d'une
+fiche.** On remesure d'abord, on écrit le chiffre du jour dans le contrat,
+ensuite seulement on lance. C'est déjà ce que je fais au scellement — il faut le
+faire aussi avant de **choisir** le chantier.
+
 ## 0. Questions — état après les réponses d'Alexis du 04-08 au soir
 
 | Repère | Réponse |
@@ -194,11 +218,25 @@ Mon contrôle était donc **vert par accident** : il avalait le refus et comptai
 la tentative comme une réussite — exactement la faute que j'interdis aux
 agents. Deux choses restent à établir avant d'en faire un lot :
 
-1. Pourquoi `vente_offerte` vaut *vrai* alors qu'aucune occasion n'est ouverte.
-   C'est peut-être **cela**, le vrai défaut : l'état annonce une possibilité que
-   le moteur refuse ensuite.
+1. ~~Pourquoi `vente_offerte` vaut *vrai* alors qu'aucune occasion n'est
+   ouverte.~~ **✅ RÉSOLU, et je ne l'avais pas vu** [VÉRIFIÉ 05-08 · relecture
+   générale]. L'explication est écrite dans le code, et le cas est corrigé : un
+   drapeau de passage, `occasion_ouverte` (`engine/src/state.rs:606-620`), est
+   armé par l'ouverture de l'occasion (`engine/src/flow.rs:1762`) puis
+   **consommé** à la publication. Le commentaire sur place décrit exactement mon
+   symptôme : sans ce drapeau, un point de décision qui n'avait pas reçu son
+   occasion **gardait la valeur du point précédent**, c'est-à-dire *vrai*. Une
+   seconde sécurité a même été ajoutée (`state.rs:622-640`) : la publication
+   n'est autorisée que si la main est encore celle sur laquelle l'occasion a été
+   offerte.
 2. La suite exacte de réponses qui a produit le cas pendant l'enquête (graine
-   5150, vente n° 103, entrée n° 417), qui n'a pas été conservée.
+   5150, vente n° 103, entrée n° 417), qui n'a pas été conservée. **Reste
+   ouvert.**
+
+**Le défaut principal, lui, est toujours là** [VÉRIFIÉ 05-08] :
+`engine/src/flow.rs:2379` ouvre l'occasion de vendre, `flow.rs:2392-2404`
+recompte les cartes **après** la vente, et `flow.rs:2405-2415` sort sans poser
+la question quand il n'en reste aucune.
 
 ### MOT-6 (Corentin, ligne 19 · recoupe MOT-1) — Vendre quand on ne peut rien payer — FAIT
 **[FAIT 05-08 (`ff40503`), audité.]** L'occasion de vendre est ouverte à chaque
@@ -319,7 +357,11 @@ des points de décision décale la liste ordonnée des réponses. À grouper dan
 même lot que MOT-3, qui a le même effet, pour ne refixer les empreintes qu'une
 seule fois.
 
-### MOT-9 (Corentin, ligne 14) — Les deux joueurs doivent choisir leur phase en même temps
+### MOT-9 (Corentin, ligne 14) — Les deux joueurs doivent choisir leur phase en même temps — ✅ FAIT 05-08, fiche périmée
+**[VÉRIFIÉ 05-08 · relecture générale]** La question suivante n'est posée que si elle est la même quelle que soit la réponse de l'autre : un second moteur de lecture rejoue le point et essaie chacune des réponses possibles (`web/webapp/distant.js:614-710`, branché l. 801 et 831). Aucune information sur le choix de l'autre ne transite. Banc : `verif/rendez-vous.py`. Livré par `9ea9b82`.
+
+Ce qui suit est le constat d'origine.
+
 [TRANCHÉ PAR ALEXIS 04-08 · Q6] Le livret demande un choix **simultané et face
 cachée** (`livret-base.md:268` et `:629`). Notre écran fait attendre le second.
 
@@ -519,7 +561,11 @@ l'écran n'explique l'apparition du jeton adverse. À rattacher à la liste des
 animations (« on ne voit pas ce que fait l'autre »), **pas** au moteur. Aucun
 correctif appliqué, dépôt intact.
 
-### MOT-12 (ancien I2) — L'état du moteur recule parfois
+### MOT-12 (ancien I2) — L'état du moteur recule parfois — ✅ PLUS REPRODUCTIBLE 05-08, mesuré
+**[VÉRIFIÉ 05-08 · mesuré, pas seulement lu]** Le banc du dépôt prévu pour cela, rejoué sur **la graine 5150 de la fiche** : `128 lectures, 0 recul` (`python3 web/webapp/verif/recul-etat.py .`). La fiche annonçait 20 reculs sur 183 lectures. Le nombre de lectures a changé parce que le lot moteur a déplacé les points de décision — le défaut ne peut donc plus être reproduit tel qu'il était écrit, et aucun commit ne peut lui être attribué. **Verdict de mesure franc, origine inconnue.**
+
+Ce qui suit est le constat d'origine.
+
 [DÉCLARÉ] 20 reculs sur 183 lectures, graine 5150. Jamais expliqué. À reprendre
 après le lot moteur, car les changements ci-dessus peuvent le déplacer.
 
@@ -651,7 +697,11 @@ chargement et déclenche les animations du passé au lieu de partir de l'état f
 
 ## 3. LISIBILITÉ — comprendre ce qu'on voit
 
-### LIS-1 (Corentin, ligne 5) — Retirer le nombre porté par les deux jauges
+### LIS-1 (Corentin, ligne 5) — Retirer le nombre porté par les deux jauges — ✅ FAIT 05-08, fiche périmée
+**[VÉRIFIÉ 05-08 · relecture générale]** L'élément qui portait le nombre (`arc__n`) n'est plus créé nulle part dans la page — il n'en reste qu'un commentaire, `web/webapp/vue/arcs.js:242`. Second volet tenu aussi : les légendes sont « Temperature » et « Oxygen », sans unité (`web/webapp/vue/mots.js:140-141`). Livré par `61004a1`.
+
+Ce qui suit est le constat d'origine.
+
 [VÉRIFIÉ 05-08 · Q1 tranché] Corentin veut qu'on **retire la valeur en degrés de
 la jauge de température, et la valeur d'oxygène de la jauge d'oxygène**.
 
@@ -683,7 +733,11 @@ Rappel de ce qui est acquis [VÉRIFIÉ 04-08] : le moteur est juste. Températur
 (`engine/src/flow.rs:1462-1471`). Il n'y a donc rien à corriger dans les règles :
 tout se joue à l'affichage.
 
-### LIS-2 (Corentin, ligne 21) — Le marqueur des jauges est blanc sur blanc
+### LIS-2 (Corentin, ligne 21) — Le marqueur des jauges est blanc sur blanc — ✅ FAIT 05-08, fiche périmée
+**[VÉRIFIÉ 05-08 · relecture générale]** Le repère est noir avec un liseré clair (`web/webapp/style-monde.css:144-149`), et le halo qui le cerclait a été retiré : c'est le simple point que Corentin préférait (`web/webapp/vue/arcs.js:233-235`). Les deux demandes sont tenues. Livré par `61004a1`.
+
+Ce qui suit est le constat d'origine.
+
 [DEMANDÉ] Les cases hautes des deux jauges sont blanches, le marqueur aussi : on
 ne le voit plus. Le passer en noir. Et Corentin préfère **un simple point** au
 point cerclé actuel — il présente cela comme un avis, pas comme une exigence.
@@ -821,7 +875,11 @@ question dans les parties du banc. Cet accord est prouvé au niveau du moteur.
 retenu. Demandé, idéalement : **poser le badge choisi à l'emplacement du « ? »**
 sur la carte.
 
-### LIS-7 (Corentin, ligne 4) — Une croix, pas une coche, pour le premier tri
+### LIS-7 (Corentin, ligne 4) — Une croix, pas une coche, pour le premier tri — ✅ FAIT 05-08, fiche périmée
+**[VÉRIFIÉ 05-08 · relecture générale]** À cet écran seulement, la pastille porte une croix et passe du doré à la braise (`web/webapp/style.css:1143-1151`). La coche reste partout ailleurs, où l'on désigne bien ce qu'on garde — c'est exactement la nuance demandée.
+
+Ce qui suit est le constat d'origine.
+
 [CONFIRMÉ PAR ALEXIS 04-08 · Q5] À cet écran, **on désigne les cartes qu'on
 JETTE**. La coche actuelle dit donc le contraire de ce qui se passe. Mettre une
 croix.
@@ -863,7 +921,11 @@ améliorée s'est mise à montrer les trois cartes tirées, y compris celles qu'
 ne peut pas prendre, éteintes et marquées « CANNOT BE TAKEN ». C'était une
 demande explicite d'Alexis. **Ce comportement reste.**
 
-### LIS-13 (Alexis, 04-08) — Ne pas pouvoir agrandir le dos des cartes adverses
+### LIS-13 (Alexis, 04-08) — Ne pas pouvoir agrandir le dos des cartes adverses — ✅ FAIT 05-08, fiche périmée
+**[VÉRIFIÉ 05-08 · relu par moi]** La boucle qui bâtit les dos adverses n'arme plus la loupe (`web/webapp/vue/mains.js:390-395`, le retrait est écrit et justifié sur place), alors que la main du joueur l'arme toujours (`mains.js:319`). Aucun autre module ne la branche sur ces cartes.
+
+Ce qui suit est le constat d'origine.
+
 [DEMANDÉ] La main de l'adversaire est faite de dos de cartes, tous identiques.
 Les agrandir ne montre rien et n'a aucun intérêt : retirer la loupe sur ces
 cartes-là.
@@ -877,6 +939,24 @@ n'offre pas**. Exemple : décision 4, huit cartes marquées à tort.
 
 **Ce n'est pas une régression du lot moteur** : mesuré à l'identique sur le dépôt
 d'avant la fusion (même cinq désaccords, même décision 4).
+
+⚠️ **NUANCE IMPORTANTE, trouvée le 05-08 par la relecture générale — et elle ne
+retire rien au défaut, mais elle corrige la façon de le dire.** Le chiffre de
+« cinq désaccords » vient d'un banc dont la définition avait **vieilli** : il
+exige que le contour vert soit exactement ce que le moteur offre, alors que le
+lot précédent avait **délibérément** fait dire au contour vert « j'ai de quoi la
+payer ». Les cinq écarts étaient donc, mot pour mot, le comportement voulu par
+ce lot-là.
+
+**Le défaut, lui, était bien réel, et il est ailleurs que dans le chiffre** :
+pendant une question qui se joue depuis la main, un contour vert posé sur une
+carte que le moteur n'offre pas est trompeur, quelle que soit la définition
+qu'on ait choisie pour l'attribut. Les deux lots avaient chacun **la moitié**
+de la réponse — l'un disait ce qu'on peut payer et mentait pendant les poses,
+l'autre disait ce qui se joue et se taisait le reste du temps.
+
+**Le correctif livré le 05-08 tient les deux** : deux faits, deux attributs, et
+le contour vert montre celui des deux qui répond à la question du moment.
 
 Personne ne l'a signalé en partie — le contour vert trompeur ne se remarque que
 si l'on essaie de jouer la carte. À traiter dans un lot d'affichage ultérieur ;
@@ -905,7 +985,11 @@ l'hexagone des capacités (`vue/joueurs.js:145`) prennent la même image détour
 détourage a été fait le 04-08 dans la journée. Deuxième fiche périmée trouvée en
 deux jours — c'est pourquoi je remesure au lieu de recopier.
 
-### LIS-11 (ancien I3) — Le prix d'origine n'est pas barré
+### LIS-11 (ancien I3) — Le prix d'origine n'est pas barré — ✅ FAIT 05-08
+**[VÉRIFIÉ 05-08]** Quand une remise s'applique, l'option porte le prix plein barré et le prix payé (`web/webapp/vue/scene.js:979-998`). Les deux nombres viennent du moteur, aucun barème recopié. Livré par `920bc5a` ; le banc `verif/prix-barre.py` a été complété le 05-08 pour le cas d'une carte gratuite, qui n'a rien à barrer.
+
+Ce qui suit est le constat d'origine.
+
 [DEMANDÉ] Quand une remise s'applique, afficher le prix d'origine barré à côté
 du prix réellement payé.
 
@@ -915,7 +999,11 @@ Reste seulement à le **montrer** au joueur quand cela arrive.
 
 ## 4. CONFORT DE JEU
 
-### CNF-1 (Corentin, ligne 6) — Trier sa main en déplaçant les cartes
+### CNF-1 (Corentin, ligne 6) — Trier sa main en déplaçant les cartes — ✅ FAIT 05-08, fiche périmée
+**[VÉRIFIÉ 05-08 · relu par moi]** Le geste s'arme sur toute carte de la main, jouable ou non, et bascule en tri au premier déplacement (`web/webapp/vue/geste.js:188-201`) ; au relâchement la carte est rangée à sa nouvelle place (`geste.js:270-284`). L'ordre choisi est mémorisé et relu à chaque redessin (`web/webapp/vue/mains.js:280`, appelé l. 295). Banc dédié : `verif/tri-de-la-main.py`. Livré par `1590484`.
+
+Ce qui suit est le constat d'origine.
+
 [DEMANDÉ] Pouvoir réordonner les cartes de sa main en les faisant glisser.
 
 ### CNF-2 (ancien K4) — Voir la défausse — ✅ FAIT 05-08
@@ -967,11 +1055,19 @@ option lui profite bien plus qu'à un humain. Voir GRO-1.
 bouton qui passe en boucle, pour accélérer quand on est sûr de ne plus rien
 faire.
 
-### CNF-4 (Corentin, ligne 35 · optionnel) — Des messages d'attente précis
+### CNF-4 (Corentin, ligne 35 · optionnel) — Des messages d'attente précis — ✅ FAIT 05-08, fiche périmée
+**[VÉRIFIÉ 05-08 · relecture générale]** Vingt-sept messages d'attente, un par sorte de question du moteur (`web/webapp/distant.js:144-177`). Le message général ne sert plus que de repli pour une sorte inconnue. Livré par `9ea9b82`.
+
+Ce qui suit est le constat d'origine.
+
 [DEMANDÉ] Au lieu de « Waiting for the other player », dire ce qu'on attend :
 qu'il choisisse ses cartes, qu'il joue une carte, etc.
 
-### CNF-5 (Corentin, ligne 36 · optionnel) — Fermer le zoom d'un clic n'importe où
+### CNF-5 (Corentin, ligne 36 · optionnel) — Fermer le zoom d'un clic n'importe où — ✅ FAIT 05-08, fiche périmée, avec une réserve
+**[VÉRIFIÉ 05-08 · relecture générale]** N'importe quel clic referme la planche agrandie des océans (`web/webapp/vue/plateau.js:155-161`) ; désigner une tuile continue de marcher parce que la grille retient son clic (`plateau.js:167-171`). **Réserve** : c'est le seul agrandissement qui se ferme au clic — la loupe des cartes et celle des objectifs sont au survol. Si Corentin visait l'une de celles-là, il faudra le lui demander.
+
+Ce qui suit est le constat d'origine.
+
 [DEMANDÉ] Aujourd'hui il faut recliquer sur la tuile elle-même.
 
 ### CNF-6 (ancien I5) — Reprendre une partie interrompue
@@ -999,8 +1095,18 @@ Deux conséquences pratiques :
 2. si on l'active, il faudra décider explicitement si la machine y a droit. Ce
    n'est pas une décision d'affichage, c'est une décision de règle du jeu.
 
-### GRO-2 (ancien I4) — Les effets sonores
-Jamais commencés.
+### GRO-2 (ancien I4) — Les effets sonores — ⚠️ À MOITIÉ FAIT, la fiche disait « jamais commencés »
+**[VÉRIFIÉ 05-08 · relecture générale]** Les sons existent déjà et sont
+**fabriqués dans la page**, sans aucun fichier ni téléchargement
+(`web/webapp/vue/son.js`, livré par `6f6f2c9`). Cinq bruits y sont écrits.
+
+**Trois sur cinq sont branchés** : le début de manche, le choix, la fin de
+partie (`web/webapp/interface.js:222`, `:301`, `:496`).
+
+**Deux sont écrits et ne sont jamais appelés** : `sonCarte` (poser une carte) et
+`sonCran` (une jauge qui monte d'un cran) — c'est-à-dire les **deux gestes les
+plus fréquents de toute la partie**. Les brancher est un travail court, et c'est
+ce qui reste de cette fiche.
 
 ### GRO-3 (ancien J4) — La musique de fond
 [REPORTÉ] Liste demandée par Alexis :
