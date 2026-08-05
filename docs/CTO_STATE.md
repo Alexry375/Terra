@@ -5,6 +5,47 @@
 
 Dernière mise à jour : 2026-08-05
 
+## ⚠️ 05-08 — TROIS FICHES ANNONÇAIENT UN DÉFAUT DÉJÀ CORRIGÉ
+
+Trois entrées de `DERNIERE_LIGNE_DROITE.md` décrivaient un défaut **réglé
+depuis un ou deux jours** par un chantier qui n'avait pas mis la fiche à jour.
+Toutes trois vérifiées et corrigées le 05-08 :
+
+| Fiche | Ce qu'elle disait | Ce que dit le code |
+|---|---|---|
+| **ANI-5** | « toujours pas réglé » | deux points sur trois livrés le 04-08 (`4f7ebdb`) |
+| **LIS-10** | les jetons Océan et Forêt sont sur un carré blanc | détourés le 04-08 : **24 % de pixels transparents, quatre coins transparents**, contre 0 % pour les découpes d'origine ; affichés par `vue/scene.js:1030-1031` |
+| **LIS-8** | le compteur de forêts est affiché deux fois | la part « Forests » retirée de `vue/joueurs.js:69-75`, l'hexagone passé au jeton détouré (`joueurs.js:145`), `imageForet()` supprimée |
+
+**Ce n'est pas anodin** : sans cette vérification, j'aurais lancé un chantier
+entier pour refaire un travail déjà fait. J'ai donc lancé une **relecture
+complète de toutes les fiches non marquées faites**, en lecture seule, pour
+établir lesquelles décrivent encore un défaut réel.
+
+## ⚠️ 05-08 — LIS-4 : LA CONCLUSION DU 04-08 ÉTAIT FAUSSE, ET ELLE COÛTAIT CHER
+
+La fiche disait : les tuiles d'objectifs et de récompenses sont floues quand on
+les agrandit, le plafond de définition est atteint, il faut soit chercher de
+meilleures images, soit les agrandir par intelligence artificielle.
+
+**Mesuré à l'écran par moi le 05-08, sur une partie réelle : le plafond n'est
+pas atteint, on en est à moins du quart.** Au survol, une tuile occupe
+**151 × 151 points** d'écran, pour une définition disponible de **900 × 293**
+(objectif) ou **745 × 583** (récompense) — soit **17 à 20 %** de ce qu'on a. Le
+plafond sans perte est de ×31 pour un objectif et ×25 pour une récompense ;
+l'agrandissement actuel vaut ×5,2 (`web/webapp/style-monde.css:290`).
+
+**Et un second défaut que personne n'avait vu, plus gênant que le premier** : la
+pastille est un **carré** de 29 points (`web/webapp/style.css:284`) alors qu'un
+objectif imprimé est **trois fois plus large que haut**. L'image n'occupe donc
+que 151 × 49 points au survol : les deux tiers de la place sont perdus, et c'est
+cela qui rend le texte illisible bien avant que la définition ne manque.
+
+**Conséquence** : deux des trois voies proposées le 04-08 — chercher une
+meilleure ressource, agrandir par intelligence artificielle — sont **inutiles**.
+Il suffit d'agrandir davantage et de donner à l'agrandissement le bon rapport.
+Il n'y a donc **plus de décision à prendre par Alexis** sur ce point.
+
 ## ✅ 05-08 — LE LOT « CE QUE LE MOTEUR NE DIT PAS » EST FUSIONNÉ
 
 Trois nombres que le moteur connaissait et ne disait à personne. **Aucune règle
