@@ -12,18 +12,30 @@
 //
 //   node outputs/verif/anglais.mjs [graines...]
 
-import { ouvrirPontDepuis } from "../web/webapp/pont.js";
-import { creerPartie } from "../web/webapp/partie.js";
-import { fournisseurAleatoire } from "../web/webapp/fournisseurs.js";
-import { question, libelleOption, MOT, STAGES, BADGE_EN } from "../web/webapp/vue/mots.js";
-import { normaliser } from "../web/webapp/vue/cartes.js";
+import { ouvrirPontDepuis } from "../pont.js";
+import { creerPartie } from "../partie.js";
+import { fournisseurAleatoire } from "../fournisseurs.js";
+import { question, libelleOption, MOT, STAGES, BADGE_EN } from "../vue/mots.js";
+import { normaliser } from "../vue/cartes.js";
 
-// La même liste que le contrôle livré, mot pour mot.
+// Les mots qui trahissent du français resté à l'écran.
+//
+// ⚠️ CORRIGÉ LE 05-08, APRÈS AVOIR RÉPARÉ LES CHEMINS DE CE FICHIER. La liste
+// d'origine contenait douze mots qui S'ÉCRIVENT PAREIL EN ANGLAIS — « phase »,
+// « corporation », « score », « points », « main », « temperature »,
+// « oceans », « tour », « fin »… Le banc criait donc sur l'anglais parfaitement
+// correct de l'écran : 3 404 fautes annoncées, dont pas une seule vraie. Un
+// contrôle qui hurle à chaque phrase ne se lit plus, et c'est probablement pour
+// cela qu'on l'a laissé mourir.
+//
+// N'entre ici qu'un mot dont la présence dans une phrase anglaise ne peut
+// s'expliquer que par du français oublié. La détection des ACCENTS, plus bas,
+// reste le filet principal — elle, elle ne peut pas se tromper.
 const MOTS = new Set(["le", "la", "les", "des", "une", "vos", "votre", "choisissez",
-  "carte", "cartes", "joueur", "remplacer", "garder", "manche", "chaleur", "plantes",
-  "points", "victoire", "defausser", "phase", "gagnez", "piocher", "pioche", "main",
-  "corporation", "corporations", "valider", "niveau", "tuile", "tuiles", "temperature",
-  "oxygene", "oceans", "score", "partie", "fin", "tour"]);
+  "carte", "cartes", "joueur", "remplacer", "garder", "manche", "chaleur",
+  "victoire", "defausser", "gagnez", "piocher", "pioche",
+  "corporations", "valider", "niveau", "tuile", "tuiles",
+  "oxygene", "partie"]);
 const ACCENTS = /[àâäéèêëîïôöùûüçÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]/;
 
 const fautes = [];
@@ -46,7 +58,7 @@ for (const b of Object.values(BADGE_EN)) verifier(b, "BADGE_EN");
 const graines = process.argv.slice(2).map(Number);
 const listeGraines = graines.length ? graines : [1, 7, 41, 77, 202, 909, 1234, 3, 55, 404];
 
-const pont = await ouvrirPontDepuis(new URL("../web/webapp", import.meta.url).pathname);
+const pont = await ouvrirPontDepuis(new URL("..", import.meta.url).pathname);
 let decisions = 0;
 let options = 0;
 const types = new Set();
