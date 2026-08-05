@@ -5,6 +5,49 @@
 
 Dernière mise à jour : 2026-08-05
 
+## 🚧 05-08 — CHANTIER EN COURS : « LE PREMIER ADVERSAIRE, ET LA BALANCE QUI LE PÈSE »
+
+**C'est le premier chantier qui vise l'objectif du projet lui-même.** Tout ce qui
+précède servait à rendre le jeu jouable et juste. L'adversaire artificiel, lui,
+n'existe pas : le seul joueur automatique du dépôt répond **au hasard**.
+
+Ce chantier ne construit pas encore l'adversaire final. Il pose les deux choses
+sans lesquelles on ne pourra jamais dire qu'on a progressé : **une balance** qui
+pèse deux joueurs l'un contre l'autre, et **un premier joueur qui réfléchit**.
+
+**Ce que j'ai mesuré avant de sceller, et qui a changé le contrat deux fois :**
+
+| Mesure | Résultat |
+|---|---|
+| hasard contre hasard, 200 parties, sièges échangés | **89 / 107 / 4 nuls**, écart moyen −0,95 point — l'équilibre |
+| un joueur **volontairement bête** (l'option au libellé le plus long), contre le hasard, graines du contrat | **146 sur 200, soit 73,0 %** |
+| le même, sur cent graines **jamais vues** | **135 sur 200, soit 67,5 %** |
+
+⚠️ **La deuxième ligne est la leçon du jour.** J'avais fixé le seuil du contrat à
+65 % de victoires contre le hasard, en croyant demander quelque chose. Un joueur
+qui ne comprend rien au jeu — il préfère simplement les options aux longs
+libellés — l'atteint déjà. **Battre le hasard ne prouve rien.**
+
+Le contrat exige donc maintenant deux choses : **75 %** contre le hasard, **et
+surtout** battre ce joueur témoin **en duel direct**, au moins 60 % sur 200
+parties. Comparer deux taux obtenus contre un troisième joueur dépend de ce
+troisième joueur ; le duel direct tranche. Le témoin est fourni dans le contrat
+pour que l'agent sache à quoi ressemble un adversaire qui gagne sans comprendre.
+
+**La règle qui domine le chantier.** Le moteur publie **les deux mains**
+(`engine/src/observe.rs:105-107`, « Mode bac à sable : les DEUX mains sont
+visibles »). Rien n'empêche aujourd'hui un joueur automatique de lire la main
+d'en face — et il paraîtrait brillant sans l'être, tout en étant intransposable à
+une partie contre un humain. Le contrat l'interdit, et le contrôle ne le lit pas
+dans le code : **il remplace la main d'en face et regarde si les réponses
+bougent.** Éprouvé dans les deux sens avant le scellement : vert sur un joueur
+honnête (18 144 occasions de le prendre en défaut), **rouge sur un tricheur
+écrit exprès** (4 303 désaccords sur 27 028).
+
+**Le contrôle caché** pèse le joueur sur **cent graines jamais vues** : un joueur
+réglé à la main sur les cent parties du contrat les gagnerait sans avoir rien
+compris. Il vérifie aussi le territoire.
+
 ## ✅ 05-08 — LE LOT « LE PLATEAU SE LIT ET S'ENTEND » EST MONTÉ (`8572933`)
 
 Quatre travaux livrés, **audités et rejoués par moi**, jamais crus sur parole.
