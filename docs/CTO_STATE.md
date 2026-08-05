@@ -66,6 +66,42 @@ artificielle qui choisit ses phases doit connaître ces trois montants.
 - **LIS-3 n'est pas fini** : les 18 pastilles recouvertes sont toujours là,
   au même nombre exactement qu'avant le lot. Non régressé, non réparé.
 
+## 🚧 05-08 — CHANTIER EN COURS : « CE QUE L'ÉCRAN DIT DE MA MAIN »
+
+Scellé et lancé. Trois choses que l'écran raconte sur les cartes et qui sont
+fausses ou invisibles, **sans qu'un joueur puisse s'en apercevoir seul**. Aucune
+règle ne change, `engine/` est interdit en entier.
+
+| Ce qui cloche | Mesuré par moi au scellement |
+|---|---|
+| le contour vert dit « jouable » à tort (LIS-14) | 59 occasions, **5 désaccords** — à la décision 4, huit cartes marquées à tort |
+| une pastille de ressources reste recouverte (LIS-3) | 192 pastilles, **4 recouvertes** — et c'est la **main du joueur** qui recouvre |
+| le banc du prix barré échoue sur un cas limite (LIS-11) | 11 couples justes, **1 échec** sur une carte gratuite |
+
+**La cause de LIS-14 n'est pas un calcul faux, c'est un mot pris pour un autre.**
+Le moteur publie « ai-je de quoi **payer** cette carte ? » — sans la couleur
+autorisée par la phase, sans les prérequis. La page en fait « je peux **jouer**
+cette carte ». Le correctif demandé : pendant une question de pose, le vert
+désigne exactement ce que le moteur offre ; le reste du temps, il continue de
+dire ce qu'on a les moyens de payer.
+
+**Un quatrième point est une enquête, pas un correctif** : MOT-16, un jeton de
+badge vu sur une carte alors qu'aucune question n'avait été posée. Établir
+laquelle des deux explications est la bonne, avec la partie et le rang. « Je n'ai
+pas réussi à reproduire » est une réponse acceptée.
+
+**Le chiffre de LIS-3 a changé, et la cause aussi** : la fiche disait 18
+pastilles recouvertes par une autre carte ; j'en mesure 4, recouvertes par la
+main. Le lot des cartes qui bougent est passé entre-temps. C'est pourquoi je
+remesure tout au scellement plutôt que de recopier une fiche.
+
+**Mon contrôle caché est vert au scellement, et c'est voulu** : il n'interdit pas
+un défaut, il interdit un **remède pire que le mal**. Le contour vert peut se
+mettre d'accord avec le moteur de deux façons — en disant vrai, ou en ne disant
+plus rien. Éprouvé dans les deux sens : vert sur le dépôt (141 écrans sur 157
+gardent une carte marquée hors question de pose), **rouge sur une copie que j'ai
+sabotée exprès** (23 sur 157).
+
 ## ✅ 05-08 — LE LOT « LES CARTES QUI BOUGENT ET LA DÉFAUSSE » EST FUSIONNÉ
 
 Chantier D du plan, fusionné dans `main` (`cfec28a`) après audit complet par moi.
