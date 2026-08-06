@@ -202,6 +202,21 @@ pub fn state_view(game: &GameState, db: &CardsDb) -> Value {
         // Une vente volontaire est-elle recevable au point où le moteur se
         // trouve ? (`flow::occasion_de_vendre`.)
         "vente_offerte": game.vente_offerte,
+        // (le-moteur-dit-quand-on-peut-vendre) **Et, à côté, l'occasion
+        // elle-même : un booléen PAR SIÈGE.**
+        //
+        // `vente_offerte` dit le DROIT de vendre (« ce point de décision a reçu
+        // son occasion »). Il reste vrai quand la même question revient après
+        // une vente, et un fournisseur sans mémoire qui n'aurait que lui
+        // revendrait — le moteur refuserait l'entrée et la partie s'arrêterait.
+        // Celui-ci dit L'OCCASION : « si le siège p rend une entrée de vente à
+        // ce point-ci, elle sera acceptée ». Écrit par `flow::observer`, lu sur
+        // l'état comme tout le reste ici — voir
+        // `state::PlayerState::occasion_de_vendre_ouverte` pour les trois cas
+        // où il vaut faux.
+        "occasion_de_vendre_ouverte": (0..NUM_PLAYERS)
+            .map(|p| game.players[p].occasion_de_vendre_ouverte)
+            .collect::<Vec<_>>(),
         "ventes_volontaires": game.ventes_volontaires,
         // Paramètres planétaires, avec leurs plafonds : sans eux, « oxygène 7 »
         // ne dit pas à quelle distance on est de la fin de partie.

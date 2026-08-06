@@ -107,6 +107,13 @@ export const REGLAGES = {
   temperature: 48,
   actionDeCarte: 40,
   passer: 0,
+
+  // — La vente (voir « CE JOUEUR VEND », plus bas). Mesurés en deux tours, sur
+  // les graines 7000 à 7029 (dix variantes) puis 7100 à 7199 (les finalistes,
+  // 200 parties chacune) — jamais sur les graines 1 à 100 de la mesure finale.
+  // Le banc : `verif/reglage-de-la-vente.mjs`, qui refuse toute autre plage.
+  prixVenteMini: 10, // on ne vend qu'une carte hors de portée AU MOINS si chère
+  gardeMini: 4, // … et jamais au point d'avoir moins de tant de cartes en main
 };
 
 // FIGÉS POUR DE BON. Sans ce gel, n'importe quel importateur pourrait réécrire
@@ -294,29 +301,66 @@ function noterAction(libelle) {
 }
 
 /**
- * ET LA VENTE ? ELLE N'EST PAS DE CE JOUEUR, ET LA RAISON EST DANS LE MOTEUR.
+ * CE JOUEUR VEND — ET C'EST L'ÉTAT, ET RIEN QUE L'ÉTAT, QUI LE LUI PERMET.
  *
  * Vendre est une ENTRÉE de la liste de décisions (`{"vendre":{joueur,cartes}}`,
  * voir `adversaire.md`), pas une réponse : le moteur la consomme au point
  * d'occasion qui précède la question, puis repose la MÊME question sur l'état
- * d'après. Une première vente passe donc très bien. La seconde ne passe pas :
- * l'occasion vient d'être dépensée, et une nouvelle ne s'ouvrira qu'après une
- * vraie réponse de mon siège.
+ * d'après. Une occasion ne se dépense qu'une fois par siège ; une seconde vente
+ * rendue au même point serait refusée et arrêterait la partie.
  *
- * Or `etat.vente_offerte` vaut VRAI dans les deux cas — le drapeau est armé
- * avant la vente et republié après (`engine/src/flow.rs`, `occasion_de_vendre` ;
- * la page en tire les mêmes conséquences, note K1 du 04-08 dans
- * `vue/vente.js`). L'état ne dit donc pas si l'occasion est encore ouverte. Un joueur SANS MÉMOIRE, comme
- * celui-ci, ne peut pas faire la différence : mesuré, il vend une fois, revoit
- * la même question sans option, revend — et le moteur arrête la partie
- * (« aucune occasion de vendre n'est ouverte à ce point », graine 2, entrée 83).
+ * Il fallait donc savoir, sans aucune mémoire, si l'occasion est encore
+ * ouverte — et `etat.vente_offerte` ne le disait pas : ce drapeau est armé AVANT
+ * la vente et vaut encore vrai après. Ce joueur ne vendait pas pour cette
+ * raison-là. Le moteur publie désormais l'occasion elle-même,
+ * `etat.occasion_de_vendre_ouverte`, un booléen par siège, faux dès que
+ * l'occasion de ce siège est dépensée (`engine/src/flow.rs`, `observer` ;
+ * `state::PlayerState::occasion_de_vendre_ouverte`).
  *
- * Deux issues : se donner une mémoire des décisions passées — ce que ce joueur
- * refuse, c'est ce qui le protège de réciter une partie apprise — ou demander au
- * moteur de publier l'occasion elle-même, et non le seul droit de vendre. La
- * seconde est notée dans `result.md` §Adjacent work ; le moteur n'est pas touché
- * par ce chantier. En attendant, ce joueur ne vend pas.
+ * Ce joueur reste donc SANS MÉMOIRE : il ne retient pas qu'il vient de vendre,
+ * il le LIT. Reposez-lui la même question sur le même état, il rend la même
+ * chose.
+ *
+ * CE QU'IL VEND, ET AVEC QUOI IL EN JUGE. Attention : les cartes de la MAIN
+ * publiée dans l'état ne portent ni points de victoire ni badges — l'état ne
+ * donne, carte par carte, que `price`, `couleur` et `main_payable`
+ * (`engine/src/observe.rs`, `player_view`). `valeurEnMain`, qui pèse les PV et
+ * les badges, ne s'applique donc qu'aux OPTIONS énumérées par le moteur, où ces
+ * champs existent : l'employer ici rendrait 0 pour toute carte, et ce joueur
+ * vendrait sa main entière sans rien regarder (mesuré le 06-08 : 4 691 cartes
+ * vendues en 60 parties, et 95,0 % de victoires au lieu de 96,7 %).
+ *
+ * Il vend donc sur les deux seules choses que l'état dise de sa main : le PRIX
+ * et la PORTÉE. Une carte que je n'ai PAS les moyens de payer et qui coûte au
+ * moins `prixVenteMini` est une carte qui dort ; les plus chères dorment le plus
+ * longtemps, et ce sont elles qui partent d'abord. Jamais en dessous de
+ * `gardeMini` cartes en main : une main vide ne pose plus rien.
  */
+function venteEventuelle(d, etat, moi) {
+  const siege = d.joueur;
+  // L'occasion, par siège, et seulement la mienne. Le nom est celui du moteur ;
+  // un état qui ne le publierait pas (ancien moteur) vaut « pas d'occasion »,
+  // et ce joueur ne vend alors pas — jamais l'inverse.
+  const ouvertes = etat && etat.occasion_de_vendre_ouverte;
+  if (!Array.isArray(ouvertes) || ouvertes[siege] !== true) return null;
+
+  const R = REGLAGES;
+  const main = moi.main;
+  const candidates = main
+    .map((c, i) => [i, (c && c.price) || 0])
+    .filter(([i, prix]) => !moi.payable[i] && prix >= R.prixVenteMini)
+    // La plus chère d'abord ; à prix égal, l'indice le plus petit (départage
+    // déterministe, comme partout dans ce fichier).
+    .sort((a, b) => b[1] - a[1] || a[0] - b[0]);
+
+  const aVendre = [];
+  for (const [i] of candidates) {
+    if (main.length - aVendre.length <= R.gardeMini) break;
+    aVendre.push(i);
+  }
+  if (!aVendre.length) return null;
+  return { vendre: { joueur: siege, cartes: aVendre.sort((a, b) => a - b) } };
+}
 
 // ───────────────────────────────────────────────────────────────── le cerveau
 
@@ -327,6 +371,14 @@ function noterAction(libelle) {
 function decider(d, etat) {
   const moi = monSiege(etat, d.joueur);
   const monde = leMonde(etat);
+
+  // VENDRE PASSE AVANT DE RÉPONDRE : le moteur consomme l'entrée au point
+  // d'occasion qui précède cette question-ci, puis repose la même question sur
+  // l'état d'après — les cartes payables seront ré-énumérées avec l'argent de la
+  // vente. On répondra donc à l'appel suivant.
+  const vente = venteEventuelle(d, etat, moi);
+  if (vente) return vente;
+
   const options = d.options || [];
   const n = options.length;
   const forme = formeDeLaReponse(d);
