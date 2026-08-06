@@ -14,14 +14,23 @@
 // alors qu'une liste de décisions rejouée ne le peut pas. Et les visuels des
 // cartes sont sous droits d'auteur : il n'y en a pas un seul ici.
 //
-// Il y a UN champ de plus, `attendue`, et il n'est pas du contenu de partie :
-// c'est le `type` de la question qui suit la liste (une chaîne comme
-// `choose_build`). Il sert à répondre au cas que ce chantier promet de tenir —
-// « un enregistrement venu d'une version du jeu où les décisions ne veulent plus
-// dire la même chose ». Une liste d'indices reste souvent VALIDE après un
-// déplacement de questions : elle désigne simplement autre chose. Le rejeu ne
-// lèverait alors pas, et l'on reprendrait une partie fausse en croyant la
-// reprendre. En vérifiant qu'on retombe sur la MÊME question, on l'écarte.
+// TROIS CHAMPS DE PLUS, ET AUCUN N'EST DU CONTENU DE PARTIE :
+//
+//   · `siege` et `decide` — le CADRE, c'est-à-dire qui est assis en bas et qui
+//     répond pour lui. Ils ne décrivent pas la partie, ils décrivent la table :
+//     c'est d'eux que dépend quel siège reçoit quel tirage aléatoire. Reprendre
+//     la même liste sous un autre cadre rejoue le bon préfixe puis distribue le
+//     hasard à l'envers, et la partie diverge jusqu'à un autre score final.
+//   · `empreinte` — UN nombre, replié question après question (voir
+//     `replierEmpreinte`). C'est la réponse au cas que le prompt appelle le plus
+//     important : un enregistrement venu d'une version du jeu où les décisions
+//     ne veulent plus dire la même chose. Une liste d'indices reste souvent
+//     VALIDE après un déplacement de questions — elle désigne simplement autre
+//     chose, le moteur ne lève pas, et l'on reprendrait une partie fausse en
+//     croyant la reprendre.
+//
+// Rien de tout cela ne se recalcule à partir de la liste, et rien de tout cela
+// n'est du jeu : deux mots et un nombre.
 //
 // CE QU'ON N'ENREGISTRE PAS DU TOUT : les parties à deux, chacun chez soi
 // (`?partie=<code>`). Là, la liste des décisions fait autorité AU RELAIS, pas
@@ -34,7 +43,45 @@ import { lireRendezVous } from "../distant.js";
 
 /** La clé, et le numéro de forme de l'enregistrement. */
 const CLE = "terra.partie-en-cours";
-const FORME = 1;
+const FORME = 2;
+
+/** Qui répond pour le siège regardé : les deux seules valeurs d'`interface.js`. */
+const DECIDE = new Set(["humain", "programme"]);
+
+/**
+ * L'EMPREINTE — un seul nombre, replié question après question.
+ *
+ * Elle répond au cas que le prompt appelle le plus important : « un
+ * enregistrement venu d'une version du jeu où les décisions ne veulent plus dire
+ * la même chose ». Une liste d'indices reste souvent VALIDE après un déplacement
+ * de questions — elle désigne simplement autre chose. Le moteur ne lève pas, et
+ * l'on reprendrait une partie fausse en croyant la reprendre.
+ *
+ * Ce qu'on replie à chaque question : son `type`, le NOMBRE d'options qu'elle
+ * offre, sa forme, et le fait qu'on puisse y passer. C'est-à-dire tout ce dont
+ * un indice a besoin pour vouloir dire quelque chose. Si une seule question de
+ * la partie change de nature, de rang ou de nombre d'options, le nombre final
+ * diffère, et l'enregistrement est écarté.
+ *
+ * POURQUOI PAS SEULEMENT LA QUESTION D'ARRIVÉE. C'était ma première version, et
+ * elle est trop faible : deux `type` seulement offrent « passer » sur toute une
+ * partie (`choose_build` et `action_choice`, mesuré graine 4242), donc une
+ * question déplacée vers une question de même type passait la garde sans être
+ * vue. Le repli couvre TOUTE la partie rejouée, pas seulement son dernier pas —
+ * et il ne coûte qu'un nombre, pas une liste.
+ */
+export function replierEmpreinte(precedente, decision) {
+  const dit = decision
+    ? `${decision.type}|${(decision.options || []).length}`
+      + `|${decision.multiple ? "m" : decision.montant ? "n" : "s"}`
+      + `|${decision.passer ? "p" : "-"}`
+    : "|rien";
+  let h = precedente >>> 0;
+  for (let i = 0; i < dit.length; i += 1) {
+    h = (Math.imul(h, 31) + dit.charCodeAt(i)) >>> 0;
+  }
+  return h;
+}
 
 /** Les seules valeurs de `boites` que le moteur connaisse (`interface.js`). */
 const BOITES = new Set(["base", "base,decouverte"]);
@@ -69,9 +116,21 @@ function coffre() {
  * jeu (`partie.jouerJusquAuBout`, argument `avant`) : au pire, une fermeture
  * brutale perd la décision en cours, jamais plus.
  *
- * @param {object} partie l'objet rendu par `creerPartie`
+ * LE CADRE EST ENREGISTRÉ AVEC LA PARTIE, et ce n'est pas de la décoration.
+ * `?siege=` dit quel joueur est assis en bas, `?decide=` qui répond pour lui —
+ * et ce sont eux qui décident QUEL SIÈGE reçoit quel tirage aléatoire
+ * (`interface.js`). Reprendre la même liste sous un autre cadre rejoue donc le
+ * bon préfixe puis distribue le hasard à l'envers : l'écran est juste à
+ * l'instant de la reprise, et la partie diverge ensuite jusqu'à un autre score
+ * final. Mesuré par la relecture adversariale : graine 4242, coupure à la
+ * moitié, `[70, 56]` en reprenant du même siège, `[58, 61]` en reprenant du
+ * siège d'en face. Deux mots enregistrés valent mieux qu'une partie fausse.
+ *
+ * @param {object} partie    l'objet rendu par `creerPartie`
+ * @param {object} cadre     `{ siege, decide }`, le cadre de CETTE partie
+ * @param {number} empreinte le repli des questions déjà rencontrées
  */
-export function sauverPartie(partie) {
+export function sauverPartie(partie, cadre, empreinte) {
   if (enLigne()) return;
   const c = coffre();
   if (!c) return;
@@ -80,15 +139,14 @@ export function sauverPartie(partie) {
       oublierPartie();
       return;
     }
-    const d = partie.decision;
     c.setItem(CLE, JSON.stringify({
       forme: FORME,
       graine: partie.graine,
       boites: partie.boites,
+      siege: cadre.siege,
+      decide: cadre.decide,
       decisions: partie.decisions,
-      // L'empreinte, et rien d'autre : le nom de la question qui suit la liste.
-      attendue: d && typeof d.type === "string" ? d.type : null,
-      quand: Date.now(),
+      empreinte: empreinte >>> 0,
     }));
   } catch (e) {
     // Coffre plein, ou refusé : on le dit à la console de développement (jamais
@@ -121,9 +179,10 @@ export function oublierPartie() {
  *
  * Ce que cette fonction ne peut PAS vérifier : que les indices désignent encore
  * les mêmes options. Cela ne se sait qu'en rejouant, et c'est `interface.js` qui
- * le fait, avec l'empreinte `attendue`.
+ * le fait, en repliant l'empreinte au fil du rejeu.
  *
- * @returns {{graine:number, boites:string, decisions:Array, attendue:?string}|null}
+ * @returns {{graine:number, boites:string, siege:number, decide:string,
+ *            decisions:Array, empreinte:number}|null}
  */
 export function partieEnregistree() {
   if (enLigne()) return null;
@@ -157,8 +216,10 @@ export function partieEnregistree() {
   return {
     graine: o.graine,
     boites: o.boites,
+    siege: o.siege,
+    decide: o.decide,
     decisions: o.decisions,
-    attendue: typeof o.attendue === "string" ? o.attendue : null,
+    empreinte: o.empreinte >>> 0,
   };
 }
 
@@ -181,6 +242,13 @@ function formeFautive(o) {
     return "graine absente, non entière ou hors bornes";
   }
   if (typeof o.boites !== "string" || !BOITES.has(o.boites)) return "boîtes inconnues";
+  if (o.siege !== 0 && o.siege !== 1) return "siège inconnu";
+  if (typeof o.decide !== "string" || !DECIDE.has(o.decide)) return "décideur inconnu";
+  // L'empreinte est EXIGÉE, jamais facultative. Tolérer son absence, c'est
+  // rouvrir en grand la porte qu'elle ferme : un enregistrement sans empreinte
+  // — écrit par une version antérieure, tronqué, ou fabriqué — serait rejoué
+  // sans la moindre vérification de sens.
+  if (!Number.isInteger(o.empreinte) || o.empreinte < 0) return "empreinte absente";
   if (!Array.isArray(o.decisions)) return "liste de décisions absente";
   if (o.decisions.length === 0) return "liste de décisions vide";
   for (const r of o.decisions) {

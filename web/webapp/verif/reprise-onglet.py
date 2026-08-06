@@ -321,16 +321,21 @@ with serveur(RACINE) as base:
     # ne mènent plus à la question qu'on avait laissée — c'est-à-dire ce qui
     # arrive quand une question du moteur change de place. Le rejeu ne lève pas ;
     # seule une empreinte peut le voir.
+    CADRE = '"graine":4242,"boites":"base,decouverte","siege":0,"decide":"humain"'
     ABIMES = {
         "des ordures qui ne sont pas du JSON": "]{ ceci n'est pas du json",
         "du JSON qui n'est pas une partie":
             '{"ceci":"n est pas une partie","decisions":[999,-1]}',
+        "un enregistrement d'une forme plus ancienne":
+            '{"forme":1,' + CADRE + ',"decisions":[0,0],"attendue":"pick_phase"}',
         "des indices hors bornes":
-            '{"forme":1,"graine":4242,"boites":"base,decouverte",'
-            '"decisions":[999,-1],"attendue":"pick_phase"}',
-        "une liste valide qui ne mene plus a la meme question":
-            '{"forme":1,"graine":4242,"boites":"base,decouverte",'
-            '"decisions":[0,0],"attendue":"une_question_qui_n_existe_pas"}',
+            '{"forme":2,' + CADRE + ',"decisions":[999,-1],"empreinte":0}',
+        # LE CAS SOURNOIS, et le seul que le moteur ne peut pas voir : des
+        # indices PARFAITEMENT VALIDES, que le moteur accepte sans broncher,
+        # derriere une empreinte qui ne correspond plus. C'est ce qui arrive
+        # quand une question change de place : la partie serait reprise fausse.
+        "une liste valide derriere une empreinte qui ne correspond plus":
+            '{"forme":2,' + CADRE + ',"decisions":[0,0],"empreinte":123456789}',
     }
     for dit, poison in ABIMES.items():
         with navigateur() as ouvrir:

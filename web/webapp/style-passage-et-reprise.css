@@ -33,9 +33,12 @@
 
 /* Dans la scène du geste, les deux boutons sont côte à côte au bout de la
    rangée : le second ne prend jamais le pas sur le premier. */
+/* AUCUNE MARGE NÉGATIVE. Elle valait -8px, pour serrer les deux boutons : c'est
+   un recouvrement volontaire de huit points sur le bord de « passer », dans la
+   seule zone où le contrat met en garde contre les recouvrements. Un bouton qui
+   en mord un autre est un bouton qui vole des clics. */
 .scene__choix[data-sorte="geste"] .choix--passer-toujours {
   flex: 0 0 auto;
-  margin-left: -8px;
 }
 .scene__choix[data-sorte="geste"] .choix--passer-toujours .choix__mot {
   font-size: 11px; letter-spacing: .08em;

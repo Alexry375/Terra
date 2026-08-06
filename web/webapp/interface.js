@@ -91,6 +91,7 @@ import { montrerAccueil, cacherAccueil } from "./vue/menu.js";
 // pont et `partie.js` n'en savent rien et n'ont pas bougé d'une ligne.
 import {
   sauverPartie, oublierPartie, partieEnregistree, proposerReprise,
+  replierEmpreinte,
 } from "./vue/reprise.js";
 import {
   installerOptions, montrerBoutonOptions, fermerOptions, viderTable,
@@ -468,13 +469,15 @@ function sousCoupeCircuit(f, arret) {
  *
  *   1. **le moteur refuse une réponse.** L'enregistrement est tronqué, bricolé,
  *      ou vient d'un jeu qui ne compte plus les options pareil. `repondre` la
- *      retire de la liste et relève ; on rend `false`.
- *   2. **on ne retombe pas sur la même question.** Une liste d'indices peut
- *      rester valide alors qu'elle ne désigne plus les mêmes choses : c'est très
- *      exactement ce qui arrive si une question du moteur bouge de place. Le rejeu
- *      ne lèverait pas, et l'on reprendrait une partie fausse en croyant la
- *      reprendre. L'empreinte `attendue` — le nom de la question qui suivait la
- *      liste au moment où on l'a enregistrée — le dit.
+ *      retire de la liste et relève ; on rend `null`.
+ *   2. **les questions traversées ne sont plus les mêmes.** Une liste d'indices
+ *      peut rester parfaitement valide alors qu'elle ne désigne plus les mêmes
+ *      choses : c'est très exactement ce qui arrive si une question du moteur
+ *      bouge de place. Le moteur ne lèverait pas, et l'on reprendrait une partie
+ *      fausse en croyant la reprendre. L'empreinte, repliée ici question après
+ *      question (type, nombre d'options, forme, passage offert) et comparée à
+ *      celle qui a été enregistrée, le dit — et elle le dit pour TOUTE la
+ *      partie rejouée, pas seulement pour son dernier pas.
  *
  * Dans les deux cas la page ne plante pas : elle écarte l'enregistrement et
  * commence une partie neuve.
@@ -493,36 +496,41 @@ function sousCoupeCircuit(f, arret) {
  * diverger ensuite, ce serait rejouer « à peu près ».
  *
  * @param {Array} cerveaux  un tirage par siège (`null` pour un siège humain)
- * @returns {boolean} vrai si la partie a été reprise fidèlement
+ * @returns {?number} l'empreinte repliée si la reprise est fidèle, `null` sinon
  */
 function rejouerLesDecisions(partie, enregistree, cerveaux) {
+  let empreinte = 0;
   try {
     for (const reponse of enregistree.decisions) {
       if (partie.termine) {
         console.warn("terra : l'enregistrement dit plus de décisions que la "
           + "partie n'en a — écarté");
-        return false;
+        return null;
       }
       const d = partie.decision;
+      empreinte = replierEmpreinte(empreinte, d);
       const cerveau = d ? cerveaux[d.joueur] : null;
       if (cerveau) cerveau.decider(d, partie.etat);
       partie.repondre(reponse);
     }
   } catch (e) {
     console.warn("terra : le moteur refuse l'enregistrement —", e && e.message);
-    return false;
+    return null;
   }
   if (partie.termine || !partie.decision) {
     console.warn("terra : l'enregistrement mène à une partie déjà finie — écarté");
-    return false;
+    return null;
   }
-  if (enregistree.attendue && partie.decision.type !== enregistree.attendue) {
-    console.warn("terra : l'enregistrement retombe sur « " + partie.decision.type
-      + " » au lieu de « " + enregistree.attendue + " » — les décisions ne "
-      + "veulent plus dire la même chose, il est écarté");
-    return false;
+  // La question d'arrivée compte elle aussi : c'est celle que le joueur avait
+  // sous les yeux quand tout s'est arrêté.
+  empreinte = replierEmpreinte(empreinte, partie.decision);
+  if (empreinte !== enregistree.empreinte) {
+    console.warn("terra : l'empreinte de l'enregistrement ne correspond plus "
+      + "(" + enregistree.empreinte + " attendue, " + empreinte + " obtenue) — "
+      + "les décisions ne veulent plus dire la même chose, il est écarté");
+    return null;
   }
-  return true;
+  return empreinte;
 }
 
 /**
@@ -565,13 +573,24 @@ async function lancer({ graine, boites }, reprise = null) {
   // — et la partie repart de zéro, sur la même graine, plutôt que de laisser le
   // joueur devant une page morte. Ni la liste à moitié rejouée ni les tirages à
   // moitié consommés ne survivent : on refait tout, proprement.
-  if (reprise && !rejouerLesDecisions(partie, reprise, cerveaux)) {
-    oublierPartie();
-    partie = creerPartie(pont, { graine, boites });
-    cerveaux[cadre.siege] = cadre.decide === "programme"
-      ? fournisseurAleatoire(graine * 2 + 1, "programme au siège")
-      : null;
-    cerveaux[1 - cadre.siege] = fournisseurAleatoire(graine * 2 + 2, "adversaire");
+  //
+  // L'EMPREINTE CONTINUE DE SE REPLIER APRÈS LA REPRISE : celle que le rejeu a
+  // obtenue est exactement celle qu'une partie jamais coupée aurait à cet
+  // instant, donc les enregistrements suivants restent comparables au même
+  // nombre. Repartir de zéro ici rendrait la partie irreprenable une seconde fois.
+  let empreinte = 0;
+  if (reprise) {
+    const repliee = rejouerLesDecisions(partie, reprise, cerveaux);
+    if (repliee === null) {
+      oublierPartie();
+      partie = creerPartie(pont, { graine, boites });
+      cerveaux[cadre.siege] = cadre.decide === "programme"
+        ? fournisseurAleatoire(graine * 2 + 1, "programme au siège")
+        : null;
+      cerveaux[1 - cadre.siege] = fournisseurAleatoire(graine * 2 + 2, "adversaire");
+    } else {
+      empreinte = repliee;
+    }
   }
 
   // Le bouton d'options n'apparaît qu'ici : sur l'accueil, il n'aurait rien à
@@ -606,7 +625,10 @@ async function lancer({ graine, boites }, reprise = null) {
     await jouerJusquAuBout(
       partie,
       fournisseurs.map((f) => sousCoupeCircuit(f, arret)),
-      rendezVous ? undefined : sauverPartie,
+      rendezVous ? undefined : (p) => {
+        empreinte = replierEmpreinte(empreinte, p.decision);
+        sauverPartie(p, cadre, empreinte);
+      },
     );
   } catch (e) {
     // La partie a été abandonnée : `retourAuMenu` a déjà vidé la table et remis
@@ -698,6 +720,17 @@ async function demarrer() {
   if (enregistree) {
     if (await proposerReprise(enregistree)) reprise = enregistree;
     else oublierPartie(); // refusée : on ne la reproposera pas au chargement suivant
+  }
+  if (reprise) {
+    // ON REPREND LA TABLE, PAS SEULEMENT LA PARTIE. Le siège regardé et celui
+    // qui répond pour lui font partie de la partie qu'on reprend : c'est d'eux
+    // que dépend quel siège reçoit quel tirage aléatoire. Les rejouer sous le
+    // cadre de l'ADRESSE distribuerait le hasard à l'envers — écran juste au
+    // bon rang, puis divergence jusqu'à un autre score final (mesuré : `[70,
+    // 56]` du même siège, `[58, 61]` du siège d'en face, graine 4242). Le cadre
+    // est donc adopté ICI, avant que `batir` ne s'en serve.
+    cadre.siege = reprise.siege;
+    cadre.decide = reprise.decide;
   }
 
   // Le manifeste : tout le décor est bâti à partir des images qu'il désigne, il
