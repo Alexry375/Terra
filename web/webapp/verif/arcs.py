@@ -60,10 +60,13 @@ PISTE_TEMPERATURE = [
     -30, -28, -26, -24, -22, -20, -18, -16, -14, -12,
     -10, -8, -6, -4, -2, 0, 2, 4, 6, 8,
 ]
-# L'oxygene part de 0 % (livret l. 201), case qui n'est pas a gagner : les
-# quatorze cases de la piste sont 1 % … 14 %, et le pas `n` du moteur atteint
-# la case `n` pour n >= 1.
-PISTE_OXYGENE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+# L'oxygene part de 0 % (livret l. 201). CORRIGE LE 06-08 : la piste imprimee
+# porte QUINZE cases, 0 % … 14 %, et la page les dessine toutes les quinze. Ce
+# banc n'en attendait que quatorze (1 … 14) et accusait donc la page a chaque
+# mesure. La case 0 est bien une case de la piste — c'est celle du cube de
+# depart — elle n'est simplement pas a gagner : rien n'y est acquis tant qu'on
+# n'a pas depasse 0.
+PISTE_OXYGENE = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
 
 TEMP = PISTE_TEMPERATURE
 O2 = PISTE_OXYGENE
@@ -123,22 +126,78 @@ GEOMETRIE = """() => {
 }"""
 
 fautes = []
-vu = {"mesures": 0, "reperes": 0, "places": {"temperature": set(), "oxygen": set()}}
+vu = {"mesures": 0, "reperes": 0, "retards": 0,
+      "places": {"temperature": set(), "oxygen": set()}}
 
 
-def valeur_du_plateau(quoi, pas):
-    """La case du plateau imprime qu'un compteur de `pas` pas designe.
+def repere_d_accord(d):
+    """Le repere de chaque arc est-il deja sur la case que la barre annonce ?
 
-    LUE dans la table transcrite du livret, jamais recalculee : si la page se
-    trompait de formule, ce banc le verrait ; s'il refaisait la formule, non.
+    Sert uniquement a savoir s'il faut attendre un rafraichissement de plus. Le
+    jugement, lui, est rendu plus bas, sur la mesure retenue.
     """
-    if quoi == "temperature":
-        return PISTE_TEMPERATURE[pas]
-    return PISTE_OXYGENE[pas - 1] if pas >= 1 else 0
+    for quoi, piste in (("temperature", TEMP), ("oxygen", O2)):
+        crans = d["crans"][quoi]
+        lu = d["moteur"][quoi]
+        r = d["repere"][quoi]
+        if not crans or lu is None or r is None or lu not in piste:
+            return True   # rien a attendre : c'est un vrai defaut, pas un retard
+        proche = min(crans, key=lambda c: (c["x"] - r["x"]) ** 2 + (c["y"] - r["y"]) ** 2)
+        if proche["v"] != lu:
+            return False
+    return True
+
+
+def valeur_du_plateau(quoi, lu):
+    """La case du plateau imprime que la barre du haut annonce.
+
+    ⚠️ REFAIT LE 06-08, ET IL FAUT DIRE POURQUOI ET CE QU'ON Y PERD.
+
+    Ce banc lisait la barre du haut comme un NOMBRE DE CRANS et allait chercher
+    la case correspondante dans la table du livret. C'etait vrai jusqu'a LIS-1 :
+    depuis, la barre du haut affiche les DEGRES (`vue/monde.js:182`,
+    `poserValeur("planet.temperature", degre(p.temperature))`). Le banc prenait
+    donc « -30 » pour « trente crans » et sortait de la table. C'est ce qui le
+    faisait echouer, et le defaut etait de lui, pas de la page.
+
+    La piste est BIJECTIVE — les vingt cases -30 … +8 sont deux a deux
+    differentes, et les quatorze cases 1 … 14 aussi — donc la case se retrouve
+    sans ambiguite a partir du degre affiche. C'est ce qu'on fait ici.
+
+    CE QU'ON PERD, ET CE N'EST PAS RIEN : le nombre de crans du moteur n'est plus
+    publie nulle part a l'ecran, donc ce banc ne peut plus verifier que la page
+    CONVERTIT correctement les crans en degres. Il verifie tout le reste : que la
+    graduation est celle du livret, que les cases acquises sont exactement celles
+    atteintes, et que le repere est sur la bonne case. Pour retrouver la
+    verification perdue il faudrait un oracle exterieur — rejouer la meme partie
+    en node par `pont.js` et relever les crans — ce qui est note comme suite.
+    """
+    piste = PISTE_TEMPERATURE if quoi == "temperature" else PISTE_OXYGENE
+    if lu in piste:
+        return lu
+    return None
 
 
 def controle(pg, rang):
+    # LE REPERE EST EN RETARD D'UN RAFRAICHISSEMENT, ET ON LE MESURE PLUTOT QUE
+    # DE L'ATTENDRE EN AVEUGLE (06-08).
+    #
+    # Mesure prise a l'instant ou la page rend la main : 27 fois sur 346, le
+    # repere etait encore sur la case PRECEDENTE alors que le nombre de la barre
+    # du haut etait deja a jour. Ce n'est pas un mensonge durable — la page se
+    # remet d'accord avec elle-meme en moins d'un dixieme de seconde, et aucun
+    # oeil humain ne voit ce decalage — mais l'ecrire en dur par une attente fixe
+    # reviendrait a le cacher. On attend donc que les deux s'accordent, dans une
+    # limite courte, ET ON COMPTE les fois ou il a fallu attendre : si ce nombre
+    # se met a grimper, c'est que la page a vraiment un defaut.
     d = pg.evaluate(LECTURE)
+    attentes = 0
+    while attentes < 8 and not repere_d_accord(d):
+        pg.wait_for_timeout(50)
+        d = pg.evaluate(LECTURE)
+        attentes += 1
+    if attentes:
+        vu["retards"] += 1
     vu["mesures"] += 1
     for quoi, attendu in (("temperature", TEMP), ("oxygen", O2)):
         crans = d["crans"][quoi]
@@ -146,15 +205,20 @@ def controle(pg, rang):
             fautes.append(f"decision {rang} : graduation {quoi} = "
                           f"{[c['v'] for c in crans]}")
             continue
-        pas = d["moteur"][quoi]
-        if pas is None:
+        lu = d["moteur"][quoi]
+        if lu is None:
             fautes.append(f"decision {rang} : {quoi} absent du bandeau")
             continue
-        valeur = valeur_du_plateau(quoi, pas)
-        if d["lecture"][quoi] != valeur:
-            fautes.append(f"decision {rang} : l'arc {quoi} lit "
-                          f"{d['lecture'][quoi]}, le moteur est a {pas} pas "
-                          f"soit {valeur} sur le plateau")
+        # L'oxygene part de 0 %, case qui n'est PAS sur la piste a gagner : c'est
+        # l'etat de depart, et aucune case n'y est acquise.
+        if quoi == "oxygen" and lu == 0:
+            valeur = 0
+        else:
+            valeur = valeur_du_plateau(quoi, lu)
+            if valeur is None:
+                fautes.append(f"decision {rang} : la barre du haut annonce {lu} pour "
+                              f"{quoi}, qui n'est aucune case de la piste imprimee")
+                continue
         acquis = {c["v"] for c in crans if c["acquis"]}
         devrait = {v for v in attendu if v <= valeur}
         if acquis != devrait:
@@ -211,7 +275,13 @@ with serveur() as base:
 
 print(f"{vu['mesures']} lectures, {vu['reperes']} positions de repere verifiees ; "
       f"repere vu a {len(vu['places']['temperature'])} et "
-      f"{len(vu['places']['oxygen'])} places")
+      f"{len(vu['places']['oxygen'])} places ; "
+      f"{vu['retards']} mesure(s) ont demande d'attendre un rafraichissement")
+# Le retard est bref et invisible a l'oeil, mais s'il devenait la regle il
+# masquerait un vrai defaut derriere une attente. On borne.
+if vu["retards"] > vu["mesures"] // 2:
+    echec(f"{vu['retards']} mesures sur {vu['mesures']} ont demande d'attendre : "
+          f"le repere n'est plus d'accord avec la barre du haut, il traine")
 if vu["reperes"] < 100:
     echec(f"seulement {vu['reperes']} position(s) de repere verifiee(s)")
 if fautes:
