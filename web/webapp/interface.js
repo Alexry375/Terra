@@ -327,8 +327,7 @@ function siegeHumain() {
  * posée comme pour un humain, ma main reste en clair, et la réponse arrive par
  * le même chemin qu'un clic (`vue/scene.js`).
  */
-function siegeProgramme(graine, arret) {
-  const cerveau = fournisseurAleatoire(graine * 2 + 1, "programme au siège");
+function siegeProgramme(cerveau, arret) {
   return {
     nom: cerveau.nom,
     async decider(d, etat) {
@@ -356,8 +355,7 @@ function siegeProgramme(graine, arret) {
  * précisément ce que l'ancien écran ne faisait pas : il donnait la parole — et
  * toute la surface — à celui qui décidait, quel qu'il soit.
  */
-function adversaire(graine) {
-  const cerveau = fournisseurAleatoire(graine * 2 + 2, "adversaire");
+function adversaire(cerveau) {
   return {
     nom: cerveau.nom,
     decider(d, etat) {
@@ -481,9 +479,23 @@ function sousCoupeCircuit(f, arret) {
  * Dans les deux cas la page ne plante pas : elle écarte l'enregistrement et
  * commence une partie neuve.
  *
+ * **ET LE HASARD DES PROGRAMMES AVANCE AVEC ELLE.** C'est le piège de tout ce
+ * point, et il ne se voit pas au moment de la reprise : il se voit à la FIN.
+ * L'adversaire est un tirage reproductible (`fournisseurAleatoire`,
+ * `graine*2+2`), mais c'est un FLUX — sa n-ième réponse dépend du nombre de fois
+ * qu'on l'a déjà consulté. Rejouer la liste sans le consulter le remettrait à
+ * son premier tirage : l'écran serait juste à l'instant de la reprise (même
+ * rang, même planète, même main, tout ce qui vient du moteur), et la partie
+ * divergerait ensuite, coup après coup, pour finir sur un autre score. On
+ * consulte donc chaque cerveau exactement une fois par décision qui lui
+ * revenait, comme la partie l'avait fait, et l'on jette sa réponse : c'est la
+ * liste enregistrée qui fait foi, jamais lui. Reprendre au bon rang mais
+ * diverger ensuite, ce serait rejouer « à peu près ».
+ *
+ * @param {Array} cerveaux  un tirage par siège (`null` pour un siège humain)
  * @returns {boolean} vrai si la partie a été reprise fidèlement
  */
-function rejouerLesDecisions(partie, enregistree) {
+function rejouerLesDecisions(partie, enregistree, cerveaux) {
   try {
     for (const reponse of enregistree.decisions) {
       if (partie.termine) {
@@ -491,6 +503,9 @@ function rejouerLesDecisions(partie, enregistree) {
           + "partie n'en a — écarté");
         return false;
       }
+      const d = partie.decision;
+      const cerveau = d ? cerveaux[d.joueur] : null;
+      if (cerveau) cerveau.decider(d, partie.etat);
       partie.repondre(reponse);
     }
   } catch (e) {
@@ -535,13 +550,28 @@ async function lancer({ graine, boites }, reprise = null) {
 
   let partie = creerPartie(pont, { graine, boites });
 
+  // LES DEUX TIRAGES DE LA PARTIE, créés ICI et une seule fois. Ils l'étaient
+  // dans `siegeProgramme` et `adversaire` ; ils en sortent parce qu'une partie
+  // reprise doit pouvoir les faire avancer au même point avant de rendre la main
+  // (voir `rejouerLesDecisions`). Les graines sont les mêmes qu'avant, au chiffre
+  // près : rien de ce qui est tiré ne change.
+  const cerveaux = [];
+  cerveaux[cadre.siege] = cadre.decide === "programme"
+    ? fournisseurAleatoire(graine * 2 + 1, "programme au siège")
+    : null;
+  cerveaux[1 - cadre.siege] = fournisseurAleatoire(graine * 2 + 2, "adversaire");
+
   // (CNF-6) LA PARTIE REPRISE. Si le rejeu échoue, l'enregistrement est écarté
   // — et la partie repart de zéro, sur la même graine, plutôt que de laisser le
-  // joueur devant une page morte. La liste à moitié rejouée ne survit pas : on
-  // refait une partie propre.
-  if (reprise && !rejouerLesDecisions(partie, reprise)) {
+  // joueur devant une page morte. Ni la liste à moitié rejouée ni les tirages à
+  // moitié consommés ne survivent : on refait tout, proprement.
+  if (reprise && !rejouerLesDecisions(partie, reprise, cerveaux)) {
     oublierPartie();
     partie = creerPartie(pont, { graine, boites });
+    cerveaux[cadre.siege] = cadre.decide === "programme"
+      ? fournisseurAleatoire(graine * 2 + 1, "programme au siège")
+      : null;
+    cerveaux[1 - cadre.siege] = fournisseurAleatoire(graine * 2 + 2, "adversaire");
   }
 
   // Le bouton d'options n'apparaît qu'ici : sur l'accueil, il n'aurait rien à
@@ -554,9 +584,10 @@ async function lancer({ graine, boites }, reprise = null) {
   // que `?decide=` désigne, l'autre reçoit toujours le programme adverse. Rien
   // d'autre dans la page ne dépend de « qui est le joueur 0 ».
   const fournisseurs = [];
-  fournisseurs[cadre.siege] =
-    cadre.decide === "programme" ? siegeProgramme(graine, arret) : siegeHumain();
-  fournisseurs[1 - cadre.siege] = adversaire(graine);
+  fournisseurs[cadre.siege] = cadre.decide === "programme"
+    ? siegeProgramme(cerveaux[cadre.siege], arret)
+    : siegeHumain();
+  fournisseurs[1 - cadre.siege] = adversaire(cerveaux[1 - cadre.siege]);
   // LA SEULE LIGNE DE COMPOSITION QUI CHANGE. En ligne, le siège d'en face
   // n'est plus tenu par le programme mais par un humain devant un autre écran,
   // et mes propres réponses passent par le point de rendez-vous. `partie.js`
