@@ -42,15 +42,15 @@ if (PREMIERE < 7000 || PREMIERE + GRAINES > 8000) {
 // c'est lui qui gagnait 94,5 % avant ce chantier).
 const VARIANTES = [
   null,
-  { seuilVente: -6, gardeMini: 4 },
-  { seuilVente: -3, gardeMini: 4 },
-  { seuilVente: 0, gardeMini: 4 },
-  { seuilVente: 2, gardeMini: 4 },
-  { seuilVente: 4, gardeMini: 4 },
-  { seuilVente: 0, gardeMini: 2 },
-  { seuilVente: 0, gardeMini: 6 },
-  { seuilVente: 2, gardeMini: 2 },
-  { seuilVente: 2, gardeMini: 6 },
+  { prixVenteMini: 10, gardeMini: 4 },
+  { prixVenteMini: 14, gardeMini: 4 },
+  { prixVenteMini: 18, gardeMini: 4 },
+  { prixVenteMini: 22, gardeMini: 4 },
+  { prixVenteMini: 26, gardeMini: 4 },
+  { prixVenteMini: 18, gardeMini: 2 },
+  { prixVenteMini: 18, gardeMini: 6 },
+  { prixVenteMini: 14, gardeMini: 2 },
+  { prixVenteMini: 14, gardeMini: 6 },
 ];
 
 const SOURCE = readFileSync(join(W, "joueurs/reflechi.js"), "utf8");
@@ -59,16 +59,19 @@ const DOSSIER = mkdtempSync(join(tmpdir(), "reglage-vente-"));
 /** Une copie du joueur livré, avec deux nombres substitués. */
 async function joueurAvec(variante, rang) {
   if (!variante) {
-    // Le témoin : la copie garde les réglages livrés, mais on lui coupe la
-    // vente en lui donnant un seuil qu'aucune carte n'atteint.
-    variante = { seuilVente: -1e9, gardeMini: 0 };
+    // Le témoin : la copie garde le cerveau livré, mais on lui coupe la vente
+    // en lui donnant un prix qu'aucune carte n'atteint.
+    variante = { prixVenteMini: 1e9, gardeMini: 0 };
   }
-  let src = SOURCE.replace(/seuilVente: [-\d.e+]+/, `seuilVente: ${variante.seuilVente}`)
+  let src = SOURCE.replace(
+    /prixVenteMini: [-\d.e+]+/,
+    `prixVenteMini: ${variante.prixVenteMini}`,
+  )
     .replace(/gardeMini: [-\d.e+]+/, `gardeMini: ${variante.gardeMini}`)
     // La copie vit hors du dossier : ses imports relatifs doivent devenir absolus.
     .replace(/from "\.\.\//g, `from "${pathToFileURL(W + "/").href}`);
-  if (!src.includes(`seuilVente: ${variante.seuilVente}`)) {
-    throw new Error("la substitution de `seuilVente` a échoué : le fichier a changé de forme");
+  if (!src.includes(`prixVenteMini: ${variante.prixVenteMini}`)) {
+    throw new Error("la substitution de `prixVenteMini` a échoué : le fichier a changé de forme");
   }
   const chemin = join(DOSSIER, `reflechi-${rang}.js`);
   writeFileSync(chemin, src);
@@ -120,7 +123,7 @@ for (const [rang, variante] of VARIANTES.entries()) {
     }
   }
   const nom = variante
-    ? `seuil ${String(variante.seuilVente).padStart(4)} garde ${variante.gardeMini}`
+    ? `prix mini ${String(variante.prixVenteMini).padStart(3)} garde ${variante.gardeMini}`
     : "temoin (ne vend jamais)   ";
   const part = jouees ? (100 * gagnees) / jouees : 0;
   console.log(

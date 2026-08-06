@@ -109,9 +109,9 @@ export const REGLAGES = {
   passer: 0,
 
   // — La vente (voir « CE JOUEUR VEND », plus bas). Mesurés sur les graines
-  // 7000 à 7059, jamais sur les graines 1 à 100 de la mesure finale.
-  seuilVente: 0, // on vend une carte dont la valeur en main tombe sous ce seuil
-  gardeMini: 4, // … mais jamais au point d'avoir moins de tant de cartes
+  // 7000 à 7029, jamais sur les graines 1 à 100 de la mesure finale.
+  prixVenteMini: 18, // on ne vend qu'une carte hors de portée AU MOINS si chère
+  gardeMini: 4, // … et jamais au point d'avoir moins de tant de cartes en main
 };
 
 // FIGÉS POUR DE BON. Sans ce gel, n'importe quel importateur pourrait réécrire
@@ -319,11 +319,20 @@ function noterAction(libelle) {
  * il le LIT. Reposez-lui la même question sur le même état, il rend la même
  * chose.
  *
- * CE QU'IL VEND. Les cartes dont la valeur en main tombe sous `seuilVente` —
- * l'échelle est celle de `valeurEnMain`, la même qui sert à défausser et à
- * garder ailleurs dans ce fichier — sans jamais descendre sous `gardeMini`
- * cartes en main. Il vend les PIRES d'abord. Une carte qui ne se posera jamais
- * ne rapporte rien ; 3 MC, si.
+ * CE QU'IL VEND, ET AVEC QUOI IL EN JUGE. Attention : les cartes de la MAIN
+ * publiée dans l'état ne portent ni points de victoire ni badges — l'état ne
+ * donne, carte par carte, que `price`, `couleur` et `main_payable`
+ * (`engine/src/observe.rs`, `player_view`). `valeurEnMain`, qui pèse les PV et
+ * les badges, ne s'applique donc qu'aux OPTIONS énumérées par le moteur, où ces
+ * champs existent : l'employer ici rendrait 0 pour toute carte, et ce joueur
+ * vendrait sa main entière sans rien regarder (mesuré le 06-08 : 4 691 cartes
+ * vendues en 60 parties, et 95,0 % de victoires au lieu de 96,7 %).
+ *
+ * Il vend donc sur les deux seules choses que l'état dise de sa main : le PRIX
+ * et la PORTÉE. Une carte que je n'ai PAS les moyens de payer et qui coûte au
+ * moins `prixVenteMini` est une carte qui dort ; les plus chères dorment le plus
+ * longtemps, et ce sont elles qui partent d'abord. Jamais en dessous de
+ * `gardeMini` cartes en main : une main vide ne pose plus rien.
  */
 function venteEventuelle(d, etat, moi) {
   const siege = d.joueur;
@@ -335,13 +344,15 @@ function venteEventuelle(d, etat, moi) {
 
   const R = REGLAGES;
   const main = moi.main;
+  const candidates = main
+    .map((c, i) => [i, (c && c.price) || 0])
+    .filter(([i, prix]) => !moi.payable[i] && prix >= R.prixVenteMini)
+    // La plus chère d'abord ; à prix égal, l'indice le plus petit (départage
+    // déterministe, comme partout dans ce fichier).
+    .sort((a, b) => b[1] - a[1] || a[0] - b[0]);
+
   const aVendre = [];
-  // Les pires d'abord : on trie les indices par valeur croissante.
-  const ordre = main
-    .map((c, i) => [i, valeurEnMain(c)])
-    .sort((a, b) => a[1] - b[1] || a[0] - b[0]);
-  for (const [i, v] of ordre) {
-    if (v >= R.seuilVente) break;
+  for (const [i] of candidates) {
     if (main.length - aVendre.length <= R.gardeMini) break;
     aVendre.push(i);
   }
