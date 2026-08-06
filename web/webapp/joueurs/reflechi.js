@@ -107,6 +107,11 @@ export const REGLAGES = {
   temperature: 48,
   actionDeCarte: 40,
   passer: 0,
+
+  // — La vente (voir « CE JOUEUR VEND », plus bas). Mesurés sur les graines
+  // 7000 à 7059, jamais sur les graines 1 à 100 de la mesure finale.
+  seuilVente: 0, // on vend une carte dont la valeur en main tombe sous ce seuil
+  gardeMini: 4, // … mais jamais au point d'avoir moins de tant de cartes
 };
 
 // FIGÉS POUR DE BON. Sans ce gel, n'importe quel importateur pourrait réécrire
@@ -294,29 +299,55 @@ function noterAction(libelle) {
 }
 
 /**
- * ET LA VENTE ? ELLE N'EST PAS DE CE JOUEUR, ET LA RAISON EST DANS LE MOTEUR.
+ * CE JOUEUR VEND — ET C'EST L'ÉTAT, ET RIEN QUE L'ÉTAT, QUI LE LUI PERMET.
  *
  * Vendre est une ENTRÉE de la liste de décisions (`{"vendre":{joueur,cartes}}`,
  * voir `adversaire.md`), pas une réponse : le moteur la consomme au point
  * d'occasion qui précède la question, puis repose la MÊME question sur l'état
- * d'après. Une première vente passe donc très bien. La seconde ne passe pas :
- * l'occasion vient d'être dépensée, et une nouvelle ne s'ouvrira qu'après une
- * vraie réponse de mon siège.
+ * d'après. Une occasion ne se dépense qu'une fois par siège ; une seconde vente
+ * rendue au même point serait refusée et arrêterait la partie.
  *
- * Or `etat.vente_offerte` vaut VRAI dans les deux cas — le drapeau est armé
- * avant la vente et republié après (`engine/src/flow.rs`, `occasion_de_vendre` ;
- * la page en tire les mêmes conséquences, note K1 du 04-08 dans
- * `vue/vente.js`). L'état ne dit donc pas si l'occasion est encore ouverte. Un joueur SANS MÉMOIRE, comme
- * celui-ci, ne peut pas faire la différence : mesuré, il vend une fois, revoit
- * la même question sans option, revend — et le moteur arrête la partie
- * (« aucune occasion de vendre n'est ouverte à ce point », graine 2, entrée 83).
+ * Il fallait donc savoir, sans aucune mémoire, si l'occasion est encore
+ * ouverte — et `etat.vente_offerte` ne le disait pas : ce drapeau est armé AVANT
+ * la vente et vaut encore vrai après. Ce joueur ne vendait pas pour cette
+ * raison-là. Le moteur publie désormais l'occasion elle-même,
+ * `etat.occasion_de_vendre_ouverte`, un booléen par siège, faux dès que
+ * l'occasion de ce siège est dépensée (`engine/src/flow.rs`, `observer` ;
+ * `state::PlayerState::occasion_de_vendre_ouverte`).
  *
- * Deux issues : se donner une mémoire des décisions passées — ce que ce joueur
- * refuse, c'est ce qui le protège de réciter une partie apprise — ou demander au
- * moteur de publier l'occasion elle-même, et non le seul droit de vendre. La
- * seconde est notée dans `result.md` §Adjacent work ; le moteur n'est pas touché
- * par ce chantier. En attendant, ce joueur ne vend pas.
+ * Ce joueur reste donc SANS MÉMOIRE : il ne retient pas qu'il vient de vendre,
+ * il le LIT. Reposez-lui la même question sur le même état, il rend la même
+ * chose.
+ *
+ * CE QU'IL VEND. Les cartes dont la valeur en main tombe sous `seuilVente` —
+ * l'échelle est celle de `valeurEnMain`, la même qui sert à défausser et à
+ * garder ailleurs dans ce fichier — sans jamais descendre sous `gardeMini`
+ * cartes en main. Il vend les PIRES d'abord. Une carte qui ne se posera jamais
+ * ne rapporte rien ; 3 MC, si.
  */
+function venteEventuelle(d, etat, moi) {
+  const siege = d.joueur;
+  // L'occasion, par siège, et seulement la mienne. Le nom est celui du moteur ;
+  // un état qui ne le publierait pas (ancien moteur) vaut « pas d'occasion »,
+  // et ce joueur ne vend alors pas — jamais l'inverse.
+  const ouvertes = etat && etat.occasion_de_vendre_ouverte;
+  if (!Array.isArray(ouvertes) || ouvertes[siege] !== true) return null;
+
+  const R = REGLAGES;
+  const main = moi.main;
+  const aVendre = [];
+  // Les pires d'abord : on trie les indices par valeur croissante.
+  const ordre = main
+    .map((c, i) => [i, valeurEnMain(c)])
+    .sort((a, b) => a[1] - b[1] || a[0] - b[0]);
+  for (const [i, v] of ordre) {
+    if (v >= R.seuilVente) break;
+    if (main.length - aVendre.length <= R.gardeMini) break;
+    aVendre.push(i);
+  }
+  if (!aVendre.length) return null;
+  return { vendre: { joueur: siege, cartes: aVendre.sort((a, b) => a - b) } };
+}
 
 // ───────────────────────────────────────────────────────────────── le cerveau
 
@@ -327,6 +358,14 @@ function noterAction(libelle) {
 function decider(d, etat) {
   const moi = monSiege(etat, d.joueur);
   const monde = leMonde(etat);
+
+  // VENDRE PASSE AVANT DE RÉPONDRE : le moteur consomme l'entrée au point
+  // d'occasion qui précède cette question-ci, puis repose la même question sur
+  // l'état d'après — les cartes payables seront ré-énumérées avec l'argent de la
+  // vente. On répondra donc à l'appel suivant.
+  const vente = venteEventuelle(d, etat, moi);
+  if (vente) return vente;
+
   const options = d.options || [];
   const n = options.length;
   const forme = formeDeLaReponse(d);
