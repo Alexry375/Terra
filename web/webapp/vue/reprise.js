@@ -173,7 +173,13 @@ export function partieEnregistree() {
 function formeFautive(o) {
   if (!o || typeof o !== "object" || Array.isArray(o)) return "ce n'est pas un objet";
   if (o.forme !== FORME) return `forme ${JSON.stringify(o.forme)} inconnue`;
-  if (!Number.isInteger(o.graine)) return "graine absente ou non entière";
+  // La graine est bornée, et pas seulement « entière » : le moteur n'accepte
+  // qu'un entier de 0 à 2^64-1, et `Number.isInteger(1e300)` répond vrai. Une
+  // graine hors bornes ferait lever `creerPartie` — c'est-à-dire une page morte
+  // au lieu d'une partie neuve, exactement ce que ce point promet d'éviter.
+  if (!Number.isSafeInteger(o.graine) || o.graine < 0) {
+    return "graine absente, non entière ou hors bornes";
+  }
   if (typeof o.boites !== "string" || !BOITES.has(o.boites)) return "boîtes inconnues";
   if (!Array.isArray(o.decisions)) return "liste de décisions absente";
   if (o.decisions.length === 0) return "liste de décisions vide";
