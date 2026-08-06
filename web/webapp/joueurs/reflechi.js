@@ -108,8 +108,10 @@ export const REGLAGES = {
   actionDeCarte: 40,
   passer: 0,
 
-  // — La vente (voir « CE JOUEUR VEND », plus bas). Mesurés sur les graines
-  // 7000 à 7029, jamais sur les graines 1 à 100 de la mesure finale.
+  // — La vente (voir « CE JOUEUR VEND », plus bas). Mesurés en deux tours, sur
+  // les graines 7000 à 7029 (dix variantes) puis 7100 à 7199 (les finalistes,
+  // 200 parties chacune) — jamais sur les graines 1 à 100 de la mesure finale.
+  // Le banc : `verif/reglage-de-la-vente.mjs`, qui refuse toute autre plage.
   prixVenteMini: 10, // on ne vend qu'une carte hors de portée AU MOINS si chère
   gardeMini: 4, // … et jamais au point d'avoir moins de tant de cartes en main
 };

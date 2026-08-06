@@ -374,9 +374,12 @@ pub struct PlayerState {
     /// vérifie tous les trois :
     ///
     /// 1. aucune occasion pour ce point (`vente_offerte` faux) ;
-    /// 2. la main de ce joueur est VIDE à l'occasion — `occasion_de_vendre`
-    ///    passe alors le siège sans interroger la politique, donc sans rien
-    ///    pouvoir consommer ;
+    /// 2. la main de ce joueur est VIDE — `occasion_de_vendre` passe alors le
+    ///    siège sans interroger la politique, donc sans rien pouvoir consommer.
+    ///    `flow::observer` lit la main à l'OBSERVATION et non à l'occasion : les
+    ///    deux ne coïncident que parce que `mains_a_l_occasion` interdit de
+    ///    publier quoi que ce soit quand elles diffèrent. Si ce garde-là
+    ///    disparaissait, ce cas-ci deviendrait faux en silence ;
     /// 3. un siège `q >= p` a déjà vendu à cette occasion-ci. L'occasion
     ///    interroge les sièges dans l'ordre croissant : une entrée ajoutée
     ///    après coup est vue par les sièges qui suivent celui qui a vendu, et
