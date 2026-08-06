@@ -2489,6 +2489,21 @@ fn apply_eff(game: &mut GameState, db: &CardsDb, p: usize, eff: Eff, policy: &mu
             // reste libre « à tout moment » (l. 96), mais sur ce qui n'est pas
             // dû : sans cela, « défaussez une carte » rapporterait 3 MC au lieu
             // de coûter une carte.
+            //
+            // **Les deux formulations ne réservent pas la même chose**, et
+            // c'est une relecture adversariale qui l'a montré (06-08) :
+            //
+            // - « Then, discard N cards » (`from_drawn: false`) — la dette est
+            //   un nombre DÉFAUSSÉ. Réserver `n_du` cartes de la main suffit :
+            //   le reste peut être vendu.
+            // - « **Keep one of them** and discard the other two »
+            //   (`from_drawn: true`) — la dette est un nombre GARDÉ. Réserver
+            //   les seules `n_du` cartes à défausser laissait vendre la carte
+            //   que le joueur avait le droit de garder : il en gardait ZÉRO au
+            //   lieu d'une (reproduit graines 5008 et 5020, 2 cas sur 4
+            //   rencontres). Les cartes qu'on est en train de résoudre ne se
+            //   vendent donc pas : la réserve les prend TOUTES, et le joueur
+            //   les vendra à l'occasion suivante s'il le veut encore.
             let keep_du = draw.saturating_sub(discard) as usize;
             let cands_dus: Vec<u16> = if from_drawn {
                 drawn.clone()
@@ -2500,6 +2515,12 @@ fn apply_eff(game: &mut GameState, db: &CardsDb, p: usize, eff: Eff, policy: &mu
             } else {
                 (discard as usize).min(cands_dus.len())
             };
+            let cands_dus_len = cands_dus.len();
+            let reserve_mini = if from_drawn {
+                cands_dus_len // « keep one of THEM » : les trois sont engagées
+            } else {
+                n_du
+            };
             occasion_de_vendre_sous_reserve(
                 game,
                 db,
@@ -2507,7 +2528,7 @@ fn apply_eff(game: &mut GameState, db: &CardsDb, p: usize, eff: Eff, policy: &mu
                 Some(&ReserveDeVente {
                     joueur: p,
                     cartes: cands_dus,
-                    mini: n_du,
+                    mini: reserve_mini,
                 }),
             );
             // « Keep one of THEM » restreint la défausse aux cartes piochées ;
@@ -2536,11 +2557,6 @@ fn apply_eff(game: &mut GameState, db: &CardsDb, p: usize, eff: Eff, policy: &mu
             // bouge d'un cran. Avec vente, la réserve a gardé de quoi payer :
             // `cands.len() >= n_du`, et le `min` ci-dessous ne mord jamais.
             let n = n_du.min(cands.len());
-            // (MOT-13) CE QUE LA VENTE AURAIT FAIT DISPARAÎTRE, compté ici et
-            // nulle part ailleurs. La réserve le tient à zéro ; ce compteur est
-            // ce qui le PROUVE, et ce qui criera si un chemin futur reprenait
-            // des candidats à la défausse après l'avoir calculée.
-            game.players[p].defausses_imposees_esquivees += n_du.saturating_sub(n) as u64;
             if n == 0 {
                 // (round 2) ON SORT SANS AVOIR RIEN DEMANDÉ — et l'occasion
                 // ci-dessus a pourtant eu lieu. Elle a donc pu consommer la
@@ -2551,17 +2567,59 @@ fn apply_eff(game: &mut GameState, db: &CardsDb, p: usize, eff: Eff, policy: &mu
                 // les deux. Ce serait faux le jour où l'on piocherait après ce
                 // point : la ceinture est alors `mains_a_l_occasion`, qui
                 // empêcherait l'écran d'offrir la vente (voir `flow::observer`).
+                //
+                // (MOT-13) Rien n'est défaussé ici : ce qui était dû l'est resté.
+                // `n_du` vaut zéro dans tous les cas légitimes (la réserve
+                // garantit `cands.len() >= n_du`, donc `n == 0` implique
+                // `n_du == 0`) — mais on l'ajoute quand même, faute de quoi ce
+                // chemin-ci serait le seul angle mort du compteur.
+                game.players[p].defausses_imposees_esquivees += n_du as u64;
+                if from_drawn {
+                    let gardees = cands
+                        .iter()
+                        .filter(|c| game.players[p].hand.contains(c))
+                        .count();
+                    game.players[p].gardes_imposees_perdues +=
+                        keep_du.min(cands_dus_len).saturating_sub(gardees) as u64;
+                }
                 return;
             }
             observer(game, p, policy);
             let idx = policy.discard_down(&mut game.rng, p, &cands, n);
+            let mut defaussees = 0usize;
             for &i in idx.iter().take(n) {
                 if i >= cands.len() {
                     continue; // renoncement explicite (convention du lot 3)
                 }
                 if discard_from_hand(game, p, cands[i]) {
                     game.draw_discard_discards += 1;
+                    defaussees += 1;
                 }
+            }
+            // (MOT-13) **CE QUE LA DÉFAUSSE IMPOSÉE A RÉELLEMENT COÛTÉ**, comparé
+            // à ce qu'elle devait coûter. Le compteur ne lit AUCUNE des grandeurs
+            // du correctif : il compte des cartes qui ont bougé de la main vers
+            // la défausse, par `discard_from_hand`, exactement comme
+            // `draw_discard_discards` le faisait avant ce chantier. C'était le
+            // reproche de la relecture adversariale du 06-08 : la version
+            // précédente comparait `n_du` à `n_du.min(cands.len())`, deux
+            // grandeurs du correctif lui-même — elle ne pouvait pas voir une
+            // défausse qui s'évapore ailleurs que dans le comptage.
+            game.players[p].defausses_imposees_esquivees +=
+                n_du.saturating_sub(defaussees) as u64;
+            // (MOT-13, second tour) ET CE QUE LE JOUEUR AVAIT LE DROIT DE GARDER.
+            // « Keep one of them » : la dette est un nombre GARDÉ, et une vente
+            // qui emporte la carte à garder ne se voit pas dans le compteur
+            // ci-dessus — la défausse, elle, a bien eu lieu. Comptées ici sur les
+            // cartes RÉELLEMENT encore en main, comme au-dessus : un mouvement de
+            // carte, jamais une grandeur du correctif.
+            if from_drawn {
+                let gardees = cands
+                    .iter()
+                    .filter(|c| game.players[p].hand.contains(c))
+                    .count();
+                game.players[p].gardes_imposees_perdues +=
+                    keep_du.min(cands_dus_len).saturating_sub(gardees) as u64;
             }
         }
         // (decouverte-projets) « Si vous avez un Objectif, gagnez … »

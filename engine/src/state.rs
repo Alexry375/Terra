@@ -402,8 +402,11 @@ pub struct PlayerState {
     /// (`flow.rs`, bras `Eff::DrawDiscard`) : en vendant, le joueur réduisait le
     /// nombre de cartes défaussables, donc le nombre réellement défaussé — et
     /// encaissait les MC de la vente par-dessus le marché. Ce compteur mesure
-    /// l'écart entre la défausse due (calculée AVANT l'occasion) et la défausse
-    /// réellement exigée.
+    /// l'écart entre la défausse DUE (calculée avant l'occasion) et les cartes
+    /// qui ont RÉELLEMENT quitté la main pour la défausse — comptées sur
+    /// `flow::discard_from_hand`, c'est-à-dire sur un mouvement de carte, jamais
+    /// sur une grandeur du correctif. Une défausse qui s'évaporerait pour une
+    /// tout autre raison serait vue elle aussi.
     ///
     /// Il est le pendant de `GameState::discard_payments` : **il doit valoir
     /// zéro**. Il n'est pas retiré une fois le défaut corrigé, parce que c'est
@@ -412,10 +415,22 @@ pub struct PlayerState {
     pub defausses_imposees_esquivees: u64,
     /// **(MOT-13) Compteur d'audit : cartes qu'une vente a désignées et que le
     /// moteur a gardées en main**, parce qu'elles devaient une défausse imposée
-    /// (`flow::ReserveDeVente`). Contrairement au compteur ci-dessus, celui-ci
+    /// (`flow::ReserveDeVente`). Contrairement au compteur du dessus, celui-ci
     /// n'a pas à valoir zéro : il compte le prix du correctif, c'est-à-dire les
     /// ventes qu'un joueur a proposées et que la dette a bornées.
     pub ventes_bornees_par_une_defausse: u64,
+    /// **(MOT-13, second tour) Compteur d'audit : cartes que le joueur avait le
+    /// droit de GARDER et qui sont parties quand même.**
+    ///
+    /// « **Keep one of them** and discard the other two » n'exprime pas la même
+    /// dette que « Then, discard N cards » : celle-là compte les cartes gardées.
+    /// Un correctif qui ne réserverait que les cartes à défausser laisserait
+    /// vendre la carte à garder — le joueur en garderait ZÉRO sur trois, et le
+    /// compteur du dessus n'y verrait rien (la défausse, elle, a bien lieu).
+    /// C'est un défaut qu'une relecture adversariale a trouvé dans la première
+    /// version de ce chantier, le 06-08 ; ce compteur est ce qui l'empêche de
+    /// revenir. **Il doit valoir zéro.**
+    pub gardes_imposees_perdues: u64,
 }
 
 impl PlayerState {
@@ -452,6 +467,7 @@ impl PlayerState {
             occasion_de_vendre_consommee: false,
             defausses_imposees_esquivees: 0,
             ventes_bornees_par_une_defausse: 0,
+            gardes_imposees_perdues: 0,
         }
     }
 

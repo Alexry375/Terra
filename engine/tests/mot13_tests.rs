@@ -12,10 +12,19 @@
 //! occasion-là réduit `cands`, donc `n` : à la limite, `n` tombe à zéro et il ne
 //! défausse rien. Il encaisse les MC de la vente ET échappe au coût de l'effet.
 //!
-//! **L'oracle.** `PlayerState::defausses_imposees_esquivees` compare la défausse
-//! due — calculée sur la main d'AVANT l'occasion — à celle réellement exigée. Le
-//! compteur est écrit à un seul endroit (`flow.rs`, bras `Eff::DrawDiscard`) et
-//! ne peut pas bouger sans que la défausse ait rétréci.
+//! **Les deux oracles**, et le second est arrivé après une relecture
+//! adversariale qui a montré que le premier ne suffisait pas :
+//!
+//! - `PlayerState::defausses_imposees_esquivees` compare la défausse DUE — figée
+//!   sur la main d'avant l'occasion — aux cartes qui ont RÉELLEMENT quitté la
+//!   main par `flow::discard_from_hand`. Il ne lit aucune grandeur du
+//!   correctif : c'est un comptage de cartes déplacées.
+//! - `PlayerState::gardes_imposees_perdues` compte l'autre moitié de la dette,
+//!   celle que « **Keep one of them** and discard the other two » exprime en
+//!   cartes GARDÉES. Une vente qui emporte la carte à garder ne rétrécit aucune
+//!   défausse — le premier compteur n'y voit rien — mais elle fait garder ZÉRO
+//!   carte sur trois. Reproduit aux graines 5008 et 5020 sur la première version
+//!   du correctif, corrigé depuis (la réserve prend TOUTES les cartes piochées).
 //!
 //! **Le joueur d'essai** vend au hasard, une carte à la fois, à une occasion sur
 //! six. Il ne connaît pas `Eff::DrawDiscard` et ne vise pas ce point : il vend
@@ -107,6 +116,9 @@ struct Mesure {
     ventes: u64,
     /// Cartes qu'une vente a fait échapper à une défausse imposée.
     esquivees: u64,
+    /// Cartes que le joueur avait le droit de GARDER et qui sont parties
+    /// (« Keep one of them » — l'autre moitié de la dette).
+    gardes_perdues: u64,
     /// Parties où au moins une carte y a échappé.
     parties_touchees: u64,
 }
@@ -118,6 +130,7 @@ fn mesurer(db: &CardsDb, graines: impl Iterator<Item = u64>) -> Mesure {
         parties: 0,
         ventes: 0,
         esquivees: 0,
+        gardes_perdues: 0,
         parties_touchees: 0,
     };
     for graine in graines {
@@ -132,6 +145,9 @@ fn mesurer(db: &CardsDb, graines: impl Iterator<Item = u64>) -> Mesure {
         m.parties += 1;
         m.ventes += pol.ventes;
         m.esquivees += esquivees;
+        m.gardes_perdues += (0..NUM_PLAYERS)
+            .map(|p| game.players[p].gardes_imposees_perdues)
+            .sum::<u64>();
         if esquivees > 0 {
             m.parties_touchees += 1;
         }
@@ -151,8 +167,8 @@ fn une_vente_ne_fait_pas_disparaitre_une_defausse_imposee() {
     let m = mesurer(&db, 5000..5200);
     println!(
         "    {} partie(s), {} vente(s) proposee(s), {} carte(s) esquivee(s), \
-         {} partie(s) touchee(s)",
-        m.parties, m.ventes, m.esquivees, m.parties_touchees
+         {} garde(s) perdue(s), {} partie(s) touchee(s)",
+        m.parties, m.ventes, m.esquivees, m.gardes_perdues, m.parties_touchees
     );
     assert!(
         m.ventes > 500,
@@ -165,6 +181,12 @@ fn une_vente_ne_fait_pas_disparaitre_une_defausse_imposee() {
          (sur {} ventes, {} parties, graines 5000..5200)",
         m.esquivees, m.ventes, m.parties
     );
+    assert_eq!(
+        m.gardes_perdues, 0,
+        "{} carte(s) que le joueur avait le droit de GARDER sont parties \
+         (« keep one of them »)",
+        m.gardes_perdues
+    );
 }
 
 /// **Un SECOND lot, disjoint du premier**, autour de la graine 5150 que la fiche
@@ -175,8 +197,9 @@ fn le_second_lot_de_graines_ne_montre_rien_non_plus() {
     let db = db_decouverte();
     let m = mesurer(&db, 5150..5350);
     println!(
-        "    {} partie(s), {} vente(s), {} carte(s) esquivee(s), {} partie(s) touchee(s)",
-        m.parties, m.ventes, m.esquivees, m.parties_touchees
+        "    {} partie(s), {} vente(s), {} carte(s) esquivee(s), {} garde(s) \
+         perdue(s), {} partie(s) touchee(s)",
+        m.parties, m.ventes, m.esquivees, m.gardes_perdues, m.parties_touchees
     );
     assert!(m.ventes > 500, "mesure vide : {} vente(s)", m.ventes);
     assert_eq!(
@@ -184,6 +207,7 @@ fn le_second_lot_de_graines_ne_montre_rien_non_plus() {
         "{} carte(s) ont échappé à une défausse imposée (graines 5150..5350)",
         m.esquivees
     );
+    assert_eq!(m.gardes_perdues, 0, "{} garde(s) imposée(s) perdue(s)", m.gardes_perdues);
 }
 
 /// **LE VENDEUR GOURMAND** — celui qui vide sa main entière, à une occasion sur
