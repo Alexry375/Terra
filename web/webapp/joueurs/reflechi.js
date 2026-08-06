@@ -110,7 +110,7 @@ export const REGLAGES = {
 
   // — La vente (voir « CE JOUEUR VEND », plus bas). Mesurés sur les graines
   // 7000 à 7029, jamais sur les graines 1 à 100 de la mesure finale.
-  prixVenteMini: 18, // on ne vend qu'une carte hors de portée AU MOINS si chère
+  prixVenteMini: 10, // on ne vend qu'une carte hors de portée AU MOINS si chère
   gardeMini: 4, // … et jamais au point d'avoir moins de tant de cartes en main
 };
 
