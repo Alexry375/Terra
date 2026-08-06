@@ -1301,7 +1301,15 @@ fait disparaître.
 
 - **VIE-1** (ancien I6) — trois décisions gardent leur liste au milieu de
   l'écran. Jamais reproduit.
-- **VIE-2** (ancien I7) — la main déborde en 1280 × 640.
+- **VIE-2** (ancien I7) — la main déborde en 1280 × 640. **✅ CLOS 06-08, mesuré
+  par moi.** Partie entière (172 décisions) en **1280 × 640**, main montée
+  jusqu'à **16 cartes** : **zéro débordement**, ni de la main, ni d'une carte,
+  ni de la page. Mesuré aussi en 1280 × 720 et 1366 × 768 : rien. Les chantiers
+  d'écran l'ont réglé sans qu'on le sache.
+  **Une trouvaille au passage, de basse priorité** : à **1024 × 600** — une taille
+  que personne n'a jamais demandée, plus petite que tout ce qui est visé — une
+  carte de main sort de la fenêtre à quatre reprises en fin de partie (décisions
+  236 et 256). À reprendre seulement si un jour on vise cette taille.
 - **VIE-3** (ancien I8) — la vente à distance : sur 18 ventes mesurées pendant
   une partie à deux, **17 se referment en moins d'une seconde, une est restée
   ouverte plus de 30 secondes** [VÉRIFIÉ 04-08]. Ce n'est pas un blocage : la
