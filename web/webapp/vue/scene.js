@@ -81,6 +81,82 @@ let enCours = null; // la décision affichée, pour pouvoir la redessiner
 // Une carte Phase est en train de se poser : on n'en lance pas une seconde.
 let phaseEnVol = false;
 
+// ------------------------------------------------- PASSER POUR DE BON (CNF-3)
+//
+// « Quand on sait qu'on ne fera plus rien de la manche, il faut recliquer
+// « passer » à chaque question. » Le second bouton passe, PUIS CONTINUE DE
+// PASSER tant que le moteur offre encore « passer », et rend la main à la
+// première question où il ne l'offre plus.
+//
+// TROIS RÈGLES, ET ELLES SONT LE BOUTON :
+//
+//   1. IL N'INVENTE AUCUNE DÉCISION. Il ne calcule pas d'indice : il CLIQUE le
+//      bouton « passer » que la scène vient de poser d'après `decision.passer`,
+//      exactement là où un doigt cliquerait. Si ce bouton n'est pas là, il ne
+//      fait rien.
+//   2. IL NE RÉPOND QU'À UNE QUESTION OÙ PASSER EST OFFERT. `offreDePasser`
+//      est la seule porte : une question sans « passer », à choix multiple ou à
+//      montant, arrête l'enchaînement sur-le-champ. Une question dont on ne peut
+//      pas sortir en passant est une question que le joueur doit voir.
+//   3. IL NE SURVIT PAS À LUI-MÊME. Le drapeau s'éteint dès l'arrêt, et il n'est
+//      écrit nulle part : ni dans l'adresse, ni dans le navigateur. Une partie
+//      reprise démarre donc toujours drapeau baissé.
+//
+// L'ENCHAÎNEMENT EST IMMÉDIAT, ET C'EST VOULU. `repondre` ne fait que résoudre
+// une promesse : la boucle de jeu reprend en micro-tâche, sans repasser par le
+// minuteur du navigateur. Toute la suite de passages tient donc dans la MÊME
+// tâche que le clic, et l'écran n'affiche jamais d'état intermédiaire — ni pour
+// l'œil (aucune image n'est peinte entre deux micro-tâches), ni pour une machine
+// qui pilote la page. Y glisser une pause aurait deux défauts : une latence
+// inventée pour le joueur, et une fenêtre pendant laquelle un pilote automatique
+// pourrait saisir un bouton que l'enchaînement est en train de retirer.
+let passageDefinitif = false;
+
+/** La question offre-t-elle « passer » ? C'est la seule porte de l'enchaînement. */
+function offreDePasser(d) {
+  return !!d && !d.multiple && !d.montant && !!d.passer;
+}
+
+/** L'enchaînement s'arrête : le drapeau tombe, et l'écran cesse de le dire. */
+function arreterPassage() {
+  if (!passageDefinitif) return;
+  passageDefinitif = false;
+  delete document.body.dataset.passageDefinitif;
+}
+
+/**
+ * LA SORTIE DU JOUEUR. L'enchaînement s'arrête tout seul à la première question
+ * qui n'offre pas « passer » — c'est le cas ordinaire, « la phase suivante
+ * commence ». Reste le cas où il change d'avis pendant que l'adversaire répond
+ * (les trois questions simultanées font attendre l'écran, `interface.js`) :
+ * Échap baisse le drapeau, et la question suivante lui est posée normalement.
+ */
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") arreterPassage();
+});
+
+/**
+ * Une décision vient d'être posée : faut-il continuer de passer ?
+ *
+ * Appelé par `poserDecision` seulement — jamais par `replacerScene`, qui ne fait
+ * que redessiner une question déjà posée.
+ */
+function enchainerLePassage(d) {
+  if (!passageDefinitif) return;
+  if (!offreDePasser(d)) {
+    arreterPassage();
+    return;
+  }
+  const b = document.querySelector("#scene .choix--passer");
+  if (!b) {
+    // La scène n'a pas posé de bouton « passer » alors que le moteur l'offrait :
+    // on ne répond surtout pas à sa place, on rend la main.
+    arreterPassage();
+    return;
+  }
+  b.click();
+}
+
 /**
  * Le squelette de la scène. Appelé une fois.
  *
@@ -105,6 +181,7 @@ export function poserDecision(d, etat) {
     resoudre = ok;
     enCours = { d, etat };
     dessiner(d, etat);
+    enchainerLePassage(d);
   });
 }
 
@@ -151,6 +228,9 @@ export function viderScene() {
   // suivante : sans cet oubli, sa première question serait prise pour un
   // redessin de la dernière de la précédente, et rien ne viendrait de la table.
   dernierRangDesigne = -1;
+  // (CNF-3) Plus aucune question posée : l'enchaînement de passages n'a plus
+  // rien à enchaîner, et il ne doit pas survivre à la partie suivante.
+  arreterPassage();
   fermerScene();
 }
 
@@ -293,9 +373,14 @@ function dessiner(d, etat) {
   // ne dépend pas du partage, il est donc juste même avant qu'elles soient
   // remplies), puis on l'attribue : les choix d'abord, le contexte ensuite.
   const geste = forme === "simple" && decisionDeMain(d);
+  // (CNF-3) DEUX boutons quand passer est offert, pas un : « passer » et
+  // « passer définitivement ». Le second est une case de la grille comme les
+  // autres — c'est ce partage de la hauteur, fait AVANT que quoi que ce soit
+  // soit posé, qui tient le plancher de 40 points et interdit les
+  // recouvrements. Un bouton posé hors de ce calcul les rouvrirait tous les deux.
   const nChoix = geste || forme === "montant"
     ? 0
-    : (d.options || []).length + (forme === "simple" && d.passer ? 1 : 0);
+    : (d.options || []).length + (forme === "simple" && d.passer ? 2 : 0);
   const dispo = zone.clientHeight + (ctx ? ctx.offsetHeight : 0);
   if (!geste && dispo > 1) {
     const images = choixSontDesImages(d);
@@ -616,11 +701,14 @@ function simple(d, zone, etat) {
     mot.className = "scene__geste";
     mot.textContent = MOT.dropHere;
     zone.appendChild(mot);
-    if (d.passer) zone.appendChild(boutonPasser(options.length));
+    if (d.passer) {
+      zone.appendChild(boutonPasser(d, options.length));
+      zone.appendChild(boutonPasserToujours(d, { carte: true }));
+    }
     return;
   }
 
-  const total = options.length + (d.passer ? 1 : 0);
+  const total = options.length + (d.passer ? 2 : 0);
   const largeur = mesurer(d, zone, total);
   options.forEach((o, i) => {
     const b = choix(d, o, i, largeur, etat);
@@ -634,9 +722,66 @@ function simple(d, zone, etat) {
     b.classList.add("choix--passer");
     b.style.setProperty("--w", largeur + "px");
     b.setAttribute("aria-label", "pass");
-    b.addEventListener("click", () => repondre(options.length));
+    // LE RANG EST CAPTURÉ, ET RELU AVANT DE RÉPONDRE. Depuis que la page sait
+    // enchaîner les passages (CNF-3), la scène peut être réécrite sans qu'on ait
+    // cliqué : un clic parti sur le bouton d'AVANT répondrait alors à la question
+    // d'APRÈS, avec un indice qui n'y désigne plus rien. Même garde que les
+    // cartes Phase et les corporations, pour la même raison.
+    const rang = d.rang;
+    b.addEventListener("click", () => {
+      if (!enCours || enCours.d.rang !== rang) return;
+      repondre(options.length);
+    });
     zone.appendChild(b);
+    const t = boutonPasserToujours(d, { carte: false });
+    t.style.setProperty("--w", largeur + "px");
+    zone.appendChild(t);
   }
+}
+
+/**
+ * (CNF-3) **LE BOUTON QUI PASSE, PUIS CONTINUE DE PASSER.**
+ *
+ * Il ne connaît pas l'indice de « passer » et n'en veut pas : il lève le drapeau
+ * puis clique le bouton « passer » d'à côté, celui que le moteur vient d'offrir.
+ * Tout ce qu'il ajoute au geste du joueur, c'est de recommencer à la question
+ * suivante — et seulement tant que « passer » y est encore offert
+ * (`enchainerLePassage`).
+ *
+ * Il ne porte PAS `data-choix` : il n'est pas une option du moteur, et les bancs
+ * qui pilotent la page tirent leur choix au sort parmi les `data-choix`. Il ne
+ * porte PAS non plus `choix--passer` : c'est par cette classe qu'on désigne le
+ * bouton « passer » ordinaire, et deux boutons pour une classe, c'est le mauvais
+ * qui se fait cliquer.
+ */
+function boutonPasserToujours(d, { carte }) {
+  // Le libellé est en FRANÇAIS, contrairement au reste de l'écran (`mots.js`) :
+  // le prompt de ce chantier l'exige, et il dit ce que le bouton fait.
+  const b = slab("Passer définitivement", "passer-toujours");
+  b.classList.add("choix--passer-toujours");
+  // Dans la scène du GESTE, la bande est une rangée : le bouton se taille sur la
+  // carte de main comme « passer », en un peu plus étroit — il est le second, pas
+  // le principal.
+  if (carte) {
+    b.classList.add("choix--passer-carte");
+    tailleDeCarte(b, 0.82);
+  }
+  b.dataset.passerToujours = "";
+  b.setAttribute("aria-label", "pass, and keep passing");
+  b.setAttribute("title", "Passer, et continuer de passer tant que le jeu ne "
+    + "propose rien d'autre que passer");
+  const rang = d.rang;
+  b.addEventListener("click", () => {
+    // Même garde que « passer » : un clic parti sur une scène déjà réécrite ne
+    // relance rien.
+    if (!enCours || enCours.d.rang !== rang) return;
+    const p = document.querySelector("#scene .choix--passer");
+    if (!p) return;
+    passageDefinitif = true;
+    document.body.dataset.passageDefinitif = "oui";
+    p.click();
+  });
+  return b;
 }
 
 /**
@@ -646,23 +791,35 @@ function simple(d, zone, etat) {
  * est directe — on lui donne la taille d'une carte de main, en un peu plus
  * petit, et il ne la reprend jamais à la grille des choix.
  */
-function boutonPasser(indice) {
+function boutonPasser(d, indice) {
   const b = slab(MOT.pass, "passer");
   b.dataset.choix = String(indice);
   b.classList.add("choix--passer", "choix--passer-carte");
   b.setAttribute("aria-label", "pass");
-  // ON MESURE LA CARTE, ON NE LA SUPPOSE PAS. La largeur d'une carte de main suit
-  // la hauteur de la fenêtre : un bouton taillé sur une constante deviendrait plus
-  // grand qu'elle dès que l'écran raccourcit — exactement le défaut qu'on répare.
+  tailleDeCarte(b);
+  // (CNF-3) Le rang est capturé et relu : voir la note du bouton « passer » de
+  // la grille. Un clic parti sur une scène déjà réécrite ne répond à rien.
+  const rang = d.rang;
+  b.addEventListener("click", () => {
+    if (!enCours || enCours.d.rang !== rang) return;
+    repondre(indice);
+  });
+  return b;
+}
+
+/**
+ * ON MESURE LA CARTE, ON NE LA SUPPOSE PAS. La largeur d'une carte de main suit
+ * la hauteur de la fenêtre : un bouton taillé sur une constante deviendrait plus
+ * grand qu'elle dès que l'écran raccourcit — exactement le défaut qu'on répare.
+ */
+function tailleDeCarte(b, facteur = 1) {
   const im = document.querySelector("[data-main-siege] .carte--main img");
   const r = im ? im.getBoundingClientRect() : null;
   const l = r && r.width > 1 ? r.width : LARGEUR_MAIN;
   const h = r && r.height > 1 ? r.height : LARGEUR_MAIN * RATIO;
-  b.style.width = Math.floor(l * 0.94) + "px";
+  b.style.width = Math.floor(l * 0.94 * facteur) + "px";
   b.style.height = Math.floor(h * 0.82) + "px";
   b.style.minHeight = "0";
-  b.addEventListener("click", () => repondre(indice));
-  return b;
 }
 
 /**
