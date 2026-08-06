@@ -355,6 +355,22 @@ pub struct PlayerState {
     /// Le badge choisi n'est pas un onzième badge : il est l'un des dix, et
     /// c'est `tags_of` qui fait la substitution.
     pub joker_tags: BTreeMap<u16, Tag>,
+    /// **(MOT-13) Compteur d'audit : cartes qu'une VENTE a fait échapper à une
+    /// défausse imposée** par `Eff::DrawDiscard` (« piochez `draw` cartes, puis
+    /// défaussez-en `discard` »).
+    ///
+    /// L'occasion de vendre est offerte au-dessus du calcul de la défausse
+    /// (`flow.rs`, bras `Eff::DrawDiscard`) : en vendant, le joueur réduisait le
+    /// nombre de cartes défaussables, donc le nombre réellement défaussé — et
+    /// encaissait les MC de la vente par-dessus le marché. Ce compteur mesure
+    /// l'écart entre la défausse due (calculée AVANT l'occasion) et la défausse
+    /// réellement exigée.
+    ///
+    /// Il est le pendant de `GameState::discard_payments` : **il doit valoir
+    /// zéro**. Il n'est pas retiré une fois le défaut corrigé, parce que c'est
+    /// lui qui prouve que la correction tient — voir le test
+    /// `engine/tests/mot13_tests.rs`, qui l'a d'abord vu monter.
+    pub defausses_imposees_esquivees: u64,
 }
 
 impl PlayerState {
@@ -387,6 +403,7 @@ impl PlayerState {
             pending_builds: Vec::new(),
             next_card_mod: NextCardMod::default(),
             joker_tags: BTreeMap::new(),
+            defausses_imposees_esquivees: 0,
         }
     }
 

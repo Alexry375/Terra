@@ -2376,6 +2376,21 @@ fn apply_eff(game: &mut GameState, db: &CardsDb, p: usize, eff: Eff, policy: &mu
             // défausse ne porte que sur ce qui est ENCORE en main après la
             // vente — `cands` est calculé ci-dessous, donc après l'occasion, et
             // le joueur ne peut pas défausser une carte qu'il vient de vendre.
+            // (MOT-13) LA DÉFAUSSE DUE, CALCULÉE AVANT L'OCCASION. C'est la
+            // mesure du défaut : `n` est recalculé plus bas sur la main d'APRÈS
+            // la vente, et la différence entre les deux est exactement ce que la
+            // vente a fait disparaître.
+            let keep_du = draw.saturating_sub(discard) as usize;
+            let cands_dus = if from_drawn {
+                drawn.len()
+            } else {
+                game.players[p].hand.len()
+            };
+            let n_du = if from_drawn {
+                cands_dus.saturating_sub(keep_du)
+            } else {
+                (discard as usize).min(cands_dus)
+            };
             occasion_de_vendre(game, db, policy);
             // « Keep one of THEM » restreint la défausse aux cartes piochées ;
             // « Then, discard N cards » porte sur la main entière.
@@ -2402,6 +2417,10 @@ fn apply_eff(game: &mut GameState, db: &CardsDb, p: usize, eff: Eff, policy: &mu
             } else {
                 (discard as usize).min(cands.len())
             };
+            // (MOT-13) CE QUE LA VENTE A FAIT DISPARAÎTRE, compté ici et nulle
+            // part ailleurs. Zéro tant qu'aucune vente n'a eu lieu à l'occasion
+            // ci-dessus : la main est alors la même des deux côtés.
+            game.players[p].defausses_imposees_esquivees += n_du.saturating_sub(n) as u64;
             if n == 0 {
                 // (round 2) ON SORT SANS AVOIR RIEN DEMANDÉ — et l'occasion
                 // ci-dessus a pourtant eu lieu. Elle a donc pu consommer la
