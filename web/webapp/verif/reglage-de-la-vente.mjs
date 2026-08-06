@@ -1,7 +1,7 @@
 // LE RÉGLAGE DE LA VENTE DU JOUEUR `reflechi` — et les graines sur lesquelles
 // il a le droit de se faire.
 //
-// Ce banc mesure plusieurs variantes de (`seuilVente`, `gardeMini`) contre le
+// Ce banc mesure plusieurs variantes de (`prixVenteMini`, `gardeMini`) contre le
 // joueur au hasard, et n'emploie QUE les graines 7000 et au-delà. Les graines
 // 1 à 100 servent à la mesure finale (contrôle 04) et ne doivent jamais servir
 // à régler : un joueur réglé sur les parties qu'on va montrer n'a pas appris à

@@ -68,10 +68,25 @@ veut.
 
 **Ce que le fournisseur reçoit** : rien dans `decision` — la question posée est
 toujours une autre (« quelle carte poser ? », le plus souvent). C'est **l'état**
-qui porte l'information, dans `etat.vente_offerte` : vrai exactement là où une
-vente sera reçue. `etat.ventes_volontaires` compte celles déjà faites, tous
-joueurs confondus. La main à vendre, elle, est `etat.players[monSiège].hand`, et
-les indices de vente sont ceux de cette liste-là.
+qui porte l'information, et il en porte **deux, qui ne disent pas la même
+chose** :
+
+- `etat.occasion_de_vendre_ouverte[monSiège]` — **c'est celle-ci qu'un
+  fournisseur doit lire.** Vraie exactement là où une entrée de vente rendue par
+  ce siège-là, à ce point-ci, sera acceptée. Un booléen par siège.
+- `etat.vente_offerte` — le **droit** de vendre : « ce point de décision a reçu
+  son occasion ». C'est le drapeau de l'écran, et il ne dit pas si l'occasion
+  est encore à prendre (voir le piège, plus bas).
+
+`etat.ventes_volontaires` compte les ventes déjà faites, tous joueurs confondus.
+La main à vendre, elle, est `etat.players[monSiège].hand`, et les indices de
+vente sont ceux de cette liste-là.
+
+⚠️ **Ce que la main publiée ne dit pas.** Carte par carte, `hand` porte `id`,
+`name`, `couleur` et `price` — **ni points de victoire ni badges** (ceux-là
+n'apparaissent que sur les OPTIONS énumérées par le moteur). Un fournisseur qui
+juge sa main pour décider quoi vendre n'a donc que le prix, et
+`etat.players[monSiège].main_payable` pour savoir ce qu'il peut s'offrir.
 
 **Ce que le fournisseur rend** : au lieu d'un indice d'option, une **entrée de
 vente**, qui prend sa place dans la liste des décisions —
@@ -85,13 +100,28 @@ puis **repose la même question** sur l'état d'après : les cartes payables son
 ré-énumérées avec l'argent d'après la vente. Répondre à la question vient donc
 ensuite, à l'appel suivant.
 
-**Le piège, et il est sérieux.** Une occasion ne se dépense qu'une fois : après
-une vente, la même question revient et `etat.vente_offerte` vaut **encore
-vrai** — le drapeau a été armé avant la vente. Une seconde vente rendue là est
-refusée par le moteur (« aucune occasion de vendre n'est ouverte à ce point ») et
-la partie s'arrête. Une nouvelle occasion ne s'ouvre qu'après une vraie réponse
-de ce siège. Un fournisseur qui vend doit donc se souvenir qu'il vient de
-vendre : l'état ne le lui dira pas.
+**Le piège, et il est sérieux — l'état le dit désormais.** Une occasion ne se
+dépense qu'une fois par siège : après une vente, la même question revient et
+`etat.vente_offerte` vaut **encore vrai** — ce drapeau-là a été armé avant la
+vente. Une seconde vente rendue là serait refusée par le moteur (« aucune
+occasion de vendre n'est ouverte à ce point ») et la partie s'arrêterait.
+
+C'est pourquoi ce n'est pas ce drapeau qu'on lit, mais
+`etat.occasion_de_vendre_ouverte[monSiège]`, qui vaut **faux** dès l'instant où
+l'occasion de ce siège est dépensée. Un fournisseur **sans aucune mémoire** vend
+donc correctement : il n'a pas à se souvenir qu'il vient de vendre, il le lit.
+L'occasion est fermée dans exactement trois cas — pas d'occasion à ce point, main
+vide, ou un siège de numéro supérieur ou égal a déjà vendu ici (le moteur
+interroge les sièges par indices croissants).
+
+**Ce qu'une vente ne peut pas emporter.** Quand un effet impose une défausse
+(« piochez deux cartes, puis défaussez-en une »), le nombre de cartes dues est
+arrêté **avant** l'occasion de vendre. Une entrée de vente qui viderait la main
+au point de ne plus pouvoir payer cette défausse est **bornée** par le moteur :
+les cartes qui doivent la défausse restent en main, le reste est vendu, et
+l'entrée est consommée comme n'importe quelle autre. Un fournisseur n'a rien à
+calculer — il verra simplement, à l'état d'après, qu'une partie de sa vente n'a
+pas eu lieu.
 
 ## La règle des deux mains
 
