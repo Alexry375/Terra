@@ -85,6 +85,13 @@ import {
 import { construireLoupe } from "./vue/loupe.js";
 import { oublierRefs } from "./vue/ecrire.js";
 import { montrerAccueil, cacherAccueil } from "./vue/menu.js";
+// (CNF-6) LA REPRISE D'UNE PARTIE INTERROMPUE. Ce module n'apporte rien au jeu :
+// il garde trois valeurs dans le navigateur (graine, boîtes, liste des
+// décisions), et sait dire s'il y a quelque chose à reprendre. Le moteur, le
+// pont et `partie.js` n'en savent rien et n'ont pas bougé d'une ligne.
+import {
+  sauverPartie, oublierPartie, partieEnregistree, proposerReprise,
+} from "./vue/reprise.js";
 import {
   installerOptions, montrerBoutonOptions, fermerOptions, viderTable,
 } from "./vue/options.js";
@@ -444,7 +451,70 @@ function sousCoupeCircuit(f, arret) {
   };
 }
 
-async function lancer({ graine, boites }) {
+/**
+ * (CNF-6) **REJOUER UNE PARTIE ENREGISTRÉE — ou refuser de le faire.**
+ *
+ * Reprendre, c'est recréer la partie avec la même graine et redonner au moteur
+ * la liste des décisions, une par une, exactement comme elles ont été prises. Le
+ * moteur rejoue de toute façon la partie depuis la graine à chaque coup : au
+ * bout de la liste, il est très précisément là où le joueur l'avait laissé.
+ * Mesuré : 355 décisions rejouées en 355 ms, 150 en 87 ms.
+ *
+ * RIEN N'EST DESSINÉ PENDANT LE REJEU. On n'appelle ni `rendre` ni
+ * `poserDecision` : ces évènements ont déjà eu lieu, les rejouer à l'écran
+ * annoncerait comme neuf ce qui est vieux (c'est la leçon du « rattrapage » de
+ * `vue/anim.js`, apprise en partie à deux). Le premier dessin est celui de la
+ * décision qu'on attendait.
+ *
+ * DEUX FAÇONS DE REFUSER, et c'est le cœur de ce point :
+ *
+ *   1. **le moteur refuse une réponse.** L'enregistrement est tronqué, bricolé,
+ *      ou vient d'un jeu qui ne compte plus les options pareil. `repondre` la
+ *      retire de la liste et relève ; on rend `false`.
+ *   2. **on ne retombe pas sur la même question.** Une liste d'indices peut
+ *      rester valide alors qu'elle ne désigne plus les mêmes choses : c'est très
+ *      exactement ce qui arrive si une question du moteur bouge de place. Le rejeu
+ *      ne lèverait pas, et l'on reprendrait une partie fausse en croyant la
+ *      reprendre. L'empreinte `attendue` — le nom de la question qui suivait la
+ *      liste au moment où on l'a enregistrée — le dit.
+ *
+ * Dans les deux cas la page ne plante pas : elle écarte l'enregistrement et
+ * commence une partie neuve.
+ *
+ * @returns {boolean} vrai si la partie a été reprise fidèlement
+ */
+function rejouerLesDecisions(partie, enregistree) {
+  try {
+    for (const reponse of enregistree.decisions) {
+      if (partie.termine) {
+        console.warn("terra : l'enregistrement dit plus de décisions que la "
+          + "partie n'en a — écarté");
+        return false;
+      }
+      partie.repondre(reponse);
+    }
+  } catch (e) {
+    console.warn("terra : le moteur refuse l'enregistrement —", e && e.message);
+    return false;
+  }
+  if (partie.termine || !partie.decision) {
+    console.warn("terra : l'enregistrement mène à une partie déjà finie — écarté");
+    return false;
+  }
+  if (enregistree.attendue && partie.decision.type !== enregistree.attendue) {
+    console.warn("terra : l'enregistrement retombe sur « " + partie.decision.type
+      + " » au lieu de « " + enregistree.attendue + " » — les décisions ne "
+      + "veulent plus dire la même chose, il est écarté");
+    return false;
+  }
+  return true;
+}
+
+/**
+ * @param {object} reglage  graine et boîtes de la partie
+ * @param {object} [reprise]  un enregistrement à rejouer d'abord (CNF-6)
+ */
+async function lancer({ graine, boites }, reprise = null) {
   document.body.dataset.phase = "chargement";
   etatDuChargement(MOT.waking);
 
@@ -463,7 +533,16 @@ async function lancer({ graine, boites }) {
   delete document.body.dataset.fin;
   dejaVu = { manche: null, phases: null };
 
-  const partie = creerPartie(pont, { graine, boites });
+  let partie = creerPartie(pont, { graine, boites });
+
+  // (CNF-6) LA PARTIE REPRISE. Si le rejeu échoue, l'enregistrement est écarté
+  // — et la partie repart de zéro, sur la même graine, plutôt que de laisser le
+  // joueur devant une page morte. La liste à moitié rejouée ne survit pas : on
+  // refait une partie propre.
+  if (reprise && !rejouerLesDecisions(partie, reprise)) {
+    oublierPartie();
+    partie = creerPartie(pont, { graine, boites });
+  }
 
   // Le bouton d'options n'apparaît qu'ici : sur l'accueil, il n'aurait rien à
   // ouvrir. Il est posé AVANT la première décision, pour être là dès la première.
@@ -487,7 +566,17 @@ async function lancer({ graine, boites }) {
   }
 
   try {
-    await jouerJusquAuBout(partie, fournisseurs.map((f) => sousCoupeCircuit(f, arret)));
+    // (CNF-6) LA PARTIE S'ENREGISTRE AU FIL DE L'EAU. `jouerJusquAuBout` appelle
+    // `avant` juste avant chaque décision : ce qui est écrit à cet instant, c'est
+    // la liste de TOUT ce qui a déjà été répondu. Une fermeture brutale ne perd
+    // donc au pire que la décision en cours — celle qui n'a pas encore reçu de
+    // réponse. En ligne, ce crochet n'est pas posé du tout : la liste fait
+    // autorité au relais, pas ici (voir `vue/reprise.js`).
+    await jouerJusquAuBout(
+      partie,
+      fournisseurs.map((f) => sousCoupeCircuit(f, arret)),
+      rendezVous ? undefined : sauverPartie,
+    );
   } catch (e) {
     // La partie a été abandonnée : `retourAuMenu` a déjà vidé la table et remis
     // l'accueil. Il n'y a ni score à montrer ni fin à annoncer.
@@ -496,6 +585,12 @@ async function lancer({ graine, boites }) {
   } finally {
     if (arretCourant === arret) arretCourant = null;
   }
+
+  // (CNF-6) LA PARTIE EST FINIE : ELLE NE SE PROPOSE PLUS. C'est le premier
+  // geste d'après la boucle, avant même l'écran final — un enregistrement qui
+  // survivrait à la fin proposerait de reprendre une partie qui n'a plus rien à
+  // jouer.
+  oublierPartie();
 
   viderScene();
   adversaireAgit(null);
@@ -552,12 +647,33 @@ function retourAuMenu() {
 // ---------------------------------------------------------------- le démarrage
 
 async function demarrer() {
-  // Le manifeste d'abord : tout le décor est bâti à partir des images qu'il
-  // désigne, il ne peut pas se construire avant d'être lu.
-  try {
-    await chargerMateriel();
-  } catch (e) {
-    panne(e);
+  // (CNF-6) LA PROPOSITION DE REPRISE PASSE AVANT TOUT LE RESTE, et elle ne
+  // dépend de rien : ni du manifeste, ni du wasm, ni du réseau — seulement de ce
+  // que le navigateur a gardé. Elle se pose donc tout de suite, PENDANT que le
+  // matériel arrive, au lieu d'attendre derrière lui. Le joueur lit, décide, et
+  // le chargement s'est fait sous la question.
+  //
+  // `partieEnregistree` ne croit rien de ce qu'elle lit et rend `null` au
+  // moindre doute : un enregistrement abîmé ne pose donc aucune question et ne
+  // retarde rien.
+  const enregistree = partieEnregistree();
+  // La promesse du matériel est attrapée TOUT DE SUITE. Sans ce `catch`, un
+  // manifeste manquant deviendrait un rejet non rattrapé — c'est-à-dire une
+  // erreur de console — pendant que le joueur lit la question.
+  let echecMateriel = null;
+  const materiel = chargerMateriel().catch((e) => { echecMateriel = e; });
+
+  let reprise = null;
+  if (enregistree) {
+    if (await proposerReprise(enregistree)) reprise = enregistree;
+    else oublierPartie(); // refusée : on ne la reproposera pas au chargement suivant
+  }
+
+  // Le manifeste : tout le décor est bâti à partir des images qu'il désigne, il
+  // ne peut pas se construire avant d'être lu.
+  await materiel;
+  if (echecMateriel) {
+    panne(echecMateriel);
     return;
   }
   batir();
@@ -574,6 +690,12 @@ async function demarrer() {
   }
   if (rendezVous) {
     await lancer({ graine: rendezVous.graine, boites: rendezVous.boites });
+    return;
+  }
+  // (CNF-6) La partie reprise l'emporte sur l'adresse : c'est ce que le joueur
+  // vient de demander, et sa graine est celle de la partie qu'il reprend.
+  if (reprise) {
+    await lancer({ graine: reprise.graine, boites: reprise.boites }, reprise);
     return;
   }
   const adresse = lireAdresse();
