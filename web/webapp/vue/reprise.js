@@ -48,6 +48,9 @@ const FORME = 2;
 /** Qui répond pour le siège regardé : les deux seules valeurs d'`interface.js`. */
 const DECIDE = new Set(["humain", "programme"]);
 
+/** Au-delà, ce n'est plus une partie : voir `formeFautive`. */
+const MAX_DECISIONS = 20000;
+
 /**
  * L'EMPREINTE — un seul nombre, replié question après question.
  *
@@ -71,10 +74,18 @@ const DECIDE = new Set(["humain", "programme"]);
  * et il ne coûte qu'un nombre, pas une liste.
  */
 export function replierEmpreinte(precedente, decision) {
+  // TOUT CE DONT UN INDICE DÉPEND POUR VOULOIR DIRE QUELQUE CHOSE, et rien
+  // d'autre : de quelle question il s'agit, combien d'options elle énumère, quelle
+  // forme de réponse elle attend, combien il en faut choisir, entre quelles
+  // bornes, et si l'on peut y passer. Une question déplacée qui garderait son
+  // type et son nombre d'options mais changerait `a_choisir` serait acceptée par
+  // le moteur — un tableau de la mauvaise taille ne lève pas — et c'est
+  // exactement le silence qu'on refuse.
   const dit = decision
     ? `${decision.type}|${(decision.options || []).length}`
       + `|${decision.multiple ? "m" : decision.montant ? "n" : "s"}`
-      + `|${decision.passer ? "p" : "-"}`
+      + `|${decision.a_choisir ?? "-"}|${decision.minimum ?? "-"}`
+      + `|${decision.maximum ?? "-"}|${decision.passer ? "p" : "-"}`
     : "|rien";
   let h = precedente >>> 0;
   for (let i = 0; i < dit.length; i += 1) {
@@ -251,6 +262,14 @@ function formeFautive(o) {
   if (!Number.isInteger(o.empreinte) || o.empreinte < 0) return "empreinte absente";
   if (!Array.isArray(o.decisions)) return "liste de décisions absente";
   if (o.decisions.length === 0) return "liste de décisions vide";
+  // UNE LISTE BORNÉE. Le rejeu redonne les décisions une par une, et le moteur
+  // rejoue la partie depuis la graine à chaque fois : c'est du O(n²). Une partie
+  // vraie en compte quelques centaines (355 sur la graine 4242, rejouées en
+  // 355 ms) et le moteur plafonne bien avant ce nombre-ci. Une liste hostile de
+  // réponses toutes valides gèlerait l'écran plusieurs minutes sans un mot.
+  if (o.decisions.length > MAX_DECISIONS) {
+    return `liste de ${o.decisions.length} décisions : aucune partie n'en compte tant`;
+  }
   for (const r of o.decisions) {
     if (Number.isInteger(r)) continue;
     if (Array.isArray(r) && r.every((x) => Number.isInteger(x))) continue;

@@ -165,6 +165,11 @@ function lireCadre() {
 }
 
 const cadre = lireCadre();
+// LE CADRE QUE L'ADRESSE DEMANDE, gardé tel quel. Une partie reprise impose le
+// sien (c'est le sien qui distribue les tirages), mais si son enregistrement
+// finit par être écarté, c'est celui-ci qui doit reprendre la main : on ne joue
+// pas au siège d'un enregistrement qu'on vient de déclarer illisible.
+const CADRE_DE_L_ADRESSE = { siege: cadre.siege, decide: cadre.decide };
 
 // Le point de rendez-vous, quand l'adresse porte un code de partie ; `null`
 // sinon — et alors absolument rien ne change.
@@ -521,12 +526,21 @@ function rejouerLesDecisions(partie, enregistree, cerveaux) {
     console.warn("terra : l'enregistrement mène à une partie déjà finie — écarté");
     return null;
   }
-  // La question d'arrivée compte elle aussi : c'est celle que le joueur avait
-  // sous les yeux quand tout s'est arrêté.
-  empreinte = replierEmpreinte(empreinte, partie.decision);
-  if (empreinte !== enregistree.empreinte) {
-    console.warn("terra : l'empreinte de l'enregistrement ne correspond plus "
-      + "(" + enregistree.empreinte + " attendue, " + empreinte + " obtenue) — "
+  // LA QUESTION D'ARRIVÉE COMPTE POUR LA COMPARAISON, PAS POUR LA SUITE.
+  //
+  // C'est celle que le joueur avait sous les yeux quand tout s'est arrêté : elle
+  // doit être vérifiée. Mais elle ne doit PAS rester dans l'empreinte qu'on
+  // rend — sinon la boucle de jeu, qui replie elle aussi chaque question avant
+  // de sauver, la replierait une seconde fois. L'enregistrement écrit juste
+  // après une reprise porterait alors F(d0…dk, dk) là où une partie jamais
+  // coupée porte F(d0…dk), et le décalage resterait pour toujours : **la partie
+  // ne se reprendrait qu'une seule fois**, la seconde reprise s'accusant
+  // elle-même de ne plus vouloir dire la même chose. Défaut trouvé par la
+  // relecture adversariale, mesuré (empreintes 3534500047 puis 1818884364 sur
+  // la même partie, graine 4242) ; c'était l'angle mort commun des deux bancs,
+  // qui ne reprennent qu'une fois.
+  if (replierEmpreinte(empreinte, partie.decision) !== enregistree.empreinte) {
+    console.warn("terra : l'empreinte de l'enregistrement ne correspond plus — "
       + "les décisions ne veulent plus dire la même chose, il est écarté");
     return null;
   }
@@ -583,6 +597,13 @@ async function lancer({ graine, boites }, reprise = null) {
     const repliee = rejouerLesDecisions(partie, reprise, cerveaux);
     if (repliee === null) {
       oublierPartie();
+      // Le cadre de l'enregistrement est rendu avec lui : la partie neuve se
+      // joue du siège que l'ADRESSE demandait, pas de celui d'une sauvegarde
+      // qu'on vient d'écarter.
+      cadre.siege = CADRE_DE_L_ADRESSE.siege;
+      cadre.decide = CADRE_DE_L_ADRESSE.decide;
+      document.body.dataset.siege = String(cadre.siege);
+      document.body.dataset.decide = cadre.decide;
       partie = creerPartie(pont, { graine, boites });
       cerveaux[cadre.siege] = cadre.decide === "programme"
         ? fournisseurAleatoire(graine * 2 + 1, "programme au siège")

@@ -263,12 +263,24 @@ with serveur(RACINE) as base:
         brut = "".join(garde.values())
         fautes.extend(ce_qui_est_en_trop(brut))
 
-        # ---- 1. la reprise existe et elle est fidèle
+        # ---- 1, 1bis et 5 : UN SEUL FIL, ET IL COUVRE TOUT.
+        #
+        # On reprend, on vérifie que l'écran est exactement celui qu'on avait
+        # laissé, on rejoue quelques coups, on referme, ON REPREND UNE SECONDE
+        # FOIS, puis on mène la partie à son terme et l'on compare le score à
+        # celui d'une partie jamais coupée.
+        #
+        # La SECONDE reprise n'est pas un luxe : une partie reprise se
+        # réenregistre aussitôt, et si ce second enregistrement n'est pas
+        # exactement celui qu'une partie jamais coupée aurait écrit, la deuxième
+        # reprise échoue — la page démarre alors une partie neuve en faisant
+        # croire qu'elle reprend, ce que le contrat interdit nommément. Le défaut
+        # est invisible tant qu'on ne reprend qu'une fois.
         pg, err = ouvrir(URL)
         pg.wait_for_timeout(400)
+        rang_intermediaire = None
         if not reprendre(pg):
             fautes.append("aucune proposition de reprise apres la fermeture de l'onglet")
-            pg.close()
         else:
             pg.wait_for_selector("[data-decision-rang]", state="attached", timeout=20000)
             apres = pg.evaluate(ETAT)
@@ -276,13 +288,34 @@ with serveur(RACINE) as base:
                 if apres[c] != avant[c]:
                     fautes.append(f"reprise infidele : {c} = {apres[c]} au lieu "
                                   f"de {avant[c]}")
-            # ---- 5. et la suite de la partie ne diverge pas
-            vues_apres, scores_apres = jouer_jusqu_au_bout(pg)
-            if scores_apres != scores_ref:
-                fautes.append(f"la partie reprise finit sur {scores_apres} au lieu "
-                              f"de {scores_ref} : elle a divergé apres la reprise")
+            jouer_n(pg, 5)
+            rang_intermediaire = pg.evaluate(ETAT)["rang"]
             if err:
-                fautes.append(f"{len(err)} erreur(s) de console a la reprise : {err[0]}")
+                fautes.append(f"{len(err)} erreur(s) de console a la 1re reprise : {err[0]}")
+        pg.close()
+
+        if rang_intermediaire is not None:
+            pg, err = ouvrir(URL)
+            pg.wait_for_timeout(400)
+            if not reprendre(pg):
+                fautes.append("une partie DEJA reprise une fois ne se propose plus")
+            else:
+                pg.wait_for_selector("[data-decision-rang]", state="attached", timeout=20000)
+                r = pg.evaluate(ETAT)["rang"]
+                if r != rang_intermediaire:
+                    fautes.append(
+                        f"seconde reprise au rang {r} au lieu de {rang_intermediaire} : "
+                        f"la partie ne se reprend qu'une seule fois, et la deuxieme "
+                        f"fois elle recommence en faisant croire qu'elle reprend")
+                else:
+                    # ---- 5. et la suite ne diverge pas, jusqu'au score final
+                    vues_apres, scores_apres = jouer_jusqu_au_bout(pg)
+                    if scores_apres != scores_ref:
+                        fautes.append(
+                            f"la partie reprise finit sur {scores_apres} au lieu de "
+                            f"{scores_ref} : elle a diverge apres la reprise")
+                if err:
+                    fautes.append(f"{len(err)} erreur(s) de console a la 2e reprise : {err[0]}")
             pg.close()
 
         # ---- 3. une partie finie ne se propose plus
