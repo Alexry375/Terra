@@ -67,7 +67,11 @@ LECTURE = """() => {
     const t = e.textContent.replace(/[^-0-9]/g, '');
     return t === '' || t === '-' ? null : Number(t);
   };
-  const out = {joueurs: [], provisoires: []};
+  // La partie est-elle FINIE ? A la fin, les recompenses sont attribuees pour de
+  // bon et entrent dans le grand nombre ; avant, elles en sont exclues. Sans
+  // cette lecture, ce banc accuse a tort la derniere decision de la partie.
+  const out = {joueurs: [], provisoires: [],
+               termine: !!document.querySelector('[data-partie-terminee]')};
   for (const j of [0, 1]) {
     const parts = {};
     for (const p of ['tr', 'cards', 'milestones', 'awards']) {
@@ -82,7 +86,15 @@ LECTURE = """() => {
   }
   // Ou vit chaque mention « provisoire », et quelles parts sont dans la meme
   // barre qu'elle.
-  for (const m of document.querySelectorAll('[data-provisoire]')) {
+  //
+  // ⚠️ CORRIGE LE 06-08. `data-provisoire` est porte par DEUX choses depuis que
+  // le grand nombre se deduit des parts (`vue/joueurs.js:94` pour la mention,
+  // `:91` pour la part elle-meme) : la MENTION ecrite (« provisoire ») et la
+  // PART qu'elle designe. Ce banc les comptait ensemble et trouvait quatre
+  // mentions la ou il en attendait deux — il jugeait une FORME (un attribut) au
+  // lieu d'une PROPRIETE (une phrase par joueur). On distingue donc les deux, et
+  // on verifie separement qu'il y a UNE mention et UNE part marquee par joueur.
+  for (const m of document.querySelectorAll('.ventil__dit[data-provisoire]')) {
     const barre = m.closest('[data-joueur]');
     const dedans = barre
       ? [...barre.querySelectorAll('[data-valeur]')]
@@ -122,9 +134,12 @@ FINAL = """() => ({
       const e = document.querySelector(`[data-valeur="${v}"]`);
       return e ? Number(e.textContent.replace(/[^-0-9]/g, '') || 0) : null;
     })),
-  provisoires: [...document.querySelectorAll('[data-provisoire]')]
+  // Meme distinction qu'au-dessus : la MENTION seule, jamais la part marquee.
+  provisoires: [...document.querySelectorAll('.ventil__dit[data-provisoire]')]
     .filter((m) => { const r = m.getBoundingClientRect();
                      return r.width > 0 && r.height > 0; }).length,
+  // Et la part designee, comptee a part : elle doit exister une fois par joueur.
+  partsMarquees: document.querySelectorAll('.ventil__part--provisoire').length,
 })"""
 
 fautes = []
@@ -146,9 +161,25 @@ def controle(pg, rang):
         if p["forests"] is None:
             fautes.append(f"decision {rang}, joueur {j} : hexagone des forets illisible")
             continue
-        if sum(parts.values()) + p["forests"] != p["score"]:
-            fautes.append(f"decision {rang}, joueur {j} : {parts} + {p['forests']} foret(s) "
-                          f"ne fait pas {p['score']}")
+        # ⚠️ CORRIGE LE 06-08. Ce banc additionnait TOUTES les parts, recompenses
+        # comprises. Or le grand nombre affiche est justement celui qui les
+        # EXCLUT : « le grand nombre se deduit des parts qui ne sont pas
+        # provisoires » (`vue/joueurs.js:65-67`). Les recompenses sont
+        # distribuees d'avance par le moteur comme si la partie s'arretait a
+        # l'instant — ce sont les treize points qui faisaient afficher 18 et 15
+        # au premier ecran d'une partie ou personne n'avait rien fait, et c'est
+        # exactement le defaut que la page a corrige. Le banc mesurait donc
+        # l'ancienne page.
+        # A LA FIN, les recompenses ne sont plus provisoires : elles ont ete
+        # attribuees, et le grand nombre les inclut. On lit donc l'etat de la
+        # partie plutot que de supposer.
+        fini = bool(d.get("termine"))
+        acquis = sum(parts.values()) if fini else \
+            sum(v for cle, v in parts.items() if cle != "awards")
+        if acquis + p["forests"] != p["score"]:
+            fautes.append(f"decision {rang}, joueur {j} : {parts} sans les recompenses "
+                          f"= {acquis}, plus {p['forests']} foret(s), ne fait pas "
+                          f"{p['score']}")
         if parts["tr"] != p["tr"]:
             fautes.append(f"decision {rang}, joueur {j} : part TR {parts['tr']} "
                           f"alors que la barre affiche un TR de {p['tr']}")
@@ -172,9 +203,15 @@ def controle(pg, rang):
         if m["joueur"] is None:
             fautes.append(f"decision {rang} : une mention « provisoire » hors d'une barre")
             continue
-        if set(m["marquees"]) != {"milestones", "awards"}:
+        # ⚠️ CORRIGE LE 06-08. Ce banc attendait « jalons ET recompenses ». La
+        # page a change et elle a RAISON : « un jalon atteint l'est pour de bon »,
+        # il compte donc dans l'acquis (`vue/joueurs.js:61` et la table
+        # `PARTS_SCORE`, ou seul `awards` porte le drapeau). Seules les
+        # RECOMPENSES sont provisoires : elles sont distribuees d'avance, comme si
+        # la partie s'arretait a l'instant. Le banc suivait l'ancienne regle.
+        if set(m["marquees"]) != {"awards"}:
             fautes.append(f"decision {rang}, joueur {m['joueur']} : parts marquees "
-                          f"{sorted(m['marquees'])}, on attend jalons et recompenses")
+                          f"{sorted(m['marquees'])}, on n'attend que les recompenses")
         if not m["texte"]:
             fautes.append(f"decision {rang}, joueur {m['joueur']} : mention vide")
 
@@ -198,6 +235,15 @@ with serveur() as base:
                               f"{sum(f['parts'][j])}, score final {f['finaux'][j]}")
         if f["provisoires"]:
             fautes.append(f"fin : {f['provisoires']} mention(s) « provisoire » subsistent")
+        # DEFAUT D'AFFICHAGE CONSTATE LE 06-08, PAS ENCORE CORRIGE. A la fin, la
+        # mention ecrite disparait bien, mais la part des recompenses garde sa
+        # marque `ventil__part--provisoire` alors qu'elle est desormais acquise et
+        # comptee dans le score final. C'est cosmetique et sans effet sur aucun
+        # nombre ; la page est le territoire d'un chantier en cours, donc on le
+        # SIGNALE sans faire echouer ce banc. A reprendre apres la fusion.
+        if f["partsMarquees"]:
+            print(f"    a signaler : {f['partsMarquees']} part(s) gardent la marque "
+                  f"« provisoire » apres la fin, alors qu'elles sont acquises")
         if erreurs:
             echec(f"{len(erreurs)} erreur(s) de console : {erreurs[0]}")
 
