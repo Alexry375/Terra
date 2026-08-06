@@ -1,0 +1,99 @@
+/* LES DEUX DERNIERS POINTS DE CONFORT — le passage définitif (CNF-3) et la
+   reprise d'une partie interrompue (CNF-6).
+
+   Une feuille à part, comme les autres chantiers l'ont fait avant celui-ci :
+   elle n'écrase aucune règle d'une autre feuille, et elle passe AVANT
+   `style-menu.css`, qui garde le dernier mot sur les animations. */
+
+/* =============================================== LE PASSAGE DÉFINITIF (CNF-3) */
+
+/* Le second bouton se lit comme le premier — c'est le même geste — mais il porte
+   sa flèche double : « et ça continue ». Il est un peu plus sourd que « passer »,
+   parce qu'il est le raccourci, pas le geste ordinaire. */
+.choix--passer-toujours {
+  border-left-color: rgba(127, 200, 232, .32);
+  background: linear-gradient(155deg, rgba(6, 8, 14, .68), rgba(6, 8, 14, .34));
+  justify-content: center;
+}
+.choix--passer-toujours .choix__mot {
+  color: var(--os-faible); font-weight: 400;
+  /* Le libellé est français et long : sur une case étroite il doit se rogner
+     proprement plutôt que pousser le bouton hors de sa colonne. */
+  font-size: 12px; letter-spacing: .04em;
+}
+.choix--passer-toujours .choix__mot::before {
+  content: "» ";
+  color: var(--glace);
+}
+.choix--passer-toujours:hover {
+  background: linear-gradient(155deg, rgba(127, 200, 232, .22), rgba(6, 8, 14, .34));
+  border-left-color: var(--glace);
+}
+.choix--passer-toujours:hover .choix__mot { color: var(--os); }
+
+/* Dans la scène du geste, les deux boutons sont côte à côte au bout de la
+   rangée : le second ne prend jamais le pas sur le premier. */
+/* AUCUNE MARGE NÉGATIVE. Elle valait -8px, pour serrer les deux boutons : c'est
+   un recouvrement volontaire de huit points sur le bord de « passer », dans la
+   seule zone où le contrat met en garde contre les recouvrements. Un bouton qui
+   en mord un autre est un bouton qui vole des clics. */
+.scene__choix[data-sorte="geste"] .choix--passer-toujours {
+  flex: 0 0 auto;
+}
+.scene__choix[data-sorte="geste"] .choix--passer-toujours .choix__mot {
+  font-size: 11px; letter-spacing: .08em;
+}
+
+/* ============================================= LA REPRISE D'UNE PARTIE (CNF-6) */
+
+/* La proposition se pose SUR la page, avant que quoi que ce soit ne démarre.
+   Deux boutons, jamais un : reprendre, ou commencer une partie neuve. Elle ne
+   dépend d'aucune image ni d'aucun chargement — elle doit pouvoir paraître alors
+   que le reste de la page n'existe pas encore. */
+#reprise {
+  position: fixed; inset: 0; z-index: 80;
+  display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(80% 60% at 50% 45%, #0d1220, #05070c);
+}
+#reprise[hidden] { display: none; }
+
+.reprise__boite {
+  max-width: 520px; margin: 24px;
+  padding: 30px 34px 26px;
+  border: 1px solid var(--os-tres-faible, rgba(239, 228, 212, .18));
+  border-left: 3px solid var(--glace, #7fc8e8);
+  background: linear-gradient(155deg, rgba(12, 16, 26, .96), rgba(6, 8, 14, .96));
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .7);
+  text-align: center;
+}
+
+.reprise__titre {
+  margin: 0 0 10px;
+  font-size: 15px; letter-spacing: .26em; text-transform: uppercase;
+  color: var(--os, #efe4d4); font-weight: 700;
+}
+
+.reprise__dit {
+  margin: 0 0 22px;
+  font-size: 13px; line-height: 1.6; color: var(--os-faible, #9a9287);
+}
+
+.reprise__boutons {
+  display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;
+}
+
+.reprise__bouton {
+  font: inherit; font-weight: 700; font-size: 13px;
+  letter-spacing: .16em; text-transform: uppercase;
+  color: var(--os-faible, #9a9287);
+  padding: 11px 24px; cursor: pointer;
+  background: rgba(239, 228, 212, .07);
+  border: 1px solid var(--os-tres-faible, rgba(239, 228, 212, .18));
+}
+.reprise__bouton:hover { color: var(--os, #efe4d4); border-color: var(--glace, #7fc8e8); }
+.reprise__bouton--oui {
+  color: var(--os, #efe4d4);
+  border-color: var(--glace, #7fc8e8);
+  background: linear-gradient(155deg, rgba(127, 200, 232, .22), rgba(239, 228, 212, .05));
+}
+.reprise__bouton:focus-visible { outline: 2px solid var(--glace, #7fc8e8); outline-offset: 3px; }
