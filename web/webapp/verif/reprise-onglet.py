@@ -131,10 +131,20 @@ def repondre_une_fois(pg):
 
 
 def jouer_n(pg, n):
+    """Joue `n` décisions ET REND LA MAIN SUR UNE QUESTION POSÉE.
+
+    L'attente de `repondre_une_fois` se libère dès que le rang change OU que le
+    porteur disparaît — et il disparaît le temps que l'adversaire joue. Sans
+    l'attente ci-dessous, on lisait donc un écran SANS question : `rang` valait
+    `None`, et tout ce qui s'appuyait dessus se dérobait en silence. C'est ce qui
+    m'a fait croire, sur la graine 7, à un défaut de la page qui n'existait pas.
+    """
     for _ in range(n):
         if pg.query_selector("[data-partie-terminee]"):
             return
         repondre_une_fois(pg)
+    if not pg.query_selector("[data-partie-terminee]"):
+        pg.wait_for_selector("[data-decision-rang]", state="attached", timeout=20000)
 
 
 def jouer_jusqu_au_bout(pg, plafond=3000):
@@ -155,15 +165,30 @@ def jouer_jusqu_au_bout(pg, plafond=3000):
     return vues, scores
 
 
-def reprendre(pg):
-    """Clique ce qui propose de reprendre. Rend False si rien ne le propose."""
-    for sel in ('[data-reprendre]', '[data-reprise="oui"]',
-                'button:has-text("Reprendre")', 'button:has-text("Resume")'):
+# Ce qui propose de reprendre, sous les formes raisonnables. Le banc ne suppose
+# pas le nom que la page a choisi ; mais il DIT lequel il a trouvé, sans quoi un
+# faux positif (un bouton du jeu dont le texte contient « resume ») passerait
+# pour un défaut de la reprise.
+QUI_PROPOSE = ('[data-reprendre]', '[data-reprise="oui"]',
+               'button:has-text("Reprendre")', 'button:has-text("Resume")')
+
+
+def ce_qui_propose(pg):
+    """Le sélecteur qui propose de reprendre, ou `None`."""
+    for sel in QUI_PROPOSE:
         e = pg.query_selector(sel)
         if e and e.is_visible():
-            e.click()
-            return True
-    return False
+            return sel, e
+    return None, None
+
+
+def reprendre(pg):
+    """Clique ce qui propose de reprendre. Rend False si rien ne le propose."""
+    _, e = ce_qui_propose(pg)
+    if e is None:
+        return False
+    e.click()
+    return True
 
 
 def refuser(pg):
@@ -290,6 +315,10 @@ with serveur(RACINE) as base:
                                   f"de {avant[c]}")
             jouer_n(pg, 5)
             rang_intermediaire = pg.evaluate(ETAT)["rang"]
+            if rang_intermediaire is None:
+                fautes.append("apres cinq coups de plus, la page ne pose plus "
+                              "aucune question : impossible d'eprouver la "
+                              "seconde reprise")
             if err:
                 fautes.append(f"{len(err)} erreur(s) de console a la 1re reprise : {err[0]}")
         pg.close()
@@ -321,8 +350,12 @@ with serveur(RACINE) as base:
         # ---- 3. une partie finie ne se propose plus
         pg, err = ouvrir(URL)
         pg.wait_for_timeout(400)
-        if reprendre(pg):
-            fautes.append("une partie TERMINEE est encore proposee a la reprise")
+        sel, e = ce_qui_propose(pg)
+        if e is not None:
+            reste = pg.evaluate("() => Object.keys(window.localStorage)")
+            fautes.append(f"une partie TERMINEE est encore proposee a la reprise "
+                          f"(par « {sel} », texte « {(e.inner_text() or '')[:30]} », "
+                          f"cles restantes : {reste})")
         pg.close()
 
     # ---- 2. on peut refuser, et la partie neuve n'est pas l'ancienne
