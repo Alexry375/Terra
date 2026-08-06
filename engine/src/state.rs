@@ -355,6 +355,45 @@ pub struct PlayerState {
     /// Le badge choisi n'est pas un onzième badge : il est l'un des dix, et
     /// c'est `tags_of` qui fait la substitution.
     pub joker_tags: BTreeMap<u16, Tag>,
+    /// **(le-moteur-dit-quand-on-peut-vendre) L'OCCASION DE VENDRE EST-ELLE
+    /// ENCORE OUVERTE POUR CE JOUEUR, ICI ET MAINTENANT ?**
+    ///
+    /// À distinguer de `GameState::vente_offerte`, qui dit le DROIT de vendre :
+    /// « ce point de décision-ci a reçu son occasion, et les indices de main
+    /// désigneront les bonnes cartes ». Les deux ne coïncident pas, et c'est
+    /// tout le défaut que ce chantier corrige : une occasion ne se dépense
+    /// qu'UNE fois par siège. Après une vente, le moteur repose la même question
+    /// sur l'état d'après — `vente_offerte` y vaut encore vrai (le drapeau a été
+    /// armé avant la vente), mais une seconde entrée de vente rendue là ne
+    /// trouverait plus d'occasion pour la consommer : elle tomberait dans le
+    /// point de décision, et la partie s'arrêterait.
+    ///
+    /// Ce champ-ci dit donc la seule chose qu'un fournisseur SANS MÉMOIRE ait
+    /// besoin de savoir : « si je rends une entrée de vente à ce point-ci, sera-
+    /// t-elle acceptée ? ». Il est faux dans trois cas, et `flow::observer` les
+    /// vérifie tous les trois :
+    ///
+    /// 1. aucune occasion pour ce point (`vente_offerte` faux) ;
+    /// 2. la main de ce joueur est VIDE à l'occasion — `occasion_de_vendre`
+    ///    passe alors le siège sans interroger la politique, donc sans rien
+    ///    pouvoir consommer ;
+    /// 3. un siège `q >= p` a déjà vendu à cette occasion-ci. L'occasion
+    ///    interroge les sièges dans l'ordre croissant : une entrée ajoutée
+    ///    après coup est vue par les sièges qui suivent celui qui a vendu, et
+    ///    par eux seuls.
+    ///
+    /// Publié par `observe::state_view` sous le nom `occasion_de_vendre_ouverte`
+    /// (un booléen par siège). `vente_offerte` n'est pas touché : c'est lui que
+    /// l'écran lit, et son sens ne bouge pas d'un cran.
+    pub occasion_de_vendre_ouverte: bool,
+    /// (le-moteur-dit-quand-on-peut-vendre) **Ce siège a-t-il déjà vendu à
+    /// l'occasion en cours ?** Drapeau de travail, remis à faux par
+    /// `flow::occasion_de_vendre` au début de CHAQUE occasion, levé dès que
+    /// `Policy::vendre_librement` a rendu une liste non vide — donc dès que
+    /// l'entrée de vente a été consommée, même si le moteur en écarte ensuite
+    /// tous les indices (bornes, doublons, réserve de la défausse imposée).
+    /// C'est la consommation de l'ENTRÉE qui compte, pas ce qu'elle a vendu.
+    pub occasion_de_vendre_consommee: bool,
     /// **(MOT-13) Compteur d'audit : cartes qu'une VENTE a fait échapper à une
     /// défausse imposée** par `Eff::DrawDiscard` (« piochez `draw` cartes, puis
     /// défaussez-en `discard` »).
@@ -371,6 +410,12 @@ pub struct PlayerState {
     /// lui qui prouve que la correction tient — voir le test
     /// `engine/tests/mot13_tests.rs`, qui l'a d'abord vu monter.
     pub defausses_imposees_esquivees: u64,
+    /// **(MOT-13) Compteur d'audit : cartes qu'une vente a désignées et que le
+    /// moteur a gardées en main**, parce qu'elles devaient une défausse imposée
+    /// (`flow::ReserveDeVente`). Contrairement au compteur ci-dessus, celui-ci
+    /// n'a pas à valoir zéro : il compte le prix du correctif, c'est-à-dire les
+    /// ventes qu'un joueur a proposées et que la dette a bornées.
+    pub ventes_bornees_par_une_defausse: u64,
 }
 
 impl PlayerState {
@@ -403,7 +448,10 @@ impl PlayerState {
             pending_builds: Vec::new(),
             next_card_mod: NextCardMod::default(),
             joker_tags: BTreeMap::new(),
+            occasion_de_vendre_ouverte: false,
+            occasion_de_vendre_consommee: false,
             defausses_imposees_esquivees: 0,
+            ventes_bornees_par_une_defausse: 0,
         }
     }
 
