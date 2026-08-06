@@ -269,10 +269,22 @@ export async function volerMatiere({
     width: cote,
     height: haut,
   };
-  const prise = fabriquer({
-    depart, image: src, texte, motif,
-    classe: src ? "vol__jeton" : "vol__jeton vol__jeton--mot",
-  });
+  // LA FORME SUIT LES PROPORTIONS, ET VOICI POURQUOI (defaut vu a l'ecran le
+  // 06-08 par Alexis, sur une capture de la distribution). Cette fonction sert
+  // deux familles : ce qui est ROND — une piece, un jeton de chaleur, un « +2 »
+  // — et ce qui est une CARTE — la pioche, la defausse, le remelange. Toutes
+  // deux recevaient l'etiquette `vol__jeton`, et `style-table.css` y arrondit
+  // les coins de MOITIE. Sur un carre cela fait un disque, ce qui est voulu ;
+  // sur un rectangle de carte (52 sur 73 points) cela fait un OVALE. Une carte
+  // partait donc de la pioche en forme d'oeuf.
+  //
+  // Le depart n'est pas carre exactement quand `ratio` vaut autre chose que 1 :
+  // c'est donc `ratio` qui decide, et non le motif ni le cadrage. Un futur vol
+  // d'objet non carre heritera de la bonne forme sans qu'on y pense.
+  const carte = ratio !== 1;
+  const classe = (src ? "vol__jeton" : "vol__jeton vol__jeton--mot")
+    + (carte ? " vol__jeton--carte" : "");
+  const prise = fabriquer({ depart, image: src, texte, motif, classe });
   try {
     await poserSur(prise, vers, { ms, tour, grossir, cadrer });
   } finally {

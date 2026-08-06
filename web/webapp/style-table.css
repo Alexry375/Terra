@@ -411,6 +411,16 @@ body[data-siege="1"] #dock-1 { order: 2; }
    « +2 » qui se pose sur une carte en jeu. Même couche, même vol — seule
    l'apparence change. */
 .vol__jeton img { border-radius: 50%; box-shadow: 0 6px 18px rgba(0, 0, 0, .8); }
+
+/* SAUF QUAND CE QUI VOLE EST UNE CARTE. Arrondir de moitie un carre donne un
+   disque ; arrondir de moitie un rectangle de carte donne un OVALE, et c'est
+   ainsi que les cartes quittaient la pioche jusqu'au 06-08. Elles reprennent
+   ici les coins de toutes les autres cartes de la page (`.vol__carte img`,
+   plus haut : 4 points), et l'ombre portee d'un objet qui a une epaisseur. */
+.vol__jeton--carte img {
+  border-radius: 4px;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, .8), 0 0 0 1px rgba(239, 228, 212, .18);
+}
 .vol__jeton--mot {
   display: grid; place-items: center;
   border-radius: 999px;
