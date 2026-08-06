@@ -53,6 +53,14 @@ const VARIANTES = [
   { prixVenteMini: 14, gardeMini: 6 },
 ];
 
+// Un second tour, sur d'AUTRES graines, ne rejoue que les finalistes : c'est ce
+// qui distingue un écart réel du bruit d'un lot de 60 parties (± 5 points).
+//   VARIANTES=0,1,7 node … 100 7100
+const FILTRE = (process.env.VARIANTES || "")
+  .split(",")
+  .map((x) => Number(x.trim()))
+  .filter((x) => Number.isInteger(x));
+
 const SOURCE = readFileSync(join(W, "joueurs/reflechi.js"), "utf8");
 const DOSSIER = mkdtempSync(join(tmpdir(), "reglage-vente-"));
 
@@ -87,6 +95,7 @@ console.log(
 );
 
 for (const [rang, variante] of VARIANTES.entries()) {
+  if (FILTRE.length && !FILTRE.includes(rang)) continue;
   const fabrique = await joueurAvec(variante, rang);
   let gagnees = 0;
   let nulles = 0;
