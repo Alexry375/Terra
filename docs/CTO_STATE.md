@@ -3,7 +3,60 @@
 > Source de vérité du projet. Ancrée au code (`fichier:ligne`) dès qu'il y aura du
 > code. [VÉRIFIÉ JJ-MM] = relu à la source ce jour-là. [DÉCLARÉ] = non re-vérifié.
 
-Dernière mise à jour : 2026-08-05
+Dernière mise à jour : 2026-08-06
+
+## ✅ 06-08 — DEUX LOTS FUSIONNÉS, ET L'ÉCRAN MIS ENTRE LES MAINS D'ALEXIS
+
+### Le moteur dit quand on peut vendre (`bb38510`)
+
+| Ce que j'ai rejoué | Mesure |
+|---|---|
+| un joueur sans mémoire vend en lisant l'état | **12 / 12 parties au bout, 928 ventes** (avant : 0 / 12) |
+| l'écran voit toujours la même chose | 4 671 points, 2 681 offerts, **au point près** |
+| garde-fou | **28 suites, 848 tests, 0 échec** ; **0 commit ne refixe une empreinte** |
+| le joueur réfléchi ne régresse pas | 120 parties, **113 gagnées (94,2 %)**, 4 077 ventes |
+| contrôle caché, graines **41000-41099** | **196 / 200 (98,0 %)**, 6 507 ventes, 3 496 occasions, **0 mémoire, 0 triche** |
+| moteur compilé | reconstruit, comparé octet à octet : **identique** |
+
+MOT-13 était réel : 11 cartes échappaient à une défausse imposée sur 10 745 ventes.
+**Réserve vraie** : pour un joueur humain, l'écran garde le défaut — le bouton de vente
+reste offert là où l'occasion est dépensée (`vue/**` était hors territoire). [VÉRIFIÉ 06-08]
+
+### L'écran se souvient, et il sait passer pour de bon (`12401cb`) — CNF-3 et CNF-6
+
+| Ce que j'ai rejoué | Mesure |
+|---|---|
+| passer définitivement | offert 90 fois, employé 75 fois ; scores **[11, 100] à la main ET au bouton** |
+| le moteur n'a pas bougé | partie de référence **172 72 39 0** |
+| ses deux bancs | 172 questions, 5 façons d'abîmer l'enregistrement, **0 défaut** |
+| contrôle caché, graines 80231/80232/80233 | coupures à 7, 113 et 180 décisions : **même score final** qu'une partie jamais interrompue |
+
+La sauvegarde tient en **326 caractères** : graine, boîtes, liste des décisions.
+**Réserve déclarée** : la partie à deux, chacun chez soi, n'est **pas** enregistrée.
+
+### ⚠️ TROIS DÉFAUTS D'AFFICHAGE TROUVÉS PAR ALEXIS EN TROIS MINUTES DE JEU
+
+Aucun banc ne pouvait les voir : tous vérifient **qu'une chose vole, d'où et vers où**,
+jamais **à quoi elle ressemble ni où exactement elle se pose**.
+
+| Défaut | État |
+|---|---|
+| les cartes quittaient la pioche **en forme d'œuf** (`vue/anim.js:258` + arrondi de moitié) | **✅ CORRIGÉ 06-08** (`6a0bf5e`), banc neuf `verif/forme-de-ce-qui-vole.py` éprouvé dans les deux sens : vert sur 123 objets en vol, **88 / 107 pris en défaut** sur une copie sabotée |
+| un **gros point jaune** traverse l'écran : c'est `zone-de-stockage-mc-jaune.webp`, le **bac de rangement** du plateau (grand rectangle jaune uni), arrondi en disque. Même défaut en rouge (chaleur) et vert (plantes) | ❌ **OUVERT** |
+| à la distribution, **8 cartes piochées, 6 vols seulement** (plafond de 3 par événement, `vue/anim.js:526`), et toutes arrivent au **centre de la bande de main** (`vue/anim.js:584`), l'une sur l'autre et par-dessus les cartes déjà là | ❌ **OUVERT** |
+
+### ⚠️ TROIS VERDICTS FAUX DE MES CONTRÔLES, TOUS DE MOI
+
+1. un contrôle **impossible à satisfaire** : il coupait la partie en ouvrant un navigateur
+   neuf, où la mémoire du navigateur ne survit pas — l'agent avait raison de le signaler ;
+2. une coupure **à 260 décisions sur une partie qui en compte 201** : il punissait le
+   comportement exigé (une partie terminée ne se propose plus) ;
+3. une mesure prise **entre deux questions**, où la page n'affiche rien.
+
+Compte de la semaine : **dix verdicts faux**, et pas un ne se trompait sur ce qu'il fallait
+vérifier — tous mesuraient une forme au lieu d'une propriété, ou mesuraient là où la mesure
+ne pouvait pas avoir lieu.
+
 
 ## ✅ 05-08 — LE PREMIER ADVERSAIRE EST FUSIONNÉ (`97e2cdf`) — GRO-1 COMMENCÉ
 
