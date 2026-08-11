@@ -1179,7 +1179,7 @@ Ce qui suit est la spécification d'origine.
 Conséquence à ne pas oublier quand viendra l'intelligence artificielle : cette
 option lui profite bien plus qu'à un humain. Voir GRO-1.
 
-### CNF-3 (Corentin, ligne 34 · optionnel) — Un bouton « passer définitivement »
+### CNF-3 (Corentin, ligne 34 · optionnel) — Un bouton « passer définitivement » — ✅ FAIT 06-08 (`12401cb`)
 [DEMANDÉ] En plus du bouton qui passe une fois pendant la phase Action, un
 bouton qui passe en boucle, pour accélérer quand on est sûr de ne plus rien
 faire.
@@ -1199,7 +1199,7 @@ Ce qui suit est le constat d'origine.
 
 [DEMANDÉ] Aujourd'hui il faut recliquer sur la tuile elle-même.
 
-### CNF-6 (ancien I5) — Reprendre une partie interrompue
+### CNF-6 (ancien I5) — Reprendre une partie interrompue — ✅ FAIT 06-08 (`12401cb`), sauf la partie à deux chacun chez soi
 [DEMANDÉ] Aucune sauvegarde n'existe. Une partie coupée est perdue — sauf à
 recopier à la main la liste des décisions, ce qu'on a dû faire une fois le 04-08.
 
@@ -1315,3 +1315,48 @@ fait disparaître.
   ouverte plus de 30 secondes** [VÉRIFIÉ 04-08]. Ce n'est pas un blocage : la
   partie va au bout et les deux écrans restent d'accord sur le score. Cause
   inconnue.
+
+## 7. MISE EN SCÈNE — trouvés par Alexis en jouant, le 06-08
+
+Ces trois-là ont une seule racine : mes bancs vérifient **qu'une chose vole, d'où
+elle part et où elle arrive**, jamais **à quoi elle ressemble ni où exactement
+elle se pose**.
+
+### MES-1 — Les cartes quittaient la pioche en forme d'œuf — ✅ CORRIGÉ 06-08 (`6a0bf5e`)
+
+Tout ce qui traverse l'écran passe par `volerMatiere` (`web/webapp/vue/anim.js:258`),
+qui servait la même étiquette d'apparence aux objets **ronds** (une pièce, un jeton
+de chaleur) et aux **cartes**. `style-table.css` y arrondissait les coins de
+**moitié** : sur un carré cela fait un disque, sur un rectangle de 52 sur 72 points
+cela fait un **ovale**.
+
+Corrigé : la forme suit désormais les **proportions** et non le motif. Banc neuf
+`web/webapp/verif/forme-de-ce-qui-vole.py`, éprouvé dans les deux sens — **123
+objets en vol relevés**, vert sur la page réparée, **88 des 107 objets allongés pris
+en défaut** sur une copie sabotée. [VÉRIFIÉ 06-08]
+
+### MES-2 — Un gros point jaune traverse l'écran — ❌ OUVERT
+
+Mesuré : motif `mc`, 38 sur 38 points, image `zone-de-stockage-mc-jaune.webp`,
+partant de la barre du joueur vers le **centre de l'écran**. J'ai ouvert l'image :
+c'est un **grand rectangle jaune uni** avec un minuscule pictogramme dans un coin —
+c'est le **bac de rangement** du plateau, pas un jeton. Réduit à 38 points, arrondi
+en cercle et agrandi d'un quart, il ne reste que du jaune.
+
+Le même défaut existe pour `zone-de-stockage-chaleur-rouge.webp` (40 sur 40, vers la
+jauge de température) et pour les plantes. Aucune découpe de **jeton** de crédit, de
+chaleur ou de plante n'existe dans le manifeste : il faudra soit en découper une,
+soit faire voler un jeton portant le **montant** en clair. [VÉRIFIÉ 06-08]
+
+### MES-3 — À la distribution, trois cartes sur huit, toutes au même endroit — ❌ OUVERT
+
+Deux causes qui s'additionnent :
+
+1. un plafond de **trois objets par événement** (`vue/anim.js:526`) — il a une bonne
+   raison, sept cartes défaussées d'un coup donnent une bouillie illisible, mais
+   appliqué à la distribution de départ il montre **6 vols pour 8 cartes piochées**
+   (trois par joueur) ;
+2. le point d'arrivée est la **bande de main tout entière** (`vue/anim.js:584`), et
+   le vol se termine au **centre** de ce qu'on lui donne : les trois cartes se posent
+   donc l'une sur l'autre, **par-dessus les cartes déjà en main**, au lieu de
+   rejoindre chacune sa place au bout de la rangée. [VÉRIFIÉ 06-08]
