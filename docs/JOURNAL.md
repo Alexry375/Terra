@@ -1718,3 +1718,109 @@ vérifiaient la forme attendue au lieu de la propriété voulue, ou mesuraient d
 conditions où la mesure ne pouvait pas avoir lieu. La seule protection qui ait tenu à
 chaque fois est l'épreuve dans les deux sens : vert sur la livraison, rouge sur une copie
 volontairement abîmée.
+
+## 2026-08-06 (nuit) — Deux lots fusionnés, l'écran mis entre les mains d'Alexis, et trois défauts d'affichage que pas un banc ne voyait
+
+### Le lot « le moteur dit quand on peut vendre » (`bb38510`)
+
+Deux choses partaient ensemble parce qu'elles touchent le même endroit du moteur : le
+défaut trouvé la veille — après une première vente, l'état republiait « tu peux vendre »
+alors que l'occasion venait d'être dépensée — et MOT-13, la vente qui fait disparaître une
+défausse imposée.
+
+**MOT-13 était réel, et la fiche le sous-estimait à peine** : 11 cartes échappaient à une
+défausse imposée sur 10 745 ventes, une sur 977 là où la fiche annonçait une sur 1 003.
+
+Tout rejoué par moi, jamais cru sur parole :
+
+| Ce que j'ai rejoué | Mesure |
+|---|---|
+| un joueur sans mémoire vend en lisant l'état | **12 / 12 parties menées au bout, 928 ventes** — contre 0 / 12 avant |
+| l'écran voit toujours la même chose | 4 671 points de décision, 2 681 occasions offertes, **au point près** |
+| garde-fou du moteur | **28 suites, 848 tests, 0 échec**, et **0 commit ne refixe une empreinte** |
+| le joueur réfléchi vend vraiment, sans régresser | 120 parties, **113 gagnées (94,2 %)**, 4 077 ventes |
+| contrôle caché, graines **41000-41099** | **196 / 200 (98,0 %)**, 6 507 ventes, 3 496 occasions de le prendre en défaut, **0 mémoire cachée, 0 regard sur la main d'en face** |
+| moteur compilé pour le navigateur | reconstruit et comparé octet à octet : **identique** |
+
+Aucune empreinte de partie n'a bougé, et c'est cohérent : sans vente, pas une partie de
+référence ne se déroule autrement. [VÉRIFIÉ 06-08]
+
+**Réserve déclarée et vraie** : pour un joueur humain, l'écran garde le défaut — le bouton
+de vente reste offert là où l'occasion est dépensée. L'affichage était hors du territoire
+de ce chantier.
+
+### Le lot « l'écran se souvient, et il sait passer pour de bon » (`12401cb`)
+
+CNF-3 et CNF-6, les deux derniers points de confort. Le bouton qui passe en boucle ne
+calcule rien : il clique le « passer » que le moteur vient d'offrir. La sauvegarde d'une
+partie tient en **326 caractères** — la graine, les boîtes, la liste des décisions — et
+rien du jeu lui-même.
+
+| Ce que j'ai rejoué | Mesure |
+|---|---|
+| passer définitivement | « passer » offert 90 fois, bouton employé 75 fois ; scores **[11, 100] à la main ET au bouton** |
+| le moteur n'a pas bougé | partie de référence **172 72 39 0** (décisions, deux scores, erreurs de console) |
+| ses deux bancs à lui | 172 questions, 5 façons d'abîmer l'enregistrement, **0 défaut** |
+| contrôle caché, graines 80231/80232/80233 | coupures à 7, 113 et 180 décisions : reprise fidèle et **même score final** qu'une partie jamais interrompue |
+
+**Réserve déclarée par l'agent, et c'est la bonne décision** : la partie à deux, chacun
+chez soi, n'est pas enregistrée. Une reprise mal faite y ferait diverger les deux écrans,
+ce qui serait pire que pas de reprise du tout.
+
+### Mes contrôles cachés, encore : trois verdicts faux, tous de moi
+
+C'est la partie du bilan qui compte.
+
+1. **Un contrôle impossible à satisfaire.** Mon banc de reprise coupait la partie en
+   ouvrant un nouveau navigateur — or l'outil de pilotage en lance un **neuf** à chaque
+   ouverture, donc la mémoire du navigateur ne survit pas. Je demandais de reprendre une
+   partie après avoir jeté l'endroit où elle était écrite. Vérifié à la main : un témoin
+   écrit se relit « rien » après une nouvelle ouverture, et se relit correctement après un
+   simple rechargement. L'agent l'avait annoncé comme « rouge d'environnement » ; il avait
+   raison, et il a refusé de rendre l'outil persistant, ce qui aurait cassé un autre banc.
+2. **Une coupure après la fin.** Mon contrôle caché coupait à 260 décisions une partie qui
+   n'en compte que **201** — il punissait donc le comportement exigé par le contrat, qui
+   veut qu'une partie terminée ne se propose plus. Corrigé, avec un garde-fou qui accuse
+   **le banc** et non la page.
+3. **Une mesure prise quand il n'y a rien à mesurer.** Je relevais l'état **entre deux
+   questions**, où la page n'affiche ni question ni fin de partie, puis j'accusais la
+   reprise d'avoir changé le rang.
+
+Le compte de la semaine passe ainsi à **dix verdicts faux**, et pas un seul ne se trompait
+sur ce qu'il fallait vérifier. [VÉRIFIÉ 06-08]
+
+### Alexis a joué, et il a trouvé en trois minutes ce que dix bancs ne voyaient pas
+
+J'ai servi la page en local pour qu'il l'essaie. Trois défauts d'affichage, tous réels,
+tous invisibles pour l'ensemble de mes vérifications automatiques :
+
+1. **Les cartes quittaient la pioche en forme d'œuf.** Tout ce qui traverse l'écran passe
+   par une seule fonction (`web/webapp/vue/anim.js:258`), qui servait la même étiquette
+   d'apparence aux objets ronds — une pièce, un jeton de chaleur — et aux cartes. La
+   feuille de style y arrondit les coins de **moitié** : sur un carré cela fait un disque,
+   sur un rectangle de 52 sur 72 points cela fait un **ovale**. **Corrigé** (`6a0bf5e`) :
+   la forme suit désormais les **proportions** et non le motif. Banc neuf
+   `verif/forme-de-ce-qui-vole.py`, éprouvé dans les deux sens — 123 objets en vol relevés,
+   vert sur la page réparée, **88 des 107 objets allongés pris en défaut** sur une copie
+   sabotée.
+2. **Un gros point jaune traverse l'écran.** Mesuré : c'est l'image
+   `zone-de-stockage-mc-jaune.webp`, ouverte et regardée — un **grand rectangle jaune uni**
+   avec un minuscule pictogramme dans un coin. C'est le **bac de rangement** du plateau,
+   pas un jeton. Réduit à 38 points, arrondi en cercle et agrandi d'un quart, il ne reste
+   que du jaune. Le même défaut existe en rouge pour la chaleur et en vert pour les
+   plantes, vers les jauges. **Non corrigé au 06-08.**
+3. **Trois cartes sur huit, toutes au même endroit.** À la distribution de départ, 8 cartes
+   sont piochées et **6 vols seulement** partent — trois par joueur, à cause d'un plafond
+   de trois objets par événement (`vue/anim.js:526`). Et le point d'arrivée est la **bande
+   de main tout entière** (`vue/anim.js:584`) : le vol se termine au **centre** de ce
+   qu'on lui donne, donc les trois cartes se posent l'une sur l'autre, par-dessus les
+   cartes déjà en main, au lieu de rejoindre chacune sa place. **Non corrigé au 06-08.**
+
+### Ce que j'en retiens
+
+Mes bancs vérifient **qu'une chose vole, d'où elle part et où elle arrive**. Aucun ne
+vérifiait **à quoi elle ressemble en volant**, ni **où exactement elle se pose**. C'est le
+même angle mort que les dix verdicts faux de la semaine, vu par l'autre bout : je mesure
+l'existence d'un événement, jamais son apparence. Un joueur qui regarde l'écran trois
+minutes trouve ce qu'aucune de mes mesures ne peut trouver — **il faut donc lui donner
+l'écran plus souvent, et pas seulement à la fin d'un lot.**
