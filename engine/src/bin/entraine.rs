@@ -111,6 +111,7 @@ fn main() {
     let mut sans_optimisation = false;
     let mut lambda = reseau::LAMBDA;
     let mut rythme = reseau::RYTHME;
+    let mut amplitude = reseau::AMPLITUDE_DEPART;
     let mut i = 1;
     while i < args.len() {
         let mut avance = 2;
@@ -140,6 +141,9 @@ fn main() {
             }
             "--lambda" => lambda = val(i).parse().unwrap_or_else(|_| mourir("--lambda")),
             "--rythme" => rythme = val(i).parse().unwrap_or_else(|_| mourir("--rythme")),
+            "--amplitude-depart" => {
+                amplitude = val(i).parse().unwrap_or_else(|_| mourir("--amplitude-depart"))
+            }
             "--sans-optimisation" => {
                 sans_optimisation = true;
                 avance = 1;
@@ -170,7 +174,7 @@ fn main() {
     };
     let desc = Description::new(&db);
     let noms = desc.noms_avec(&db);
-    let mut reseau = Reseau::neuf(desc.taille);
+    let mut reseau = Reseau::neuf_amplitude(desc.taille, amplitude);
     reseau.sans_optimisation = sans_optimisation;
     reseau.lambda = lambda;
     let mut pile = Pile::new(desc.taille);

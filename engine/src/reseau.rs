@@ -191,18 +191,42 @@ pub struct Reseau {
     pub compte_erreur: u64,
 }
 
+/// **L'amplitude des poids de départ (§1) : ±0,1.** C'est la valeur spécifiée, et
+/// c'est celle que `Reseau::neuf` emploie.
+pub const AMPLITUDE_DEPART: f64 = 0.1;
+
 impl Reseau {
     /// Un réseau neuf : poids tirés uniformément entre −0,1 et +0,1, générateur
     /// semé (§1).
     pub fn neuf(n_entrees: usize) -> Reseau {
+        Reseau::neuf_amplitude(n_entrees, AMPLITUDE_DEPART)
+    }
+
+    /// **Le même réseau, avec une autre amplitude de départ — pour la MESURE que
+    /// le préambule de la spécification autorise (« tu peux proposer mieux, mais
+    /// tu livres d'abord la version spécifiée, tu mesures les deux »).**
+    ///
+    /// Ce qui la motive, et c'est arithmétique : la description compte 1472
+    /// entrées valant toutes ±1. Avec des poids tirés dans ±0,1, la somme
+    /// pondérée d'un neurone caché a un écart-type de √(1472/3) × 0,1 ≈ **2,2** —
+    /// la tangente hyperbolique y est déjà couchée, et sa dérivée (1 − h²) vaut
+    /// moins d'un dixième. Les mille trois cents drapeaux de cartes, qui ne
+    /// bougent presque jamais, écrasent ainsi le signal des thermomètres, qui,
+    /// eux, portent tout ce qui distingue deux options. La référence, elle, n'a
+    /// que 704 entrées : le même 0,1 y donne un écart-type de 1,5.
+    ///
+    /// `--amplitude-depart 0.045` ramène cet écart-type à 1,0 pour 1472 entrées.
+    /// La valeur par défaut reste 0,1, et `Reseau::neuf` est inchangée : sans
+    /// l'argument, l'entraînement est celui du §1 au bit près.
+    pub fn neuf_amplitude(n_entrees: usize, amplitude: f64) -> Reseau {
         let mut rng = StdRng::seed_from_u64(GRAINE_POIDS);
         let mut w_cache = vec![0.0; (n_entrees + 1) * CACHES];
         for w in w_cache.iter_mut() {
-            *w = rng.gen_range(-0.1..0.1);
+            *w = rng.gen_range(-amplitude..amplitude);
         }
         let mut w_sortie = vec![0.0; (CACHES + 1) * SORTIES];
         for w in w_sortie.iter_mut() {
-            *w = rng.gen_range(-0.1..0.1);
+            *w = rng.gen_range(-amplitude..amplitude);
         }
         Reseau {
             n_entrees,
