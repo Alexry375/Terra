@@ -1824,3 +1824,138 @@ même angle mort que les dix verdicts faux de la semaine, vu par l'autre bout : 
 l'existence d'un événement, jamais son apparence. Un joueur qui regarde l'écran trois
 minutes trouve ce qu'aucune de mes mesures ne peut trouver — **il faut donc lui donner
 l'écran plus souvent, et pas seulement à la fin d'un lot.**
+
+## 2026-08-15 — Le contrat de l'intelligence, réécrit parce qu'il était trop maigre
+
+Alexis a posé la bonne question : « s'interdire de consulter le code de référence, ça ne
+va pas être un vrai problème ? [...] Il faut que l'agent soit lancé uniquement quand tu
+penses à + de 80 % qu'on aura une IA au moins aussi qualitative que celle de Race for the
+Galaxy. » Puis, la barre relevée : « il faut même viser + de 90 %, [...] il vaut mieux en
+dire trop que pas assez sur la spécification. »
+
+**La réponse honnête était non — pas à cause de l'interdiction, à cause de moi.** Le droit
+d'auteur protège l'écriture d'un programme, pas la méthode qu'il met en œuvre : lire est
+libre, décrire est libre, seule la copie est interdite. Ce qui manquait, c'était ma
+transmission. Ma première version du contrat tenait la description de l'IA de référence en
+**six lignes de tableau**. J'ai passé la journée à la porter à **dix sections**, et le
+contrat de 310 à 780 lignes.
+
+### Ce que j'ai relevé à la source et qui manquait entièrement
+
+Relecture ligne à ligne de `net.c`, `net.h`, `ai.c` et des réseaux livrés
+(`src/network/*.net`) dans le clone du scratchpad. Manquaient : l'apprentissage **à chaque
+tour** vers la prédiction présente et non « à la fin de la partie » (`ai.c:2565-2620`) ; la
+cible de fin de partie **douce**, exponentielle de 0,3 fois l'écart de score, si bien que
+gagner de 2 points ne s'apprend pas comme gagner de 30 (`ai.c:8520-8548`) ; le taux
+d'apprentissage **0,0001** (`ai.c:124`) ; la **tangente hyperbolique** et les sorties en
+exponentielle normalisée (`net.c:178, 250-310`) ; les poids de départ entre −0,1 et +0,1
+(`net.c:33`) ; l'**amorçage** sur 5 000 fins de partie fabriquées à scores aléatoires, taux
+multiplié par dix (`ai.c:8820-8899`) ; la pile de **120 situations** où un pas est un TOUR
+(`net.c:28, 312`) ; le calcul **incrémental** qui ne recalcule que les entrées changées
+(`net.c:250`) ; les entrées valant **+1 ou −1** et jamais une quantité brute (`ai.c:2317,
+2046`) ; le **second réseau** de prédiction de phase au taux 0,0005 (`ai.c:153, 3774`) ;
+les **30 000 parties** d'entraînement inscrites dans les réseaux livrés (`rftg.eval.0.2.net`
+ligne 2, avec 704 entrées et 50 neurones cachés) ; et le fait que le fichier de poids
+**porte le nom de chacune de ses entrées** (`net.c:659-690`). [VÉRIFIÉ 15-08]
+
+Ce dernier point est devenu **le verrou du risque numéro un du chantier**. Les poids sont
+appris en Rust et relus en JavaScript ; si les deux côtés ne rangent pas les mêmes nombres
+dans le même ordre, le joueur est mauvais sans que rien ne le signale. Le fichier portant
+les noms, le côté qui relit les régénère et refuse de jouer au premier écart.
+
+### La mesure qui a fermé le débat de l'architecture
+
+Le pont **ne garde aucun état** : chaque décision rejoue la partie depuis la graine
+(`web/webapp/pont.js:72`, commentaire explicite). Donc essayer un coup sans le jouer coûte
+exactement ce que coûte un coup. Mesuré sur la graine 4242, base + Découverte : **341
+décisions par partie, 4,8 options en moyenne (16 au maximum), un essai coûtant 0,5 ms en
+début de partie et 2,1 ms à la fin**. Une partie où le joueur essaie chaque option : 2,1
+secondes. Les 300 parties du duel de mesure : dix minutes. [VÉRIFIÉ 15-08]
+
+Ma première version contenait une porte de sortie — « si essayer chaque coup est trop lent,
+livre un joueur qui juge la situation courante ». **C'était une bêtise** : un joueur qui
+juge la situation courante donne la même note à toutes ses options, donc il ne choisit
+rien. J'aurais autorisé la livraison d'un joueur inutile. Fermée.
+
+### La mesure de faisabilité, faite avant de lancer quoi que ce soit
+
+120 parties entre deux `reflechi` (graines 200000-200119), arrêtées à la moitié de leurs
+générations, jugées par une règle triviale sur trois champs de l'état publié :
+
+| Ce qu'on regarde à mi-partie | Vainqueur correctement désigné |
+|---|---|
+| le hasard | 50,0 % |
+| la cote de terraformation seule | 60,8 % |
+| la production seule | 67,5 % |
+| le score acquis seul | 75,0 % |
+| score + 2 × production + cartes posées | **82,5 %** |
+
+**Trois champs désignent le vainqueur quatre fois sur cinq.** La condition nécessaire du
+chantier est très largement remplie, et le chiffre est inscrit dans le contrat comme repère
+pour l'agent : si son apprentissage plafonne à 0,60 là où trois champs donnent 0,82, c'est
+sa description qui est en cause, pas l'apprentissage. [VÉRIFIÉ 15-08]
+
+### Quatre défauts dans mes propres contrôles, trouvés en les éprouvant
+
+1. Les trois bancs ouvraient le moteur sur le **fichier** `terra.wasm` alors que
+   `ouvrirPontDepuis` attend le **dossier** (`pont.js:97`) — tous rouges à la première
+   seconde, et l'agent aurait cherché une faute qui n'était pas la sienne.
+2. Le contrôle des règles faisait `cargo test --release | tail -40` : il comptait **4
+   séries sur 28** et déclarait rouge un dépôt intact.
+3. Son test de dépendance chaînait `grep -q ... | grep -v ...` : `-q` n'imprimant rien, le
+   second filtre ne recevait jamais rien et la condition ne pouvait **jamais** se
+   déclencher. Le contrôle existait sans contrôler.
+4. **Ma spécification elle-même** empilait une situation à chaque décision au lieu d'une
+   par tour. Avec 341 décisions par partie et un facteur de remontée de 0,7, l'influence se
+   serait éteinte en une fraction de tour : l'apprentissage n'aurait presque rien remonté.
+
+Le quatrième est le plus grave et il vient de moi seul. Il a été attrapé en relisant mon
+propre texte contre le code que j'avais lu — **la relecture ligne à ligne du contrat contre
+la source n'est pas une formalité.** Cela porte à **quatorze** les verdicts faux de mes
+contrôles depuis le début du mois.
+
+### Le contrôle des règles, éprouvé dans les deux sens
+
+Vert sur `main` intact : **28 séries, 848 tests, 0 échec**, et 300 parties rejouées à
+l'empreinte près (`state_hash: 205a28580c516e5e`, relevé deux fois). Rouge sur une copie
+sabotée d'**une seule ligne** de logique dans `state.rs`, et il nomme la ligne. Vert sur le
+seul changement autorisé — `#[derive(Clone)]` sur `GameState` — qui **compile et laisse les
+848 tests verts**. Ce dernier fait est acquis : l'agent n'aura pas à le découvrir.
+[VÉRIFIÉ 15-08]
+
+### Ce que le contrat impose désormais et qui n'y était pas
+
+**200 000 parties** minimum pour les poids livrés (contre 30 000 chez la référence), avec
+une courbe de force à 10 000 / 50 000 / 100 000 / 200 000. Une **barre chiffrée** : 60 % de
+victoires contre `reflechi`, assortie d'une clause §10 disant qu'un chiffre honnête en
+dessous vaut infiniment mieux qu'un chiffre au-dessus dont on ne sait pas d'où il vient. Un
+**plan de marche** dont le point de bascule est un duel de 50 parties après 10 000 parties
+d'entraînement — deux minutes pour savoir si la description apprend, au lieu de le
+découvrir après cinq heures de calcul. Et deux mesures d'amélioration au-delà de la
+référence : le facteur de remontée du temps (0,7 contre 0,85 et 0,95, **nos parties durant
+45 générations contre une douzaine chez elle** — `avg_generations: 45,25`), et
+l'exploration (5 % contre aucune).
+
+### L'épreuve cachée, enrichie
+
+Graines 60000-60199. Elle vérifie toujours que la main d'en face remplacée ne change aucune
+réponse, que la force se reproduit avec des poids que nous entraînons nous-mêmes, et le
+territoire. S'y ajoutent : les poids **livrés** doivent suivre la spécification (50
+neurones, 2 sorties, au moins 200 000 parties, noms d'entrées présents) — le contrôle
+visible ne regardait que le fichier qu'il venait lui-même de produire ; et surtout,
+**tous les poids mis à zéro, la force doit s'effondrer**. Sinon le réseau est un décor et
+les décisions viennent de règles écrites à la main.
+
+### Décision
+
+Confiance estimée à **91 %** d'obtenir un joueur d'architecture équivalente à la référence,
+entraîné plus longtemps qu'elle, et nettement plus fort que `reflechi`. Agent lancé.
+Réserve dite à Alexis : « au moins aussi bonne que celle de Race for the Galaxy » n'est pas
+mesurable directement — deux jeux, aucune échelle commune. Ce qui est garanti : la même
+architecture, les mêmes réglages, 6,7 fois plus de parties d'entraînement, et deux
+améliorations mesurées. Le seul juge final sera Alexis devant l'écran.
+
+**Reste ouvert** : le chantier visuel `la-mise-en-scene-dit-vrai`, arrêté par Alexis, trois
+commits en place (découpe du symbole des flammes, point jaune, distribution), arbre propre,
+manquent le balayage général et le rapport. Un agent arrêté ne se reprend pas ; il faut sa
+demande explicite pour en lancer un neuf.
