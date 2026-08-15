@@ -3,7 +3,119 @@
 > Source de vérité du projet. Ancrée au code (`fichier:ligne`) dès qu'il y aura du
 > code. [VÉRIFIÉ JJ-MM] = relu à la source ce jour-là. [DÉCLARÉ] = non re-vérifié.
 
-Dernière mise à jour : 2026-08-06
+Dernière mise à jour : 2026-08-15
+
+## 🧠 15-08 — LE CONTRAT DE L'INTELLIGENCE, RÉÉCRIT ET DURCI (pas encore lancé)
+
+Le workspace `le-juge-apprend` est **scellé**, avec quatre contrôles et une épreuve
+cachée. Il n'est **pas lancé** : Alexis a demandé de ne le faire qu'à plus de 90 %
+de confiance, et j'ai passé la journée à y arriver.
+
+### La question d'Alexis : s'interdire le code de référence, est-ce un handicap ?
+
+Réponse : non, à condition de transmettre. Le droit d'auteur protège **l'écriture**,
+pas la méthode — je peux donc lire le code de l'IA de *Race for the Galaxy* (GPLv2)
+et en décrire l'architecture en français sans rien copier. Mais **ma première version
+du contrat n'en donnait que six lignes**, ce qui était très insuffisant. Le contrat
+fait maintenant **760 lignes**, dont une spécification de dix sections.
+
+### Ce que j'ai relevé à la source, et qui manquait à ma première version
+
+| Détail | Où je l'ai lu | Y était-il ? |
+|---|---|---|
+| apprentissage **à chaque tour**, vers la prédiction présente | `ai.c:2565-2620` | non — j'avais écrit « à la fin » |
+| cible de fin de partie **douce** : exponentielle de 0,3 × écart de score | `ai.c:8520-8548` | non |
+| taux d'apprentissage **0,0001** | `ai.c:124` | non |
+| activation **tangente hyperbolique**, sorties en exponentielle normalisée | `net.c:178, 250-310` | non |
+| poids de départ entre **−0,1 et +0,1** | `net.c:33` | non |
+| **amorçage** : 5 000 fins fabriquées, scores au hasard, taux ×10 | `ai.c:8820-8899` | non |
+| pile de **120 situations**, un pas = **un tour** | `net.c:28, 312` | non |
+| calcul **incrémental** (seules les entrées changées) | `net.c:250` | non |
+| entrées à **+1 / −1**, jamais 0/1 ni quantité brute | `ai.c:2317, 2046` | non |
+| second réseau de prédiction de phase, taux 0,0005 | `ai.c:153, 3774` | non |
+| **30 000 parties** d'entraînement dans les réseaux livrés | `rftg.eval.0.2.net`, ligne 2 | non |
+| le fichier de poids **porte le nom de ses entrées** | `net.c:659-690` | non |
+
+Le dernier point est devenu **le verrou du risque numéro un** : les poids sont appris
+en Rust et relus en JavaScript ; si les deux descriptions divergent, le joueur est
+mauvais sans qu'on sache pourquoi. Le fichier portant les noms, le JavaScript les
+régénère et refuse de jouer au premier écart. [VÉRIFIÉ 15-08]
+
+### La mesure qui a fermé le débat du chantier
+
+Le pont **ne garde aucun état** : chaque décision rejoue la partie depuis la graine
+(`web/webapp/pont.js:72`). **Essayer un coup coûte donc ce que coûte un coup.**
+
+| Mesure du 15-08, graine 4242, base+Découverte | Résultat |
+|---|---|
+| décisions par partie | 341 |
+| options par décision | 4,8 (max 16) |
+| un essai, début → fin de partie | **0,5 → 2,1 ms** |
+| une partie où le joueur essaie chaque option | **2,1 s** |
+| 300 parties de duel | **≈ 10 min** |
+
+Ma première version du contrat contenait une porte de sortie — « si essayer est trop
+lent, juge la situation courante » — qui aurait autorisé la livraison d'un **joueur
+incapable de choisir** (toutes ses options auraient la même note). Fermée. [VÉRIFIÉ 15-08]
+
+### Quatre défauts trouvés dans MES propres contrôles, en les éprouvant
+
+1. les trois bancs ouvraient le pont sur le **fichier** `terra.wasm` au lieu du
+   **dossier** — ils auraient tous échoué à la première seconde ;
+2. le contrôle du moteur faisait `cargo test | tail -40` : il comptait **4 suites sur
+   28** et accusait un dépôt intact ;
+3. son test de dépendance chaînait `grep -q | grep -v` — `-q` n'imprimant rien, la
+   condition ne pouvait **jamais** se déclencher ;
+4. ma spécification empilait les situations **à chaque décision** au lieu d'une par
+   tour : avec 341 décisions par partie et un facteur 0,7, l'apprentissage n'aurait
+   remonté qu'une fraction de tour.
+
+Le contrôle 04 est maintenant **éprouvé dans les deux sens** : vert sur `main` intact
+(28 suites, 848 tests, empreinte `205a28580c516e5e`), rouge sur une copie sabotée
+d'une seule ligne dans `state.rs`, et vert sur le seul changement autorisé
+(`#[derive(Clone)]`). Cet ajout **compile et laisse les 848 tests verts** — mesuré,
+pas supposé. [VÉRIFIÉ 15-08]
+
+### Ce que le contrat impose maintenant, et qui n'y était pas
+
+- **200 000 parties** d'entraînement minimum pour les poids livrés (la référence en a
+  30 000), avec une **courbe de force** à 10 000 / 50 000 / 100 000 / 200 000 ;
+- une **barre chiffrée** : 60 % de victoires contre `reflechi`, et une clause §10 qui
+  dit qu'un chiffre honnête en dessous vaut mieux qu'un chiffre au-dessus dont on ne
+  sait pas d'où il vient ;
+- un **plan de marche** : premier duel de 50 parties après 10 000 parties
+  d'entraînement, en deux minutes — la boucle courte qui évite de découvrir une faute
+  après cinq heures de calcul ;
+- deux **mesures d'amélioration** au-delà de la référence : le facteur de remontée du
+  temps (0,7 contre 0,85 et 0,95 — nos parties durent **45 générations** contre une
+  douzaine chez elle) et l'exploration (5 % contre 0).
+
+### La mesure de faisabilité, faite avant de lancer quoi que ce soit
+
+120 parties entre deux `reflechi`, arrêtées à la moitié de leurs générations, et une
+règle **triviale** sur trois champs de l'état publié :
+
+| Ce qu'on regarde à mi-partie | Vainqueur correctement désigné |
+|---|---|
+| le hasard | 50,0 % |
+| la cote de terraformation seule | 60,8 % |
+| la production seule | 67,5 % |
+| le score acquis seul | 75,0 % |
+| score + 2 × production + cartes posées | **82,5 %** |
+
+**Trois champs désignent le vainqueur quatre fois sur cinq.** Un réseau qui en voit
+mille doit faire mieux : la condition nécessaire du chantier est très largement
+remplie, et ce chiffre sert de repère à l'agent pour savoir si sa description est en
+cause. [VÉRIFIÉ 15-08, graines 200000-200119]
+
+### L'épreuve cachée (jamais montrée à l'agent)
+
+Graines **60000-60199**, hors entraînement et hors mesure visible. Elle vérifie : la
+main d'en face remplacée en cours de partie ne change aucune réponse ; les poids
+livrés suivent la spécification (50 neurones, 2 sorties, ≥ 200 000 parties, noms
+présents) ; la force se reproduit avec des poids que **nous** entraînons ; et — c'est
+neuf — **avec tous les poids mis à zéro, la force doit s'effondrer**, sinon le réseau
+est un décor et les décisions viennent de règles écrites à la main.
 
 ## ✅ 06-08 — DEUX LOTS FUSIONNÉS, ET L'ÉCRAN MIS ENTRE LES MAINS D'ALEXIS
 
