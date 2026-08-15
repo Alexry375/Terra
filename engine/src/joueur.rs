@@ -43,6 +43,34 @@ use crate::description::{Description, Tampons};
 use crate::rejeu::Rejeu;
 use crate::reseau::{Pile, Reseau};
 
+/// **L'état atteint par un rejeu, et le piège du §4.**
+///
+/// « Une option peut terminer la partie. L'état rendu porte alors `game_over` et les
+/// scores sont définitifs ; c'est un cas normal, pas une erreur. » Il faut donc
+/// distinguer les deux issues, exactement comme le pont le fait
+/// (`wasm/src/lib.rs`, `let termine = pol.attente.is_none()`) :
+///
+/// - une décision attend → l'état à décrire est celui que `observe` a retenu juste
+///   avant elle ;
+/// - plus aucune décision → **l'état FINAL**, et surtout pas `vue`. `Rejeu::observe`
+///   écrit `vue` à chaque observation, y compris aux points de décision que le moteur
+///   finit par ne pas poser (liste d'options vide) : `vue` peut donc porter un état de
+///   milieu de manche alors que la partie est finie. C'est le seul moment où l'entrée
+///   `global_fin_de_partie` vaut +1 et où les scores sont définitifs — s'y tromper fait
+///   juger la dernière décision de la partie sur un état périmé, et fait diverger le
+///   joueur Rust du joueur JavaScript, qui, lui, reçoit l'état final du pont.
+fn etat_atteint(rejeu: &mut Rejeu, g: GameState) -> Option<GameState> {
+    if rejeu.erreur.is_some() {
+        // Le moteur a refusé cette réponse : elle n'est pas jouable, et l'état
+        // atteint après un repli n'a rien à voir avec elle.
+        return None;
+    }
+    if rejeu.attente.is_none() {
+        return Some(g); // la partie est finie : l'état final, scores compris
+    }
+    Some(rejeu.vue.take().unwrap_or(g))
+}
+
 /// Où reprendre pour rejouer une décision.
 enum Reprise {
     /// Avant la première manche : on rejoue `setup_game` depuis la graine.
@@ -155,24 +183,16 @@ impl<'a> Joueur<'a> {
                 while rejeu.attente.is_none() && !g.game_over && g.generation <= MAX_GENERATIONS {
                     play_round(&mut g, self.db, &mut rejeu);
                 }
-                if rejeu.erreur.is_some() {
-                    None
-                } else {
-                    Some(rejeu.vue.take().unwrap_or(g))
-                }
+                let r = etat_atteint(&mut rejeu, g);
+                self.t_essais += t0.elapsed().as_secs_f64();
+                r
             }
             Reprise::Manche(base) => {
                 let mut g = (**base).clone();
                 while rejeu.attente.is_none() && !g.game_over && g.generation <= MAX_GENERATIONS {
                     play_round(&mut g, self.db, &mut rejeu);
                 }
-                let r = if rejeu.erreur.is_some() {
-                    // Le moteur a refusé cette réponse : elle n'est pas jouable,
-                    // et l'état atteint après un repli n'a rien à voir avec elle.
-                    None
-                } else {
-                    Some(rejeu.vue.take().unwrap_or(g))
-                };
+                let r = etat_atteint(&mut rejeu, g);
                 self.t_essais += t0.elapsed().as_secs_f64();
                 r
             }
@@ -183,7 +203,10 @@ impl<'a> Joueur<'a> {
     /// probabilité de victoire est la plus haute. Rend l'indice retenu dans
     /// `candidates`, et enregistre la réponse pour la suite du rejeu.
     fn choisir(&mut self, rng: &mut StdRng, joueur: usize, candidates: &[Value]) -> usize {
-        let choix = if candidates.len() <= 1 {
+        if candidates.is_empty() {
+            return 0; // le moteur n'offre rien : il n'y a rien à essayer
+        }
+        let choix = if candidates.len() == 1 {
             0
         } else if self.exploration > 0.0 && rng.gen::<f64>() < self.exploration {
             // L'exploration du §5 : sans elle, deux joueurs identiques et
