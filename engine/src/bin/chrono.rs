@@ -97,10 +97,7 @@ fn main() {
 
     let t0 = Instant::now();
     for _ in 0..n {
-        reseau.oublier();
-        reseau.evaluer(&x);
-        reseau.accumuler(&x, [0.6, 0.4], 1.0, 0.0001);
-        reseau.appliquer();
+        reseau.entrainer_une(&x, [0.6, 0.4], 0.0001);
     }
     println!("une passe d'apprentissage : {:3.2} µs", 1e6 * t0.elapsed().as_secs_f64() / n as f64);
 }

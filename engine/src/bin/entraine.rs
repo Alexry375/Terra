@@ -105,6 +105,7 @@ fn main() {
     let mut cartes = "data/cards.json".to_string();
     let mut instantanes: Vec<u64> = Vec::new();
     let mut sans_optimisation = false;
+    let mut lambda = reseau::LAMBDA;
     let mut i = 1;
     while i < args.len() {
         let mut avance = 2;
@@ -132,6 +133,7 @@ fn main() {
                     .map(|s| s.trim().parse().unwrap_or_else(|_| mourir("--instantanes")))
                     .collect()
             }
+            "--lambda" => lambda = val(i).parse().unwrap_or_else(|_| mourir("--lambda")),
             "--sans-optimisation" => {
                 sans_optimisation = true;
                 avance = 1;
@@ -164,6 +166,7 @@ fn main() {
     let noms = desc.noms_avec(&db);
     let mut reseau = Reseau::neuf(desc.taille);
     reseau.sans_optimisation = sans_optimisation;
+    reseau.lambda = lambda;
     let mut pile = Pile::new(desc.taille);
 
     let t0 = Instant::now();

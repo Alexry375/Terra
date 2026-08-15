@@ -159,6 +159,11 @@ pub struct Reseau {
     ds: Vec<[f64; CACHES]>,
     rangs: Vec<usize>,
 
+    /// Facteur d'influence par pas en arrière dans la pile. **La version livrée
+    /// est celle du §2.2 : 0,7.** Réglable pour la mesure que le prompt demande
+    /// (« tu mesures aussi 0,85 et 0,95 ») — et pour elle seule.
+    pub lambda: f64,
+
     /// Débrancher l'optimisation du §1.1 : chaque évaluation refait le calcul
     /// complet. Sert uniquement à MESURER ce que l'optimisation rapporte
     /// (`entraine --sans-optimisation`).
@@ -197,6 +202,7 @@ impl Reseau {
             total_e: 2.0,
             ds: Vec::new(),
             rangs: Vec::new(),
+            lambda: LAMBDA,
             sans_optimisation: false,
             somme_erreur2: 0.0,
             compte_erreur: 0,
@@ -382,7 +388,7 @@ impl Reseau {
             self.evaluer(pile.situation(*r));
             let d = self.accumuler_sortie(cible, lambda, taux);
             ds.push(d);
-            lambda *= LAMBDA;
+            lambda *= self.lambda;
         }
 
         // Sommes suffixes : `S_m = Σ_{k ≥ m} d_k`.
@@ -455,6 +461,67 @@ impl Reseau {
     pub fn raz_stats(&mut self) {
         self.somme_erreur2 = 0.0;
         self.compte_erreur = 0;
+    }
+
+    /// **Relecture d'un fichier de poids**, avec le MÊME verrou que côté
+    /// JavaScript : la table des noms du fichier doit être exactement celle que
+    /// ce dépôt régénère. Au premier écart, on refuse — les poids auraient été
+    /// appris sur une autre description.
+    pub fn lire(chemin: &str, noms: &[String]) -> Result<Reseau, String> {
+        let texte = std::fs::read_to_string(chemin).map_err(|e| format!("{chemin} : {e}"))?;
+        let mut lignes = texte.lines();
+        let tete: Vec<usize> = lignes
+            .next()
+            .unwrap_or("")
+            .split_whitespace()
+            .filter_map(|x| x.parse().ok())
+            .collect();
+        if tete.len() < 3 {
+            return Err(format!("{chemin} : première ligne illisible (§7)"));
+        }
+        let (n, caches, sorties) = (tete[0], tete[1], tete[2]);
+        if caches != CACHES || sorties != SORTIES {
+            return Err(format!(
+                "{chemin} : {caches} neurones cachés et {sorties} sorties (le §1 en impose {CACHES} et {SORTIES})"
+            ));
+        }
+        let parties: u64 = lignes.next().unwrap_or("0").trim().parse().unwrap_or(0);
+        if n != noms.len() {
+            return Err(format!(
+                "{chemin} : {n} entrées, ce dépôt en produit {} — les poids ont été appris sur une AUTRE description",
+                noms.len()
+            ));
+        }
+        for (i, attendu) in noms.iter().enumerate() {
+            let lu = lignes.next().unwrap_or("");
+            if lu != attendu {
+                return Err(format!(
+                    "{chemin} : divergence de description au rang {i} (« {lu} » contre « {attendu} »)"
+                ));
+            }
+        }
+        let mut r = Reseau::neuf(n);
+        r.parties = parties;
+        let mut k = 0usize;
+        let total = r.w_cache.len() + r.w_sortie.len();
+        for l in lignes {
+            let t = l.trim();
+            if t.is_empty() {
+                continue;
+            }
+            let v: f64 = t.parse().map_err(|_| format!("{chemin} : poids illisible « {t} »"))?;
+            if k < r.w_cache.len() {
+                r.w_cache[k] = v;
+            } else if k < total {
+                let j = k - r.w_cache.len();
+                r.w_sortie[j] = v;
+            }
+            k += 1;
+        }
+        if k != total {
+            return Err(format!("{chemin} : {k} poids lus, {total} attendus"));
+        }
+        Ok(r)
     }
 
     /// **Le fichier de poids du §7** : la taille, le nombre de parties, **le nom

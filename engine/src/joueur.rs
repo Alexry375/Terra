@@ -76,6 +76,9 @@ pub struct Joueur<'a> {
     /// mi-partie.
     pub predictions: Vec<f64>,
     pub generation_vue: u32,
+    /// **Toutes les réponses de la partie, dans l'ordre**, au format du pont :
+    /// c'est la partie elle-même, rejouable telle quelle par `pont.pas`.
+    pub journal: Vec<Value>,
     /// Nombre d'essais faits (mesure de coût).
     pub essais: u64,
     /// Chronomètres de mise au point : où passe le temps d'une partie.
@@ -110,6 +113,7 @@ impl<'a> Joueur<'a> {
             essai: Vec::new(),
             predictions: Vec::new(),
             generation_vue: 0,
+            journal: Vec::new(),
             essais: 0,
             t_essais: 0.0,
             t_apprentissage: 0.0,
@@ -129,6 +133,7 @@ impl<'a> Joueur<'a> {
         self.seed = seed;
         self.reprise = Reprise::MiseEnPlace;
         self.reponses.clear();
+        self.journal.clear();
         self.pile.vider();
         self.reseau.oublier();
         self.predictions.clear();
@@ -150,14 +155,24 @@ impl<'a> Joueur<'a> {
                 while rejeu.attente.is_none() && !g.game_over && g.generation <= MAX_GENERATIONS {
                     play_round(&mut g, self.db, &mut rejeu);
                 }
-                Some(rejeu.vue.take().unwrap_or(g))
+                if rejeu.erreur.is_some() {
+                    None
+                } else {
+                    Some(rejeu.vue.take().unwrap_or(g))
+                }
             }
             Reprise::Manche(base) => {
                 let mut g = (**base).clone();
                 while rejeu.attente.is_none() && !g.game_over && g.generation <= MAX_GENERATIONS {
                     play_round(&mut g, self.db, &mut rejeu);
                 }
-                let r = Some(rejeu.vue.take().unwrap_or(g));
+                let r = if rejeu.erreur.is_some() {
+                    // Le moteur a refusé cette réponse : elle n'est pas jouable,
+                    // et l'état atteint après un repli n'a rien à voir avec elle.
+                    None
+                } else {
+                    Some(rejeu.vue.take().unwrap_or(g))
+                };
                 self.t_essais += t0.elapsed().as_secs_f64();
                 r
             }
@@ -197,13 +212,29 @@ impl<'a> Joueur<'a> {
             meilleur
         };
         self.reponses.push(candidates[choix].clone());
+        self.journal.push(candidates[choix].clone());
         choix
     }
 
-    /// Un choix MULTIPLE, construit de proche en proche : à chaque tour on essaie
-    /// chacune des cartes qui restent, et on garde celle qui donne la meilleure
-    /// situation. `attendu` fixe le nombre à choisir ; `libre` autorise à
-    /// s'arrêter dès qu'aucune addition n'améliore (le mulligan projets).
+    /// **Un choix MULTIPLE.** Une décision multiple n'a pas une option par
+    /// réponse mais une COMBINAISON, et le moteur n'accepte que les combinaisons
+    /// de la taille exacte qu'il demande : une liste à moitié construite est
+    /// refusée, pas évaluée. On ne peut donc pas l'assembler en ajoutant une
+    /// carte à la fois — chaque candidat essayé doit être une réponse complète.
+    ///
+    /// Deux cas, et ils ne se traitent pas pareil :
+    ///
+    /// - **nombre libre** (le mulligan projets, de 0 à 8) : toute liste est une
+    ///   réponse valable, y compris la liste vide. On part d'elle et on ajoute la
+    ///   carte qui améliore le plus, tant qu'une addition améliore.
+    /// - **nombre imposé** (garder k cartes, en défausser n) : on part des k
+    ///   premières — une réponse complète, donc évaluable — et on essaie de
+    ///   REMPLACER chaque carte retenue par chacune des autres, en gardant tout
+    ///   remplacement qui améliore. Chaque carte est ainsi essayée à chaque
+    ///   place. Deux tours suffisent en pratique et bornent le coût.
+    ///
+    /// Le JavaScript fait exactement la même chose, dans le même ordre : c'est ce
+    /// que vérifie `web/webapp/verif/juge-meme-option.mjs`.
     fn choisir_liste(
         &mut self,
         rng: &mut StdRng,
@@ -215,52 +246,66 @@ impl<'a> Joueur<'a> {
         let mut pris: Vec<usize> = Vec::new();
         if self.exploration > 0.0 && rng.gen::<f64>() < self.exploration {
             let mut reste: Vec<usize> = (0..n).collect();
-            let combien = if libre { rng.gen_range(0..=n) } else { attendu };
-            for _ in 0..combien.min(n) {
+            let combien = if libre { rng.gen_range(0..=n) } else { attendu.min(n) };
+            for _ in 0..combien {
                 let k = rng.gen_range(0..reste.len());
                 pris.push(reste.remove(k));
             }
-            pris.sort_unstable();
             self.reponses.push(json!(pris));
+            self.journal.push(json!(pris));
             return pris;
         }
-        // Note de la liste vide : le point de départ, et la sortie du glouton
-        // libre.
-        let mut meilleure_note = self.noter_liste(joueur, &pris);
-        loop {
-            if !libre && pris.len() == attendu {
-                break;
-            }
-            if libre && pris.len() == n {
-                break;
-            }
-            let mut meilleur: Option<(usize, f64)> = None;
-            for i in 0..n {
-                if pris.contains(&i) {
-                    continue;
-                }
-                pris.push(i);
-                let note = self.noter_liste(joueur, &pris);
-                pris.pop();
-                if meilleur.is_none() || note > meilleur.unwrap().1 {
-                    meilleur = Some((i, note));
-                }
-            }
-            match meilleur {
-                None => break,
-                Some((i, note)) => {
-                    if libre && note <= meilleure_note {
-                        break; // aucune addition n'améliore
+        if libre {
+            let mut note = self.noter_liste(joueur, &pris);
+            while pris.len() < n {
+                let mut meilleur: Option<(usize, f64)> = None;
+                for i in 0..n {
+                    if pris.contains(&i) {
+                        continue;
                     }
                     pris.push(i);
-                    meilleure_note = note;
-                    if !libre && pris.len() == attendu {
-                        break;
+                    let x = self.noter_liste(joueur, &pris);
+                    pris.pop();
+                    if meilleur.is_none() || x > meilleur.unwrap().1 {
+                        meilleur = Some((i, x));
                     }
+                }
+                match meilleur {
+                    Some((i, x)) if x > note => {
+                        pris.push(i);
+                        note = x;
+                    }
+                    _ => break,
+                }
+            }
+        } else {
+            pris = (0..attendu.min(n)).collect();
+            let mut note = self.noter_liste(joueur, &pris);
+            for _tour in 0..2 {
+                let mut ameliore = false;
+                for p in 0..pris.len() {
+                    for c in 0..n {
+                        if pris.contains(&c) {
+                            continue;
+                        }
+                        let ancien = pris[p];
+                        pris[p] = c;
+                        let x = self.noter_liste(joueur, &pris);
+                        if x > note {
+                            note = x;
+                            ameliore = true;
+                        } else {
+                            pris[p] = ancien;
+                        }
+                    }
+                }
+                if !ameliore {
+                    break;
                 }
             }
         }
         self.reponses.push(json!(pris));
+        self.journal.push(json!(pris));
         pris
     }
 
