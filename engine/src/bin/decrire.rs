@@ -26,6 +26,8 @@ use serde_json::{json, Value};
 mod description;
 #[path = "../rejeu.rs"]
 mod rejeu;
+#[path = "../reseau.rs"]
+mod reseau;
 
 use description::{Description, Tampons};
 
@@ -56,6 +58,7 @@ fn main() {
     let mut noms_seuls = false;
     let mut etat_aussi = false;
     let mut table_seule = false;
+    let mut poids = String::new();
     let mut i = 1;
     while i < args.len() {
         let mut avance = 2;
@@ -71,6 +74,10 @@ fn main() {
             "--siege" => siege = val(i).parse().unwrap_or_else(|_| mourir("--siege")),
             "--boites" => boites_txt = val(i),
             "--cards" => cartes = val(i),
+            // Hors contrat : l'évaluation du réseau sur cette situation. Sert à
+            // comparer les deux côtés nombre à nombre (le JavaScript calcule la
+            // même chose avec le même fichier de poids).
+            "--poids" => poids = val(i),
             "--noms" => {
                 noms_seuls = true;
                 avance = 1;
@@ -136,6 +143,16 @@ fn main() {
     let mut t = Tampons::new(&d);
     d.decrire(&game, &db, siege, &mut out, &mut t);
     let mut ligne = json!({ "entrees": out });
+    if !poids.is_empty() {
+        let noms = d.noms_avec(&db);
+        match reseau::Reseau::lire(&poids, &noms) {
+            Ok(mut r) => {
+                let p = r.evaluer(&out);
+                ligne["p"] = json!([p[0], p[1]]);
+            }
+            Err(e) => mourir(&e),
+        }
+    }
     if etat_aussi {
         ligne["etat"] = engine::observe::state_view(&game, &db);
     }

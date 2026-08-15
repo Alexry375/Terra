@@ -464,11 +464,18 @@ impl Policy for Joueur<'_> {
         }
     }
 
+    /// **Le montant est TOUJOURS une décision, même quand il n'y a qu'un montant
+    /// possible.** Le pont pose la question sans condition (`Harnais::action_amount`)
+    /// et la page y répond : une réponse entre donc dans la liste des décisions.
+    /// Court-circuiter le cas `max <= 0` ferait consommer une réponse de plus au
+    /// JavaScript qu'au Rust, et tout le rejeu se décalerait d'un cran — le genre
+    /// de divergence qui ne se voit que sur des milliers de décisions.
     fn action_amount(&mut self, rng: &mut StdRng, player: usize, max: i64) -> i64 {
-        if max <= 0 {
-            return 0;
-        }
-        let c: Vec<Value> = (0..=max).map(|i| json!(i)).collect();
+        let c: Vec<Value> = if max <= 0 {
+            vec![json!(0)]
+        } else {
+            (0..=max).map(|i| json!(i)).collect()
+        };
         self.choisir(rng, player, &c) as i64
     }
 
