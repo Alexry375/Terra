@@ -145,6 +145,11 @@ pub struct Joueur<'a> {
     /// `result.md`, comme le §4.1 l'exige.
     pub pas_avance: u64,
     pub plafonds: u64,
+    /// Somme des écarts « meilleure note − pire note » sur les décisions à
+    /// plusieurs options, et leur nombre : la mesure qui dit si le réseau
+    /// départage quelque chose (§2.2).
+    pub somme_ecart: f64,
+    pub compte_ecart: u64,
     /// **Le rythme du §2.2** : on prend une situation d'entraînement sur K.
     /// Corriger à chacune des 341 décisions d'une partie coûterait tout le temps
     /// de calcul et diluerait l'ancrage sur le résultat réel ; K = 8 donne une
@@ -193,6 +198,8 @@ impl<'a> Joueur<'a> {
             essais: 0,
             pas_avance: 0,
             plafonds: 0,
+            somme_ecart: 0.0,
+            compte_ecart: 0,
             rythme: crate::reseau::RYTHME,
             compteur: 0,
             repere: Vec::new(),
@@ -283,6 +290,11 @@ impl<'a> Joueur<'a> {
             let tracer = self.tracer_rang >= 0 && self.journal.len() as i64 == self.tracer_rang;
             let mut meilleur = 0usize;
             let mut meilleure_note = f64::NEG_INFINITY;
+            // **L'écart d'évaluation entre les options d'une même décision.**
+            // C'est la mesure qui dit si le réseau DÉPARTAGE quelque chose : au
+            // round 1 elle valait 0,016, le niveau du bruit, parce que le réseau
+            // n'était jamais entraîné sur les situations qu'il jugeait (§2.2).
+            let mut note_min = f64::INFINITY;
             for (i, c) in candidates.iter().enumerate() {
                 let note = match self.etat_apres(joueur, c) {
                     Some(g) => {
@@ -298,10 +310,17 @@ impl<'a> Joueur<'a> {
                 if tracer {
                     eprintln!("rang {} option {i} : note {note:.17}", self.journal.len());
                 }
+                if note.is_finite() && note < note_min {
+                    note_min = note;
+                }
                 if note > meilleure_note + MARGE {
                     meilleure_note = note;
                     meilleur = i;
                 }
+            }
+            if meilleure_note.is_finite() && note_min.is_finite() && candidates.len() > 1 {
+                self.somme_ecart += meilleure_note - note_min;
+                self.compte_ecart += 1;
             }
             meilleur
         };

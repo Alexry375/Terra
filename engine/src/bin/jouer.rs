@@ -96,6 +96,22 @@ fn main() {
         play_round(&mut game, &db, &mut j);
     }
     let (scores, _, _) = score_parts(&game, &db);
+    // **L'écart d'évaluation entre les options d'une même décision** (§2.2) : au
+    // round 1 il valait 0,016, le niveau du bruit. C'est la mesure qui dit si le
+    // réseau départage vraiment, et non s'il prédit bien.
+    let ecart = if j.compte_ecart > 0 {
+        j.somme_ecart / j.compte_ecart as f64
+    } else {
+        0.0
+    };
+    eprintln!(
+        "écart moyen entre la meilleure et la pire option : {ecart:.4} ({} décisions à plusieurs options)",
+        j.compte_ecart
+    );
+    eprintln!(
+        "avance vers le repère (§4.1) : {} pas, plafond atteint {} fois",
+        j.pas_avance, j.plafonds
+    );
     println!(
         "{}",
         json!({
@@ -103,6 +119,8 @@ fn main() {
             "scores": [scores[0], scores[1]],
             "generations": game.generation,
             "partie_complete": game.game_over,
+            "ecart_options": ecart,
+            "decisions_multiples": j.compte_ecart,
         })
     );
 }

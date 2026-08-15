@@ -272,7 +272,17 @@ let _cheminEnCache = null;
 export function fournisseurApprenti(graine, nom = "apprenti", poids, pont, boites) {
   let p = poids;
   if (p === undefined || typeof p === "string") {
-    const chemin = typeof p === "string" ? p : POIDS_PAR_DEFAUT;
+    // **Le défaut du contrat est `data/poids/apprenti.txt`, et il le reste.**
+    // `APPRENTI_POIDS` n'est là que pour la MESURE : le §2.2 demande de comparer
+    // trois rythmes croisés avec trois facteurs d'influence, soit neuf jeux de
+    // poids. La balance lisant toujours le même fichier, il faudrait sinon les
+    // essayer un par un en se les recopiant dessus — une demi-journée de
+    // calendrier sur une machine à huit cœurs. Sans cette variable, le
+    // comportement est celui que le point d'accroche n°4 décrit, au mot près.
+    const chemin =
+      typeof p === "string"
+        ? p
+        : (globalThis.process?.env?.APPRENTI_POIDS || POIDS_PAR_DEFAUT);
     if (_cheminEnCache !== chemin) {
       _poidsEnCache = lirePoids(chemin);
       _cheminEnCache = chemin;
