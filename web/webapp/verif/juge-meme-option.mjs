@@ -59,9 +59,13 @@ for (let g = 1; g <= graines; g++) {
   }
 
   // ---- le joueur JavaScript joue la même, aux deux sièges
-  const partie = creerPartie(pont, { graine: g, boites });
+  // Les fournisseurs AVANT la partie : c'est à leur fabrication que l'espion
+  // du pont s'installe, et `creerPartie` appelle `pont.pas` tout de suite —
+  // dans l'autre ordre, la première décision serait prise sans avoir rien pu
+  // essayer. La balance du dépôt les fabrique déjà dans cet ordre-là.
   const a = fournisseurApprenti(1, "apprenti", poids, pont, boites);
   const b = fournisseurApprenti(2, "apprenti", poids, pont, boites);
+  const partie = creerPartie(pont, { graine: g, boites });
   await jouerJusquAuBout(partie, [a, b]);
   const js = partie.decisions;
   parties++;
