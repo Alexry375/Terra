@@ -3,7 +3,124 @@
 > Source de vérité du projet. Ancrée au code (`fichier:ligne`) dès qu'il y aura du
 > code. [VÉRIFIÉ JJ-MM] = relu à la source ce jour-là. [DÉCLARÉ] = non re-vérifié.
 
-Dernière mise à jour : 2026-08-15
+Dernière mise à jour : 2026-08-16
+
+## ✅ 16-08 — L'IA EXISTE ET ELLE GAGNE : 82 % CONTRE `reflechi` (`60aaece`)
+
+Le lot `le-juge-apprend` est **fusionné**. Le joueur `apprenti` apprend à estimer
+sa probabilité de victoire et choisit l'option qui la maximise.
+
+### La courbe qui explique tout, y compris l'échec du round 1
+
+| parties d'entraînement | victoires contre `reflechi` |
+|---|---|
+| 10 000 | 2 % |
+| 50 000 | 8 % |
+| 100 000 | 28 % |
+| 150 000 | 60 % |
+| **200 000** | **82 %** |
+
+Le round 1 s'était arrêté à 4 %, **juste avant le décollage**. La bascule se
+produit entre 100 000 et 150 000 parties. C'est l'enseignement le plus utile de
+la journée : sur ce jeu, un entraînement court ne dit rien du tout sur ce que
+vaut une architecture. [VÉRIFIÉ 16-08, `outputs/result.md` du workspace]
+
+### Ce que j'ai mesuré moi-même, et qui n'est pas dans le compte rendu de l'agent
+
+| mesure | résultat |
+|---|---|
+| force, mesure indépendante (60 graines × 2 sièges) | **82,5 %** — 99 victoires sur 120 |
+| **plafond atteignable contre `reflechi`** | **88,8 %** — au-delà, c'est la donne qui décide, pas la compétence |
+| **poids de la donne** (l'IA contre une copie exacte d'elle-même, 8 graines) | écart moyen **19,4 points**, maximum 42 |
+| écart de score moyen contre `reflechi` | **+18,35 points** |
+| manches par partie | IA/IA 46,4 · IA/`reflechi` 62,9 · `reflechi`/hasard 52,0 |
+
+**La conclusion qui compte** : l'avantage de l'IA (+18,35 points) est du même
+ordre que le bruit de la donne (19,4 points). C'est cela qui explique les 18 % de
+défaites, et non un défaut de jugement. Le plafond de 88,8 % vaut **contre
+`reflechi`** ; contre un adversaire de force égale, toutes les parties suivraient
+le siège, donc contre Corentin le plafond sera plus bas.
+
+### D'où viennent ses points (24 parties, décomposition du moteur)
+
+| source | l'IA | `reflechi` |
+|---|---|---|
+| **terraformation** | **26,3** | 14,0 |
+| **forêts** | **12,9** | 6,7 |
+| cartes | 25,9 | 23,6 |
+| objectifs | 4,3 | 4,6 |
+| **récompenses** | 8,5 | **12,7** |
+
+L'IA a trouvé seule une identité stratégique cohérente : terraformer vite et
+planter. Son seul retard régulier est sur les **récompenses de fin de partie**
+(−4,2), celles qui demandent de se projeter au-delà du coup suivant.
+
+⚠️ Le comptage des phases de cette mesure est **faussé** (il compte à chaque
+décision et non une fois par manche) : ne pas citer ces chiffres-là.
+
+### La partie 37, perdue : une thésaurisation, mais pas une règle
+
+Rejeu coup par coup : à la manche 29 l'IA a **63 pièces en banque**, une
+production de 9, et un score figé à 9. Douze manches sans marquer un point.
+Décomposition finale : objectifs **0 contre 9**.
+
+Mais les 24 parties montrent que ce n'est **pas systématique** — l'IA prend 0
+objectif dans 5 parties sur 24 et 3 ou plus dans les 19 autres. C'est une
+défaillance occasionnelle, pas un trait de caractère. J'avais conclu trop vite
+sur la foi d'une seule partie.
+
+### L'audit, et ce qu'il a trouvé
+
+- les quatre contrôles du contrat passent — les 02 et 03 ressortaient rouges par
+  `aw audit` uniquement parce que son délai les coupe ;
+- **anti-triche vert et éprouvé dans les deux sens** : 445 occasions, aucune
+  description ne bouge quand on truque la main de l'adversaire ; le même banc
+  rend rouge 445 fois sur 445 sur une copie sabotée de quatre lignes ;
+- `state.rs` n'a reçu que le `#[derive(Clone)]` autorisé ; `duel.mjs` que deux
+  lignes d'enregistrement du nouveau joueur ;
+- honnêteté remarquable de l'agent : il a gardé dans son `result.md` les
+  passages de l'après-midi qui concluaient « le jugement du réseau ne vaut
+  rien », avec un avertissement, au lieu de les effacer.
+
+⚠️ **Une réserve** : `result.md` annonce 49 générations sur la graine 100001, la
+commande en produit **34** de façon reproductible. La propriété testée — la
+partie se termine au lieu de tourner en rond — reste vraie. [VÉRIFIÉ 16-08]
+
+### Ce qui tourne, et jusqu'à quand
+
+| calcul | état |
+|---|---|
+| entraînement d'**un million de parties** (instantanés à 250 k, 400 k, 600 k, 800 k) | 200 000 faites en 3 h 05, fin attendue vers **12 h 30** |
+| épreuve cachée du round 2, dernier point | tourne encore |
+
+## 🚧 16-08 — CHANTIER LANCÉ : « IL DEVINE CE QUE L'AUTRE VA JOUER »
+
+Workspace `il-devine-ce-que-l-autre-va-jouer`, **scellé**, dix contrôles rouges
+au départ. Il livre trois choses :
+
+1. **un second réseau** qui prédit la carte Phase de l'adversaire — même
+   description que le premier (les 1 472 mêmes entrées, du point de vue de celui
+   qui devine, jamais de celui qu'on prédit), cinq sorties, cible de Boltzmann,
+   taux 0,0005 ;
+2. **la reprise d'entraînement**, qui manque aujourd'hui — `entraine.rs:177` crée
+   toujours un réseau neuf, donc chaque essai coûte une nuit de calcul ;
+3. **un interrupteur** pour allumer ou éteindre la devinette sans changer une
+   ligne de code, condition de la mesure A contre C.
+
+**La description est gelée** : un million de parties tourne dessus, une seule
+entrée qui bouge rend ses poids inutilisables. Le contrôle 06 le verrouille par
+l'empreinte de la liste complète des noms — éprouvé dans les deux sens, il
+détecte **une** entrée renommée sur 1 472.
+
+### La mesure que ce chantier prépare, décidée avec Alexis le 16-08
+
+**A contre C**, et rien d'autre : le joueur actuel contre le joueur complet
+réentraîné, à budget d'entraînement égal. J'avais proposé un troisième terme
+(l'architecture nouvelle avec les anciens réglages) ; Alexis a eu raison de le
+refuser — son résultat n'aurait pas été interprétable, parce qu'il fait juger au
+réseau des situations lointaines sur lesquelles il ne s'est jamais exercé. Ce
+terme est conservé uniquement comme **détecteur de panne** avant de dépenser une
+nuit de calcul.
 
 ## 🧠 15-08 — LE CONTRAT DE L'INTELLIGENCE, RÉÉCRIT ET DURCI (pas encore lancé)
 
