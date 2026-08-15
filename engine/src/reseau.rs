@@ -56,8 +56,23 @@ pub const SORTIES: usize = 2;
 /// Taux d'apprentissage (§2.4). Très petit, et délibérément : le réseau voit des
 /// centaines de milliers de parties, chaque correction doit être minuscule.
 pub const TAUX: f64 = 0.0001;
-/// Facteur d'influence par pas en arrière dans la pile (§2.2).
-pub const LAMBDA: f64 = 0.7;
+/// **Facteur d'influence par pas en arrière dans la pile (§2.2) — 0,9 depuis la
+/// correction du 15-08.**
+///
+/// Les parties de la référence durent une douzaine de tours : avec 0,7, sept pas
+/// en arrière y couvrent plus de la moitié d'une partie et le résultat réel pèse
+/// un douzième des corrections. Les nôtres durent 45 générations : le résultat
+/// réel ne pesait plus que 4 % (mesuré au round 1), le réseau s'entraînait
+/// presque uniquement vers lui-même, et son jugement s'est effondré vers
+/// l'indécision — « 45 points contre 5 » évalué 0,857 après l'amorçage, 0,501
+/// après 10 000 parties. À 0,9, l'influence retombe sous 0,09 après vingt-trois
+/// pas au lieu de sept.
+pub const LAMBDA: f64 = 0.9;
+/// **Le rythme des corrections (§2.2)** : une situation sur K. Corriger à chacune
+/// des 341 décisions d'une partie coûterait tout le temps de calcul et diluerait
+/// l'ancrage sur le résultat réel ; K = 8 donne une quarantaine de corrections
+/// par partie, l'ordre de grandeur de la référence.
+pub const RYTHME: u64 = 8;
 /// Amorçage (§2.7) : cinq mille fins de partie fabriquées, taux ×10.
 pub const AMORCAGE_PARTIES: usize = 5000;
 pub const AMORCAGE_FACTEUR: f64 = 10.0;
@@ -74,10 +89,12 @@ pub const PILE_MAX: usize = 120;
 // La pile des situations passées
 // ---------------------------------------------------------------------------
 
-/// **Un pas de la pile est une GÉNÉRATION, pas une décision** (§2.1) — c'est ce
-/// qui donne son sens au facteur 0,7 : après sept pas, l'influence est retombée
-/// sous 0,09, ce qui veut dire « sept générations en arrière ». Empilée à chaque
-/// génération et par joueur, plafonnée à cent vingt, vidée à la fin de la partie.
+/// **Un pas de la pile est une PRISE D'ENTRAÎNEMENT, pas une décision** (§2.1) —
+/// c'est ce qui donne son sens au facteur d'influence. Avec le rythme K = 8 du
+/// §2.2 corrigé, une partie de 341 décisions en produit une quarantaine, soit
+/// l'ordre d'une par génération : à 0,9, l'influence retombe sous 0,09 au bout de
+/// vingt-trois pas, c'est-à-dire la moitié d'une partie — l'ordre de grandeur de
+/// la référence. Plafonnée à cent vingt, vidée à la fin de la partie.
 pub struct Pile {
     situations: Vec<Vec<f64>>,
     sieges: Vec<usize>,
@@ -160,8 +177,8 @@ pub struct Reseau {
     rangs: Vec<usize>,
 
     /// Facteur d'influence par pas en arrière dans la pile. **La version livrée
-    /// est celle du §2.2 : 0,7.** Réglable pour la mesure que le prompt demande
-    /// (« tu mesures aussi 0,85 et 0,95 ») — et pour elle seule.
+    /// est celle du §2.2 corrigé le 15-08 : 0,9.** Réglable pour la mesure que le
+    /// prompt demande (« tu mesures aussi 0,8 et 0,97 ») — et pour elle seule.
     pub lambda: f64,
 
     /// Débrancher l'optimisation du §1.1 : chaque évaluation refait le calcul
@@ -365,8 +382,8 @@ impl Reseau {
     ///
     /// On remonte la pile, de la plus récente à la plus ancienne, en ne gardant
     /// que les situations où ce joueur décidait, et on les entraîne vers `cible`
-    /// avec un poids d'influence qui part de 1 et se multiplie par 0,7 à chaque
-    /// pas en arrière. Les corrections s'accumulent et ne sont versées dans les
+    /// avec un poids d'influence qui part de 1 et se multiplie par `lambda`
+    /// (0,9 depuis le 15-08) à chaque pas en arrière. Les corrections s'accumulent et ne sont versées dans les
     /// poids qu'à la fin (§2.5) — sinon corriger la situation la plus récente
     /// changerait le réseau avec lequel on évalue la suivante.
     pub fn corriger(&mut self, pile: &Pile, joueur: usize, cible: [f64; SORTIES], taux: f64) {

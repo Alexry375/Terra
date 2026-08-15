@@ -26,6 +26,23 @@
 // (`adversaire.md`). Essayer un coup sans le jouer, c'est donc
 // `pont.pas(graine, boites, [...décisions déjà prises, la réponse essayée])`.
 //
+// ─────────────────────────────────────────────────────────────────────────────
+// **LE REPÈRE DU §4.1 : TOUTES LES OPTIONS SONT JUGÉES AU MÊME INSTANT.**
+//
+// Appliquer l'option ne suffit pas. L'état qui en résulte ne se trouve pas au
+// même endroit de la partie selon l'option : « poser une carte » mène à la
+// décision d'après, « passer » mène beaucoup plus loin — la phase se termine, la
+// production est encaissée, la manche suivante commence — et plus tard paraît
+// toujours meilleur, puisqu'on a encaissé sa production entre-temps. Le joueur du
+// round 1 avait ainsi appris à ATTENDRE : 1001 générations sans jamais
+// terraformer ni finir la partie.
+//
+// Après l'option, on avance donc jusqu'au **prochain point de décision du joueur
+// qui choisit** — ou jusqu'à la fin de la partie. `pont.pas` dit de qui est la
+// prochaine décision ; tant que ce n'est pas la mienne, on répond à la place de
+// l'autre (`reponseParDefaut`, la première option, comme le Rust) et on rappelle
+// `pas`. Jamais plus de soixante pas.
+//
 // Mais un fournisseur ne reçoit que `(decision, etat)` : ni la graine de la
 // partie, ni la liste des décisions, ni le pont — et `partie.js` comme `pont.js`
 // sont hors territoire. Ce module reçoit donc le pont par la ligne que le prompt
@@ -72,6 +89,43 @@ export const MARGE = 1e-12;
 
 const CACHES_ATTENDUS = 50;
 const SORTIES_ATTENDUES = 2;
+
+/**
+ * **Le plafond d'avance du §4.1**, et il est impératif : « cette avance ne doit
+ * jamais dépasser un nombre de pas fixé (prends soixante), sinon une option qui
+ * déclenche une longue cascade ferait boucler le joueur. » La même valeur est
+ * écrite dans `engine/src/rejeu.rs`.
+ */
+export const PLAFOND_AVANCE = 60;
+
+/** Compteurs de l'avance, relevés par les bancs (le §4.1 demande le second). */
+export let pasDAvance = 0;
+export let plafondsAtteints = 0;
+export function razCompteursAvance() {
+  pasDAvance = 0;
+  plafondsAtteints = 0;
+}
+
+/**
+ * **La réponse qu'on prête à l'AUTRE pendant l'avance du §4.1 : la première
+ * option.**
+ *
+ * Le §4.1 laisse deux voies — le réseau lui-même, ou « un choix simple et
+ * fixe ». C'est la première option qui est retenue, parce qu'elle est la seule
+ * qui soit reproductible **à l'identique des deux côtés** : le vrai critère du
+ * §4 est que le joueur Rust et le joueur JavaScript choisissent la même option
+ * dans la même situation, et le hasard du moteur natif n'est pas accessible au
+ * pont. Copie conforme de la politique `Premiere` d'`engine/src/rejeu.rs`.
+ */
+export function reponseParDefaut(d) {
+  const forme = formeDeLaReponse(d);
+  if (forme === "montant") return d.minimum ?? 0;
+  if (forme === "multiple") {
+    const n = d.options ? d.options.length : 0;
+    return [...Array(Math.min(d.a_choisir ?? 0, n)).keys()];
+  }
+  return 0;
+}
 
 // ──────────────────────────────────────────────────────────── le fichier de poids
 
@@ -228,11 +282,38 @@ export function fournisseurApprenti(graine, nom = "apprenti", poids, pont, boite
   const espion = pont ? espionner(pont) : null;
   let degradeDit = false;
 
-  /** L'état atteint si l'on répondait `reponse` — ou `null` si le moteur refuse. */
-  function etatApres(reponse) {
-    const decisions = espion.decisions || [];
+  /**
+   * **L'état atteint si l'on répondait `reponse`, AU REPÈRE DU §4.1.**
+   *
+   * Pas l'état qui suit immédiatement l'option : celui du **prochain point de
+   * décision du joueur qui choisit**, ou la fin de la partie. Sans cela, les
+   * options ne sont pas jugées au même instant de la partie — « passer » mène à
+   * un état plus lointain, production encaissée et manche suivante entamée, que
+   * « poser une carte » — et plus tard paraît toujours meilleur : le joueur
+   * apprend à attendre (1001 générations mesurées au round 1, sans jamais
+   * terraformer).
+   *
+   * Tant que la décision atteinte n'est pas la mienne, on répond **à la place de
+   * l'autre** par [`reponseParDefaut`] — la première option, exactement comme la
+   * politique `Premiere` du Rust — et on rappelle `pas`. L'avance ne dépasse
+   * jamais [`PLAFOND_AVANCE`] pas : au-delà, on évalue là où on en est, et on le
+   * compte.
+   */
+  function etatApres(reponse, siege) {
+    let decisions = [...(espion.decisions || []), reponse];
     try {
-      const r = espion.origine(espion.graine, espion.boites ?? boites, [...decisions, reponse]);
+      let r = espion.origine(espion.graine, espion.boites ?? boites, decisions);
+      let pas = 0;
+      while (r && r.termine !== true && r.decision && r.decision.joueur !== siege) {
+        if (pas >= PLAFOND_AVANCE) {
+          plafondsAtteints++;
+          break;
+        }
+        pas++;
+        pasDAvance++;
+        decisions = [...decisions, reponseParDefaut(r.decision)];
+        r = espion.origine(espion.graine, espion.boites ?? boites, decisions);
+      }
       return r && r.etat ? r.etat : null;
     } catch {
       // Le moteur a refusé cette réponse : elle n'est pas jouable, on l'écarte.
@@ -242,7 +323,7 @@ export function fournisseurApprenti(graine, nom = "apprenti", poids, pont, boite
 
   /** La note d'une réponse : MA probabilité de victoire dans l'état qui suit. */
   function noter(reponse, siege) {
-    const etat = etatApres(reponse);
+    const etat = etatApres(reponse, siege);
     if (!etat) return -Infinity;
     // Toujours du point de vue du joueur QUI DÉCIDAIT, jamais de celui à qui la
     // main revient : une inversion ici donne un joueur qui joue contre lui-même.
@@ -343,9 +424,7 @@ export function fournisseurApprenti(graine, nom = "apprenti", poids, pont, boite
             );
           }
         }
-        if (forme === "montant") return d.minimum ?? 0;
-        if (forme === "multiple") return [...Array(d.a_choisir ?? 0).keys()];
-        return 0;
+        return reponseParDefaut(d);
       }
       if (forme === "multiple") return meilleureListe(d, siege);
       if (forme === "montant") {

@@ -2,7 +2,11 @@
 //!
 //!     entraine --parties N --graine-debut G --sortie chemin
 //!              [--exploration x] [--boites …] [--instantanes "10000,50000"]
-//!              [--sans-optimisation]
+//!              [--lambda 0.9] [--rythme 8] [--sans-optimisation]
+//!
+//! `--rythme K` est le rythme des corrections du §2.2 (une situation sur K,
+//! K = 8 livré) et `--lambda` le facteur d'influence par pas en arrière (0,9
+//! livré) : les deux balayages que le §2.2 demande de mesurer et de croiser.
 //!
 //! Il joue N parties du réseau **contre lui-même** (les deux sièges partagent les
 //! mêmes poids et apprennent de la même partie), écrit le fichier de poids du §7,
@@ -106,6 +110,7 @@ fn main() {
     let mut instantanes: Vec<u64> = Vec::new();
     let mut sans_optimisation = false;
     let mut lambda = reseau::LAMBDA;
+    let mut rythme = reseau::RYTHME;
     let mut i = 1;
     while i < args.len() {
         let mut avance = 2;
@@ -134,6 +139,7 @@ fn main() {
                     .collect()
             }
             "--lambda" => lambda = val(i).parse().unwrap_or_else(|_| mourir("--lambda")),
+            "--rythme" => rythme = val(i).parse().unwrap_or_else(|_| mourir("--rythme")),
             "--sans-optimisation" => {
                 sans_optimisation = true;
                 avance = 1;
@@ -181,6 +187,7 @@ fn main() {
     let mut j = Joueur::new(&db, &desc, &mut reseau, &mut pile, graine_debut);
     j.exploration = exploration;
     j.apprendre = true;
+    j.rythme = rythme;
 
     for g in 0..parties {
         let seed = graine_debut + g;
@@ -250,6 +257,8 @@ fn main() {
     let t_essais = j.t_essais;
     let t_apprentissage = j.t_apprentissage;
     let passes = j.passes;
+    let pas_avance = j.pas_avance;
+    let plafonds = j.plafonds;
     if let Err(e) = reseau.ecrire(&sortie, &noms) {
         mourir(&format!("écriture de {sortie} : {e}"));
     }
@@ -259,7 +268,13 @@ fn main() {
         1000.0 * t0.elapsed().as_secs_f64() / parties as f64
     );
     eprintln!(
-        "  dont essais {:.1} s, apprentissage {:.1} s ({} passes)",
+        "  dont essais {:.1} s, apprentissage {:.1} s ({} passes, rythme K={rythme}, λ={lambda})",
         t_essais, t_apprentissage, passes
+    );
+    // §4.1 : « result.md doit dire combien de fois le plafond a été atteint ».
+    eprintln!(
+        "  avance vers le repère (§4.1) : {pas_avance} pas au total ({:.2} par essai), plafond de {} atteint {plafonds} fois",
+        pas_avance as f64 / essais.max(1) as f64,
+        rejeu::PLAFOND_AVANCE,
     );
 }

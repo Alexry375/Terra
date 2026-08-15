@@ -21,10 +21,150 @@
 
 use engine::choice::ChoiceContext;
 use engine::effects::RevealFilter;
-use engine::policy::{ActionOpt, ConstructionBonus, Policy, RandomPolicy};
+use engine::policy::{ActionOpt, ConstructionBonus, Policy};
 use engine::state::GameState;
 use rand::rngs::StdRng;
 use serde_json::Value;
+
+/// **Le plafond d'avance du §4.1**, et il est impératif : « cette avance ne doit
+/// jamais dépasser un nombre de pas fixé (prends soixante), sinon une option qui
+/// déclenche une longue cascade ferait boucler le joueur. Au-delà, on évalue là
+/// où on en est et on le compte. »
+pub const PLAFOND_AVANCE: u32 = 60;
+
+/// **La réponse par défaut, celle qu'on prête à l'AUTRE pendant l'avance du
+/// §4.1 — et le seul repli de `Rejeu` quand une réponse manque.**
+///
+/// Le §4.1 laisse deux voies pour répondre à la place de l'adversaire : le réseau
+/// lui-même, ou « un choix simple et fixe — la première option, ou une option
+/// tirée d'un hasard semé ». C'est **la première option** qui est retenue, et
+/// pour une raison vérifiable : le vrai critère du §4 est que le joueur Rust et
+/// le joueur JavaScript choisissent la même option dans la même situation. Le
+/// hasard du moteur natif n'est pas reproductible par le pont — il n'expose pas
+/// son générateur — alors que « la première option » l'est trivialement des deux
+/// côtés. Toute autre voie rendrait le banc `juge-meme-option.mjs` rouge sans
+/// qu'aucune faute n'ait été commise.
+///
+/// **Indice 0 partout, sans exception**, y compris là où le trait `Policy` offre
+/// un défaut plus malin : `pick_joker_tag` choisit sinon « le badge le plus
+/// possédé », que le JavaScript ne reproduit pas. Une seule divergence de ce
+/// genre suffit à faire diverger tout le rejeu qui suit.
+pub struct Premiere;
+
+impl Policy for Premiere {
+    fn corp_mulligan(&mut self, _rng: &mut StdRng, _player: usize, _corps: &[u16]) -> bool {
+        false // indice 0
+    }
+    fn project_mulligan(&mut self, _rng: &mut StdRng, _player: usize, _hand: &[u16]) -> Vec<usize> {
+        Vec::new() // liste libre : la liste vide
+    }
+    fn pick_corporation(&mut self, _rng: &mut StdRng, _player: usize, _corps: &[u16]) -> usize {
+        0
+    }
+    fn pick_phase(&mut self, _rng: &mut StdRng, _player: usize, allowed: &[u8]) -> u8 {
+        allowed[0]
+    }
+    fn choose_build(
+        &mut self,
+        _rng: &mut StdRng,
+        _player: usize,
+        affordable: &[usize],
+    ) -> Option<usize> {
+        affordable.first().copied()
+    }
+    fn construction_bonus(&mut self, _rng: &mut StdRng, _player: usize) -> ConstructionBonus {
+        ConstructionBonus::DrawCardBefore
+    }
+    fn construction_bonus_avant(&mut self, _rng: &mut StdRng, _player: usize) -> bool {
+        true // indice 0
+    }
+    fn construction_bonus_apres(&mut self, _rng: &mut StdRng, _player: usize) -> ConstructionBonus {
+        ConstructionBonus::DrawCard // indice 0
+    }
+    fn action_choice(
+        &mut self,
+        _rng: &mut StdRng,
+        _player: usize,
+        options: &[ActionOpt],
+    ) -> Option<usize> {
+        if options.is_empty() {
+            None
+        } else {
+            Some(0)
+        }
+    }
+    fn action_amount(&mut self, _rng: &mut StdRng, _player: usize, _max: i64) -> i64 {
+        0
+    }
+    fn vendre_librement(&mut self, _rng: &mut StdRng, _joueur: usize, _main: &[u16]) -> Vec<usize> {
+        Vec::new()
+    }
+    fn choose_option(&mut self, _rng: &mut StdRng, _player: usize, _n: usize) -> usize {
+        0
+    }
+    fn choose_option_ctx(
+        &mut self,
+        _rng: &mut StdRng,
+        _player: usize,
+        _ctx: &ChoiceContext,
+    ) -> usize {
+        0
+    }
+    fn choose_res_target(
+        &mut self,
+        _rng: &mut StdRng,
+        _player: usize,
+        _candidates: &[u16],
+    ) -> usize {
+        0
+    }
+    fn choose_res_source(
+        &mut self,
+        _rng: &mut StdRng,
+        _player: usize,
+        _candidates: &[u16],
+    ) -> usize {
+        0
+    }
+    fn pick_joker_tag(
+        &mut self,
+        _rng: &mut StdRng,
+        _player: usize,
+        _card: u16,
+        _tag_counts: &[u32],
+    ) -> usize {
+        0
+    }
+    fn research_keep(
+        &mut self,
+        _rng: &mut StdRng,
+        _player: usize,
+        drawn: &[u16],
+        keep: usize,
+    ) -> Vec<usize> {
+        (0..keep.min(drawn.len())).collect()
+    }
+    fn reveal_pick(
+        &mut self,
+        _rng: &mut StdRng,
+        _player: usize,
+        _revealed: &[u16],
+        candidates: &[u16],
+        keep: usize,
+        _filter: RevealFilter,
+    ) -> Vec<usize> {
+        (0..keep.min(candidates.len())).collect()
+    }
+    fn discard_down(
+        &mut self,
+        _rng: &mut StdRng,
+        _player: usize,
+        hand: &[u16],
+        n: usize,
+    ) -> Vec<usize> {
+        (0..n.min(hand.len())).collect()
+    }
+}
 
 /// Politique de rejeu : elle répond les décisions déjà prises, puis s'arrête à
 /// la première qui manque, en gardant l'état vivant et le siège concerné.
@@ -36,7 +176,18 @@ pub struct Rejeu {
     /// L'état vivant reçu juste avant la décision en attente.
     pub vue: Option<GameState>,
     pub erreur: Option<String>,
-    defaut: RandomPolicy,
+    defaut: Premiere,
+    /// **LE REPÈRE DU §4.1.** Quand ce champ porte un siège, le rejeu ne s'arrête
+    /// plus à la première décision venue : tant que la décision est celle d'un
+    /// AUTRE joueur, on répond à sa place (`Premiere`) et on continue. On ne
+    /// s'arrête qu'à la prochaine décision **de ce siège-là**, à la fin de la
+    /// partie, ou au plafond. Toutes les options sont ainsi jugées au même
+    /// instant : « la prochaine fois que j'aurai la main ».
+    pub avance: Option<usize>,
+    /// Pas d'avance déjà consommés (bornés par [`PLAFOND_AVANCE`]).
+    pub pas_avance: u32,
+    /// Le plafond a-t-il arrêté cette avance ? Compté et rapporté (§4.1).
+    pub plafond_atteint: bool,
 }
 
 impl Rejeu {
@@ -47,12 +198,24 @@ impl Rejeu {
             attente: None,
             vue: None,
             erreur: None,
-            defaut: RandomPolicy,
+            defaut: Premiere,
+            avance: None,
+            pas_avance: 0,
+            plafond_atteint: false,
         }
     }
 
+    /// Le même rejeu, mais qui avance jusqu'au prochain point de décision de
+    /// `siege` (§4.1).
+    pub fn jusqu_a(reponses: Vec<Value>, siege: usize) -> Rejeu {
+        let mut r = Rejeu::new(reponses);
+        r.avance = Some(siege);
+        r
+    }
+
     /// Rend la réponse enregistrée pour cette décision, ou `None` s'il faut
-    /// s'arrêter ici.
+    /// répondre par défaut — soit parce qu'on avance vers le repère du §4.1,
+    /// soit parce qu'on s'arrête ici (`attente` est alors posé).
     fn prendre(&mut self, joueur: usize) -> Option<Value> {
         if self.attente.is_some() {
             return None;
@@ -67,6 +230,19 @@ impl Rejeu {
             let r = self.reponses[self.curseur].clone();
             self.curseur += 1;
             return Some(r);
+        }
+        // Plus de réponse enregistrée. Sans avance, on s'arrête ici — c'est le
+        // comportement du pont. Avec l'avance du §4.1, on ne s'arrête que pour
+        // le siège qui choisit ; pour l'autre, on répond à sa place et le rejeu
+        // continue, jusqu'au plafond.
+        if let Some(moi) = self.avance {
+            if joueur != moi {
+                if self.pas_avance < PLAFOND_AVANCE {
+                    self.pas_avance += 1;
+                    return None; // repli sur `Premiere`, sans poser `attente`
+                }
+                self.plafond_atteint = true;
+            }
         }
         self.attente = Some(joueur);
         None

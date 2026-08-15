@@ -24,9 +24,19 @@
 //! proche**, en essayant à chaque tour chacune des cartes qui restent et en
 //! gardant la meilleure. Chaque carte ajoutée est donc, elle aussi, essayée.
 //!
+//! **LE REPÈRE DU §4.1 (corrigé le 15-08).** Appliquer l'option ne suffit pas :
+//! l'état qui en résulte ne se trouve pas au même endroit de la partie selon
+//! l'option. « Poser une carte » mène à la décision d'après, « passer » mène
+//! beaucoup plus loin — la phase se termine, la production est encaissée, la
+//! manche suivante commence — et plus tard paraît toujours meilleur. On avance
+//! donc, après l'option, **jusqu'au prochain point de décision du joueur qui
+//! choisit** : toutes les options sont jugées au même instant, « la prochaine
+//! fois que j'aurai la main ». L'avance répond à la place de l'autre (`Premiere`)
+//! et ne dépasse jamais soixante pas.
+//!
 //! **L'apprentissage** (§2) vit ici parce que son point de rendez-vous est une
-//! décision : une fois par génération et par joueur, au moment où il choisit sa
-//! carte Phase.
+//! décision : une prise sur K (K = 8), sur l'état du repère de l'option retenue —
+//! celui-là même que le joueur vient de juger, et aucun autre.
 
 use engine::cards::CardsDb;
 use engine::choice::ChoiceContext;
@@ -130,6 +140,22 @@ pub struct Joueur<'a> {
     pub tracer_rang: i64,
     /// Nombre d'essais faits (mesure de coût).
     pub essais: u64,
+    /// Pas d'avance consommés au total, et nombre de fois où le plafond du §4.1
+    /// (soixante pas) a arrêté une avance. Les deux sont rapportés dans
+    /// `result.md`, comme le §4.1 l'exige.
+    pub pas_avance: u64,
+    pub plafonds: u64,
+    /// **Le rythme du §2.2** : on prend une situation d'entraînement sur K.
+    /// Corriger à chacune des 341 décisions d'une partie coûterait tout le temps
+    /// de calcul et diluerait l'ancrage sur le résultat réel ; K = 8 donne une
+    /// quarantaine de corrections par partie, l'ordre de grandeur de la
+    /// référence. Réglable par `--rythme`.
+    pub rythme: u64,
+    /// Décisions vues depuis le début de la partie (le compteur du rythme).
+    compteur: u64,
+    /// Description de l'état AU REPÈRE de l'option retenue : c'est elle, et elle
+    /// seule, que le réseau apprend (§2.2 corrigé le 15-08).
+    repere: Vec<f64>,
     /// Chronomètres de mise au point : où passe le temps d'une partie.
     pub t_essais: f64,
     pub t_apprentissage: f64,
@@ -165,6 +191,11 @@ impl<'a> Joueur<'a> {
             journal: Vec::new(),
             tracer_rang: -1,
             essais: 0,
+            pas_avance: 0,
+            plafonds: 0,
+            rythme: crate::reseau::RYTHME,
+            compteur: 0,
+            repere: Vec::new(),
             t_essais: 0.0,
             t_apprentissage: 0.0,
             passes: 0,
@@ -188,37 +219,51 @@ impl<'a> Joueur<'a> {
         self.reseau.oublier();
         self.predictions.clear();
         self.generation_vue = 0;
+        self.compteur = 0;
     }
 
-    /// L'état atteint si l'on répondait `candidate` à la décision en cours :
-    /// celui que le moteur aurait sous les yeux à la décision SUIVANTE, ou l'état
-    /// final si la partie s'y termine.
-    fn etat_apres(&mut self, candidate: &Value) -> Option<GameState> {
+    /// **L'état atteint si l'on répondait `candidate`, AU REPÈRE DU §4.1.**
+    ///
+    /// Ce n'est pas l'état qui suit immédiatement l'option : c'est celui du
+    /// **prochain point de décision de `joueur`**, ou la fin de la partie. La
+    /// première version de ce contrat évaluait l'état immédiat, et le défaut est
+    /// mesuré : « passer » mène à un état plus lointain — production encaissée,
+    /// manche suivante entamée — que « poser une carte », qui mène à la décision
+    /// d'après. Le réseau comparait alors un état de maintenant à un état de plus
+    /// tard, et plus tard paraît toujours meilleur. Le joueur du round 1 avait
+    /// appris à attendre : 1001 générations sans jamais terraformer.
+    ///
+    /// L'avance est faite **dans le rejeu lui-même** (`Rejeu::jusqu_a`) : tant
+    /// que la décision atteinte est celle de l'autre joueur, on répond à sa place
+    /// et le moteur continue. Un seul rejeu par option, au lieu d'un par pas.
+    fn etat_apres(&mut self, joueur: usize, candidate: &Value) -> Option<GameState> {
         let t0 = std::time::Instant::now();
         let mut reponses = self.reponses.clone();
         reponses.push(candidate.clone());
-        let mut rejeu = Rejeu::new(reponses);
+        let mut rejeu = Rejeu::jusqu_a(reponses, joueur);
         self.essais += 1;
-        match &self.reprise {
+        let r = match &self.reprise {
             Reprise::MiseEnPlace => {
                 let mut g = setup_game(self.db, self.seed, &mut rejeu);
                 while rejeu.attente.is_none() && !g.game_over && g.generation <= MAX_GENERATIONS {
                     play_round(&mut g, self.db, &mut rejeu);
                 }
-                let r = etat_atteint(&mut rejeu, g);
-                self.t_essais += t0.elapsed().as_secs_f64();
-                r
+                etat_atteint(&mut rejeu, g)
             }
             Reprise::Manche(base) => {
                 let mut g = (**base).clone();
                 while rejeu.attente.is_none() && !g.game_over && g.generation <= MAX_GENERATIONS {
                     play_round(&mut g, self.db, &mut rejeu);
                 }
-                let r = etat_atteint(&mut rejeu, g);
-                self.t_essais += t0.elapsed().as_secs_f64();
-                r
+                etat_atteint(&mut rejeu, g)
             }
+        };
+        self.pas_avance += rejeu.pas_avance as u64;
+        if rejeu.plafond_atteint {
+            self.plafonds += 1;
         }
+        self.t_essais += t0.elapsed().as_secs_f64();
+        r
     }
 
     /// **Le cœur du §4** : essayer chaque candidate, garder celle dont ma
@@ -239,7 +284,7 @@ impl<'a> Joueur<'a> {
             let mut meilleur = 0usize;
             let mut meilleure_note = f64::NEG_INFINITY;
             for (i, c) in candidates.iter().enumerate() {
-                let note = match self.etat_apres(c) {
+                let note = match self.etat_apres(joueur, c) {
                     Some(g) => {
                         // Toujours MON point de vue : celui du joueur qui
                         // décidait, jamais celui à qui la main revient.
@@ -260,6 +305,7 @@ impl<'a> Joueur<'a> {
             }
             meilleur
         };
+        self.apprendre_au_repere(joueur, &candidates[choix]);
         self.reponses.push(candidates[choix].clone());
         self.journal.push(candidates[choix].clone());
         choix
@@ -300,6 +346,7 @@ impl<'a> Joueur<'a> {
                 let k = rng.gen_range(0..reste.len());
                 pris.push(reste.remove(k));
             }
+            self.apprendre_au_repere(joueur, &json!(pris));
             self.reponses.push(json!(pris));
             self.journal.push(json!(pris));
             return pris;
@@ -353,6 +400,7 @@ impl<'a> Joueur<'a> {
                 }
             }
         }
+        self.apprendre_au_repere(joueur, &json!(pris));
         self.reponses.push(json!(pris));
         self.journal.push(json!(pris));
         pris
@@ -360,7 +408,7 @@ impl<'a> Joueur<'a> {
 
     fn noter_liste(&mut self, joueur: usize, pris: &[usize]) -> f64 {
         let c = json!(pris);
-        match self.etat_apres(&c) {
+        match self.etat_apres(joueur, &c) {
             Some(g) => {
                 self.desc
                     .decrire(&g, self.db, joueur, &mut self.essai, &mut self.tampons);
@@ -370,16 +418,57 @@ impl<'a> Joueur<'a> {
         }
     }
 
-    /// **Le point de rendez-vous de l'apprentissage (§2.2)** : une fois par
-    /// génération et par joueur, au moment de choisir la carte Phase. On empile
-    /// la situation présente, puis on corrige les jugements passés vers le
-    /// jugement présent.
-    fn apprendre_ici(&mut self, joueur: usize) {
+    /// **LE POINT DE RENDEZ-VOUS DE L'APPRENTISSAGE — CORRIGÉ LE 15-08 (§2.2).**
+    ///
+    /// « Le réseau s'entraîne exactement sur les situations qu'il juge, et sur
+    /// aucune autre. » La version du round 1 corrigeait au choix de la carte
+    /// Phase — un instant où `phase_en_cours` vaut toujours 0, alors que le
+    /// joueur évalue des situations en pleine phase. Mesuré : l'écart
+    /// d'évaluation entre deux options d'une même décision tombait à 0,016, le
+    /// niveau du bruit. Le réseau ne départageait plus rien.
+    ///
+    /// La situation apprise est donc **celle du repère du §4.1, pour l'option
+    /// RETENUE** : très exactement l'état sur lequel le joueur vient de fonder
+    /// son choix. Une prise sur `rythme` décisions (K = 8), parce que corriger
+    /// aux 341 décisions d'une partie coûterait tout le temps de calcul et
+    /// diluerait encore l'ancrage sur le résultat réel.
+    ///
+    /// Le coût est d'un rejeu de plus par prise — un essai sur K, moins de trois
+    /// pour cent des essais — contre la complication d'un tampon retenu au vol
+    /// pendant la boucle des candidates.
+    fn apprendre_au_repere(&mut self, joueur: usize, retenue: &Value) {
+        self.compteur += 1;
+        if !self.apprendre || self.rythme == 0 || self.compteur % self.rythme != 0 {
+            return;
+        }
+        let Some(g) = self.etat_apres(joueur, retenue) else {
+            return;
+        };
+        let mut repere = std::mem::take(&mut self.repere);
+        self.desc
+            .decrire(&g, self.db, joueur, &mut repere, &mut self.tampons);
+        // §2.2 : la situation présente passe dans le réseau, ses deux
+        // probabilités deviennent LA CIBLE ; puis on remonte la pile.
+        // §2.1 : on empile juste avant de corriger.
+        self.reseau.oublier();
+        let p = self.reseau.evaluer(&repere);
+        self.pile.empiler(&repere, joueur);
+        let t0 = std::time::Instant::now();
+        self.reseau.corriger(self.pile, joueur, p, self.taux);
+        self.t_apprentissage += t0.elapsed().as_secs_f64();
+        self.passes += 1;
+        self.repere = repere;
+    }
+
+    /// **Le relevé qui alimente `justes`**, une fois par génération et par
+    /// joueur, à la carte Phase : la probabilité que le réseau accorde au siège 0
+    /// sur l'état vivant. Il ne corrige rien — c'est une mesure, et elle reste
+    /// prise au même endroit qu'au round 1 pour que les deux courbes se
+    /// comparent.
+    fn relever_prediction(&mut self) {
         if self.vue.is_empty() {
             return;
         }
-        // La prédiction de victoire du siège 0, relevée une fois par génération :
-        // elle servira à dire si le vainqueur était celui qu'on donnait gagnant.
         self.reseau.oublier();
         let p = self.reseau.evaluer(&self.vue);
         let p0 = if self.vue_siege == 0 { p[0] } else { p[1] };
@@ -389,17 +478,6 @@ impl<'a> Joueur<'a> {
         if self.predictions.len() == self.generation_vue as usize {
             self.predictions.push(p0);
         }
-        if !self.apprendre {
-            return;
-        }
-        // Empiler la situation présente, puis corriger (§2.1 : « juste avant »).
-        let vue = std::mem::take(&mut self.vue);
-        self.pile.empiler(&vue, joueur);
-        let t0 = std::time::Instant::now();
-        self.reseau.corriger(self.pile, joueur, p, self.taux);
-        self.t_apprentissage += t0.elapsed().as_secs_f64();
-        self.passes += 1;
-        self.vue = vue;
     }
 }
 
@@ -428,7 +506,7 @@ impl Policy for Joueur<'_> {
     }
 
     fn pick_phase(&mut self, rng: &mut StdRng, player: usize, allowed: &[u8]) -> u8 {
-        self.apprendre_ici(player);
+        self.relever_prediction();
         let c: Vec<Value> = (0..allowed.len()).map(|i| json!(i)).collect();
         allowed[self.choisir(rng, player, &c)]
     }
