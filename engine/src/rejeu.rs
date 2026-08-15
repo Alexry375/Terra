@@ -1,0 +1,586 @@
+//! **(le-juge-apprend) Le rejeu d'une partie en natif — le jumeau du pont.**
+//!
+//! Une partie EST une graine plus une liste de décisions (`web/webapp/
+//! adversaire.md`). Le pont WebAssembly sait déjà rejouer une partie depuis sa
+//! graine et rendre l'état vivant à la première décision non prise (`op: "pas"`,
+//! `web/webapp/wasm/src/lib.rs`). Ce module fait EXACTEMENT la même chose en
+//! natif, parce que le contrôle 01 compare les deux descriptions d'une même
+//! situation : le binaire `decrire` doit atteindre la situation que le
+//! JavaScript a atteinte, décision pour décision.
+//!
+//! **Le comportement est copié terme pour terme sur le `Harnais` du pont** —
+//! consommation des réponses, entrées de vente, repli sur `RandomPolicy` une
+//! fois la décision en attente trouvée, et surtout la règle d'écrasement de
+//! `observe` (le moteur observe AUSSI les points de décision qu'il finit par ne
+//! pas poser ; compter les observations désynchroniserait le curseur).
+//!
+//! Vérifié le 15-08 avant d'écrire une ligne : le moteur natif et le pont
+//! rejouent la MÊME partie (`simulate --dump-state --seed 101` et
+//! `--games 20 --seed 3` donnent des sorties identiques au caractère près des
+//! deux côtés).
+
+use engine::choice::ChoiceContext;
+use engine::effects::RevealFilter;
+use engine::policy::{ActionOpt, ConstructionBonus, Policy};
+use engine::state::GameState;
+use rand::rngs::StdRng;
+use serde_json::Value;
+
+/// **Le plafond d'avance du §4.1**, et il est impératif : « cette avance ne doit
+/// jamais dépasser un nombre de pas fixé (prends soixante), sinon une option qui
+/// déclenche une longue cascade ferait boucler le joueur. Au-delà, on évalue là
+/// où on en est et on le compte. »
+pub const PLAFOND_AVANCE: u32 = 60;
+
+/// **La réponse par défaut, celle qu'on prête à l'AUTRE pendant l'avance du
+/// §4.1 — et le seul repli de `Rejeu` quand une réponse manque.**
+///
+/// Le §4.1 laisse deux voies pour répondre à la place de l'adversaire : le réseau
+/// lui-même, ou « un choix simple et fixe — la première option, ou une option
+/// tirée d'un hasard semé ». C'est **la première option** qui est retenue, et
+/// pour une raison vérifiable : le vrai critère du §4 est que le joueur Rust et
+/// le joueur JavaScript choisissent la même option dans la même situation. Le
+/// hasard du moteur natif n'est pas reproductible par le pont — il n'expose pas
+/// son générateur — alors que « la première option » l'est trivialement des deux
+/// côtés. Toute autre voie rendrait le banc `juge-meme-option.mjs` rouge sans
+/// qu'aucune faute n'ait été commise.
+///
+/// **Indice 0 partout, sans exception**, y compris là où le trait `Policy` offre
+/// un défaut plus malin : `pick_joker_tag` choisit sinon « le badge le plus
+/// possédé », que le JavaScript ne reproduit pas. Une seule divergence de ce
+/// genre suffit à faire diverger tout le rejeu qui suit.
+pub struct Premiere;
+
+impl Policy for Premiere {
+    fn corp_mulligan(&mut self, _rng: &mut StdRng, _player: usize, _corps: &[u16]) -> bool {
+        false // indice 0
+    }
+    fn project_mulligan(&mut self, _rng: &mut StdRng, _player: usize, _hand: &[u16]) -> Vec<usize> {
+        Vec::new() // liste libre : la liste vide
+    }
+    fn pick_corporation(&mut self, _rng: &mut StdRng, _player: usize, _corps: &[u16]) -> usize {
+        0
+    }
+    fn pick_phase(&mut self, _rng: &mut StdRng, _player: usize, allowed: &[u8]) -> u8 {
+        allowed[0]
+    }
+    fn choose_build(
+        &mut self,
+        _rng: &mut StdRng,
+        _player: usize,
+        affordable: &[usize],
+    ) -> Option<usize> {
+        affordable.first().copied()
+    }
+    fn construction_bonus(&mut self, _rng: &mut StdRng, _player: usize) -> ConstructionBonus {
+        ConstructionBonus::DrawCardBefore
+    }
+    fn construction_bonus_avant(&mut self, _rng: &mut StdRng, _player: usize) -> bool {
+        true // indice 0
+    }
+    fn construction_bonus_apres(&mut self, _rng: &mut StdRng, _player: usize) -> ConstructionBonus {
+        ConstructionBonus::DrawCard // indice 0
+    }
+    fn action_choice(
+        &mut self,
+        _rng: &mut StdRng,
+        _player: usize,
+        options: &[ActionOpt],
+    ) -> Option<usize> {
+        if options.is_empty() {
+            None
+        } else {
+            Some(0)
+        }
+    }
+    fn action_amount(&mut self, _rng: &mut StdRng, _player: usize, _max: i64) -> i64 {
+        0
+    }
+    fn vendre_librement(&mut self, _rng: &mut StdRng, _joueur: usize, _main: &[u16]) -> Vec<usize> {
+        Vec::new()
+    }
+    fn choose_option(&mut self, _rng: &mut StdRng, _player: usize, _n: usize) -> usize {
+        0
+    }
+    fn choose_option_ctx(
+        &mut self,
+        _rng: &mut StdRng,
+        _player: usize,
+        _ctx: &ChoiceContext,
+    ) -> usize {
+        0
+    }
+    fn choose_res_target(
+        &mut self,
+        _rng: &mut StdRng,
+        _player: usize,
+        _candidates: &[u16],
+    ) -> usize {
+        0
+    }
+    fn choose_res_source(
+        &mut self,
+        _rng: &mut StdRng,
+        _player: usize,
+        _candidates: &[u16],
+    ) -> usize {
+        0
+    }
+    fn pick_joker_tag(
+        &mut self,
+        _rng: &mut StdRng,
+        _player: usize,
+        _card: u16,
+        _tag_counts: &[u32],
+    ) -> usize {
+        0
+    }
+    fn research_keep(
+        &mut self,
+        _rng: &mut StdRng,
+        _player: usize,
+        drawn: &[u16],
+        keep: usize,
+    ) -> Vec<usize> {
+        (0..keep.min(drawn.len())).collect()
+    }
+    fn reveal_pick(
+        &mut self,
+        _rng: &mut StdRng,
+        _player: usize,
+        _revealed: &[u16],
+        candidates: &[u16],
+        keep: usize,
+        _filter: RevealFilter,
+    ) -> Vec<usize> {
+        (0..keep.min(candidates.len())).collect()
+    }
+    fn discard_down(
+        &mut self,
+        _rng: &mut StdRng,
+        _player: usize,
+        hand: &[u16],
+        n: usize,
+    ) -> Vec<usize> {
+        (0..n.min(hand.len())).collect()
+    }
+}
+
+/// Politique de rejeu : elle répond les décisions déjà prises, puis s'arrête à
+/// la première qui manque, en gardant l'état vivant et le siège concerné.
+pub struct Rejeu {
+    reponses: Vec<Value>,
+    curseur: usize,
+    /// Siège de la décision en attente (`None` tant qu'on rejoue).
+    pub attente: Option<usize>,
+    /// L'état vivant reçu juste avant la décision en attente.
+    pub vue: Option<GameState>,
+    pub erreur: Option<String>,
+    defaut: Premiere,
+    /// **LE REPÈRE DU §4.1.** Quand ce champ porte un siège, le rejeu ne s'arrête
+    /// plus à la première décision venue : tant que la décision est celle d'un
+    /// AUTRE joueur, on répond à sa place (`Premiere`) et on continue. On ne
+    /// s'arrête qu'à la prochaine décision **de ce siège-là**, à la fin de la
+    /// partie, ou au plafond. Toutes les options sont ainsi jugées au même
+    /// instant : « la prochaine fois que j'aurai la main ».
+    pub avance: Option<usize>,
+    /// Pas d'avance déjà consommés (bornés par [`PLAFOND_AVANCE`]).
+    pub pas_avance: u32,
+    /// Le plafond a-t-il arrêté cette avance ? Compté et rapporté (§4.1).
+    pub plafond_atteint: bool,
+}
+
+impl Rejeu {
+    pub fn new(reponses: Vec<Value>) -> Rejeu {
+        Rejeu {
+            reponses,
+            curseur: 0,
+            attente: None,
+            vue: None,
+            erreur: None,
+            defaut: Premiere,
+            avance: None,
+            pas_avance: 0,
+            plafond_atteint: false,
+        }
+    }
+
+    /// Le même rejeu, mais qui avance jusqu'au prochain point de décision de
+    /// `siege` (§4.1).
+    pub fn jusqu_a(reponses: Vec<Value>, siege: usize) -> Rejeu {
+        let mut r = Rejeu::new(reponses);
+        r.avance = Some(siege);
+        r
+    }
+
+    /// Rend la réponse enregistrée pour cette décision, ou `None` s'il faut
+    /// répondre par défaut — soit parce qu'on avance vers le repère du §4.1,
+    /// soit parce qu'on s'arrête ici (`attente` est alors posé).
+    fn prendre(&mut self, joueur: usize) -> Option<Value> {
+        if self.attente.is_some() {
+            return None;
+        }
+        if self.curseur < self.reponses.len() {
+            if self.reponses[self.curseur].get("vendre").is_some() {
+                self.faute(
+                    "une vente est proposée là où le moteur attend une réponse".to_string(),
+                );
+                return None;
+            }
+            let r = self.reponses[self.curseur].clone();
+            self.curseur += 1;
+            return Some(r);
+        }
+        // Plus de réponse enregistrée. Sans avance, on s'arrête ici — c'est le
+        // comportement du pont. Avec l'avance du §4.1, on ne s'arrête que pour
+        // le siège qui choisit ; pour l'autre, on répond à sa place et le rejeu
+        // continue, jusqu'au plafond.
+        if let Some(moi) = self.avance {
+            if joueur != moi {
+                if self.pas_avance < PLAFOND_AVANCE {
+                    self.pas_avance += 1;
+                    return None; // repli sur `Premiere`, sans poser `attente`
+                }
+                self.plafond_atteint = true;
+            }
+        }
+        self.attente = Some(joueur);
+        None
+    }
+
+    fn faute(&mut self, quoi: String) {
+        if self.erreur.is_none() {
+            self.erreur = Some(format!("décision n°{} : {}", self.curseur, quoi));
+        }
+    }
+
+    fn indice(&mut self, r: &Value, n: usize) -> Option<usize> {
+        match r.as_u64() {
+            Some(i) if (i as usize) < n => Some(i as usize),
+            _ => {
+                self.faute(format!("indice {r} hors de 0..{n}"));
+                None
+            }
+        }
+    }
+
+    fn liste_libre(&mut self, r: &Value, n: usize) -> Option<Vec<usize>> {
+        let a = r.as_array()?;
+        let mut v: Vec<usize> = Vec::with_capacity(a.len());
+        for x in a {
+            match x.as_u64() {
+                Some(i) if (i as usize) < n && !v.contains(&(i as usize)) => v.push(i as usize),
+                _ => {
+                    self.faute(format!("indice {x} invalide ou en double (0..{n})"));
+                    return None;
+                }
+            }
+        }
+        Some(v)
+    }
+
+    fn liste(&mut self, r: &Value, n: usize, attendu: usize) -> Option<Vec<usize>> {
+        let v = self.liste_libre(r, n)?;
+        if v.len() != attendu {
+            self.faute(format!("{} indices donnés, {attendu} attendus", v.len()));
+            return None;
+        }
+        Some(v)
+    }
+}
+
+impl Policy for Rejeu {
+    /// Écraser plutôt que compter : le moteur observe aussi les points de
+    /// décision qu'il finit par ne pas poser (même raison que le pont).
+    fn observe(&mut self, game: &GameState, _player: usize) {
+        if self.attente.is_none() && self.curseur == self.reponses.len() {
+            self.vue = Some(game.clone());
+        }
+    }
+
+    fn corp_mulligan(&mut self, rng: &mut StdRng, player: usize, corps: &[u16]) -> bool {
+        match self.prendre(player) {
+            Some(r) => self.indice(&r, 2).map(|i| i == 1).unwrap_or(false),
+            None => self.defaut.corp_mulligan(rng, player, corps),
+        }
+    }
+
+    fn project_mulligan(&mut self, rng: &mut StdRng, player: usize, hand: &[u16]) -> Vec<usize> {
+        match self.prendre(player) {
+            Some(r) => match self.liste_libre(&r, hand.len()) {
+                Some(v) => v,
+                None => self.defaut.project_mulligan(rng, player, hand),
+            },
+            None => self.defaut.project_mulligan(rng, player, hand),
+        }
+    }
+
+    fn pick_corporation(&mut self, rng: &mut StdRng, player: usize, corps: &[u16]) -> usize {
+        match self.prendre(player) {
+            Some(r) => self.indice(&r, corps.len()).unwrap_or(0),
+            None => self.defaut.pick_corporation(rng, player, corps),
+        }
+    }
+
+    fn pick_phase(&mut self, rng: &mut StdRng, player: usize, allowed: &[u8]) -> u8 {
+        match self.prendre(player) {
+            Some(r) => match self.indice(&r, allowed.len()) {
+                Some(i) => allowed[i],
+                None => allowed[0],
+            },
+            None => self.defaut.pick_phase(rng, player, allowed),
+        }
+    }
+
+    fn choose_build(
+        &mut self,
+        rng: &mut StdRng,
+        player: usize,
+        affordable: &[usize],
+    ) -> Option<usize> {
+        match self.prendre(player) {
+            Some(r) => {
+                let n = affordable.len();
+                match self.indice(&r, n + 1) {
+                    Some(i) if i < n => Some(affordable[i]),
+                    _ => None,
+                }
+            }
+            None => self.defaut.choose_build(rng, player, affordable),
+        }
+    }
+
+    fn construction_bonus(&mut self, rng: &mut StdRng, player: usize) -> ConstructionBonus {
+        match self.prendre(player) {
+            Some(r) => match self.indice(&r, 3) {
+                Some(0) => ConstructionBonus::DrawCardBefore,
+                Some(1) => ConstructionBonus::DrawCard,
+                Some(_) => ConstructionBonus::SecondBuild,
+                None => ConstructionBonus::DrawCard,
+            },
+            None => self.defaut.construction_bonus(rng, player),
+        }
+    }
+
+    fn construction_bonus_avant(&mut self, rng: &mut StdRng, player: usize) -> bool {
+        match self.prendre(player) {
+            Some(r) => self.indice(&r, 2).map(|i| i == 0).unwrap_or(false),
+            None => self.defaut.construction_bonus_avant(rng, player),
+        }
+    }
+
+    fn construction_bonus_apres(&mut self, rng: &mut StdRng, player: usize) -> ConstructionBonus {
+        match self.prendre(player) {
+            Some(r) => match self.indice(&r, 2) {
+                Some(1) => ConstructionBonus::SecondBuild,
+                _ => ConstructionBonus::DrawCard,
+            },
+            None => self.defaut.construction_bonus_apres(rng, player),
+        }
+    }
+
+    fn action_choice(
+        &mut self,
+        rng: &mut StdRng,
+        player: usize,
+        options: &[ActionOpt],
+    ) -> Option<usize> {
+        if options.is_empty() {
+            return None;
+        }
+        match self.prendre(player) {
+            Some(r) => {
+                let n = options.len();
+                match self.indice(&r, n + 1) {
+                    Some(i) if i < n => Some(i),
+                    _ => None,
+                }
+            }
+            None => self.defaut.action_choice(rng, player, options),
+        }
+    }
+
+    fn action_amount(&mut self, rng: &mut StdRng, player: usize, max: i64) -> i64 {
+        match self.prendre(player) {
+            Some(r) => match r.as_i64() {
+                Some(x) if x >= 0 && x <= max => x,
+                _ => {
+                    self.faute(format!("montant {r} hors de 0..={max}"));
+                    0
+                }
+            },
+            None => self.defaut.action_amount(rng, player, max),
+        }
+    }
+
+    /// La vente est une ENTRÉE, pas une réponse : elle se consomme au point
+    /// d'occasion, et jamais comme réponse à une question (même règle que le
+    /// pont, `Harnais::vendre_librement`).
+    fn vendre_librement(&mut self, _rng: &mut StdRng, joueur: usize, main: &[u16]) -> Vec<usize> {
+        if self.attente.is_some() || self.curseur >= self.reponses.len() {
+            return Vec::new();
+        }
+        let Some(vente) = self.reponses[self.curseur].get("vendre").cloned() else {
+            return Vec::new();
+        };
+        if vente.get("joueur").and_then(Value::as_u64) != Some(joueur as u64) {
+            return Vec::new();
+        }
+        let Some(cartes) = vente.get("cartes").and_then(Value::as_array) else {
+            self.faute("« cartes » attendu : une liste d'indices de main".to_string());
+            return Vec::new();
+        };
+        let mut idx: Vec<usize> = Vec::with_capacity(cartes.len());
+        for x in cartes {
+            match x.as_u64() {
+                Some(i) if (i as usize) < main.len() && !idx.contains(&(i as usize)) => {
+                    idx.push(i as usize)
+                }
+                _ => {
+                    self.faute(format!("indice de vente {x} invalide ou en double"));
+                    return Vec::new();
+                }
+            }
+        }
+        self.curseur += 1;
+        idx
+    }
+
+    fn choose_option(&mut self, rng: &mut StdRng, player: usize, n: usize) -> usize {
+        // Voie anonyme : aucun site du moteur ne l'emprunte plus (le pont la
+        // déclare en faute). On la traite pareil, sans consommer de réponse.
+        if self.erreur.is_none() {
+            self.erreur = Some(format!("voie anonyme `choose_option` ({n} options)"));
+        }
+        self.defaut.choose_option(rng, player, n)
+    }
+
+    fn choose_option_ctx(
+        &mut self,
+        rng: &mut StdRng,
+        player: usize,
+        ctx: &ChoiceContext,
+    ) -> usize {
+        let n = ctx.option_count();
+        if n == 0 {
+            return 0;
+        }
+        match self.prendre(player) {
+            Some(r) => self.indice(&r, n).unwrap_or(0),
+            None => self.defaut.choose_option_ctx(rng, player, ctx),
+        }
+    }
+
+    fn choose_res_target(&mut self, rng: &mut StdRng, player: usize, candidates: &[u16]) -> usize {
+        if candidates.is_empty() {
+            return 0;
+        }
+        match self.prendre(player) {
+            Some(r) => self.indice(&r, candidates.len()).unwrap_or(0),
+            None => self.defaut.choose_res_target(rng, player, candidates),
+        }
+    }
+
+    fn choose_res_source(&mut self, rng: &mut StdRng, player: usize, candidates: &[u16]) -> usize {
+        if candidates.is_empty() {
+            return 0;
+        }
+        match self.prendre(player) {
+            Some(r) => self.indice(&r, candidates.len()).unwrap_or(0),
+            None => self.defaut.choose_res_source(rng, player, candidates),
+        }
+    }
+
+    fn pick_joker_tag(
+        &mut self,
+        rng: &mut StdRng,
+        player: usize,
+        card: u16,
+        tag_counts: &[u32],
+    ) -> usize {
+        let n = engine::cards::JOKER_TAG_CHOICES.len();
+        match self.prendre(player) {
+            Some(r) => self.indice(&r, n).unwrap_or(0),
+            None => self.defaut.pick_joker_tag(rng, player, card, tag_counts),
+        }
+    }
+
+    fn research_keep(
+        &mut self,
+        rng: &mut StdRng,
+        player: usize,
+        drawn: &[u16],
+        keep: usize,
+    ) -> Vec<usize> {
+        match self.prendre(player) {
+            Some(r) => match self.liste(&r, drawn.len(), keep) {
+                Some(v) => v,
+                None => self.defaut.research_keep(rng, player, drawn, keep),
+            },
+            None => self.defaut.research_keep(rng, player, drawn, keep),
+        }
+    }
+
+    fn reveal_pick(
+        &mut self,
+        rng: &mut StdRng,
+        player: usize,
+        revealed: &[u16],
+        candidates: &[u16],
+        keep: usize,
+        filter: RevealFilter,
+    ) -> Vec<usize> {
+        match self.prendre(player) {
+            Some(r) => match self.liste(&r, candidates.len(), keep) {
+                Some(v) => v,
+                None => self
+                    .defaut
+                    .reveal_pick(rng, player, revealed, candidates, keep, filter),
+            },
+            None => self
+                .defaut
+                .reveal_pick(rng, player, revealed, candidates, keep, filter),
+        }
+    }
+
+    fn discard_down(
+        &mut self,
+        rng: &mut StdRng,
+        player: usize,
+        hand: &[u16],
+        n: usize,
+    ) -> Vec<usize> {
+        match self.prendre(player) {
+            Some(r) => match self.liste(&r, hand.len(), n) {
+                Some(v) => v,
+                None => self.defaut.discard_down(rng, player, hand, n),
+            },
+            None => self.defaut.discard_down(rng, player, hand, n),
+        }
+    }
+}
+
+/// Rejoue la partie `seed` avec `decisions` et rend l'état vivant à la première
+/// décision non prise (ou l'état final si tout a été joué), avec le siège
+/// concerné.
+pub fn rejouer(
+    db: &engine::cards::CardsDb,
+    seed: u64,
+    decisions: Vec<Value>,
+) -> Result<(GameState, Option<usize>), String> {
+    let mut pol = Rejeu::new(decisions);
+    let mut game = engine::flow::setup_game(db, seed, &mut pol);
+    while pol.attente.is_none()
+        && !game.game_over
+        && game.generation <= engine::sim::MAX_GENERATIONS
+    {
+        engine::flow::play_round(&mut game, db, &mut pol);
+    }
+    if let Some(e) = pol.erreur {
+        return Err(e);
+    }
+    match pol.attente {
+        Some(joueur) => Ok((pol.vue.unwrap_or(game), Some(joueur))),
+        None => Ok((game, None)),
+    }
+}

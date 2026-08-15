@@ -603,6 +603,7 @@ impl PlayerState {
 }
 
 /// État complet d'une partie.
+#[derive(Clone)]
 pub struct GameState {
     pub rng: StdRng,
     /// Pioche projets (le dessus = fin du Vec).

@@ -38,6 +38,7 @@ import { ouvrirPontDepuis } from "../pont.js";
 import { creerPartie, jouerJusquAuBout } from "../partie.js";
 import { fournisseurAleatoire } from "../fournisseurs.js";
 import { fournisseurReflechi } from "../joueurs/reflechi.js";
+import { fournisseurApprenti } from "../joueurs/apprenti.js";
 
 const RACINE = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -48,6 +49,7 @@ const RACINE = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const JOUEURS = {
   hasard: (graine, nom) => fournisseurAleatoire(graine, nom),
   reflechi: (graine, nom) => fournisseurReflechi(graine, nom),
+  apprenti: (graine, nom) => fournisseurApprenti(graine, nom, undefined, pont, boites),
 };
 
 const BOITES_PAR_DEFAUT = "base,decouverte";
