@@ -45,6 +45,7 @@ fn main() {
     let mut poids = String::from("data/poids/apprenti.txt");
     let mut boites_txt = "base,decouverte".to_string();
     let mut cartes = "data/cards.json".to_string();
+    let mut tracer: i64 = -1;
     let mut i = 1;
     while i < args.len() {
         let val = |i: usize| -> String {
@@ -58,6 +59,7 @@ fn main() {
             "--poids" => poids = val(i),
             "--boites" => boites_txt = val(i),
             "--cards" => cartes = val(i),
+            "--tracer-rang" => tracer = val(i).parse().unwrap_or(-1),
             autre => mourir(&format!("argument inconnu {autre}")),
         }
         i += 2;
@@ -84,6 +86,7 @@ fn main() {
     let mut pile = Pile::new(desc.taille);
     let mut j = Joueur::new(&db, &desc, &mut reseau, &mut pile, graine);
     j.exploration = 0.0;
+    j.tracer_rang = tracer;
     j.apprendre = false;
     j.nouvelle_partie(graine);
 

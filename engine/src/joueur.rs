@@ -43,6 +43,23 @@ use crate::description::{Description, Tampons};
 use crate::rejeu::Rejeu;
 use crate::reseau::{Pile, Reseau};
 
+/// **La marge de départage, et pourquoi elle est indispensable.**
+///
+/// Deux options peuvent mener à des situations rigoureusement identiques — c'est
+/// courant : huit cartes vertes à rejouer dont sept ne changent rien d'observable.
+/// Leurs notes sont alors égales *en arithmétique réelle*, mais pas au dernier bit :
+/// la mise à jour par différences du §1.1 additionne les sommes cachées dans un
+/// ordre qui dépend de l'option évaluée juste avant, et le JavaScript, lui, refait
+/// chaque évaluation en entier. Mesuré sur une décision réelle (graine 2, rang 361) :
+/// 0,46726923574014501 d'un côté, 0,46726923574014506 de l'autre — cinq
+/// dix-millionièmes de milliardième d'écart, et deux joueurs qui ne choisissent plus
+/// la même option.
+///
+/// On ne départage donc une option que si elle est meilleure d'une marge qui dépasse
+/// franchement le bruit de calcul ; à égalité, la PREMIÈRE l'emporte. Les deux côtés
+/// appliquent la même règle, avec la même marge.
+pub const MARGE: f64 = 1e-12;
+
 /// **L'état atteint par un rejeu, et le piège du §4.**
 ///
 /// « Une option peut terminer la partie. L'état rendu porte alors `game_over` et les
@@ -107,6 +124,10 @@ pub struct Joueur<'a> {
     /// **Toutes les réponses de la partie, dans l'ordre**, au format du pont :
     /// c'est la partie elle-même, rejouable telle quelle par `pont.pas`.
     pub journal: Vec<Value>,
+    /// Rang de décision à tracer : le joueur imprime alors la note de chaque
+    /// option sur la sortie d'erreur. Sert à comparer les deux côtés quand ils
+    /// se départagent différemment.
+    pub tracer_rang: i64,
     /// Nombre d'essais faits (mesure de coût).
     pub essais: u64,
     /// Chronomètres de mise au point : où passe le temps d'une partie.
@@ -142,6 +163,7 @@ impl<'a> Joueur<'a> {
             predictions: Vec::new(),
             generation_vue: 0,
             journal: Vec::new(),
+            tracer_rang: -1,
             essais: 0,
             t_essais: 0.0,
             t_apprentissage: 0.0,
@@ -213,6 +235,7 @@ impl<'a> Joueur<'a> {
             // déterministes rejouent sans cesse des parties très ressemblantes.
             rng.gen_range(0..candidates.len())
         } else {
+            let tracer = self.tracer_rang >= 0 && self.journal.len() as i64 == self.tracer_rang;
             let mut meilleur = 0usize;
             let mut meilleure_note = f64::NEG_INFINITY;
             for (i, c) in candidates.iter().enumerate() {
@@ -227,7 +250,10 @@ impl<'a> Joueur<'a> {
                     }
                     None => f64::NEG_INFINITY,
                 };
-                if note > meilleure_note {
+                if tracer {
+                    eprintln!("rang {} option {i} : note {note:.17}", self.journal.len());
+                }
+                if note > meilleure_note + MARGE {
                     meilleure_note = note;
                     meilleur = i;
                 }
@@ -289,12 +315,12 @@ impl<'a> Joueur<'a> {
                     pris.push(i);
                     let x = self.noter_liste(joueur, &pris);
                     pris.pop();
-                    if meilleur.is_none() || x > meilleur.unwrap().1 {
+                    if meilleur.is_none() || x > meilleur.unwrap().1 + MARGE {
                         meilleur = Some((i, x));
                     }
                 }
                 match meilleur {
-                    Some((i, x)) if x > note => {
+                    Some((i, x)) if x > note + MARGE => {
                         pris.push(i);
                         note = x;
                     }
@@ -314,7 +340,7 @@ impl<'a> Joueur<'a> {
                         let ancien = pris[p];
                         pris[p] = c;
                         let x = self.noter_liste(joueur, &pris);
-                        if x > note {
+                        if x > note + MARGE {
                             note = x;
                             ameliore = true;
                         } else {

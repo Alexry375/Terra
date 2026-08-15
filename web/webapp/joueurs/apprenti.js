@@ -57,6 +57,19 @@ const ICI = dirname(fileURLToPath(import.meta.url));
  *  même endroit (§9). */
 export const POIDS_PAR_DEFAUT = resolve(ICI, "../../../data/poids/apprenti.txt");
 
+/**
+ * **La marge de départage.** Deux options peuvent mener à des situations
+ * rigoureusement identiques ; leurs notes sont alors égales en arithmétique réelle,
+ * mais pas forcément au dernier bit — le Rust met ses sommes cachées à jour par
+ * DIFFÉRENCES (l'optimisation du §1.1) et arrive à 0,46726923574014506 là où ce
+ * module, qui refait chaque calcul en entier, arrive à 0,46726923574014501. Sans
+ * marge, les deux joueurs ne choisissent plus la même option sur ces égalités-là.
+ * On n'écarte donc une option que si elle est meilleure d'une marge qui dépasse
+ * franchement le bruit de calcul ; à égalité, la PREMIÈRE l'emporte. La même règle
+ * et la même marge sont écrites dans `engine/src/joueur.rs`.
+ */
+export const MARGE = 1e-12;
+
 const CACHES_ATTENDUS = 50;
 const SORTIES_ATTENDUES = 2;
 
@@ -241,7 +254,7 @@ export function fournisseurApprenti(graine, nom = "apprenti", poids, pont, boite
     let note = -Infinity;
     for (const r of reponses) {
       const n = noter(r, siege);
-      if (n > note) {
+      if (n > note + MARGE) {
         note = n;
         choix = r;
       }
@@ -276,12 +289,12 @@ export function fournisseurApprenti(graine, nom = "apprenti", poids, pont, boite
         for (let i = 0; i < n; i++) {
           if (pris.includes(i)) continue;
           const x = noter([...pris, i], siege);
-          if (meilleur === null || x > meilleureNote) {
+          if (meilleur === null || x > meilleureNote + MARGE) {
             meilleureNote = x;
             meilleur = i;
           }
         }
-        if (meilleur === null || !(meilleureNote > note)) break;
+        if (meilleur === null || !(meilleureNote > note + MARGE)) break;
         pris.push(meilleur);
         note = meilleureNote;
       }
@@ -298,7 +311,7 @@ export function fournisseurApprenti(graine, nom = "apprenti", poids, pont, boite
           const ancien = pris[p];
           pris[p] = c;
           const x = noter([...pris], siege);
-          if (x > note) {
+          if (x > note + MARGE) {
             note = x;
             ameliore = true;
           } else {
