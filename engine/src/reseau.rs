@@ -53,6 +53,43 @@ use rand::{Rng, SeedableRng};
 
 pub const CACHES: usize = 50;
 pub const SORTIES: usize = 2;
+/// **(il-devine) Le nombre de sorties du SECOND réseau, celui qui devine la carte
+/// Phase de l'autre : cinq, une par carte Phase, dans l'ordre du moteur (§1).**
+/// La sortie `i` porte la phase `i + 1`, parce que le moteur numérote ses phases
+/// de 1 à 5 (`flow::allowed_phases`).
+pub const PHASES: usize = 5;
+/// **(il-devine) Le taux d'apprentissage du second réseau (§2.2)** : 0,0005, dix
+/// fois moins prudent que celui du premier parce qu'il apprend d'une cible
+/// immédiatement disponible et non d'un résultat de fin de partie. « Le facteur
+/// 20 et le taux 0,0005 sont les valeurs de départ. »
+pub const TAUX_ADVERSAIRE: f64 = 0.0005;
+/// **(il-devine) Le facteur de la cible du second réseau (§2.2)** : 20. Il décide
+/// du contraste de la cible — à 20, une phase notée 5 % moins bien que la
+/// meilleure reçoit une cible environ 2,7 fois plus petite.
+pub const FACTEUR_CIBLE: f64 = 20.0;
+/// **(il-devine) LA MARGE DE DÉPARTAGE DES CINQ SORTIES, et le fait mesuré qui
+/// l'impose.**
+///
+/// La devinette prend un maximum sur cinq probabilités, et un maximum n'a pas de
+/// marge : deux phases séparées d'un dernier bit se départagent d'un côté et pas
+/// de l'autre, et toute la partie qui suit diverge.
+///
+/// On pourrait croire le calcul exact des deux côtés. Il ne l'est pas. Mesuré le
+/// 16-08 sur deux mille valeurs tirées entre −3 et 3 : la tangente hyperbolique
+/// concorde **au bit près** (0 écart sur 2000), mais l'exponentielle diffère d'un
+/// dernier bit sur **196 valeurs sur 2000** entre `f64::exp` et le `Math.exp` de
+/// Node — par exemple `exp(−2,42533517456543)` vaut `0,08844846839633604` d'un
+/// côté et `…602` de l'autre. Les cinq sommes de sortie, elles, sont identiques :
+/// c'est l'exponentielle, et elle seule, qui introduit l'écart.
+///
+/// On départage donc comme le premier réseau le fait depuis toujours pour la même
+/// raison (`joueur::MARGE`) : on ne préfère une phase que si elle l'emporte d'une
+/// marge qui dépasse franchement le bruit de calcul. L'écart introduit par
+/// l'exponentielle est de l'ordre de 1e−16 sur des probabilités voisines de 0,2 ;
+/// deux phases réellement différentes sont séparées de beaucoup plus que 1e−12.
+/// La règle du §3 — « en cas d'égalité stricte, la plus petite » — est ainsi
+/// respectée, et étendue aux égalités que seule l'arithmétique distingue.
+pub const MARGE_PHASE: f64 = 1e-12;
 /// Taux d'apprentissage (§2.4). Très petit, et délibérément : le réseau voit des
 /// centaines de milliers de parties, chaque correction doit être minuscule.
 pub const TAUX: f64 = 0.0001;
@@ -149,7 +186,15 @@ impl Pile {
 // Le réseau
 // ---------------------------------------------------------------------------
 
-pub struct Reseau {
+/// **(il-devine) Le réseau est paramétrable en NOMBRE DE SORTIES (§1).**
+///
+/// `S` vaut 2 pour le réseau qui juge une situation — c'est le défaut, et tout le
+/// code écrit avant ce chantier continue donc de dire `Reseau` sans rien savoir
+/// du paramètre — et 5 pour celui qui devine la carte Phase de l'autre
+/// ([`ReseauPhases`]). Un paramètre de const générique et non un champ : le
+/// nombre de sorties est connu à la compilation, les tableaux restent sur la
+/// pile, et le code produit pour deux sorties est exactement celui d'avant.
+pub struct ReseauMulti<const S: usize> {
     pub n_entrees: usize,
     /// Poids de la couche cachée, **rangés par entrée** :
     /// `w_cache[i * CACHES + j]`. La ligne `i == n_entrees` porte le biais
@@ -168,8 +213,8 @@ pub struct Reseau {
     precedentes: Vec<f64>,
     sommes: Vec<f64>,
     pub h: Vec<f64>,
-    pub p: [f64; SORTIES],
-    e: [f64; SORTIES],
+    pub p: [f64; S],
+    e: [f64; S],
     total_e: f64,
 
     // ---- tampons de la correction factorisée
@@ -195,11 +240,23 @@ pub struct Reseau {
 /// c'est celle que `Reseau::neuf` emploie.
 pub const AMPLITUDE_DEPART: f64 = 0.1;
 
-impl Reseau {
+/// **LE RÉSEAU QUI JUGE UNE SITUATION** : deux sorties, une par joueur. C'est le
+/// réseau de tout le dépôt, et il continue de s'appeler `Reseau` — un alias sur le
+/// nombre de sorties, et non un paramètre laissé à deviner à chaque appel. Ainsi
+/// `Reseau::lire`, `Reseau::neuf` et `Reseau::cible_finale` gardent exactement le
+/// sens qu'ils avaient, et **aucun fichier hors du territoire de ce chantier n'a
+/// eu besoin d'être touché** pour rendre le réseau paramétrable (§1).
+pub type Reseau = ReseauMulti<SORTIES>;
+
+/// **(il-devine) Le second réseau du §1** : mêmes entrées, même couche cachée,
+/// cinq sorties qui se lisent comme des probabilités de carte Phase.
+pub type ReseauPhases = ReseauMulti<PHASES>;
+
+impl<const S: usize> ReseauMulti<S> {
     /// Un réseau neuf : poids tirés uniformément entre −0,1 et +0,1, générateur
     /// semé (§1).
-    pub fn neuf(n_entrees: usize) -> Reseau {
-        Reseau::neuf_amplitude(n_entrees, AMPLITUDE_DEPART)
+    pub fn neuf(n_entrees: usize) -> ReseauMulti<S> {
+        ReseauMulti::neuf_amplitude(n_entrees, AMPLITUDE_DEPART)
     }
 
     /// **Le même réseau, avec une autre amplitude de départ — pour la MESURE que
@@ -218,17 +275,17 @@ impl Reseau {
     /// `--amplitude-depart 0.045` ramène cet écart-type à 1,0 pour 1472 entrées.
     /// La valeur par défaut reste 0,1, et `Reseau::neuf` est inchangée : sans
     /// l'argument, l'entraînement est celui du §1 au bit près.
-    pub fn neuf_amplitude(n_entrees: usize, amplitude: f64) -> Reseau {
+    pub fn neuf_amplitude(n_entrees: usize, amplitude: f64) -> ReseauMulti<S> {
         let mut rng = StdRng::seed_from_u64(GRAINE_POIDS);
         let mut w_cache = vec![0.0; (n_entrees + 1) * CACHES];
         for w in w_cache.iter_mut() {
             *w = rng.gen_range(-amplitude..amplitude);
         }
-        let mut w_sortie = vec![0.0; (CACHES + 1) * SORTIES];
+        let mut w_sortie = vec![0.0; (CACHES + 1) * S];
         for w in w_sortie.iter_mut() {
             *w = rng.gen_range(-amplitude..amplitude);
         }
-        Reseau {
+        ReseauMulti {
             n_entrees,
             acc_cache: vec![0.0; w_cache.len()],
             acc_sortie: vec![0.0; w_sortie.len()],
@@ -238,9 +295,11 @@ impl Reseau {
             precedentes: Vec::new(),
             sommes: vec![0.0; CACHES],
             h: vec![0.0; CACHES],
-            p: [0.5; SORTIES],
-            e: [1.0; SORTIES],
-            total_e: 2.0,
+            // Un réseau qui n'a rien évalué ne penche d'aucun côté : chaque
+            // sortie vaut `1 / S`. Pour deux sorties c'est le `0,5` d'avant.
+            p: [1.0 / S as f64; S],
+            e: [1.0; S],
+            total_e: S as f64,
             ds: Vec::new(),
             rangs: Vec::new(),
             lambda: LAMBDA,
@@ -260,7 +319,7 @@ impl Reseau {
 
     /// Évalue une situation. Rend les deux probabilités de victoire, la première
     /// étant celle du joueur du point de vue duquel `entrees` a été écrit.
-    pub fn evaluer(&mut self, entrees: &[f64]) -> [f64; SORTIES] {
+    pub fn evaluer(&mut self, entrees: &[f64]) -> [f64; S] {
         debug_assert_eq!(entrees.len(), self.n_entrees);
         let n = self.n_entrees;
         if self.sans_optimisation || self.precedentes.len() != n {
@@ -296,10 +355,11 @@ impl Reseau {
         for j in 0..CACHES {
             self.h[j] = self.sommes[j].tanh();
         }
-        // Sortie : exponentielle normalisée, mise à l'échelle par la première
-        // somme (elle ne change pas le résultat, elle évite les débordements).
-        let mut s = [0.0f64; SORTIES];
-        for k in 0..SORTIES {
+        // Sortie : exponentielle normalisée, mise à l'échelle par un pivot qui ne
+        // change pas le résultat en arithmétique réelle et qui évite les
+        // débordements.
+        let mut s = [0.0f64; S];
+        for k in 0..S {
             let base = k * (CACHES + 1);
             let mut x = self.w_sortie[base + CACHES]; // biais de couche cachée
             for j in 0..CACHES {
@@ -307,17 +367,45 @@ impl Reseau {
             }
             s[k] = x;
         }
-        let s0 = s[0];
+        let pivot = ReseauMulti::<S>::pivot(&s);
         let mut total = 0.0;
-        for k in 0..SORTIES {
-            self.e[k] = (s[k] - s0).exp();
+        for k in 0..S {
+            self.e[k] = (s[k] - pivot).exp();
             total += self.e[k];
         }
         self.total_e = total;
-        for k in 0..SORTIES {
+        for k in 0..S {
             self.p[k] = self.e[k] / total;
         }
         self.p
+    }
+
+    /// **(il-devine) Le pivot retranché avant les exponentielles, et pourquoi il
+    /// n'est pas le même des deux côtés.**
+    ///
+    /// Pour le second réseau (cinq sorties), le §1 l'impose : « retranche la plus
+    /// grande des cinq valeurs avant de prendre les exponentielles ; sans cela une
+    /// valeur de 800 fait un infini, et toute la suite devient un pas un nombre ».
+    ///
+    /// Pour le premier réseau (deux sorties), c'est **la première valeur**, et
+    /// cela ne bouge pas. Retrancher le maximum donnerait le même nombre en
+    /// arithmétique réelle mais pas au dernier bit, et trois choses dépendent de
+    /// ce dernier bit : les poids appris pendant les quinze heures du million de
+    /// parties, le miroir JavaScript (`apprenti.js`, qui retranche `s[0]`), et le
+    /// contrôle 10, pour qui « éteint » veut dire « exactement comme avant ».
+    /// Changer le pivot ici serait changer le joueur sans le vouloir.
+    fn pivot(s: &[f64; S]) -> f64 {
+        if S == SORTIES {
+            s[0]
+        } else {
+            let mut m = f64::NEG_INFINITY;
+            for v in s.iter() {
+                if *v > m {
+                    m = *v;
+                }
+            }
+            m
+        }
     }
 
     /// La moitié « sortie » d'une passe d'entraînement : elle accumule les
@@ -326,17 +414,17 @@ impl Reseau {
     ///
     /// Le réseau doit venir d'évaluer la situation : `h`, `p` et les
     /// exponentielles en viennent.
-    fn accumuler_sortie(&mut self, cible: [f64; SORTIES], lambda: f64, taux: f64) -> [f64; CACHES] {
-        let mut erreur = [0.0f64; SORTIES];
-        let mut derivee = [0.0f64; SORTIES];
-        for k in 0..SORTIES {
+    fn accumuler_sortie(&mut self, cible: [f64; S], lambda: f64, taux: f64) -> [f64; CACHES] {
+        let mut erreur = [0.0f64; S];
+        let mut derivee = [0.0f64; S];
+        for k in 0..S {
             erreur[k] = lambda * (self.p[k] - cible[k]);
             derivee[k] = self.p[k] * (1.0 - self.p[k]);
             self.somme_erreur2 += erreur[k] * erreur[k];
         }
         self.compte_erreur += 1;
 
-        for k in 0..SORTIES {
+        for k in 0..S {
             let base = k * (CACHES + 1);
             let g = taux * erreur[k] * derivee[k];
             for j in 0..CACHES {
@@ -352,10 +440,10 @@ impl Reseau {
         let mut d = [0.0f64; CACHES];
         for j in 0..CACHES {
             let mut eh = 0.0;
-            for k in 0..SORTIES {
+            for k in 0..S {
                 let bk = k * (CACHES + 1);
                 let mut g = derivee[k] * self.w_sortie[bk + j];
-                for l in 0..SORTIES {
+                for l in 0..S {
                     if l != k {
                         let bl = l * (CACHES + 1);
                         g -= self.w_sortie[bl + j] * (self.e[k] * self.e[l] / t2);
@@ -394,7 +482,7 @@ impl Reseau {
 
     /// **Une passe d'entraînement isolée** (l'amorçage du §2.7) : évaluer,
     /// accumuler, appliquer.
-    pub fn entrainer_une(&mut self, x: &[f64], cible: [f64; SORTIES], taux: f64) {
+    pub fn entrainer_une(&mut self, x: &[f64], cible: [f64; S], taux: f64) {
         self.oublier();
         self.evaluer(x);
         let d = self.accumuler_sortie(cible, 1.0, taux);
@@ -410,7 +498,7 @@ impl Reseau {
     /// (0,9 depuis le 15-08) à chaque pas en arrière. Les corrections s'accumulent et ne sont versées dans les
     /// poids qu'à la fin (§2.5) — sinon corriger la situation la plus récente
     /// changerait le réseau avec lequel on évalue la suivante.
-    pub fn corriger(&mut self, pile: &Pile, joueur: usize, cible: [f64; SORTIES], taux: f64) {
+    pub fn corriger(&mut self, pile: &Pile, joueur: usize, cible: [f64; S], taux: f64) {
         let mut rangs = std::mem::take(&mut self.rangs);
         pile.rangs_a_rebours(joueur, &mut rangs);
         if rangs.is_empty() {
@@ -478,24 +566,13 @@ impl Reseau {
         self.oublier();
     }
 
-    /// **La cible de fin de partie (§2.3)** : une répartition douce selon l'écart
-    /// de score, du point de vue du joueur qui regarde. Gagner de deux points ne
-    /// s'apprend pas comme gagner de trente.
-    pub fn cible_finale(score_moi: i64, score_autre: i64) -> [f64; SORTIES] {
-        let meilleur = score_moi.max(score_autre) as f64;
-        let a = (DOUCEUR * (score_moi as f64 - meilleur)).exp();
-        let b = (DOUCEUR * (score_autre as f64 - meilleur)).exp();
-        let t = a + b;
-        [a / t, b / t]
-    }
-
     /// **L'écart moyen de prédiction**, racine de la moyenne des carrés des
     /// erreurs accumulées depuis le dernier `raz_stats`.
     pub fn erreur_moyenne(&self) -> f64 {
         if self.compte_erreur == 0 {
             0.0
         } else {
-            (self.somme_erreur2 / (self.compte_erreur * SORTIES as u64) as f64).sqrt()
+            (self.somme_erreur2 / (self.compte_erreur * S as u64) as f64).sqrt()
         }
     }
 
@@ -508,7 +585,7 @@ impl Reseau {
     /// JavaScript : la table des noms du fichier doit être exactement celle que
     /// ce dépôt régénère. Au premier écart, on refuse — les poids auraient été
     /// appris sur une autre description.
-    pub fn lire(chemin: &str, noms: &[String]) -> Result<Reseau, String> {
+    pub fn lire(chemin: &str, noms: &[String]) -> Result<ReseauMulti<S>, String> {
         let texte = std::fs::read_to_string(chemin).map_err(|e| format!("{chemin} : {e}"))?;
         let mut lignes = texte.lines();
         let tete: Vec<usize> = lignes
@@ -521,9 +598,9 @@ impl Reseau {
             return Err(format!("{chemin} : première ligne illisible (§7)"));
         }
         let (n, caches, sorties) = (tete[0], tete[1], tete[2]);
-        if caches != CACHES || sorties != SORTIES {
+        if caches != CACHES || sorties != S {
             return Err(format!(
-                "{chemin} : {caches} neurones cachés et {sorties} sorties (le §1 en impose {CACHES} et {SORTIES})"
+                "{chemin} : {caches} neurones cachés et {sorties} sorties (le §1 en impose {CACHES} et {S})"
             ));
         }
         let parties: u64 = lignes.next().unwrap_or("0").trim().parse().unwrap_or(0);
@@ -541,7 +618,7 @@ impl Reseau {
                 ));
             }
         }
-        let mut r = Reseau::neuf(n);
+        let mut r = ReseauMulti::<S>::neuf(n);
         r.parties = parties;
         let mut k = 0usize;
         let total = r.w_cache.len() + r.w_sortie.len();
@@ -573,7 +650,7 @@ impl Reseau {
         use std::io::Write;
         let f = std::fs::File::create(chemin)?;
         let mut w = std::io::BufWriter::new(f);
-        writeln!(w, "{} {} {}", self.n_entrees, CACHES, SORTIES)?;
+        writeln!(w, "{} {} {}", self.n_entrees, CACHES, S)?;
         writeln!(w, "{}", self.parties)?;
         for nom in noms {
             writeln!(w, "{nom}")?;
@@ -585,5 +662,326 @@ impl Reseau {
             writeln!(w, "{x:.12e}")?;
         }
         w.flush()
+    }
+}
+
+impl ReseauMulti<SORTIES> {
+    /// **La cible de fin de partie (§2.3)** : une répartition douce selon l'écart
+    /// de score, du point de vue du joueur qui regarde. Gagner de deux points ne
+    /// s'apprend pas comme gagner de trente.
+    ///
+    /// Elle n'a de sens que pour le réseau qui juge une situation — celui à deux
+    /// sorties. Le second réseau, lui, apprend une cible de carte Phase
+    /// ([`cible_phases`]) et n'attend pas la fin de la partie pour cela.
+    pub fn cible_finale(score_moi: i64, score_autre: i64) -> [f64; SORTIES] {
+        let meilleur = score_moi.max(score_autre) as f64;
+        let a = (DOUCEUR * (score_moi as f64 - meilleur)).exp();
+        let b = (DOUCEUR * (score_autre as f64 - meilleur)).exp();
+        let t = a + b;
+        [a / t, b / t]
+    }
+}
+
+// ---------------------------------------------------------------------------
+// (il-devine) La cible du second réseau, et la lecture de ses cinq sorties
+// ---------------------------------------------------------------------------
+
+/// **(il-devine) LA CIBLE DU SECOND RÉSEAU (§2.2).**
+///
+/// On veut lui apprendre à imiter le premier — à répondre « voilà ce que
+/// quelqu'un qui réfléchit choisirait » sans refaire le calcul. `notes[i]` est la
+/// note de la phase `i + 1` : la probabilité de victoire que le premier réseau
+/// accorde à cette phase. Les phases **non autorisées** cette manche portent la
+/// note zéro, et ressortent donc avec une cible presque nulle.
+///
+/// ```text
+/// cible_i = exp(facteur × n_i / m) / somme des cinq exp(facteur × n_j / m)
+/// ```
+///
+/// Deux précautions du §2.2, toutes deux nécessaires :
+///
+/// - **si `m` vaut zéro ou moins, il n'y a pas de cible** : la division n'a pas
+///   de sens, et cela n'arrive que sur des situations dégénérées. On rend `None`
+///   et l'appelant saute la correction de cette manche-là.
+/// - **on retranche la plus grande des cinq valeurs avant les exponentielles**,
+///   pour la même raison qu'au §1 : sans cela, un débordement fait un infini puis
+///   un « pas un nombre », et le réseau entier devient inutilisable.
+///
+/// Une note qui n'est pas un nombre fini — c'est la marque d'une option que le
+/// moteur a refusée (`f64::NEG_INFINITY` dans `Joueur::choisir`) — est traitée
+/// comme une phase non autorisée : note zéro.
+pub fn cible_phases(notes: &[f64; PHASES], facteur: f64) -> Option<[f64; PHASES]> {
+    let mut n = [0.0f64; PHASES];
+    for i in 0..PHASES {
+        n[i] = if notes[i].is_finite() { notes[i] } else { 0.0 };
+    }
+    let mut m = f64::NEG_INFINITY;
+    for v in n.iter() {
+        if *v > m {
+            m = *v;
+        }
+    }
+    if !(m > 0.0) {
+        return None;
+    }
+    let mut z = [0.0f64; PHASES];
+    let mut zmax = f64::NEG_INFINITY;
+    for i in 0..PHASES {
+        z[i] = facteur * n[i] / m;
+        if z[i] > zmax {
+            zmax = z[i];
+        }
+    }
+    let mut e = [0.0f64; PHASES];
+    let mut total = 0.0;
+    for i in 0..PHASES {
+        e[i] = (z[i] - zmax).exp();
+        total += e[i];
+    }
+    let mut cible = [0.0f64; PHASES];
+    for i in 0..PHASES {
+        cible[i] = e[i] / total;
+    }
+    Some(cible)
+}
+
+/// **(il-devine) LA LECTURE DES CINQ SORTIES (§3, points 3 et 4).**
+///
+/// `p` sont les cinq probabilités rendues par le second réseau, `p[i]` portant la
+/// phase `i + 1`. `autorisees` sont les phases que le moteur autorise à ce joueur
+/// cette manche — quatre sur cinq d'ordinaire, cinq à la toute première.
+///
+/// 1. **on met à zéro les phases que le moteur n'autorise pas**, puis on
+///    renormalise sur celles qui restent. Ce n'est pas décoratif : « une seule des
+///    cinq est interdite cette manche, et c'est souvent la plus probable — un
+///    joueur qui vient de jouer Production a de bonnes raisons de vouloir la
+///    rejouer, et il n'a pas le droit » ;
+/// 2. **on rend la phase la plus probable**, et **en cas d'égalité, la plus
+///    petite** : on parcourt les phases dans l'ordre croissant et on ne remplace
+///    la meilleure que si elle l'emporte de [`MARGE_PHASE`]. Le déterminisme
+///    n'est pas négociable — le même appel doit rendre le même résultat des deux
+///    côtés, sinon le banc `meme-option` ne peut plus rien vérifier.
+///
+/// **Pourquoi une marge et pas une égalité stricte.** Le §3 dit « en cas
+/// d'égalité stricte, prends la plus petite », et ce serait suffisant si les deux
+/// côtés calculaient exactement le même nombre. Ils ne le font pas : `Math.exp`
+/// de Node diffère de `f64::exp` d'un dernier bit sur environ une valeur sur dix
+/// (mesure du 16-08, 196 écarts sur 2000 tirages ; la tangente hyperbolique, elle,
+/// concorde au bit près). Sans marge, deux phases dont les probabilités ne
+/// diffèrent qu'à ce niveau-là se départageraient d'un côté et pas de l'autre, et
+/// la partie entière divergerait. La marge absorbe cet écart — de l'ordre de
+/// 1e−16 — et laisse intactes les différences réelles, qui sont plus grandes de
+/// plusieurs ordres de grandeur. C'est la solution que le dépôt emploie déjà pour
+/// le premier réseau, et pour la même raison (`joueur::MARGE`).
+///
+/// La renormalisation ne change pas laquelle est la plus grande en arithmétique
+/// réelle ; elle est faite quand même, parce que le §3 la demande et parce que les
+/// cinq probabilités renormalisées sont ce qu'un lot ultérieur voudra lire (le §3
+/// annonce une moyenne sur plusieurs futurs, remise à plus tard). Les égalités
+/// qu'elle pourrait fabriquer par arrondi sont, elles aussi, absorbées par la
+/// marge.
+pub fn phase_la_plus_probable(p: &[f64; PHASES], autorisees: &[u8]) -> u8 {
+    debug_assert!(!autorisees.is_empty());
+    let mut q = [0.0f64; PHASES];
+    let mut total = 0.0;
+    for ph in autorisees.iter() {
+        let i = (*ph as usize).wrapping_sub(1);
+        if i < PHASES {
+            q[i] = p[i];
+            total += p[i];
+        }
+    }
+    if total > 0.0 {
+        for v in q.iter_mut() {
+            *v /= total;
+        }
+    } else {
+        // Aucune phase autorisée ne porte de probabilité — un réseau qui n'a
+        // rien appris, ou des sorties toutes nulles. On rend alors la plus
+        // PETITE phase autorisée : c'est déterministe, et c'est la même règle
+        // qu'à l'égalité juste en dessous. (`Premiere` rend `allowed[0]`, ce qui
+        // coïncide parce que `flow::allowed_phases` rend une liste triée — mais
+        // on ne s'appuie pas là-dessus, on prend le minimum explicitement.)
+        return *autorisees.iter().min().unwrap_or(&1);
+    }
+    // `meilleure` part de zéro et non d'une valeur sentinelle : si aucune
+    // comparaison ne réussissait — cas inatteignable, `total > 0` garantit au
+    // moins un `q` positif — on rendrait la phase 1 plutôt que de déborder. Le
+    // JavaScript fait exactement pareil.
+    let mut meilleure = 0usize;
+    let mut valeur = f64::NEG_INFINITY;
+    for i in 0..PHASES {
+        if q[i] > valeur + MARGE_PHASE {
+            valeur = q[i];
+            meilleure = i;
+        }
+    }
+    (meilleure + 1) as u8
+}
+
+// ---------------------------------------------------------------------------
+// (il-devine) Les tests unitaires du §7, étape 1
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Un réseau minuscule, pour éprouver la forme sans dépendre du jeu.
+    fn petit<const S: usize>() -> ReseauMulti<S> {
+        ReseauMulti::<S>::neuf(4)
+    }
+
+    #[test]
+    fn cinq_sorties_positives_et_de_somme_un() {
+        let mut r = petit::<PHASES>();
+        let p = r.evaluer(&[1.0, -1.0, 1.0, -1.0]);
+        assert_eq!(p.len(), PHASES);
+        let mut somme = 0.0;
+        for v in p.iter() {
+            assert!(*v > 0.0, "sortie négative ou nulle : {v}");
+            somme += *v;
+        }
+        assert!((somme - 1.0).abs() < 1e-12, "somme des sorties : {somme}");
+    }
+
+    /// **Le débordement du §1.** Sans le retrait du maximum, une valeur de 800
+    /// fait un infini et toute la suite devient un « pas un nombre ».
+    #[test]
+    fn pas_de_debordement_sur_des_valeurs_enormes() {
+        let mut r = petit::<PHASES>();
+        // On force les sommes de sortie à ±800 en écrasant les poids de biais de
+        // la couche cachée, que l'évaluation ajoute toujours.
+        for k in 0..PHASES {
+            for j in 0..CACHES {
+                r.w_sortie[k * (CACHES + 1) + j] = 0.0;
+            }
+            r.w_sortie[k * (CACHES + 1) + CACHES] = if k == 2 { 800.0 } else { -800.0 };
+        }
+        let p = r.evaluer(&[1.0, -1.0, 1.0, -1.0]);
+        let mut somme = 0.0;
+        for v in p.iter() {
+            assert!(v.is_finite(), "sortie non finie : {v}");
+            somme += *v;
+        }
+        assert!((somme - 1.0).abs() < 1e-12, "somme des sorties : {somme}");
+        assert!(p[2] > 0.99, "la sortie de loin la plus grande doit l'emporter");
+    }
+
+    /// Le pivot du premier réseau ne bouge pas : c'est la PREMIÈRE valeur, et les
+    /// poids du million de parties en dépendent au dernier bit.
+    #[test]
+    fn le_pivot_depend_du_nombre_de_sorties() {
+        assert_eq!(ReseauMulti::<SORTIES>::pivot(&[3.0, 9.0]), 3.0);
+        assert_eq!(ReseauMulti::<PHASES>::pivot(&[1.0, 9.0, 2.0, 3.0, 4.0]), 9.0);
+    }
+
+    #[test]
+    fn la_cible_saute_les_situations_degenerees() {
+        assert!(cible_phases(&[0.0; PHASES], FACTEUR_CIBLE).is_none());
+        assert!(cible_phases(&[-0.5, 0.0, 0.0, 0.0, 0.0], FACTEUR_CIBLE).is_none());
+    }
+
+    #[test]
+    fn la_cible_favorise_la_meilleure_note_et_ecrase_les_interdites() {
+        // Phase 3 non autorisée : sa note est zéro. Phase 2 la meilleure.
+        let notes = [0.40, 0.60, 0.0, 0.50, 0.45];
+        let c = cible_phases(&notes, FACTEUR_CIBLE).expect("cible attendue");
+        let somme: f64 = c.iter().sum();
+        assert!((somme - 1.0).abs() < 1e-12, "somme de la cible : {somme}");
+        for (i, v) in c.iter().enumerate() {
+            assert!(*v > 0.0 && v.is_finite(), "cible {i} invalide : {v}");
+        }
+        assert!(c[1] > c[3] && c[3] > c[4] && c[4] > c[0], "l'ordre des notes n'est pas respecté");
+        assert!(c[2] < 1e-6, "une phase non autorisée doit avoir une cible presque nulle : {}", c[2]);
+    }
+
+    /// Une note refusée par le moteur (`NEG_INFINITY`) est traitée comme une
+    /// phase non autorisée, et ne produit jamais de « pas un nombre ».
+    #[test]
+    fn la_cible_supporte_une_note_infinie() {
+        let notes = [f64::NEG_INFINITY, 0.60, 0.0, 0.50, 0.45];
+        let c = cible_phases(&notes, FACTEUR_CIBLE).expect("cible attendue");
+        for v in c.iter() {
+            assert!(v.is_finite(), "cible non finie");
+        }
+        assert!((c.iter().sum::<f64>() - 1.0).abs() < 1e-12);
+        assert!(c[0] < 1e-6);
+    }
+
+    #[test]
+    fn la_phase_interdite_n_est_jamais_choisie() {
+        // La phase 1 est de loin la plus probable, mais elle n'est pas autorisée.
+        let p = [0.60, 0.10, 0.12, 0.11, 0.07];
+        assert_eq!(phase_la_plus_probable(&p, &[2, 3, 4, 5]), 3);
+        assert_eq!(phase_la_plus_probable(&p, &[1, 2, 3, 4, 5]), 1);
+    }
+
+    #[test]
+    fn l_egalite_stricte_donne_la_plus_petite_phase() {
+        let p = [0.1, 0.3, 0.3, 0.2, 0.1];
+        assert_eq!(phase_la_plus_probable(&p, &[1, 2, 3, 4, 5]), 2);
+        assert_eq!(phase_la_plus_probable(&p, &[3, 4, 5]), 3);
+        // Toutes les probabilités autorisées à zéro : la plus petite autorisée.
+        let z = [0.0, 0.0, 0.0, 0.0, 1.0];
+        assert_eq!(phase_la_plus_probable(&z, &[2, 3, 4]), 2);
+    }
+
+    /// **Le format du fichier du second réseau** (point d'accroche n°3) : le même
+    /// que celui du premier, avec `5` en troisième nombre de la première ligne.
+    #[test]
+    fn le_fichier_du_second_reseau_fait_l_aller_retour() {
+        let noms: Vec<String> = (0..4).map(|i| format!("entree_{i}")).collect();
+        let mut r = petit::<PHASES>();
+        r.parties = 1234;
+        r.w_cache[0] = 0.25;
+        r.w_sortie[3] = -0.75;
+        let mut chemin = std::env::temp_dir();
+        chemin.push(format!("il-devine-essai-{}.txt", std::process::id()));
+        let chemin = chemin.to_string_lossy().to_string();
+        r.ecrire(&chemin, &noms).expect("écriture");
+
+        let tete = std::fs::read_to_string(&chemin).expect("relecture");
+        let mut lignes = tete.lines();
+        assert_eq!(lignes.next(), Some("4 50 5"), "première ligne du fichier");
+        assert_eq!(lignes.next(), Some("1234"), "nombre de parties");
+
+        let relu = ReseauPhases::lire(&chemin, &noms).expect("lecture");
+        assert_eq!(relu.parties, 1234);
+        assert_eq!(relu.w_cache.len(), r.w_cache.len());
+        assert_eq!(relu.w_sortie.len(), (CACHES + 1) * PHASES);
+        // **L'aller-retour n'est pas exact au bit près, et c'est voulu** : le
+        // format du §7 écrit `{x:.12e}`, soit treize chiffres significatifs là où
+        // un flottant en demande dix-sept. C'est le format du premier réseau, et
+        // il ne bouge pas — le contrôle 02 compare deux fichiers caractère par
+        // caractère. On vérifie donc la fidélité relative, pas l'égalité.
+        let fidele = |a: f64, b: f64| (a - b).abs() <= 1e-12 * a.abs().max(1.0);
+        for (a, b) in relu.w_cache.iter().zip(r.w_cache.iter()) {
+            assert!(fidele(*a, *b), "poids caché relu différent : {a} contre {b}");
+        }
+        for (a, b) in relu.w_sortie.iter().zip(r.w_sortie.iter()) {
+            assert!(fidele(*a, *b), "poids de sortie relu différent : {a} contre {b}");
+        }
+
+        // Le verrou du §5 : un fichier à cinq sorties n'est pas un fichier à deux.
+        let refus = Reseau::lire(&chemin, &noms);
+        assert!(refus.is_err(), "un fichier à 5 sorties doit être refusé pour 2");
+        let _ = std::fs::remove_file(&chemin);
+    }
+
+    /// La correction immédiate du §2.3 : pas de pile, pas de λ — on corrige
+    /// sur-le-champ, et la sortie se rapproche de la cible.
+    #[test]
+    fn une_correction_immediate_rapproche_de_la_cible() {
+        let mut r = petit::<PHASES>();
+        let x = [1.0, -1.0, 1.0, -1.0];
+        let cible = [0.02, 0.02, 0.90, 0.03, 0.03];
+        let avant = r.evaluer(&x)[2];
+        for _ in 0..50 {
+            r.entrainer_une(&x, cible, TAUX_ADVERSAIRE * 100.0);
+        }
+        r.oublier();
+        let apres = r.evaluer(&x)[2];
+        assert!(apres > avant, "la sortie visée doit monter : {avant} → {apres}");
     }
 }

@@ -89,6 +89,18 @@ export const MARGE = 1e-12;
 
 const CACHES_ATTENDUS = 50;
 const SORTIES_ATTENDUES = 2;
+/**
+ * **(il-devine §1) Le second réseau a CINQ sorties, une par carte Phase**, dans
+ * l'ordre du moteur : la sortie `i` porte la phase `i + 1`.
+ */
+export const PHASES = 5;
+/**
+ * **(il-devine §3) La marge de départage des cinq sorties.** Même valeur et même
+ * raison que `MARGE_PHASE` d'`engine/src/reseau.rs` : `Math.exp` et `f64::exp`
+ * diffèrent d'un dernier bit sur environ une valeur sur dix, et un maximum sur
+ * cinq probabilités n'a pas de marge. Voir `phaseLaPlusProbable`.
+ */
+export const MARGE_PHASE = 1e-12;
 
 /**
  * **Le plafond d'avance du §4.1**, et il est impératif : « cette avance ne doit
@@ -101,9 +113,18 @@ export const PLAFOND_AVANCE = 60;
 /** Compteurs de l'avance, relevés par les bancs (le §4.1 demande le second). */
 export let pasDAvance = 0;
 export let plafondsAtteints = 0;
+/**
+ * **(il-devine §8) Combien de `pick_phase` adverses les avances ont
+ * rencontrés** — compté que la devinette soit allumée ou non, parce que c'est ce
+ * chiffre qui dit si elle peut servir à quelque chose. « Croire qu'un
+ * `pick_phase` adverse est rencontré à chaque avance » est un des pièges
+ * annoncés : il faut le mesurer avant de conclure.
+ */
+export let phasesRencontrees = 0;
 export function razCompteursAvance() {
   pasDAvance = 0;
   plafondsAtteints = 0;
+  phasesRencontrees = 0;
 }
 
 /**
@@ -134,15 +155,18 @@ export function reponseParDefaut(d) {
  * fichier doit être exactement celle que ce dépôt régénère.
  * @param {string} chemin
  */
-export function lirePoids(chemin) {
+export function lirePoids(chemin, sortiesAttendues = SORTIES_ATTENDUES) {
   const lignes = readFileSync(chemin, "utf8").split("\n");
   const tete = (lignes[0] || "").trim().split(/\s+/).map(Number);
   const [nEntrees, caches, sorties] = tete;
   if (!Number.isInteger(nEntrees) || !Number.isInteger(caches) || !Number.isInteger(sorties)) {
     throw new Error(`poids illisibles : première ligne « ${lignes[0]} » (§7 : entrées caches sorties)`);
   }
-  if (caches !== CACHES_ATTENDUS || sorties !== SORTIES_ATTENDUES) {
-    throw new Error(`poids inattendus : ${caches} neurones cachés et ${sorties} sorties (§1 en impose 50 et 2)`);
+  if (caches !== CACHES_ATTENDUS || sorties !== sortiesAttendues) {
+    throw new Error(
+      `poids inattendus : ${caches} neurones cachés et ${sorties} sorties ` +
+        `(on en attendait 50 et ${sortiesAttendues}) — ${chemin}`,
+    );
   }
   const parties = Number((lignes[1] || "").trim());
   const noms = lignes.slice(2, 2 + nEntrees).map((l) => l.replace(/\r$/, ""));
@@ -218,16 +242,97 @@ export function evaluer(poids, x) {
     for (let j = 0; j < caches; j++) acc += h[j] * wSortie[base + j];
     s[k] = acc;
   }
-  const s0 = s[0];
+  // **(il-devine) Le pivot, et pourquoi il n'est pas le même des deux côtés.**
+  //
+  // Pour le second réseau (cinq sorties), le §1 impose de retrancher LA PLUS
+  // GRANDE des cinq valeurs : « sans cela une valeur de 800 fait un infini, et
+  // toute la suite devient un pas un nombre ».
+  //
+  // Pour le premier réseau (deux sorties), c'est la PREMIÈRE valeur, et cela ne
+  // bouge pas. Retrancher le maximum donnerait le même nombre en arithmétique
+  // réelle mais pas au dernier bit — et les poids appris, le Rust et le contrôle
+  // 10 dépendent de ce dernier bit. Copie conforme de `ReseauMulti::pivot`.
+  let pivot = s[0];
+  if (sorties !== SORTIES_ATTENDUES) {
+    for (let k = 0; k < sorties; k++) if (s[k] > pivot) pivot = s[k];
+  }
   let total = 0;
   const e = new Float64Array(sorties);
   for (let k = 0; k < sorties; k++) {
-    e[k] = Math.exp(s[k] - s0);
+    e[k] = Math.exp(s[k] - pivot);
     total += e[k];
   }
   const p = new Array(sorties);
   for (let k = 0; k < sorties; k++) p[k] = e[k] / total;
   return p;
+}
+
+// ─────────────────────────────────────────────────────────────── la devinette
+
+/**
+ * **(il-devine §3, pas 3 et 4) LA LECTURE DES CINQ SORTIES.**
+ *
+ * `p` sont les cinq probabilités du second réseau, `p[i]` portant la phase
+ * `i + 1`. `autorisees` sont les phases que le moteur autorise à ce joueur cette
+ * manche — quatre sur cinq d'ordinaire, cinq à la toute première.
+ *
+ * 1. **mettre à zéro les phases non autorisées**, puis renormaliser sur celles
+ *    qui restent. Ce n'est pas décoratif : une seule des cinq est interdite cette
+ *    manche, et c'est souvent la plus probable — un joueur qui vient de jouer
+ *    Production a de bonnes raisons de vouloir la rejouer, et il n'a pas le
+ *    droit ;
+ * 2. **rendre la plus probable** et, **en cas d'égalité, la plus petite** : on
+ *    parcourt dans l'ordre croissant et on ne remplace la meilleure que si elle
+ *    l'emporte de [`MARGE_PHASE`].
+ *
+ * **Pourquoi une marge et pas une égalité stricte.** Le §3 dit « égalité
+ * stricte », et ce serait suffisant si les deux côtés calculaient exactement le
+ * même nombre. Ils ne le font pas : `Math.exp` de Node diffère de `f64::exp` de
+ * Rust d'un dernier bit sur environ une valeur sur dix (mesuré le 16-08 : 196
+ * écarts sur 2000 tirages entre −3 et 3 ; `Math.tanh`, lui, concorde au bit
+ * près). Sans marge, deux phases séparées d'un dernier bit se départageraient
+ * d'un côté et pas de l'autre, et toute la partie divergerait — un maximum n'a
+ * pas de marge, contrairement aux notes du premier réseau. La marge absorbe cet
+ * écart (de l'ordre de 1e−16) et laisse intactes les différences réelles.
+ *
+ * **Copie conforme de `phase_la_plus_probable` d'`engine/src/reseau.rs`**, au
+ * pas près : c'est ce que vérifie le banc `juge-meme-option-devinette.mjs`.
+ */
+export function phaseLaPlusProbable(p, autorisees) {
+  const q = new Float64Array(PHASES);
+  let total = 0;
+  for (const ph of autorisees) {
+    const i = ph - 1;
+    if (i >= 0 && i < PHASES) {
+      q[i] = p[i];
+      total += p[i];
+    }
+  }
+  if (total > 0) {
+    for (let i = 0; i < PHASES; i++) q[i] /= total;
+  } else {
+    // Aucune phase autorisée ne porte de probabilité : on rend la plus PETITE
+    // autorisée — même règle qu'à l'égalité juste en dessous. Déterministe.
+    return autorisees.length ? Math.min(...autorisees) : 1;
+  }
+  let meilleure = 0;
+  let valeur = -Infinity;
+  for (let i = 0; i < PHASES; i++) {
+    if (q[i] > valeur + MARGE_PHASE) {
+      valeur = q[i];
+      meilleure = i;
+    }
+  }
+  return meilleure + 1;
+}
+
+/**
+ * Est-ce une décision de carte Phase, et de qui ? Le descripteur du moteur porte
+ * `type: "pick_phase"` et une option par phase autorisée, chacune avec son
+ * numéro (`options[i].phase`) — c'est ainsi que `reflechi.js` la lit déjà.
+ */
+function estChoixDePhase(d) {
+  return !!d && d.type === "pick_phase" && Array.isArray(d.options) && d.options.length > 0;
 }
 
 // ──────────────────────────────────────────────────────── l'espion du pont
@@ -254,8 +359,24 @@ function espionner(pont) {
 
 // ───────────────────────────────────────────────────────────── le fournisseur
 
-let _poidsEnCache = null;
-let _cheminEnCache = null;
+/**
+ * **Les poids déjà lus, rangés PAR CHEMIN.** La balance construit un joueur par
+ * partie et par siège ; avec un seul emplacement de cache, deux joueurs aux poids
+ * différents se chasseraient l'un l'autre et chaque partie relirait un fichier de
+ * 1,4 Mo deux fois. Une table par chemin coûte quelques mégaoctets et supprime
+ * trois cents relectures sur un duel de 150 graines.
+ */
+const _poidsParChemin = new Map();
+
+function poidsEnCache(chemin, sorties) {
+  const cle = `${sorties}:${chemin}`;
+  let p = _poidsParChemin.get(cle);
+  if (p === undefined) {
+    p = lirePoids(chemin, sorties);
+    _poidsParChemin.set(cle, p);
+  }
+  return p;
+}
 
 /**
  * Le fournisseur `apprenti`, de la même forme que `fournisseurReflechi`.
@@ -268,8 +389,15 @@ let _cheminEnCache = null;
  *   par défaut `data/poids/apprenti.txt`.
  * @param {object} [pont]   le pont, pour essayer les options (voir l'en-tête).
  * @param {string} [boites] la composition des boîtes de la partie.
+ * @param {string} [adversaire] **(il-devine §4)** chemin du fichier du SECOND
+ *   réseau, celui qui devine la carte Phase de l'autre. Laissé indéfini, la
+ *   variable d'environnement `APPRENTI_ADVERSAIRE` en tient lieu. **Absent ou
+ *   vide des deux façons : la devinette est ÉTEINTE** et le joueur se comporte
+ *   exactement comme avant. Passer une chaîne vide éteint donc explicitement la
+ *   devinette d'un seul côté, ce dont la balance a besoin pour n'allumer qu'un
+ *   siège.
  */
-export function fournisseurApprenti(graine, nom = "apprenti", poids, pont, boites) {
+export function fournisseurApprenti(graine, nom = "apprenti", poids, pont, boites, adversaire) {
   let p = poids;
   if (p === undefined || typeof p === "string") {
     // **Le défaut du contrat est `data/poids/apprenti.txt`, et il le reste.**
@@ -283,12 +411,21 @@ export function fournisseurApprenti(graine, nom = "apprenti", poids, pont, boite
       typeof p === "string"
         ? p
         : (globalThis.process?.env?.APPRENTI_POIDS || POIDS_PAR_DEFAUT);
-    if (_cheminEnCache !== chemin) {
-      _poidsEnCache = lirePoids(chemin);
-      _cheminEnCache = chemin;
-    }
-    p = _poidsEnCache;
+    p = poidsEnCache(chemin, SORTIES_ATTENDUES);
   }
+
+  // **(il-devine §4) L'INTERRUPTEUR, CÔTÉ JAVASCRIPT.**
+  //
+  // « `APPRENTI_ADVERSAIRE` porte le chemin du fichier du second réseau. Absente
+  // ou vide : la devinette est éteinte et le joueur se comporte exactement comme
+  // aujourd'hui. » **Éteint est le défaut**, et il ne se déduit pas de la
+  // présence d'un fichier sur le disque : il faut le nommer.
+  const cheminAdversaire =
+    adversaire === undefined
+      ? (globalThis.process?.env?.APPRENTI_ADVERSAIRE || "")
+      : (adversaire || "");
+  const pAdversaire = cheminAdversaire ? poidsEnCache(cheminAdversaire, PHASES) : null;
+
   const espion = pont ? espionner(pont) : null;
   let degradeDit = false;
 
@@ -309,6 +446,36 @@ export function fournisseurApprenti(graine, nom = "apprenti", poids, pont, boite
    * jamais [`PLAFOND_AVANCE`] pas : au-delà, on évalue là où on en est, et on le
    * compte.
    */
+  /**
+   * **(il-devine §3) La réponse prêtée à l'autre à un choix de carte Phase.**
+   *
+   * C'est **la seule décision de l'adversaire dont le traitement change** :
+   * toutes les autres continuent de recevoir `reponseParDefaut`.
+   *
+   * 1. la description est prise **du point de vue du joueur qui décide**
+   *    (`siege`), jamais de celui de l'adversaire qu'on prédit. Cette
+   *    description-là contiendrait sa main, et un joueur qui lit la main d'en
+   *    face triche (§1) ;
+   * 2. elle passe dans le second réseau, qui rend cinq probabilités ;
+   * 3. les phases que le moteur n'offre pas sont mises à zéro et le reste est
+   *    renormalisé ;
+   * 4. on rend la plus probable — et la réponse attendue par le moteur est
+   *    l'INDICE de cette phase dans `d.options`, pas son numéro.
+   *
+   * Le Rust fait exactement la même chose au même endroit (`Rejeu::pick_phase`,
+   * `Devinette::phase`).
+   */
+  function phaseDevinee(d, etat, siege) {
+    const autorisees = d.options.map((o) => o.phase);
+    const p = evaluer(pAdversaire, decrire(etat, siege));
+    const phase = phaseLaPlusProbable(p, autorisees);
+    const i = autorisees.indexOf(phase);
+    // `phaseLaPlusProbable` ne rend jamais une phase hors des autorisées ; la
+    // garde est là pour que la moindre surprise retombe sur le comportement
+    // d'avant plutôt que sur un indice `-1` que le moteur refuserait.
+    return i >= 0 ? i : reponseParDefaut(d);
+  }
+
   function etatApres(reponse, siege) {
     let decisions = [...(espion.decisions || []), reponse];
     try {
@@ -321,7 +488,17 @@ export function fournisseurApprenti(graine, nom = "apprenti", poids, pont, boite
         }
         pas++;
         pasDAvance++;
-        decisions = [...decisions, reponseParDefaut(r.decision)];
+        // (il-devine §3) La devinette, si elle est allumée et si c'est un choix
+        // de carte Phase. Sinon, la première option, comme avant.
+        let reponseDeLAutre;
+        if (pAdversaire && estChoixDePhase(r.decision) && r.etat) {
+          phasesRencontrees++;
+          reponseDeLAutre = phaseDevinee(r.decision, r.etat, siege);
+        } else {
+          if (estChoixDePhase(r.decision)) phasesRencontrees++;
+          reponseDeLAutre = reponseParDefaut(r.decision);
+        }
+        decisions = [...decisions, reponseDeLAutre];
         r = espion.origine(espion.graine, espion.boites ?? boites, decisions);
       }
       return r && r.etat ? r.etat : null;

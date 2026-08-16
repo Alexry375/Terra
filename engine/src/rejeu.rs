@@ -19,12 +19,16 @@
 //! `--games 20 --seed 3` donnent des sorties identiques au caractère près des
 //! deux côtés).
 
+use engine::cards::CardsDb;
 use engine::choice::ChoiceContext;
 use engine::effects::RevealFilter;
 use engine::policy::{ActionOpt, ConstructionBonus, Policy};
 use engine::state::GameState;
 use rand::rngs::StdRng;
 use serde_json::Value;
+
+use crate::description::{Description, Tampons};
+use crate::reseau::{phase_la_plus_probable, ReseauPhases};
 
 /// **Le plafond d'avance du §4.1**, et il est impératif : « cette avance ne doit
 /// jamais dépasser un nombre de pas fixé (prends soixante), sinon une option qui
@@ -166,9 +170,86 @@ impl Policy for Premiere {
     }
 }
 
+// ---------------------------------------------------------------------------
+// (il-devine) LA DEVINETTE — §3
+// ---------------------------------------------------------------------------
+
+/// **(il-devine) Ce qu'il faut pour prêter à l'autre une intention apprise (§3).**
+///
+/// Pendant l'avance du §4.1, le joueur rencontre des décisions de l'adversaire et
+/// y répond à sa place. **Une seule de ces décisions change de traitement : le
+/// choix de la carte Phase.** Toutes les autres continuent de recevoir la première
+/// option, par `Premiere`.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// **LE POINT DE CONCEPTION QUI DÉCIDE DE TOUT : LE POINT DE VUE.**
+///
+/// La description passée au second réseau est celle du joueur **qui devine**
+/// ([`Devinette::moi`]), et jamais celle de l'adversaire qu'on cherche à prédire.
+/// Il serait tentant de décrire la situation du point de vue de l'autre, puisque
+/// c'est lui qu'on prédit : **c'est interdit** (§1). Cette description-là contient
+/// sa main, et un joueur qui lit la main d'en face triche. On devine à partir de
+/// ce que l'on sait, pas à partir de ce que l'on ne devrait pas savoir.
+///
+/// Le prix de cette honnêteté est connu et assumé : le second réseau est entraîné
+/// sur « ce que choisit celui du point de vue duquel je décris » et interrogé sur
+/// « ce que choisira l'autre ». C'est le §7, étape 5, qui dit ce que cela vaut —
+/// et un chiffre au-dessus de 60 % y est déclaré **suspect**, précisément parce
+/// qu'il trahirait une fuite d'information.
+pub struct Devinette<'a> {
+    pub db: &'a CardsDb,
+    pub desc: &'a Description,
+    /// Le second réseau. Il n'est jamais corrigé ici : la devinette est un usage,
+    /// l'apprentissage a son seul point de rendez-vous dans `Joueur::pick_phase`
+    /// (§2.1).
+    pub reseau: &'a mut ReseauPhases,
+    pub tampons: &'a mut Tampons,
+    /// Tampon de description, réutilisé — aucune allocation dans la boucle chaude.
+    pub x: &'a mut Vec<f64>,
+    /// **Le point de vue** : le siège du joueur qui est en train de décider, celui
+    /// pour qui on avance vers le repère du §4.1.
+    pub moi: usize,
+}
+
+impl Devinette<'_> {
+    /// **La phase qu'on prête à l'adversaire (§3, les quatre pas).**
+    ///
+    /// 1. décrire l'état **du point de vue du joueur qui décide** ;
+    /// 2. le passer dans le second réseau, obtenir cinq probabilités ;
+    /// 3. mettre à zéro les phases non autorisées, renormaliser sur le reste ;
+    /// 4. rendre la plus probable, la plus petite en cas d'égalité stricte.
+    ///
+    /// Les pas 3 et 4 sont dans [`phase_la_plus_probable`], partagée par les trois
+    /// endroits qui lisent les cinq sorties : ici, le binaire de mesure, et — au
+    /// mot près — le miroir JavaScript.
+    ///
+    /// **`oublier` avant chaque évaluation, et ce n'est pas une précaution
+    /// décorative.** Le réseau met normalement ses sommes cachées à jour par
+    /// DIFFÉRENCES (l'optimisation du §1.1) : le résultat dépend alors, au dernier
+    /// bit, de la situation évaluée juste avant. Le JavaScript, lui, refait chaque
+    /// évaluation en entier. Pour le premier réseau, cet écart d'un dernier bit est
+    /// absorbé par la marge de départage ; ici il ne le serait pas, parce qu'on
+    /// prend un maximum sur cinq valeurs et qu'un maximum n'a pas de marge. On
+    /// force donc le calcul complet des deux côtés : même ordre d'addition, et
+    /// des sommes de sortie identiques au bit près — la tangente hyperbolique
+    /// concorde exactement entre Rust et Node (mesuré : 0 écart sur 2000).
+    ///
+    /// **Cela ne suffit pourtant pas**, et c'est mesuré aussi : `Math.exp` et
+    /// `f64::exp` diffèrent d'un dernier bit sur environ une valeur sur dix (196
+    /// sur 2000). Le départage se fait donc à la marge, comme pour le premier
+    /// réseau — voir `reseau::MARGE_PHASE`.
+    fn phase(&mut self, game: &GameState, autorisees: &[u8]) -> u8 {
+        self.desc
+            .decrire(game, self.db, self.moi, self.x, self.tampons);
+        self.reseau.oublier();
+        let p = self.reseau.evaluer(self.x);
+        phase_la_plus_probable(&p, autorisees)
+    }
+}
+
 /// Politique de rejeu : elle répond les décisions déjà prises, puis s'arrête à
 /// la première qui manque, en gardant l'état vivant et le siège concerné.
-pub struct Rejeu {
+pub struct Rejeu<'a> {
     reponses: Vec<Value>,
     curseur: usize,
     /// Siège de la décision en attente (`None` tant qu'on rejoue).
@@ -188,10 +269,29 @@ pub struct Rejeu {
     pub pas_avance: u32,
     /// Le plafond a-t-il arrêté cette avance ? Compté et rapporté (§4.1).
     pub plafond_atteint: bool,
+    /// **(il-devine, §8) Combien de `pick_phase` adverses cette avance a
+    /// rencontrés** — compté que la devinette soit allumée ou non, parce que
+    /// c'est le chiffre qui dit si elle peut servir à quelque chose. « Croire
+    /// qu'un `pick_phase` adverse est rencontré à chaque avance » est un des
+    /// pièges annoncés : il faut le mesurer avant de conclure.
+    pub phases_de_l_autre: u32,
+    /// **(il-devine, §3/§4) La devinette, quand elle est allumée.** Absente, le
+    /// rejeu se comporte exactement comme avant : première option pour l'autre,
+    /// carte Phase comprise. C'est l'état par défaut, et le contrôle 10 le
+    /// vérifie sur trois parties entières.
+    pub devinette: Option<Devinette<'a>>,
+    /// **Vrai quand le dernier `prendre` a rendu `None` PARCE QU'ON RÉPOND À LA
+    /// PLACE DE L'AUTRE pendant l'avance du §4.1** — et non parce que le rejeu
+    /// s'arrête ici, ni parce qu'une décision attend déjà.
+    ///
+    /// La distinction est indispensable : `prendre` rend `None` dans trois cas
+    /// bien différents, et la devinette ne doit s'appliquer qu'à celui-là. Aux
+    /// deux autres, le repli reste `Premiere`, exactement comme avant.
+    pour_l_autre: bool,
 }
 
-impl Rejeu {
-    pub fn new(reponses: Vec<Value>) -> Rejeu {
+impl<'a> Rejeu<'a> {
+    pub fn new(reponses: Vec<Value>) -> Rejeu<'a> {
         Rejeu {
             reponses,
             curseur: 0,
@@ -202,12 +302,15 @@ impl Rejeu {
             avance: None,
             pas_avance: 0,
             plafond_atteint: false,
+            phases_de_l_autre: 0,
+            devinette: None,
+            pour_l_autre: false,
         }
     }
 
     /// Le même rejeu, mais qui avance jusqu'au prochain point de décision de
     /// `siege` (§4.1).
-    pub fn jusqu_a(reponses: Vec<Value>, siege: usize) -> Rejeu {
+    pub fn jusqu_a(reponses: Vec<Value>, siege: usize) -> Rejeu<'a> {
         let mut r = Rejeu::new(reponses);
         r.avance = Some(siege);
         r
@@ -217,6 +320,7 @@ impl Rejeu {
     /// répondre par défaut — soit parce qu'on avance vers le repère du §4.1,
     /// soit parce qu'on s'arrête ici (`attente` est alors posé).
     fn prendre(&mut self, joueur: usize) -> Option<Value> {
+        self.pour_l_autre = false;
         if self.attente.is_some() {
             return None;
         }
@@ -239,7 +343,10 @@ impl Rejeu {
             if joueur != moi {
                 if self.pas_avance < PLAFOND_AVANCE {
                     self.pas_avance += 1;
-                    return None; // repli sur `Premiere`, sans poser `attente`
+                    // Repli sur `Premiere`, sans poser `attente` — sauf pour la
+                    // carte Phase quand la devinette est allumée (§3).
+                    self.pour_l_autre = true;
+                    return None;
                 }
                 self.plafond_atteint = true;
             }
@@ -289,7 +396,7 @@ impl Rejeu {
     }
 }
 
-impl Policy for Rejeu {
+impl Policy for Rejeu<'_> {
     /// Écraser plutôt que compter : le moteur observe aussi les points de
     /// décision qu'il finit par ne pas poser (même raison que le pont).
     fn observe(&mut self, game: &GameState, _player: usize) {
@@ -322,13 +429,35 @@ impl Policy for Rejeu {
         }
     }
 
+    /// **(il-devine) LE SEUL POINT DU REJEU QUI CHANGE DE TRAITEMENT (§3).**
+    ///
+    /// Quand on répond à la place de l'autre pendant l'avance du §4.1 et que la
+    /// devinette est allumée, on ne rend plus `allowed[0]` : on rend la phase que
+    /// le second réseau juge la plus probable dans cette situation-là. Partout
+    /// ailleurs — et pour toutes les autres décisions de l'adversaire — le
+    /// comportement est celui d'avant, à la ligne près.
+    ///
+    /// L'état employé est `self.vue`, celui que `observe` vient d'écrire : le
+    /// moteur appelle `avant_decision` juste avant chaque `pick_phase`
+    /// (`flow.rs`, la planification), donc `vue` porte bien l'état vivant de
+    /// cette décision-ci. Sans état sous la main, on retombe sur `Premiere` : la
+    /// devinette n'a alors rien à décrire, et se taire vaut mieux que deviner à
+    /// partir de rien.
     fn pick_phase(&mut self, rng: &mut StdRng, player: usize, allowed: &[u8]) -> u8 {
         match self.prendre(player) {
             Some(r) => match self.indice(&r, allowed.len()) {
                 Some(i) => allowed[i],
                 None => allowed[0],
             },
-            None => self.defaut.pick_phase(rng, player, allowed),
+            None => {
+                if self.pour_l_autre && !allowed.is_empty() {
+                    self.phases_de_l_autre += 1;
+                    if let (Some(d), Some(game)) = (self.devinette.as_mut(), self.vue.as_ref()) {
+                        return d.phase(game, allowed);
+                    }
+                }
+                self.defaut.pick_phase(rng, player, allowed)
+            }
         }
     }
 
