@@ -126,7 +126,87 @@ Deux conséquences pour la suite :
 | entraînement d'**un million de parties** (instantanés à 250 k, 400 k, 600 k, 800 k) | 200 000 faites en 3 h 05, fin attendue vers **12 h 30** |
 | épreuve cachée du round 2, dernier point | tourne encore |
 
-## 🚧 16-08 — CHANTIER LANCÉ : « IL DEVINE CE QUE L'AUTRE VA JOUER »
+## ✅ 16-08 — « IL DEVINE CE QUE L'AUTRE VA JOUER » EST FUSIONNÉ, ET LE RÉSULTAT SURPREND
+
+Livré en quatre heures, dix contrôles verts. **Le gain ne vient pas du coup que
+la devinette joue, il vient du juge qu'elle forme.**
+
+### Les trois duels, et pourquoi le troisième décide de tout
+
+L'agent a ajouté de lui-même un duel que le contrat ne demandait pas, parce que
+les deux premiers ne mesuraient pas ce qu'ils semblaient mesurer.
+
+| duel | ce qui est comparé | résultat | écarts typiques |
+|---|---|---|---|
+| **A** | entraîné AVEC et jouant AVEC, contre entraîné SANS et jouant SANS, **budget égal** | **64 – 36** | 2,80 |
+| **B** | le même, contre les réglages actuels (200 000 parties) | 67 – 32 | 3,52 |
+| **C** | **mêmes réglages des deux côtés, seul l'interrupteur change** | **52 – 48** | **0,40 — dans le bruit** |
+
+**La lecture** : allumer la devinette à l'usage ne rapporte rien de mesurable
+(duel C). Entraîner avec elle rapporte nettement (duel A). Donc la quasi-totalité
+du gain vient de l'entraînement.
+
+**Le mécanisme**, cohérent avec le repère du §4.1 : pendant l'entraînement, l'état
+que le premier réseau apprend à juger est celui atteint **après avoir répondu à la
+place de l'adversaire**. Devinette allumée, c'est l'état d'un adversaire
+plausible ; éteinte, celui d'un adversaire immobile. Le juge s'exerce donc sur des
+futurs plus réalistes.
+
+### La mesure qui démonte l'intuition du contrat
+
+Mon §8 supposait qu'un choix de phase adverse serait rarement rencontré pendant
+l'avance. **Faux, et mesuré** : 4,21 par décision. La vraie raison est l'autre
+chiffre — **0,97 pas d'avance par essai d'option**. Le joueur pose la phase qu'il
+prête à l'adversaire et son propre point de décision suivant arrive aussitôt,
+avant que cette phase ait produit ses effets. On devine juste à temps pour que
+cela ne change presque rien à la note.
+
+### Les autres chiffres [VÉRIFIÉ 16-08]
+
+| | |
+|---|---|
+| justesse de la devinette (contrôle 09, graines 820 000+) | **30,8 %** contre 24,9 % pour le hasard, sur 15 068 décisions |
+| force contre `reflechi` | **inchangée à 82,0 %** |
+| coût par partie d'entraînement | 35,0 ms → **46,7 ms** devinette allumée (+33 %) |
+
+### L'épreuve cachée : verte sur ses trois points
+
+| point | résultat |
+|---|---|
+| la devinette est-elle **branchée** ? (deux entraînements identiques à l'interrupteur près) | **88,4 % des octets diffèrent** — elle agit |
+| devine-t-elle **ailleurs** qu'où on lui a dit ? (graines 952 000+, jamais nommées) | **32,1 %** sur 12 108 choix — mieux que le chiffre déclaré |
+| est-ce **le réseau** qui décide ? (tous ses poids à zéro) | **11,2 %**, sous le hasard — oui |
+
+### Réserves déclarées par l'agent, et je les reprends à mon compte
+
+- le duel A repose sur **une seule paire** d'entraînements : l'écart lui est
+  causalement imputable, mais une trajectoire d'entraînement a sa variabilité
+  propre — trois ou quatre paires diraient si +14 points est la valeur typique ;
+- il a touché `bin/jouer.rs`, **hors Territoire**, parce qu'un point d'accroche
+  était sinon impossible. **Défaut de mon contrat** : mon §4 demandait
+  l'interrupteur « sur les autres binaires » et mon Territoire ne listait que
+  `entraine.rs` ;
+- une relecture adversariale qu'il a lui-même commandée a corrigé une affirmation
+  fausse de sa part : `Math.exp` de JavaScript et `f64::exp` de Rust diffèrent au
+  dernier bit une fois sur dix. D'où une marge de départage, sans laquelle les
+  deux joueurs ne choisissent pas toujours la même option.
+
+## 🚧 16-08 — L'ENTRAÎNEMENT DE C TOURNE EN PARALLÈLE DE CELUI DE A
+
+Depuis 05 h 17, deux entraînements d'un million de parties tournent côte à côte :
+
+| | graines | interrupteur | fichier |
+|---|---|---|---|
+| **A** — la référence | 300 000+ | éteint | `apprenti-1M.txt` |
+| **C** — le nouveau | **les mêmes** | **allumé** | `apprenti-devinette-1M.txt` |
+
+Mêmes graines, mêmes instantanés (250 k, 400 k, 600 k, 800 k), même code : **seul
+l'interrupteur diffère**. C'est la comparaison la plus propre qu'on puisse faire,
+et c'est celle qu'Alexis a demandée.
+
+A est à 450 000 parties et **78,3 %** de prédictions justes (67,0 % à 250 000).
+
+## 📓 16-08 — LE CONTRAT DU CHANTIER, TEL QU'IL A ÉTÉ SCELLÉ
 
 Workspace `il-devine-ce-que-l-autre-va-jouer`, **scellé**, dix contrôles rouges
 au départ. Il livre trois choses :
