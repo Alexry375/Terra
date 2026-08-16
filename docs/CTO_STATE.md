@@ -5,6 +5,42 @@
 
 Dernière mise à jour : 2026-08-16
 
+## ⚠️ 16-08 (21 h) — À 600 000 PARTIES, LA DEVINETTE N'APPORTE RIEN. LE 64-36 DE LA NUIT NE SURVIT PAS AU BUDGET LONG
+
+Deux mesures indépendantes, toutes deux sur 80 donnes × 2 sièges, devinette
+éteinte des deux côtés (le second réseau n'a pas d'instantané — voir plus bas) :
+
+| mesure | A (sans devinette) | C (avec) | verdict |
+|---|---|---|---|
+| **duel direct, budget égal 600 000** | **53,1 %** | 45,0 % | −1,04 écart typique, **dans le bruit** |
+| contre `reflechi` | 98,8 % · **+41,27** | 98,1 % · **+40,14** | indistinguables |
+
+Le duel direct et la mesure contre un tiers concordent : **les deux joueurs sont
+au même niveau à 600 000 parties.**
+
+### Ce que cela fait au résultat du round 3
+
+Le chantier avait mesuré **64 – 36** en faveur de la devinette « à budget
+d'entraînement égal ». Ce budget-là était **200 000 parties communes + 50 000
+divergentes**. Ici : 600 000 parties depuis un réseau vierge, chacun.
+
+**Hypothèse la plus cohérente avec les deux mesures** (non démontrée) : la
+devinette **accélère** l'apprentissage sans en relever le plafond. Elle donne au
+réseau des situations plausibles au lieu de situations figées, ce qui fait gagner
+du temps ; avec assez de parties, l'autre finit par apprendre la même chose.
+
+Cela ne remet pas en cause la livraison du round 3 (code propre, contrôlé,
+interrupteur éteint par défaut). Cela déplace la conclusion, pas le code.
+
+### Lacune de MON contrat du round 3, trouvée ce soir
+
+`--instantanes` n'enregistre que le PREMIER réseau ; le second n'est écrit qu'à
+la fin (`engine/src/bin/entraine.rs:382`, hors de la boucle des paliers). On ne
+peut donc pas mesurer la devinette **en usage** aux paliers intermédiaires, seulement
+le juge qu'elle a formé. Comme le round 3 avait établi que le gain est
+quasi entièrement dans le juge (64-36) et non dans l'usage (52-48), la perte est
+faible — mais c'est une lacune de rédaction de ma part.
+
 ## 🔥 16-08 (soir) — L'ENTRAÎNEMENT A EST ALLÉ AU MILLION, ET LA FORCE MONTE ENCORE À L'ARRIVÉE
 
 `entraine` a fini à 13 h 59 : **1 000 000 de parties, 60 530 s, 60,5 ms par
