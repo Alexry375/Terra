@@ -86,6 +86,39 @@ sur la foi d'une seule partie.
 commande en produit **34** de façon reproductible. La propriété testée — la
 partie se termine au lieu de tourner en rond — reste vraie. [VÉRIFIÉ 16-08]
 
+### L'épreuve cachée : verte, après correction d'un cinquième défaut de mes bancs
+
+| ce qu'elle éprouve | résultat [VÉRIFIÉ 16-08] |
+|---|---|
+| force sur des donnes **jamais nommées** (60000-60099) | **82,0 %** — 164/200, 128 525 décisions, 0 partie cassée |
+| lecture de la main d'en face | **5 212 occasions, 0 réponse qui bouge** |
+| territoire | 39 fichiers, aucune règle ni témoin, `state.rs` : une ligne, un `derive` |
+| réglages livrés | 1 472 entrées, 200 000 parties — conformes |
+
+⚠️ **Le seul rouge venait de MON seuil.** J'exigeais **35 %** d'un réentraînement
+de **60 000 parties**, là où la courbe que j'avais moi-même sous les yeux en
+donne une dizaine à ce stade (50 000 → 8 %, 100 000 → 28 %). Obtenu : **12,5 %**,
+pile sur la courbe. C'est mon cinquième seuil faux sur ce projet, et toujours la
+même faute : poser une barre sans la confronter à la mesure que je possède déjà.
+Le banc vérifie désormais une **propriété** — le réentraînement produit un joueur
+*en cours d'apprentissage*, ni endormi (< 5 %) ni anormalement fort (> 45 %).
+
+### ⚠️ CE QUE VAUT LE JOUEUR SANS RÉSEAU DU TOUT — 42,5 %
+
+Tous les poids mis à zéro, l'IA ne départage plus rien et prend la première
+option. Elle gagne encore **42,5 %** contre `reflechi` (51/120).
+
+Deux conséquences pour la suite :
+
+- le réseau fait passer de **42,5 % à 82 %** — gain réel et large, mais le point
+  de départ n'est pas zéro : une part de la force vient de la structure du
+  programme, pas de l'apprentissage ;
+- **à 10 000 parties d'entraînement le joueur était à 2 %, donc vingt fois pire
+  qu'aveugle.** Un réseau à moitié appris ne juge pas médiocrement, il juge
+  faux. À retenir pour la mesure A contre C : un réentraînement trop court de C
+  ne le rendra pas « un peu moins bon », il le rendra catastrophique, et on
+  conclurait à tort que la devinette ne sert à rien.
+
 ### Ce qui tourne, et jusqu'à quand
 
 | calcul | état |
