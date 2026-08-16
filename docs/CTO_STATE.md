@@ -5,7 +5,94 @@
 
 Dernière mise à jour : 2026-08-16
 
+## 🔥 16-08 (soir) — L'ENTRAÎNEMENT A EST ALLÉ AU MILLION, ET LA FORCE MONTE ENCORE À L'ARRIVÉE
+
+`entraine` a fini à 13 h 59 : **1 000 000 de parties, 60 530 s, 60,5 ms par
+partie, 4,75 milliards d'options essayées**, 79,05 % de prédictions justes.
+Poids et paliers enregistrés (`8779961`). [VÉRIFIÉ 16-08]
+
+### La courbe complète, TOUTES sur les mêmes 80 donnes × 2 sièges
+
+| palier | contre `reflechi` | écart de score | contre le hasard | écart de score |
+|---|---|---|---|---|
+| 250 000 | — | — | 95,0 % | +21,74 |
+| 400 000 | 91,9 % | +34,16 | 96,9 % | +30,81 |
+| 600 000 | 98,8 % | +41,27 | 98,8 % | +38,41 |
+| 800 000 | **100,0 %** | +43,88 | 98,8 % | +42,59 |
+| **1 000 000** | 99,4 % | **+57,73** | 99,4 % | **+52,68** |
+
+**`reflechi` n'a gagné aucune partie** contre les paliers 800 000 et 1 000 000.
+
+Duel entre paliers voisins, le seul qui ait tranché : **1 000 000 contre 600 000
+= 66,9 % – 30,0 %, +15,16 points, 4,74 écarts typiques — significatif.**
+
+### Ce que la courbe dit, et ce qu'elle ne peut pas dire
+
+- **Aucun plafond en vue à un million.** La pente moyenne est de **+3,7 à +3,9
+  points d'écart de score par 100 000 parties**, et le dernier segment
+  (800 000 → 1 000 000) est l'un des plus forts de toute la courbe (+5,04 par
+  100 000 contre le hasard).
+- **L'extrapolation linéaire est physiquement impossible** : elle donnerait 91
+  points d'écart à 2 millions et 129 à 3 millions, alors qu'un score de partie
+  tourne autour de 70-100 points. Il y aura donc une courbure. On ne sait pas où.
+- **Conséquence** : nous avons probablement arrêté trop tôt. `--reprise` (livré
+  au round 3) permet de repartir du million sans refaire une partie. Coût :
+  ~17 h par million supplémentaire, un cœur.
+- **Décision recommandée** : attendre la fin de C (vers 1 h), faire la mesure
+  A contre C, et ne prolonger que le vainqueur.
+
+### Les instruments — ce que la journée a coûté pour l'apprendre
+
+| instrument | état |
+|---|---|
+| victoires contre `reflechi` | **saturé** (98,8 → 100 %), inutilisable désormais |
+| victoires contre le hasard | **saturé** depuis 200 000 parties |
+| duel entre paliers voisins | résolution ~8 points — aveugle en dessous |
+| **écart de score contre un adversaire fixe** | **le seul encore sensible** |
+
+L'écart de score ne se compare **qu'entre duels contre le même adversaire** : il
+dépend de la durée des parties (92 545 décisions contre `reflechi`, 64 050 contre
+le hasard, pour le même palier).
+
+## ✅ 16-08 — LE CLASSEMENT DES CORPORATIONS, MESURÉ
+
+320 parties, **corporation tirée au sort au lieu d'être choisie** — sans ce
+tirage, on mesurerait le jugement du joueur et non la corporation (une corpo
+rarement prise ne l'est que quand l'autre est pire).
+[VÉRIFIÉ 16-08, `scratchpad/tournoi-corpos.mjs`]
+
+| rang | corporation | crédits | victoires |
+|---|---|---|---|
+| 1 | Tharsis Republic | 40 | 73,0 % |
+| 2 | Apollo Industries | 33 | 68,4 % |
+| 3 | Exocorp | 26 | 60,5 % |
+| … | … | … | … |
+| 9 | Teractor Corporation | **51** | 45,7 % |
+| 16 | Unmi | 35 | 37,8 % |
+
+- **L'argent de départ ne prédit RIEN** : lien de **−0,08** avec la force réelle.
+  `reflechi`, qui ne juge que là-dessus, prend Teractor 100 fois sur 100 et
+  Phobolog jamais : il se trompe dans les deux sens.
+- **L'IA a raison à +0,80.** Ses trois préférées sont les trois meilleures.
+- **Où elle se trompe encore** : elle surestime Credicor (4ᵉ préférée, 8ᵉ réelle
+  — la seule qui ne donne QUE de l'argent), Sultira et Inventrix ; elle
+  sous-estime Helion, Mining Guild et Ecoline.
+- **Réserve** : ~40 parties par corporation, incertitude ±8 points. Haut et bas
+  du classement solides, milieu non. Un second tournoi de 480 parties tourne.
+
+### Défaut trouvé chez le témoin
+
+La règle de mulligan de `reflechi` (« remplacer si la meilleure des deux annonce
+moins de 24 crédits ») **ne peut jamais se déclencher** : la seule corporation
+sous 24 est Phobolog (20), il faudrait la recevoir deux fois. Code mort,
+400 mulligans sur 400 en « garder ». Petit lot à ouvrir.
+
 ## ⚠️ 16-08 — LA PROGRESSION RALENTIT APRÈS 400 000 PARTIES, ET DEUX DE MES LECTURES ONT ÉTÉ FAUSSES DANS LA MÊME MATINÉE
+
+> **Rectifié le soir même par l'entrée ci-dessus.** Il n'y a pas de
+> ralentissement : la progression continue jusqu'au million. Ce que cette entrée
+> décrit reste vrai comme leçon de méthode (mes instruments étaient saturés),
+> faux comme conclusion sur le joueur.
 
 Le palier à 600 000 parties de l'entraînement A est sorti à 07 h 05. Trois duels
 successifs ont donné trois lectures différentes, dont deux fausses — les miennes.
