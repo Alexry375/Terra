@@ -191,6 +191,63 @@ cela ne change presque rien à la note.
   dernier bit une fois sur dix. D'où une marge de départage, sans laquelle les
   deux joueurs ne choisissent pas toujours la même option.
 
+## 🔥 16-08 — 91,3 % CONTRE `reflechi` À 400 000 PARTIES, ET MON « PLAFOND » ÉTAIT FAUX
+
+Duels entre points de contrôle du million en cours, 40 graines × 2 sièges chacun
+[VÉRIFIÉ 16-08] :
+
+| duel | résultat | écart de score | écarts typiques |
+|---|---|---|---|
+| 250 000 contre **200 000** (le livré) | 250 000 gagne, 64 % – 32,5 % | +6,16 | 2,75 |
+| **400 000** contre 250 000 | 400 000 gagne, **82,5 % – 13,8 %** | +13,03 | 6,27 |
+| **400 000 contre `reflechi`** | **91,3 % – 7,5 %** (73/80) | **+38,16** | 7,54 |
+
+### La progression, sur la même échelle depuis le début
+
+| réglages | victoires contre `reflechi` | écart de score |
+|---|---|---|
+| 10 000 parties | 2 % | — |
+| 150 000 | 60 % | — |
+| **200 000 — ce qui est livré** | **82,0 %** | +18,35 |
+| **400 000 — point de contrôle du million** | **91,3 %** | **+38,16** |
+
+L'écart de score de +38,16 est du même ordre que celui de `reflechi` contre le
+hasard (+38,38). **L'IA écrase maintenant `reflechi` autant que `reflechi`
+écrasait le joueur au hasard.**
+
+### ⚠️ MON PLAFOND DE 88,8 % ÉTAIT FAUX, ET J'AI DIT LE CONTRAIRE À ALEXIS
+
+Le 15-08 j'avais mesuré un « plafond atteignable contre `reflechi` » de **88,8 %**,
+en comptant la part des donnes où le vainqueur suit le siège. **Ce chiffre vient
+d'être dépassé : 91,3 %.**
+
+L'erreur de raisonnement : cette part n'est **pas une propriété du jeu**, c'est une
+propriété du **couple de joueurs**. Une donne que l'IA à 82 % ne pouvait gagner
+qu'au siège favorable, une IA plus forte la gagne aux deux. Le « plafond » se
+déplace avec l'écart de force. Je l'avais présenté comme une limite du jeu ; c'en
+était une du joueur d'alors.
+
+**Ce qui reste vrai** : contre un adversaire de force égale, la donne décide, et
+le poids de la donne (19,4 points d'écart moyen entre deux copies identiques) est
+un fait mesuré indépendamment de tout cela.
+
+### ⚠️ ET LA COURBE DES « PRÉDICTIONS JUSTES » N'ANNONCE PAS LE PLAFOND
+
+Entre 400 000 et 500 000 parties, cette courbe ne gagne que **deux dixièmes de
+point** (78,3 % → 78,5 %), ce qui ressemble à un palier. J'ai failli en conclure
+qu'on pouvait arrêter tôt et économiser dix heures par entraînement. **Les duels
+disent l'inverse** : la force au jeu progresse fortement sur cet intervalle.
+
+Les deux mesures se sont décorrélées. Seul le duel fait foi ; la courbe imprimée
+par l'entraînement ne sert qu'à voir que quelque chose apprend.
+
+### Une interruption sur 80 parties, et ce n'est pas l'IA
+
+`graine 6, sièges échangés : entrée n°444 (vente) : une vente est proposée là où
+le moteur attend une réponse`. C'est **`reflechi` qui vend hors occasion** — le
+défaut déjà déclaré par l'agent du round 2 (« l'apprenti ne vend jamais ; c'est le
+témoin qui propose une vente hors occasion »). Le témoin mérite un lot à lui.
+
 ## 🚧 16-08 — L'ENTRAÎNEMENT DE C TOURNE EN PARALLÈLE DE CELUI DE A
 
 Depuis 05 h 17, deux entraînements d'un million de parties tournent côte à côte :
