@@ -50,6 +50,12 @@ const JOUEURS = {
   hasard: (graine, nom) => fournisseurAleatoire(graine, nom),
   reflechi: (graine, nom) => fournisseurReflechi(graine, nom),
   apprenti: (graine, nom) => fournisseurApprenti(graine, nom, undefined, pont, boites),
+  // (il-devine §4) Le SECOND siège, avec ses propres variables d'environnement
+  // — `APPRENTI_POIDS_B` et `APPRENTI_ADVERSAIRE_B` — pour n'allumer la
+  // devinette que d'un côté : le même code des deux côtés, et l'écart imputable
+  // à elle seule. « apprenti » lit `APPRENTI_ADVERSAIRE`, dans `apprenti.js`.
+  "apprenti-b": (graine, nom) =>
+    fournisseurApprenti(graine, nom, process.env.APPRENTI_POIDS_B || undefined, pont, boites, process.env.APPRENTI_ADVERSAIRE_B ?? ""),
 };
 
 const BOITES_PAR_DEFAUT = "base,decouverte";

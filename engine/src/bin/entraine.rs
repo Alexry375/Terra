@@ -48,7 +48,9 @@ use description::Description;
 use joueur::Joueur;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
-use reseau::{Pile, Reseau, AMORCAGE_FACTEUR, AMORCAGE_PARTIES, AMORCAGE_SCORE_MAX, TAUX};
+use reseau::{
+    Pile, Reseau, ReseauPhases, AMORCAGE_FACTEUR, AMORCAGE_PARTIES, AMORCAGE_SCORE_MAX, TAUX,
+};
 
 fn mourir(msg: &str) -> ! {
     eprintln!("entraine: {msg}");
@@ -112,6 +114,11 @@ fn main() {
     let mut lambda = reseau::LAMBDA;
     let mut rythme = reseau::RYTHME;
     let mut amplitude = reseau::AMPLITUDE_DEPART;
+    // (il-devine) Les quatre options du point d'accroche n°1.
+    let mut sortie_adversaire = String::new();
+    let mut reprise = String::new();
+    let mut reprise_adversaire = String::new();
+    let mut devinette = false;
     let mut i = 1;
     while i < args.len() {
         let mut avance = 2;
@@ -148,6 +155,17 @@ fn main() {
                 sans_optimisation = true;
                 avance = 1;
             }
+            // (il-devine) Point d'accroche n°1 — les quatre options du chantier.
+            "--sortie-adversaire" => sortie_adversaire = val(i),
+            "--reprise" => reprise = val(i),
+            "--reprise-adversaire" => reprise_adversaire = val(i),
+            "--devinette" => {
+                devinette = match val(i).as_str() {
+                    "on" => true,
+                    "off" => false,
+                    autre => mourir(&format!("--devinette attend « on » ou « off », pas « {autre} »")),
+                }
+            }
             autre => mourir(&format!("argument inconnu {autre}")),
         }
         i += avance;
@@ -174,14 +192,91 @@ fn main() {
     };
     let desc = Description::new(&db);
     let noms = desc.noms_avec(&db);
-    let mut reseau = Reseau::neuf_amplitude(desc.taille, amplitude);
+
+    // ------------------------------------------------------------------
+    // (il-devine, §5) LA REPRISE D'ENTRAÎNEMENT
+    //
+    // « `entraine.rs` crée TOUJOURS un réseau neuf. Il n'existe aucun moyen de
+    // continuer un entraînement interrompu, ni d'en repartir après un
+    // changement. » `--reprise` charge un fichier de poids existant au lieu de
+    // tirer des valeurs au hasard, et `--reprise-adversaire` fait de même pour le
+    // second réseau, indépendamment.
+    //
+    // **Les trois refus du §5 sont ceux de `Reseau::lire`** : un nombre d'entrées
+    // qui ne correspond pas, un nombre de cachés ou de sorties qui ne correspond
+    // pas, et — le plus important et le moins évident — des noms d'entrées qui ne
+    // correspondent pas un à un et dans le même ordre. Deux descriptions peuvent
+    // avoir le même nombre d'entrées et ne pas décrire la même chose ; reprendre
+    // là-dessus donne un réseau qui a l'air de marcher et qui a tout appris de
+    // travers. Le message est clair et le code de sortie non nul (`mourir`).
+    //
+    // **La validation a lieu ICI, avant l'amorçage**, et c'est délibéré : un refus
+    // doit être instantané. Placé après, il coûterait les quelques minutes de
+    // l'amorçage pour dire « non ».
+    // ------------------------------------------------------------------
+    let mut reseau = if reprise.is_empty() {
+        Reseau::neuf_amplitude(desc.taille, amplitude)
+    } else {
+        match Reseau::lire(&reprise, &noms) {
+            Ok(r) => {
+                eprintln!("reprise : {reprise} — {} parties déjà vues", r.parties);
+                r
+            }
+            Err(e) => mourir(&format!("reprise refusée — {e}")),
+        }
+    };
+    let parties_reprises = reseau.parties;
     reseau.sans_optimisation = sans_optimisation;
     reseau.lambda = lambda;
     let mut pile = Pile::new(desc.taille);
 
+    // Le second réseau n'existe que si on demande où l'écrire (point d'accroche
+    // n°1 : « Absente : pas de second réseau, l'entraînement se comporte
+    // exactement comme aujourd'hui »).
+    if !reprise_adversaire.is_empty() && sortie_adversaire.is_empty() {
+        mourir("--reprise-adversaire sans --sortie-adversaire : le second réseau serait chargé puis jeté");
+    }
+    let mut adversaire: Option<ReseauPhases> = if sortie_adversaire.is_empty() {
+        None
+    } else if reprise_adversaire.is_empty() {
+        Some(ReseauPhases::neuf_amplitude(desc.taille, amplitude))
+    } else {
+        match ReseauPhases::lire(&reprise_adversaire, &noms) {
+            Ok(r) => {
+                eprintln!(
+                    "reprise du second réseau : {reprise_adversaire} — {} parties déjà vues",
+                    r.parties
+                );
+                Some(r)
+            }
+            Err(e) => mourir(&format!("reprise du second réseau refusée — {e}")),
+        }
+    };
+    let parties_reprises_adversaire = adversaire.as_ref().map(|r| r.parties).unwrap_or(0);
+
+    // §4 : « Un joueur à qui on ne donne pas de second réseau doit jouer comme
+    // avant, pas planter et pas se dégrader en silence. » On le dit donc.
+    if devinette && adversaire.is_none() {
+        eprintln!(
+            "entraine: --devinette on sans --sortie-adversaire : il n'y a aucun second réseau, \
+             la devinette reste ÉTEINTE (le joueur répond la première option à la place de l'autre)"
+        );
+        devinette = false;
+    }
+
     let t0 = Instant::now();
-    amorcer(&mut reseau, &noms, reseau::GRAINE_POIDS);
-    eprintln!("amorçage : {AMORCAGE_PARTIES} fins de partie fabriquées en {:.1} s", t0.elapsed().as_secs_f64());
+    if reprise.is_empty() {
+        amorcer(&mut reseau, &noms, reseau::GRAINE_POIDS);
+        eprintln!("amorçage : {AMORCAGE_PARTIES} fins de partie fabriquées en {:.1} s", t0.elapsed().as_secs_f64());
+    } else {
+        // **Pas d'amorçage sur une reprise, et c'est le fond du §5.** L'amorçage
+        // du §2.7 existe parce qu'« un réseau tiré au hasard ne sait même pas que
+        // plus de points, c'est mieux ». Un réseau repris le sait déjà : lui
+        // repasser cinq mille fins de partie fabriquées au taux multiplié par dix
+        // écraserait une partie de ce qu'il a appris. Reprendre, c'est continuer,
+        // pas recommencer.
+        eprintln!("amorçage sauté : on reprend des poids déjà entraînés");
+    }
 
     let tranche = (parties / 20).max(1);
     let mut justes_tranche = 0u64;
@@ -192,6 +287,10 @@ fn main() {
     j.exploration = exploration;
     j.apprendre = true;
     j.rythme = rythme;
+    // (il-devine) Le second réseau apprend dès qu'il existe (§2) ; il ne SERT que
+    // si l'interrupteur du §4 est allumé. Deux choses distinctes.
+    j.adversaire = adversaire.as_mut();
+    j.devinette = devinette;
 
     for g in 0..parties {
         let seed = graine_debut + g;
@@ -224,7 +323,14 @@ fn main() {
                 justes_tranche += 1;
             }
         }
-        j.reseau.parties = g + 1;
+        // (il-devine, §5) « Le compteur de parties du fichier repris S'AJOUTE aux
+        // nouvelles : un fichier à 200 000 parties repris pour 50 000 de plus en
+        // annonce 250 000. » Sans reprise, `parties_reprises` vaut zéro et le
+        // compteur est celui d'avant.
+        j.reseau.parties = parties_reprises + g + 1;
+        if let Some(a) = j.adversaire.as_deref_mut() {
+            a.parties = parties_reprises_adversaire + g + 1;
+        }
 
         if (g + 1) % tranche == 0 || g + 1 == parties {
             let justes = if decisives_tranche > 0 {
@@ -263,8 +369,30 @@ fn main() {
     let passes = j.passes;
     let pas_avance = j.pas_avance;
     let plafonds = j.plafonds;
+    let corrections_adversaire = j.corrections_adversaire;
+    let sautees_adversaire = j.sautees_adversaire;
+    let phases_rencontrees = j.phases_rencontrees;
     if let Err(e) = reseau.ecrire(&sortie, &noms) {
         mourir(&format!("écriture de {sortie} : {e}"));
+    }
+    // (il-devine, §2.4) Le second réseau va dans SON PROPRE fichier, au même
+    // format que le premier — seul le troisième nombre de la première ligne
+    // change, 5 au lieu de 2. Deux fichiers, deux verrous indépendants.
+    if let Some(a) = adversaire.as_ref() {
+        if let Err(e) = a.ecrire(&sortie_adversaire, &noms) {
+            mourir(&format!("écriture de {sortie_adversaire} : {e}"));
+        }
+        eprintln!(
+            "second réseau : {sortie_adversaire} — {corrections_adversaire} corrections, \
+             {sautees_adversaire} sautées (meilleure note nulle ou négative, §2.2)"
+        );
+        if devinette {
+            eprintln!(
+                "  devinette allumée : {phases_rencontrees} `pick_phase` adverses rencontrés \
+                 pendant les avances ({:.3} par essai d'option, §8)",
+                phases_rencontrees as f64 / essais.max(1) as f64
+            );
+        }
     }
     eprintln!(
         "fini : {parties} parties, {essais} essais d'option, {:.1} s ({:.1} ms par partie)",

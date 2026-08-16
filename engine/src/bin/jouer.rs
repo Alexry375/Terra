@@ -32,7 +32,7 @@ mod reseau;
 
 use description::Description;
 use joueur::Joueur;
-use reseau::{Pile, Reseau};
+use reseau::{Pile, Reseau, ReseauPhases};
 
 fn mourir(msg: &str) -> ! {
     eprintln!("jouer: {msg}");
@@ -46,6 +46,12 @@ fn main() {
     let mut boites_txt = "base,decouverte".to_string();
     let mut cartes = "data/cards.json".to_string();
     let mut tracer: i64 = -1;
+    // **(il-devine §4) L'interrupteur, côté Rust.** Éteint par défaut, et éteint
+    // veut dire « exactement comme avant » : sans ces deux options, ce binaire
+    // fait très précisément ce qu'il faisait au round 2 — c'est ce que le
+    // contrôle 10 vérifie sur trois parties entières, empreinte comprise.
+    let mut poids_adversaire = String::new();
+    let mut devinette = false;
     let mut i = 1;
     while i < args.len() {
         let val = |i: usize| -> String {
@@ -60,6 +66,14 @@ fn main() {
             "--boites" => boites_txt = val(i),
             "--cards" => cartes = val(i),
             "--tracer-rang" => tracer = val(i).parse().unwrap_or(-1),
+            "--poids-adversaire" => poids_adversaire = val(i),
+            "--devinette" => {
+                devinette = match val(i).as_str() {
+                    "on" => true,
+                    "off" => false,
+                    autre => mourir(&format!("--devinette attend « on » ou « off », pas « {autre} »")),
+                }
+            }
             autre => mourir(&format!("argument inconnu {autre}")),
         }
         i += 2;
@@ -83,11 +97,33 @@ fn main() {
         Ok(r) => r,
         Err(e) => mourir(&e),
     };
+    // (il-devine §4) Le second réseau n'est lu que si on le nomme, et la
+    // devinette ne s'allume que si on le demande. « Un joueur à qui on ne donne
+    // pas de second réseau doit jouer comme avant, pas planter et pas se dégrader
+    // en silence » — d'où l'avertissement plutôt que le silence.
+    let mut adversaire = if poids_adversaire.is_empty() {
+        None
+    } else {
+        match ReseauPhases::lire(&poids_adversaire, &noms) {
+            Ok(r) => Some(r),
+            Err(e) => mourir(&e),
+        }
+    };
+    if devinette && adversaire.is_none() {
+        eprintln!(
+            "jouer: --devinette on sans --poids-adversaire : aucun second réseau, \
+             la devinette reste ÉTEINTE"
+        );
+        devinette = false;
+    }
+
     let mut pile = Pile::new(desc.taille);
     let mut j = Joueur::new(&db, &desc, &mut reseau, &mut pile, graine);
     j.exploration = 0.0;
     j.tracer_rang = tracer;
     j.apprendre = false;
+    j.adversaire = adversaire.as_mut();
+    j.devinette = devinette;
     j.nouvelle_partie(graine);
 
     let mut game = setup_game(&db, graine, &mut j);

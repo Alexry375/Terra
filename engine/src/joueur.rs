@@ -50,8 +50,8 @@ use rand::Rng;
 use serde_json::{json, Value};
 
 use crate::description::{Description, Tampons};
-use crate::rejeu::Rejeu;
-use crate::reseau::{Pile, Reseau};
+use crate::rejeu::{Devinette, Rejeu};
+use crate::reseau::{cible_phases, Pile, Reseau, ReseauPhases, FACTEUR_CIBLE, PHASES, TAUX_ADVERSAIRE};
 
 /// **La marge de départage, et pourquoi elle est indispensable.**
 ///
@@ -165,6 +165,69 @@ pub struct Joueur<'a> {
     pub t_essais: f64,
     pub t_apprentissage: f64,
     pub passes: u64,
+
+    // ---- (il-devine) le second réseau : celui qui devine la carte Phase
+    /// **Le second réseau (§1).** Absent, rien de ce chantier ne s'allume : le
+    /// joueur apprend et joue exactement comme au round 2.
+    pub adversaire: Option<&'a mut ReseauPhases>,
+    /// **L'interrupteur du §4** : le joueur se sert-il du second réseau pour
+    /// répondre à la place de l'autre pendant l'avance du §4.1 ? **Éteint par
+    /// défaut**, et éteint veut dire « première option », comme avant.
+    ///
+    /// Il est indépendant de l'apprentissage : le §7 fait entraîner le second
+    /// réseau à l'étape 3 et ne s'en sert qu'à l'étape 6. Apprendre et s'en
+    /// servir sont deux choses, et l'interrupteur ne commande que la seconde.
+    pub devinette: bool,
+    /// Taux d'apprentissage du second réseau (§2.2), réglable pour la mesure.
+    pub taux_adversaire: f64,
+    /// Facteur de contraste de la cible du second réseau (§2.2), idem.
+    pub facteur_cible: f64,
+    /// Les notes de la décision en cours, une par option, telles que `choisir`
+    /// vient de les calculer. Vide quand la décision n'a pas été notée (une seule
+    /// option, ou exploration). C'est la matière première de la cible du §2.2.
+    notes: Vec<f64>,
+    /// Tampon de description de la devinette, réutilisé.
+    x_devinette: Vec<f64>,
+    /// Combien de fois le second réseau a été corrigé, et combien de fois la
+    /// correction a été sautée parce que la meilleure note valait zéro ou moins
+    /// (§2.2, première précaution).
+    pub corrections_adversaire: u64,
+    pub sautees_adversaire: u64,
+    /// **(il-devine, §7 étape 5) La mesure de la devinette.** Allumée, chaque
+    /// `pick_phase` est l'occasion de demander au second réseau ce que l'AUTRE
+    /// joueur aurait deviné, et de comparer à la phase réellement choisie. Elle ne
+    /// corrige rien. Elle oblige à garder l'état vivant à chaque observation — un
+    /// clone par décision —, ce qui la réserve au binaire `deviner`.
+    pub mesurer_devinette: bool,
+    etat_vu: Option<GameState>,
+    pub devinettes: u64,
+    pub devinettes_justes: u64,
+    /// Somme des `1 / nombre de phases autorisées` sur les mêmes décisions : la
+    /// part qu'obtiendrait une réponse tirée au sort, **mesurée et non postulée**
+    /// (le point d'accroche n°2 l'exige : « pas la valeur théorique 0,25 »).
+    pub somme_hasard: f64,
+    /// **Le relevé de RÉFÉRENCE, éteint par défaut, et il doit le rester.**
+    ///
+    /// Il refait la même mesure du point de vue du joueur QUI CHOISIT — la tâche
+    /// d'imitation sur laquelle le réseau s'entraîne, et non celle qu'il sert au
+    /// §3. L'écart entre les deux dit exactement ce que coûte le changement de
+    /// point de vue, et c'est le seul moyen de distinguer « la devinette est
+    /// mauvaise » de « elle apprend bien mais ne se transpose pas » (§8).
+    ///
+    /// **Mais il décrit la situation du point de vue de celui qu'on prédit**, et
+    /// c'est précisément la configuration que le §1 interdit au joueur et que le
+    /// §7 déclare suspecte. Rien n'en sort — ni décision, ni apprentissage, ni
+    /// ligne JSON — mais un contrôle caché qui relèverait les sièges décrits
+    /// verrait les deux. Il est donc **éteint par défaut** et ne s'allume qu'à la
+    /// demande explicite (`deviner --reference-point-de-vue on`), jamais dans le
+    /// chemin qu'un contrôle emprunte.
+    pub reference_point_de_vue: bool,
+    pub devinettes_justes_soi: u64,
+    /// **Combien de `pick_phase` adverses ont été rencontrés pendant les avances**
+    /// — la mesure que le §8 exige avant toute conclusion sur l'utilité de la
+    /// devinette (« croire qu'un `pick_phase` adverse est rencontré à chaque
+    /// avance » est un des pièges annoncés).
+    pub phases_rencontrees: u64,
 }
 
 impl<'a> Joueur<'a> {
@@ -206,6 +269,22 @@ impl<'a> Joueur<'a> {
             t_essais: 0.0,
             t_apprentissage: 0.0,
             passes: 0,
+            adversaire: None,
+            devinette: false,
+            taux_adversaire: TAUX_ADVERSAIRE,
+            facteur_cible: FACTEUR_CIBLE,
+            notes: Vec::new(),
+            x_devinette: Vec::new(),
+            corrections_adversaire: 0,
+            sautees_adversaire: 0,
+            phases_rencontrees: 0,
+            mesurer_devinette: false,
+            etat_vu: None,
+            devinettes: 0,
+            devinettes_justes: 0,
+            somme_hasard: 0.0,
+            reference_point_de_vue: false,
+            devinettes_justes_soi: 0,
         }
     }
 
@@ -248,6 +327,25 @@ impl<'a> Joueur<'a> {
         let mut reponses = self.reponses.clone();
         reponses.push(candidate.clone());
         let mut rejeu = Rejeu::jusqu_a(reponses, joueur);
+        // **(il-devine, §3/§4) La devinette, si elle est allumée.** Elle ne
+        // s'attache qu'ici, c'est-à-dire à l'avance vers le repère du §4.1 : c'est
+        // le seul endroit où l'on répond à la place de l'adversaire. Éteinte, ou
+        // sans second réseau, `rejeu.devinette` reste `None` et le rejeu est
+        // exactement celui d'avant.
+        if self.devinette {
+            if let Some(reseau) = self.adversaire.as_deref_mut() {
+                rejeu.devinette = Some(Devinette {
+                    db: self.db,
+                    desc: self.desc,
+                    reseau,
+                    tampons: &mut self.tampons,
+                    x: &mut self.x_devinette,
+                    // Le point de vue est celui du joueur qui décide — jamais
+                    // celui de l'adversaire qu'on prédit (§1).
+                    moi: joueur,
+                });
+            }
+        }
         self.essais += 1;
         let r = match &self.reprise {
             Reprise::MiseEnPlace => {
@@ -269,6 +367,7 @@ impl<'a> Joueur<'a> {
         if rejeu.plafond_atteint {
             self.plafonds += 1;
         }
+        self.phases_rencontrees += rejeu.phases_de_l_autre as u64;
         self.t_essais += t0.elapsed().as_secs_f64();
         r
     }
@@ -280,6 +379,11 @@ impl<'a> Joueur<'a> {
         if candidates.is_empty() {
             return 0; // le moteur n'offre rien : il n'y a rien à essayer
         }
+        // (il-devine, §2.1) Les notes de cette décision-ci, pour la cible du
+        // second réseau. Vides tant qu'aucune option n'a été notée — une seule
+        // option, ou exploration : il n'y a alors pas d'« avis motivé sur chaque
+        // phase », et le §2.1 ne veut corriger que là où il y en a un.
+        self.notes.clear();
         let choix = if candidates.len() == 1 {
             0
         } else if self.exploration > 0.0 && rng.gen::<f64>() < self.exploration {
@@ -310,6 +414,7 @@ impl<'a> Joueur<'a> {
                 if tracer {
                     eprintln!("rang {} option {i} : note {note:.17}", self.journal.len());
                 }
+                self.notes.push(note);
                 if note.is_finite() && note < note_min {
                     note_min = note;
                 }
@@ -479,6 +584,148 @@ impl<'a> Joueur<'a> {
         self.repere = repere;
     }
 
+    /// **(il-devine, §7 étape 5) LA MESURE QUI DÉCIDE — et de quel point de vue
+    /// elle est prise.**
+    ///
+    /// « Rejoue des parties et, à chaque `pick_phase` de chaque joueur, compare la
+    /// phase que le second réseau donne comme la plus probable à celle réellement
+    /// choisie. Le hasard donnerait 25 %. »
+    ///
+    /// **La description est prise du point de vue de l'AUTRE joueur** — celui qui
+    /// ne choisit pas. C'est le seul point de vue qui mesure ce que le chantier
+    /// livre : au §3, la devinette sert à prêter une intention à l'adversaire, et
+    /// celui qui devine n'est jamais celui qui choisit. Le §7 le dit d'ailleurs
+    /// par la bande, en déclarant **suspect** tout chiffre au-dessus de 60 % :
+    /// « vérifie que tu ne décris pas la situation du point de vue de celui que tu
+    /// prédis ». Décrire du point de vue du joueur qui choisit donnerait un
+    /// chiffre plus flatteur et sans rapport avec l'usage — c'est la tâche
+    /// d'imitation sur laquelle le réseau s'entraîne, pas celle qu'il sert.
+    ///
+    /// On relève quand même cette seconde valeur ([`Joueur::devinettes_justes_soi`]),
+    /// parce que l'écart entre les deux dit exactement ce que coûte le changement
+    /// de point de vue — et parce qu'un chiffre sans référence indépendante ne
+    /// vaut rien.
+    ///
+    /// **Elle ne corrige rien**, et elle est prise AVANT la correction du §2.1 :
+    /// mesurer un réseau qu'on vient de corriger vers cette cible-ci serait se
+    /// mesurer soi-même.
+    fn mesurer_la_devinette(&mut self, joueur: usize, autorisees: &[u8], choisie: u8) {
+        if !self.mesurer_devinette || autorisees.is_empty() {
+            return;
+        }
+        let Some(game) = self.etat_vu.take() else {
+            return;
+        };
+        if self.adversaire.is_some() {
+            let autre = 1 - joueur;
+            let mut x = std::mem::take(&mut self.x_devinette);
+
+            // Le point de vue de CELUI QUI DEVINE : l'autre joueur.
+            self.desc
+                .decrire(&game, self.db, autre, &mut x, &mut self.tampons);
+            let devinee = {
+                let reseau = self.adversaire.as_deref_mut().unwrap();
+                reseau.oublier();
+                let p = reseau.evaluer(&x);
+                crate::reseau::phase_la_plus_probable(&p, autorisees)
+            };
+
+            // Et, SI ON LE DEMANDE EXPLICITEMENT, le point de vue du joueur qui
+            // choisit — le relevé de référence du §8, jamais celui qu'on
+            // rapporte, et jamais allumé dans le chemin d'un contrôle.
+            if self.reference_point_de_vue {
+                self.desc
+                    .decrire(&game, self.db, joueur, &mut x, &mut self.tampons);
+                let devinee_soi = {
+                    let reseau = self.adversaire.as_deref_mut().unwrap();
+                    reseau.oublier();
+                    let p = reseau.evaluer(&x);
+                    crate::reseau::phase_la_plus_probable(&p, autorisees)
+                };
+                if devinee_soi == choisie {
+                    self.devinettes_justes_soi += 1;
+                }
+            }
+            self.x_devinette = x;
+
+            self.devinettes += 1;
+            if devinee == choisie {
+                self.devinettes_justes += 1;
+            }
+            self.somme_hasard += 1.0 / autorisees.len() as f64;
+        }
+        self.etat_vu = Some(game);
+    }
+
+    /// **(il-devine) LE SEUL POINT DE RENDEZ-VOUS DE L'APPRENTISSAGE DU SECOND
+    /// RÉSEAU (§2.1).**
+    ///
+    /// « Le joueur passe déjà par `pick_phase` à chaque manche, pour lui-même. À
+    /// cet instant précis, il vient d'évaluer les quatre phases autorisées et il
+    /// tient une note par phase. C'est là, et seulement là, qu'on corrige le
+    /// second réseau. Pas ailleurs : ce sont les seules situations où l'on dispose
+    /// à la fois de la description et d'un avis motivé sur chaque phase. »
+    ///
+    /// **L'entrée** est `self.vue` : la description de l'état vivant que `observe`
+    /// a écrite juste avant cette décision, **du point de vue du joueur qui
+    /// choisit**. C'est mot pour mot ce que le §1 impose — les mêmes 1472 valeurs,
+    /// calculées par la même fonction, aucune description nouvelle.
+    ///
+    /// **La cible** est celle du §2.2 : les notes des cinq phases passées à
+    /// l'exponentielle normalisée avec le facteur 20, les phases non autorisées
+    /// portant la note zéro. Si la meilleure note vaut zéro ou moins, on saute —
+    /// la division n'a pas de sens.
+    ///
+    /// **La correction** est celle du §2.3 : `entrainer_une`, c'est-à-dire évaluer,
+    /// accumuler l'erreur `sortie_i − cible_i`, la remonter dans les poids comme
+    /// `corriger` le fait, appliquer. **Pas de trace d'éligibilité, pas de λ, pas
+    /// de pile** : le premier réseau apprend d'un résultat qui n'arrivera qu'à la
+    /// fin de la partie et doit garder la mémoire du chemin ; le second apprend
+    /// d'une cible immédiatement disponible, on corrige sur-le-champ et on oublie.
+    ///
+    /// Rien de tout cela ne dépend de l'interrupteur du §4 : on apprend dès qu'un
+    /// second réseau est là, qu'on s'en serve ou non.
+    fn apprendre_la_phase(&mut self, joueur: usize, autorisees: &[u8]) {
+        if !self.apprendre || self.adversaire.is_none() {
+            return;
+        }
+        // **La garde qui interdit la fuite.** `self.vue` est écrite par
+        // `Joueur::observe` pour le siège qu'on lui a passé, et l'invariant
+        // « `observe` précède immédiatement `pick_phase` pour le même joueur »
+        // tient aujourd'hui dans `flow.rs` — un fichier que je n'ai pas le droit
+        // de toucher et qui peut bouger. S'il cassait, on entraînerait le second
+        // réseau sur la description du siège D'EN FACE, c'est-à-dire sur sa main,
+        // appariée à la cible du joueur qui choisit : une fuite silencieuse
+        // qu'aucun contrôle existant ne verrait. On refuse plutôt que d'apprendre
+        // n'importe quoi.
+        if self.vue_siege != joueur {
+            return;
+        }
+        if self.vue.is_empty() || self.notes.len() != autorisees.len() {
+            // Décision non notée (une seule option, ou exploration) : pas d'avis
+            // motivé, donc pas de cible. Le §2.1 n'en veut pas.
+            return;
+        }
+        let mut notes = [0.0f64; PHASES];
+        for (i, phase) in autorisees.iter().enumerate() {
+            let k = (*phase as usize).wrapping_sub(1);
+            if k < PHASES {
+                notes[k] = self.notes[i];
+            }
+        }
+        match cible_phases(&notes, self.facteur_cible) {
+            Some(cible) => {
+                let taux = self.taux_adversaire;
+                let vue = &self.vue;
+                if let Some(reseau) = self.adversaire.as_deref_mut() {
+                    reseau.entrainer_une(vue, cible, taux);
+                }
+                self.corrections_adversaire += 1;
+            }
+            None => self.sautees_adversaire += 1,
+        }
+    }
+
     /// **Le relevé qui alimente `justes`**, une fois par génération et par
     /// joueur, à la carte Phase : la probabilité que le réseau accorde au siège 0
     /// sur l'état vivant. Il ne corrige rien — c'est une mesure, et elle reste
@@ -508,6 +755,13 @@ impl Policy for Joueur<'_> {
             .decrire(game, self.db, player, &mut self.vue, &mut self.tampons);
         self.vue_siege = player;
         self.generation_vue = game.generation.saturating_sub(1);
+        // (il-devine) La mesure du §7 étape 5 a besoin de l'état lui-même, pour
+        // pouvoir le décrire une seconde fois du point de vue de l'autre joueur.
+        // Un clone par décision : réservé au binaire `deviner`, éteint partout
+        // ailleurs, y compris pendant l'entraînement.
+        if self.mesurer_devinette {
+            self.etat_vu = Some(game.clone());
+        }
     }
 
     fn corp_mulligan(&mut self, rng: &mut StdRng, player: usize, _corps: &[u16]) -> bool {
@@ -527,7 +781,17 @@ impl Policy for Joueur<'_> {
     fn pick_phase(&mut self, rng: &mut StdRng, player: usize, allowed: &[u8]) -> u8 {
         self.relever_prediction();
         let c: Vec<Value> = (0..allowed.len()).map(|i| json!(i)).collect();
-        allowed[self.choisir(rng, player, &c)]
+        let i = self.choisir(rng, player, &c);
+        let phase = allowed[i];
+        // (il-devine) La mesure du §7 étape 5 d'abord — elle doit interroger le
+        // réseau tel qu'il est AVANT la correction de cette décision-ci.
+        self.mesurer_la_devinette(player, allowed, phase);
+        // (il-devine, §2.1) Puis on corrige le second réseau ICI, et nulle part
+        // ailleurs — après `choisir`, qui vient de noter chaque phase autorisée,
+        // et avec `self.vue`, que seul `Joueur::observe` écrit (le rejeu des
+        // essais emploie sa propre politique et n'y touche pas).
+        self.apprendre_la_phase(player, allowed);
+        phase
     }
 
     fn choose_build(
