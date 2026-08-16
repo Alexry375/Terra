@@ -5,6 +5,65 @@
 
 Dernière mise à jour : 2026-08-16
 
+## ⚠️ 16-08 — LA PROGRESSION RALENTIT APRÈS 400 000 PARTIES, ET DEUX DE MES LECTURES ONT ÉTÉ FAUSSES DANS LA MÊME MATINÉE
+
+Le palier à 600 000 parties de l'entraînement A est sorti à 07 h 05. Trois duels
+successifs ont donné trois lectures différentes, dont deux fausses — les miennes.
+Toutes les mesures ci-dessous sont sur **80 donnes × 2 sièges = 160 parties**,
+sauf mention contraire. [VÉRIFIÉ 16-08, `scratchpad/duel-*.log`]
+
+### Le tableau, une fois tout refait sur les MÊMES 80 donnes
+
+| palier | contre 250 000 | contre `reflechi` | écart de score contre `reflechi` |
+|---|---|---|---|
+| **400 000** | 76,3 % | 91,9 % | **+34,16** |
+| **600 000** | 71,9 % | **98,8 %** | **+41,27** |
+
+Duel direct **600 000 contre 400 000** : 53,8 % — 1,37 écart typique, **dans le
+bruit**. Écart de score +2,78 seulement.
+
+### Ce qui est établi, et ce qui ne l'est pas
+
+- **Le progrès entre 400 000 et 600 000 est réel mais faible.** Il n'est visible
+  que sur la mesure la plus sensible dont nous disposons — l'écart de score
+  contre `reflechi`, +34,16 → +41,27 — et sur le taux de victoire contre
+  `reflechi` (91,9 → 98,8 %, soit 2,9 écarts typiques, significatif).
+- **Il n'est PAS visible** en duel direct, ni contre le palier à 250 000. Ces
+  deux mesures ont une résolution d'environ 8 points ; le progrès est plus petit.
+- **Il n'y a AUCUNE régression.** C'est le point que le contrôle a établi.
+
+### Mes deux erreurs de la matinée, dans l'ordre
+
+1. **Le 82,5 % d'hier (400 000 contre 250 000) était surévalué.** Il portait sur
+   **40 donnes seulement**. Refait sur 80 donnes : **76,3 %**. Six points de
+   moins, uniquement par effet d'échantillon.
+2. **J'en ai conclu une régression qui n'existe pas.** Ayant lu 71,9 % pour le
+   palier à 600 000 contre le 82,5 % d'hier, j'ai annoncé à Alexis que « le plus
+   entraîné des deux est le moins fort ». Le contrôle sur donnes identiques a
+   infirmé : 76,3 contre 71,9, soit 4,4 points pour une imprécision combinée de
+   5 points — **dans le bruit**.
+
+**La règle que j'en tire, et elle vaut pour toutes les mesures à venir :** un
+duel de 40 donnes ne compare pas deux joueurs proches, il produit une opinion.
+Toute comparaison entre paliers se fait désormais sur **au moins 80 donnes, et
+les mêmes des deux côtés**. Comparer deux chiffres mesurés sur des jeux de donnes
+différents n'est pas une comparaison.
+
+C'est la troisième fois en 24 heures qu'une conclusion trop rapide sur ces duels
+me fait dire à Alexis le contraire de la vérité : le « plafond de 88,8 % » hier,
+la « courbe des prédictions justes qui annonce le plafond » cette nuit, la
+« régression » ce matin.
+
+### La piste ouverte : le taux d'apprentissage ne décroît pas
+
+L'erreur de prédiction du réseau **monte** régulièrement : 0,0498 à 50 000
+parties, 0,0592 à 400 000, 0,0634 à 650 000. Deux lectures possibles, non
+départagées : soit les parties deviennent plus serrées entre deux joueurs forts
+(erreur mécaniquement plus grande, bénin), soit le taux d'apprentissage constant
+(`TAUX = 0.0001`, `engine/src/reseau.rs`) est trop élevé à ce stade et les
+corrections tardives défont les précédentes. **Un taux décroissant est le premier
+essai à tenter** si le palier à 800 000 confirme le ralentissement.
+
 ## ✅ 16-08 — L'IA EXISTE ET ELLE GAGNE : 82 % CONTRE `reflechi` (`60aaece`)
 
 Le lot `le-juge-apprend` est **fusionné**. Le joueur `apprenti` apprend à estimer
