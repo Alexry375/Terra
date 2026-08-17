@@ -1,0 +1,108 @@
+{
+ "joueur": "apprenti",
+ "poids": "data/poids/apprenti-1M.txt.600000",
+ "donnes": 200,
+ "choix": 400,
+ "mulligan": {
+  "garde": 400,
+  "remplace": 0
+ },
+ "corporations": [
+  {
+   "nom": "Tharsis Republic",
+   "propose": 50,
+   "prise": 48,
+   "taux": 0.96
+  },
+  {
+   "nom": "Exocorp",
+   "propose": 52,
+   "prise": 48,
+   "taux": 0.923
+  },
+  {
+   "nom": "Apollo Industries",
+   "propose": 46,
+   "prise": 40,
+   "taux": 0.87
+  },
+  {
+   "nom": "Credicor",
+   "propose": 50,
+   "prise": 39,
+   "taux": 0.78
+  },
+  {
+   "nom": "Phobolog",
+   "propose": 55,
+   "prise": 37,
+   "taux": 0.673
+  },
+  {
+   "nom": "Interplanetary Cinematics",
+   "propose": 51,
+   "prise": 34,
+   "taux": 0.667
+  },
+  {
+   "nom": "Saturn Systems",
+   "propose": 41,
+   "prise": 20,
+   "taux": 0.488
+  },
+  {
+   "nom": "Sultira",
+   "propose": 55,
+   "prise": 26,
+   "taux": 0.473
+  },
+  {
+   "nom": "Inventrix",
+   "propose": 37,
+   "prise": 16,
+   "taux": 0.432
+  },
+  {
+   "nom": "Helion Corporation",
+   "propose": 59,
+   "prise": 23,
+   "taux": 0.39
+  },
+  {
+   "nom": "Teractor Corporation",
+   "propose": 53,
+   "prise": 20,
+   "taux": 0.377
+  },
+  {
+   "nom": "Hyperion Systems",
+   "propose": 49,
+   "prise": 18,
+   "taux": 0.367
+  },
+  {
+   "nom": "Thorgate Corporation",
+   "propose": 46,
+   "prise": 13,
+   "taux": 0.283
+  },
+  {
+   "nom": "Mining Guild",
+   "propose": 46,
+   "prise": 7,
+   "taux": 0.152
+  },
+  {
+   "nom": "Ecoline",
+   "propose": 54,
+   "prise": 7,
+   "taux": 0.13
+  },
+  {
+   "nom": "Unmi",
+   "propose": 56,
+   "prise": 4,
+   "taux": 0.071
+  }
+ ]
+}

@@ -1,0 +1,30 @@
+amorçage : 5000 fins de partie fabriquées en 0.2 s
+{"parties": 50000, "erreur": 0.048035, "justes": 0.5979}
+{"parties": 100000, "erreur": 0.047919, "justes": 0.6296}
+{"parties": 150000, "erreur": 0.053203, "justes": 0.6533}
+{"parties": 200000, "erreur": 0.060474, "justes": 0.6822}
+{"parties": 250000, "erreur": 0.062252, "justes": 0.7009}
+instantané : data/poids/apprenti-devinette-1M.txt.250000 (250000 parties, 20374.6 s)
+{"parties": 300000, "erreur": 0.063039, "justes": 0.7227}
+{"parties": 350000, "erreur": 0.062718, "justes": 0.7014}
+{"parties": 400000, "erreur": 0.060029, "justes": 0.6964}
+instantané : data/poids/apprenti-devinette-1M.txt.400000 (400000 parties, 33440.2 s)
+{"parties": 450000, "erreur": 0.061522, "justes": 0.7289}
+{"parties": 500000, "erreur": 0.065433, "justes": 0.7419}
+{"parties": 550000, "erreur": 0.066423, "justes": 0.7542}
+{"parties": 600000, "erreur": 0.066359, "justes": 0.7584}
+instantané : data/poids/apprenti-devinette-1M.txt.600000 (600000 parties, 51831.2 s)
+{"parties": 650000, "erreur": 0.065764, "justes": 0.7653}
+{"parties": 700000, "erreur": 0.067875, "justes": 0.7760}
+{"parties": 750000, "erreur": 0.069460, "justes": 0.7758}
+{"parties": 800000, "erreur": 0.069859, "justes": 0.7825}
+instantané : data/poids/apprenti-devinette-1M.txt.800000 (800000 parties, 69045.8 s)
+{"parties": 850000, "erreur": 0.072418, "justes": 0.7880}
+{"parties": 900000, "erreur": 0.071633, "justes": 0.7844}
+{"parties": 950000, "erreur": 0.072985, "justes": 0.7920}
+{"parties": 1000000, "erreur": 0.072107, "justes": 0.8017}
+second réseau : data/poids/apprenti-devinette-1M-adversaire.txt — 88440068 corrections, 0 sautées (meilleure note nulle ou négative, §2.2)
+  devinette allumée : 1468502176 `pick_phase` adverses rencontrés pendant les avances (0.327 par essai d'option, §8)
+fini : 1000000 parties, 4485607138 essais d'option, 85547.0 s (85.5 ms par partie)
+  dont essais 49512.6 s, apprentissage 6050.6 s (50467181 passes, rythme K=8, λ=0.9)
+  avance vers le repère (§4.1) : 4403554901 pas au total (0.98 par essai), plafond de 60 atteint 80461 fois

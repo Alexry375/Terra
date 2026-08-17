@@ -1,0 +1,28 @@
+amorçage : 5000 fins de partie fabriquées en 0.2 s
+{"parties": 50000, "erreur": 0.049795, "justes": 0.6012}
+{"parties": 100000, "erreur": 0.051657, "justes": 0.6234}
+{"parties": 150000, "erreur": 0.057066, "justes": 0.6378}
+{"parties": 200000, "erreur": 0.060899, "justes": 0.6512}
+{"parties": 250000, "erreur": 0.059705, "justes": 0.6703}
+instantané : data/poids/apprenti-1M.txt.250000 (250000 parties, 11625.9 s)
+{"parties": 300000, "erreur": 0.056788, "justes": 0.6927}
+{"parties": 350000, "erreur": 0.056327, "justes": 0.7465}
+{"parties": 400000, "erreur": 0.059188, "justes": 0.7667}
+instantané : data/poids/apprenti-1M.txt.400000 (400000 parties, 22917.6 s)
+{"parties": 450000, "erreur": 0.062015, "justes": 0.7834}
+{"parties": 500000, "erreur": 0.061531, "justes": 0.7848}
+{"parties": 550000, "erreur": 0.064444, "justes": 0.7847}
+{"parties": 600000, "erreur": 0.063242, "justes": 0.7937}
+instantané : data/poids/apprenti-1M.txt.600000 (600000 parties, 35709.4 s)
+{"parties": 650000, "erreur": 0.063363, "justes": 0.7854}
+{"parties": 700000, "erreur": 0.062911, "justes": 0.7799}
+{"parties": 750000, "erreur": 0.063173, "justes": 0.7933}
+{"parties": 800000, "erreur": 0.066032, "justes": 0.7810}
+instantané : data/poids/apprenti-1M.txt.800000 (800000 parties, 48564.4 s)
+{"parties": 850000, "erreur": 0.065484, "justes": 0.7837}
+{"parties": 900000, "erreur": 0.068334, "justes": 0.7821}
+{"parties": 950000, "erreur": 0.067496, "justes": 0.7882}
+{"parties": 1000000, "erreur": 0.068408, "justes": 0.7905}
+fini : 1000000 parties, 4749208119 essais d'option, 60530.5 s (60.5 ms par partie)
+  dont essais 26941.8 s, apprentissage 6346.6 s (51600943 passes, rythme K=8, λ=0.9)
+  avance vers le repère (§4.1) : 4645213496 pas au total (0.98 par essai), plafond de 60 atteint 108743 fois

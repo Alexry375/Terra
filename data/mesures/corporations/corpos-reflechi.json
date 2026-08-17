@@ -1,0 +1,108 @@
+{
+ "joueur": "reflechi",
+ "poids": "(par defaut)",
+ "donnes": 200,
+ "choix": 400,
+ "mulligan": {
+  "garde": 400,
+  "remplace": 0
+ },
+ "corporations": [
+  {
+   "nom": "Teractor Corporation",
+   "propose": 53,
+   "prise": 53,
+   "taux": 1
+  },
+  {
+   "nom": "Interplanetary Cinematics",
+   "propose": 51,
+   "prise": 46,
+   "taux": 0.902
+  },
+  {
+   "nom": "Thorgate Corporation",
+   "propose": 46,
+   "prise": 39,
+   "taux": 0.848
+  },
+  {
+   "nom": "Credicor",
+   "propose": 50,
+   "prise": 41,
+   "taux": 0.82
+  },
+  {
+   "nom": "Sultira",
+   "propose": 55,
+   "prise": 43,
+   "taux": 0.782
+  },
+  {
+   "nom": "Inventrix",
+   "propose": 37,
+   "prise": 23,
+   "taux": 0.622
+  },
+  {
+   "nom": "Unmi",
+   "propose": 56,
+   "prise": 31,
+   "taux": 0.554
+  },
+  {
+   "nom": "Tharsis Republic",
+   "propose": 50,
+   "prise": 27,
+   "taux": 0.54
+  },
+  {
+   "nom": "Hyperion Systems",
+   "propose": 49,
+   "prise": 26,
+   "taux": 0.531
+  },
+  {
+   "nom": "Apollo Industries",
+   "propose": 46,
+   "prise": 20,
+   "taux": 0.435
+  },
+  {
+   "nom": "Helion Corporation",
+   "propose": 59,
+   "prise": 22,
+   "taux": 0.373
+  },
+  {
+   "nom": "Ecoline",
+   "propose": 54,
+   "prise": 13,
+   "taux": 0.241
+  },
+  {
+   "nom": "Mining Guild",
+   "propose": 46,
+   "prise": 10,
+   "taux": 0.217
+  },
+  {
+   "nom": "Exocorp",
+   "propose": 52,
+   "prise": 4,
+   "taux": 0.077
+  },
+  {
+   "nom": "Saturn Systems",
+   "propose": 41,
+   "prise": 2,
+   "taux": 0.049
+  },
+  {
+   "nom": "Phobolog",
+   "propose": 55,
+   "prise": 0,
+   "taux": 0
+  }
+ ]
+}
