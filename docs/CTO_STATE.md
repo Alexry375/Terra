@@ -3,7 +3,88 @@
 > Source de vérité du projet. Ancrée au code (`fichier:ligne`) dès qu'il y aura du
 > code. [VÉRIFIÉ JJ-MM] = relu à la source ce jour-là. [DÉCLARÉ] = non re-vérifié.
 
-Dernière mise à jour : 2026-08-16
+Dernière mise à jour : 2026-08-17
+
+## 🔥 17-08 — LE VERDICT DU MILLION : LA DEVINETTE NE PAYE PAS. C'EST **A** QU'IL FAUT PROLONGER
+
+L'entraînement C (avec devinette) a fini son million à 5 h 02 : **85 547 s,
+85,5 ms par partie**, 4,49 milliards d'options essayées, plafond des 60 pas
+d'avance atteint 80 461 fois. Poids et paliers enregistrés (`30f16eb`).
+À comparer à A : 60 530 s pour le même million, soit **41 % moins cher**.
+[VÉRIFIÉ 17-08]
+
+### La mesure décisive, deux duels sur les MÊMES 80 donnes × 2 sièges
+
+| duel | C | A | écart de score | verdict |
+|---|---|---|---|---|
+| **juges seuls** (devinette éteinte des deux côtés) | 40,0 % | **58,1 %** | **−3,61** | −2,31 écarts typiques → **A est meilleur** |
+| **C avec sa devinette allumée** | 49,4 % | 48,8 % | +0,33 | 0,08 écart typique → égalité |
+
+Journaux : `data/mesures/final-C-vs-A-jugeseul.log`, `…-devinette.log`.
+
+### Lecture, en trois points
+
+1. **Le réseau formé avec la devinette a moins bien appris.** À budget égal d'un
+   million de parties, son juge perd 3,61 points d'écart de score contre celui
+   de A. Le signal est juste au-dessus du seuil (2,31 contre 2 requis) : réel,
+   mais modeste — environ 2 % de probabilité que ce soit le hasard.
+2. **La devinette en usage lui rend à peu près ce qu'elle lui a coûté** :
+   +3,94 points entre les deux duels, ce qui ramène C à égalité. Elle n'ajoute
+   rien au-dessus.
+3. **Bilan net : la devinette coûte 41 % de temps de calcul pour revenir au
+   point de départ.** Le 64-36 du round 3, mesuré à 250 000 parties, ne survit
+   pas au budget long — il mesurait une vitesse d'apprentissage, pas un plafond.
+
+### Décision
+
+**Prolonger A au-delà du million, sans devinette**, avec `--reprise`. La courbe
+de A montait encore franchement à l'arrivée (+57,73 contre `reflechi`, contre
++43,88 au palier précédent) et aucun plafond n'est en vue.
+
+### La réserve, et elle n'est pas mesurée
+
+Ces duels font jouer **l'IA contre l'IA**. La devinette sert à prédire les phases
+de l'adversaire : contre un **humain**, dont le style diffère de celui du réseau,
+son apport pourrait être différent. Rien dans les mesures actuelles ne permet de
+le dire. Un banc contre un adversaire de style étranger (`reflechi`, ou un
+joueur humain enregistré) reste à faire avant de conclure définitivement.
+
+## ✅ 17-08 — L'IA CHOISIT LA BONNE CORPORATION 96 % DU TEMPS. L'INTUITION HUMAINE FAIT PIRE QUE LE HASARD
+
+Le relevé de préférence disait ce que l'IA **aime**, jamais si elle a **raison** :
+il ne conservait pas contre quoi elle choisissait. Nouveau banc
+(`data/mesures/corporations/paires-corpos.mjs`) : la **paire entière** proposée
+et le choix fait, 1 000 choix, puis la **perte en points d'écart de score** par
+rapport à qui prendrait toujours la meilleure des deux. [VÉRIFIÉ 17-08]
+
+| joueur | paires tranchées (285) | paires ambiguës (715) | toutes (1 000) |
+|---|---|---|---|
+| **IA au million** | **96,1 %** · perte 0,69 | 54,3 % · perte 1,38 | 66,2 % · perte 1,18 |
+| `reflechi` (juge sur l'argent de départ) | **45,6 %** · perte **8,95** | 57,6 % · perte 1,55 | 54,2 % · perte 3,66 |
+| joueur au hasard | 50,0 % | 50,0 % | perte 3,81 |
+
+« Paires tranchées » = les deux corporations sont séparées de plus de 11 points
+au classement, soit deux fois l'incertitude : le signe est sûr.
+
+- **L'IA est excellente là où il y a quelque chose à trouver** (96,1 %). Ses 54 %
+  sur les paires ambiguës ne sont pas une faiblesse : le « bon choix » y est
+  arbitraire, un joueur parfait obtiendrait le même score. La perte globale de
+  1,18 est donc **surestimée** ; le chiffre honnête est **0,69 point par partie**.
+- **`reflechi` fait pire que le hasard sur les choix qui comptent** (45,6 %,
+  8,95 points de perte). L'argent de départ n'a aucun lien avec la force réelle
+  (corrélation 0,10) : une règle fausse appliquée systématiquement se trompe
+  systématiquement, là où le hasard ne se trompe qu'une fois sur deux.
+  **Information de jeu directement exploitable contre un adversaire humain qui
+  choisit sa corporation sur son revenu de départ.**
+
+### Correction d'une lecture du 16-08
+
+J'avais annoncé un lien de **0,80** entre la préférence de l'IA et la force
+réelle. Refait sur les 799 parties complètes : **0,66** en valeur, **0,39** en
+rang, et **−0,12** si l'on retire le trio de tête. Mon chiffre venait d'un
+sous-ensemble. La bonne formulation n'est pas « l'IA a un bon jugement partout »
+ni « elle n'en a aucun hors du trio », mais : **hors du trio, il n'y a rien à
+juger** — ni pour elle, ni pour ma mesure.
 
 ## ⚠️ 16-08 (21 h) — À 600 000 PARTIES, LA DEVINETTE N'APPORTE RIEN. LE 64-36 DE LA NUIT NE SURVIT PAS AU BUDGET LONG
 
