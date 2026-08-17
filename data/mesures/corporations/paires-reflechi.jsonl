@@ -1,0 +1,1000 @@
+{"graine":1,"siege":0,"proposees":["Phobolog","Exocorp"],"prise":"Exocorp"}
+{"graine":1,"siege":1,"proposees":["Ecoline","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":2,"siege":0,"proposees":["Hyperion Systems","Exocorp"],"prise":"Hyperion Systems"}
+{"graine":2,"siege":1,"proposees":["Interplanetary Cinematics","Tharsis Republic"],"prise":"Interplanetary Cinematics"}
+{"graine":3,"siege":0,"proposees":["Exocorp","Hyperion Systems"],"prise":"Hyperion Systems"}
+{"graine":3,"siege":1,"proposees":["Credicor","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":4,"siege":0,"proposees":["Helion Corporation","Saturn Systems"],"prise":"Helion Corporation"}
+{"graine":4,"siege":1,"proposees":["Thorgate Corporation","Phobolog"],"prise":"Thorgate Corporation"}
+{"graine":5,"siege":0,"proposees":["Unmi","Ecoline"],"prise":"Unmi"}
+{"graine":5,"siege":1,"proposees":["Credicor","Tharsis Republic"],"prise":"Credicor"}
+{"graine":6,"siege":0,"proposees":["Mining Guild","Hyperion Systems"],"prise":"Hyperion Systems"}
+{"graine":6,"siege":1,"proposees":["Ecoline","Sultira"],"prise":"Sultira"}
+{"graine":7,"siege":0,"proposees":["Phobolog","Inventrix"],"prise":"Inventrix"}
+{"graine":7,"siege":1,"proposees":["Unmi","Credicor"],"prise":"Credicor"}
+{"graine":8,"siege":0,"proposees":["Unmi","Hyperion Systems"],"prise":"Unmi"}
+{"graine":8,"siege":1,"proposees":["Phobolog","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":9,"siege":0,"proposees":["Inventrix","Hyperion Systems"],"prise":"Inventrix"}
+{"graine":9,"siege":1,"proposees":["Teractor Corporation","Phobolog"],"prise":"Teractor Corporation"}
+{"graine":10,"siege":0,"proposees":["Phobolog","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":10,"siege":1,"proposees":["Apollo Industries","Hyperion Systems"],"prise":"Apollo Industries"}
+{"graine":11,"siege":0,"proposees":["Thorgate Corporation","Exocorp"],"prise":"Thorgate Corporation"}
+{"graine":11,"siege":1,"proposees":["Teractor Corporation","Sultira"],"prise":"Teractor Corporation"}
+{"graine":12,"siege":0,"proposees":["Exocorp","Sultira"],"prise":"Sultira"}
+{"graine":12,"siege":1,"proposees":["Teractor Corporation","Interplanetary Cinematics"],"prise":"Teractor Corporation"}
+{"graine":13,"siege":0,"proposees":["Hyperion Systems","Phobolog"],"prise":"Hyperion Systems"}
+{"graine":13,"siege":1,"proposees":["Sultira","Exocorp"],"prise":"Sultira"}
+{"graine":14,"siege":0,"proposees":["Interplanetary Cinematics","Sultira"],"prise":"Interplanetary Cinematics"}
+{"graine":14,"siege":1,"proposees":["Exocorp","Credicor"],"prise":"Credicor"}
+{"graine":15,"siege":0,"proposees":["Ecoline","Exocorp"],"prise":"Ecoline"}
+{"graine":15,"siege":1,"proposees":["Apollo Industries","Helion Corporation"],"prise":"Apollo Industries"}
+{"graine":16,"siege":0,"proposees":["Helion Corporation","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":16,"siege":1,"proposees":["Hyperion Systems","Ecoline"],"prise":"Hyperion Systems"}
+{"graine":17,"siege":0,"proposees":["Teractor Corporation","Mining Guild"],"prise":"Teractor Corporation"}
+{"graine":17,"siege":1,"proposees":["Inventrix","Saturn Systems"],"prise":"Inventrix"}
+{"graine":18,"siege":0,"proposees":["Thorgate Corporation","Saturn Systems"],"prise":"Thorgate Corporation"}
+{"graine":18,"siege":1,"proposees":["Hyperion Systems","Sultira"],"prise":"Sultira"}
+{"graine":19,"siege":0,"proposees":["Thorgate Corporation","Ecoline"],"prise":"Thorgate Corporation"}
+{"graine":19,"siege":1,"proposees":["Exocorp","Helion Corporation"],"prise":"Helion Corporation"}
+{"graine":20,"siege":0,"proposees":["Credicor","Mining Guild"],"prise":"Credicor"}
+{"graine":20,"siege":1,"proposees":["Tharsis Republic","Sultira"],"prise":"Tharsis Republic"}
+{"graine":21,"siege":0,"proposees":["Sultira","Hyperion Systems"],"prise":"Sultira"}
+{"graine":21,"siege":1,"proposees":["Interplanetary Cinematics","Ecoline"],"prise":"Interplanetary Cinematics"}
+{"graine":22,"siege":0,"proposees":["Interplanetary Cinematics","Inventrix"],"prise":"Interplanetary Cinematics"}
+{"graine":22,"siege":1,"proposees":["Tharsis Republic","Helion Corporation"],"prise":"Tharsis Republic"}
+{"graine":23,"siege":0,"proposees":["Helion Corporation","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":23,"siege":1,"proposees":["Unmi","Phobolog"],"prise":"Unmi"}
+{"graine":24,"siege":0,"proposees":["Thorgate Corporation","Inventrix"],"prise":"Thorgate Corporation"}
+{"graine":24,"siege":1,"proposees":["Apollo Industries","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":25,"siege":0,"proposees":["Apollo Industries","Saturn Systems"],"prise":"Apollo Industries"}
+{"graine":25,"siege":1,"proposees":["Sultira","Exocorp"],"prise":"Sultira"}
+{"graine":26,"siege":0,"proposees":["Mining Guild","Hyperion Systems"],"prise":"Hyperion Systems"}
+{"graine":26,"siege":1,"proposees":["Ecoline","Saturn Systems"],"prise":"Ecoline"}
+{"graine":27,"siege":0,"proposees":["Interplanetary Cinematics","Helion Corporation"],"prise":"Interplanetary Cinematics"}
+{"graine":27,"siege":1,"proposees":["Sultira","Saturn Systems"],"prise":"Sultira"}
+{"graine":28,"siege":0,"proposees":["Saturn Systems","Thorgate Corporation"],"prise":"Thorgate Corporation"}
+{"graine":28,"siege":1,"proposees":["Phobolog","Ecoline"],"prise":"Ecoline"}
+{"graine":29,"siege":0,"proposees":["Credicor","Saturn Systems"],"prise":"Credicor"}
+{"graine":29,"siege":1,"proposees":["Phobolog","Helion Corporation"],"prise":"Helion Corporation"}
+{"graine":30,"siege":0,"proposees":["Ecoline","Tharsis Republic"],"prise":"Tharsis Republic"}
+{"graine":30,"siege":1,"proposees":["Exocorp","Hyperion Systems"],"prise":"Hyperion Systems"}
+{"graine":31,"siege":0,"proposees":["Saturn Systems","Apollo Industries"],"prise":"Apollo Industries"}
+{"graine":31,"siege":1,"proposees":["Unmi","Credicor"],"prise":"Credicor"}
+{"graine":32,"siege":0,"proposees":["Ecoline","Helion Corporation"],"prise":"Helion Corporation"}
+{"graine":32,"siege":1,"proposees":["Phobolog","Inventrix"],"prise":"Inventrix"}
+{"graine":33,"siege":0,"proposees":["Sultira","Phobolog"],"prise":"Sultira"}
+{"graine":33,"siege":1,"proposees":["Thorgate Corporation","Mining Guild"],"prise":"Thorgate Corporation"}
+{"graine":34,"siege":0,"proposees":["Mining Guild","Credicor"],"prise":"Credicor"}
+{"graine":34,"siege":1,"proposees":["Ecoline","Hyperion Systems"],"prise":"Hyperion Systems"}
+{"graine":35,"siege":0,"proposees":["Interplanetary Cinematics","Thorgate Corporation"],"prise":"Interplanetary Cinematics"}
+{"graine":35,"siege":1,"proposees":["Helion Corporation","Phobolog"],"prise":"Helion Corporation"}
+{"graine":36,"siege":0,"proposees":["Tharsis Republic","Hyperion Systems"],"prise":"Tharsis Republic"}
+{"graine":36,"siege":1,"proposees":["Apollo Industries","Helion Corporation"],"prise":"Apollo Industries"}
+{"graine":37,"siege":0,"proposees":["Unmi","Inventrix"],"prise":"Unmi"}
+{"graine":37,"siege":1,"proposees":["Apollo Industries","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":38,"siege":0,"proposees":["Teractor Corporation","Exocorp"],"prise":"Teractor Corporation"}
+{"graine":38,"siege":1,"proposees":["Helion Corporation","Tharsis Republic"],"prise":"Tharsis Republic"}
+{"graine":39,"siege":0,"proposees":["Exocorp","Helion Corporation"],"prise":"Helion Corporation"}
+{"graine":39,"siege":1,"proposees":["Inventrix","Apollo Industries"],"prise":"Inventrix"}
+{"graine":40,"siege":0,"proposees":["Inventrix","Exocorp"],"prise":"Inventrix"}
+{"graine":40,"siege":1,"proposees":["Teractor Corporation","Phobolog"],"prise":"Teractor Corporation"}
+{"graine":41,"siege":0,"proposees":["Credicor","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":41,"siege":1,"proposees":["Mining Guild","Helion Corporation"],"prise":"Mining Guild"}
+{"graine":42,"siege":0,"proposees":["Phobolog","Inventrix"],"prise":"Inventrix"}
+{"graine":42,"siege":1,"proposees":["Ecoline","Apollo Industries"],"prise":"Apollo Industries"}
+{"graine":43,"siege":0,"proposees":["Apollo Industries","Mining Guild"],"prise":"Apollo Industries"}
+{"graine":43,"siege":1,"proposees":["Sultira","Ecoline"],"prise":"Sultira"}
+{"graine":44,"siege":0,"proposees":["Exocorp","Helion Corporation"],"prise":"Helion Corporation"}
+{"graine":44,"siege":1,"proposees":["Hyperion Systems","Unmi"],"prise":"Unmi"}
+{"graine":45,"siege":0,"proposees":["Inventrix","Unmi"],"prise":"Inventrix"}
+{"graine":45,"siege":1,"proposees":["Phobolog","Tharsis Republic"],"prise":"Tharsis Republic"}
+{"graine":46,"siege":0,"proposees":["Sultira","Helion Corporation"],"prise":"Sultira"}
+{"graine":46,"siege":1,"proposees":["Thorgate Corporation","Phobolog"],"prise":"Thorgate Corporation"}
+{"graine":47,"siege":0,"proposees":["Teractor Corporation","Apollo Industries"],"prise":"Teractor Corporation"}
+{"graine":47,"siege":1,"proposees":["Interplanetary Cinematics","Thorgate Corporation"],"prise":"Interplanetary Cinematics"}
+{"graine":48,"siege":0,"proposees":["Inventrix","Ecoline"],"prise":"Inventrix"}
+{"graine":48,"siege":1,"proposees":["Helion Corporation","Exocorp"],"prise":"Helion Corporation"}
+{"graine":49,"siege":0,"proposees":["Helion Corporation","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":49,"siege":1,"proposees":["Ecoline","Mining Guild"],"prise":"Mining Guild"}
+{"graine":50,"siege":0,"proposees":["Tharsis Republic","Thorgate Corporation"],"prise":"Thorgate Corporation"}
+{"graine":50,"siege":1,"proposees":["Exocorp","Hyperion Systems"],"prise":"Hyperion Systems"}
+{"graine":51,"siege":0,"proposees":["Tharsis Republic","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":51,"siege":1,"proposees":["Apollo Industries","Exocorp"],"prise":"Apollo Industries"}
+{"graine":52,"siege":0,"proposees":["Helion Corporation","Hyperion Systems"],"prise":"Hyperion Systems"}
+{"graine":52,"siege":1,"proposees":["Ecoline","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":53,"siege":0,"proposees":["Credicor","Interplanetary Cinematics"],"prise":"Credicor"}
+{"graine":53,"siege":1,"proposees":["Saturn Systems","Unmi"],"prise":"Unmi"}
+{"graine":54,"siege":0,"proposees":["Apollo Industries","Unmi"],"prise":"Apollo Industries"}
+{"graine":54,"siege":1,"proposees":["Teractor Corporation","Credicor"],"prise":"Teractor Corporation"}
+{"graine":55,"siege":0,"proposees":["Tharsis Republic","Saturn Systems"],"prise":"Tharsis Republic"}
+{"graine":55,"siege":1,"proposees":["Inventrix","Sultira"],"prise":"Sultira"}
+{"graine":56,"siege":0,"proposees":["Mining Guild","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":56,"siege":1,"proposees":["Ecoline","Helion Corporation"],"prise":"Helion Corporation"}
+{"graine":57,"siege":0,"proposees":["Apollo Industries","Credicor"],"prise":"Credicor"}
+{"graine":57,"siege":1,"proposees":["Hyperion Systems","Unmi"],"prise":"Unmi"}
+{"graine":58,"siege":0,"proposees":["Mining Guild","Exocorp"],"prise":"Mining Guild"}
+{"graine":58,"siege":1,"proposees":["Hyperion Systems","Helion Corporation"],"prise":"Hyperion Systems"}
+{"graine":59,"siege":0,"proposees":["Interplanetary Cinematics","Credicor"],"prise":"Interplanetary Cinematics"}
+{"graine":59,"siege":1,"proposees":["Ecoline","Phobolog"],"prise":"Ecoline"}
+{"graine":60,"siege":0,"proposees":["Apollo Industries","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":60,"siege":1,"proposees":["Mining Guild","Helion Corporation"],"prise":"Mining Guild"}
+{"graine":61,"siege":0,"proposees":["Helion Corporation","Ecoline"],"prise":"Helion Corporation"}
+{"graine":61,"siege":1,"proposees":["Tharsis Republic","Apollo Industries"],"prise":"Tharsis Republic"}
+{"graine":62,"siege":0,"proposees":["Phobolog","Hyperion Systems"],"prise":"Hyperion Systems"}
+{"graine":62,"siege":1,"proposees":["Saturn Systems","Helion Corporation"],"prise":"Helion Corporation"}
+{"graine":63,"siege":0,"proposees":["Helion Corporation","Inventrix"],"prise":"Inventrix"}
+{"graine":63,"siege":1,"proposees":["Interplanetary Cinematics","Mining Guild"],"prise":"Interplanetary Cinematics"}
+{"graine":64,"siege":0,"proposees":["Teractor Corporation","Exocorp"],"prise":"Teractor Corporation"}
+{"graine":64,"siege":1,"proposees":["Tharsis Republic","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":65,"siege":0,"proposees":["Hyperion Systems","Credicor"],"prise":"Credicor"}
+{"graine":65,"siege":1,"proposees":["Exocorp","Unmi"],"prise":"Unmi"}
+{"graine":66,"siege":0,"proposees":["Thorgate Corporation","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":66,"siege":1,"proposees":["Mining Guild","Tharsis Republic"],"prise":"Tharsis Republic"}
+{"graine":67,"siege":0,"proposees":["Apollo Industries","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":67,"siege":1,"proposees":["Thorgate Corporation","Unmi"],"prise":"Thorgate Corporation"}
+{"graine":68,"siege":0,"proposees":["Unmi","Sultira"],"prise":"Sultira"}
+{"graine":68,"siege":1,"proposees":["Hyperion Systems","Phobolog"],"prise":"Hyperion Systems"}
+{"graine":69,"siege":0,"proposees":["Unmi","Thorgate Corporation"],"prise":"Thorgate Corporation"}
+{"graine":69,"siege":1,"proposees":["Tharsis Republic","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":70,"siege":0,"proposees":["Ecoline","Apollo Industries"],"prise":"Apollo Industries"}
+{"graine":70,"siege":1,"proposees":["Mining Guild","Exocorp"],"prise":"Mining Guild"}
+{"graine":71,"siege":0,"proposees":["Tharsis Republic","Exocorp"],"prise":"Tharsis Republic"}
+{"graine":71,"siege":1,"proposees":["Phobolog","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":72,"siege":0,"proposees":["Credicor","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":72,"siege":1,"proposees":["Inventrix","Unmi"],"prise":"Inventrix"}
+{"graine":73,"siege":0,"proposees":["Mining Guild","Inventrix"],"prise":"Inventrix"}
+{"graine":73,"siege":1,"proposees":["Credicor","Apollo Industries"],"prise":"Credicor"}
+{"graine":74,"siege":0,"proposees":["Helion Corporation","Hyperion Systems"],"prise":"Hyperion Systems"}
+{"graine":74,"siege":1,"proposees":["Credicor","Ecoline"],"prise":"Credicor"}
+{"graine":75,"siege":0,"proposees":["Saturn Systems","Apollo Industries"],"prise":"Apollo Industries"}
+{"graine":75,"siege":1,"proposees":["Exocorp","Credicor"],"prise":"Credicor"}
+{"graine":76,"siege":0,"proposees":["Hyperion Systems","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":76,"siege":1,"proposees":["Helion Corporation","Ecoline"],"prise":"Helion Corporation"}
+{"graine":77,"siege":0,"proposees":["Teractor Corporation","Credicor"],"prise":"Teractor Corporation"}
+{"graine":77,"siege":1,"proposees":["Ecoline","Sultira"],"prise":"Sultira"}
+{"graine":78,"siege":0,"proposees":["Sultira","Apollo Industries"],"prise":"Sultira"}
+{"graine":78,"siege":1,"proposees":["Phobolog","Unmi"],"prise":"Unmi"}
+{"graine":79,"siege":0,"proposees":["Thorgate Corporation","Unmi"],"prise":"Thorgate Corporation"}
+{"graine":79,"siege":1,"proposees":["Phobolog","Sultira"],"prise":"Sultira"}
+{"graine":80,"siege":0,"proposees":["Inventrix","Apollo Industries"],"prise":"Inventrix"}
+{"graine":80,"siege":1,"proposees":["Hyperion Systems","Ecoline"],"prise":"Hyperion Systems"}
+{"graine":81,"siege":0,"proposees":["Thorgate Corporation","Mining Guild"],"prise":"Thorgate Corporation"}
+{"graine":81,"siege":1,"proposees":["Credicor","Helion Corporation"],"prise":"Credicor"}
+{"graine":82,"siege":0,"proposees":["Exocorp","Saturn Systems"],"prise":"Exocorp"}
+{"graine":82,"siege":1,"proposees":["Credicor","Ecoline"],"prise":"Credicor"}
+{"graine":83,"siege":0,"proposees":["Mining Guild","Sultira"],"prise":"Sultira"}
+{"graine":83,"siege":1,"proposees":["Interplanetary Cinematics","Saturn Systems"],"prise":"Interplanetary Cinematics"}
+{"graine":84,"siege":0,"proposees":["Sultira","Saturn Systems"],"prise":"Sultira"}
+{"graine":84,"siege":1,"proposees":["Mining Guild","Credicor"],"prise":"Credicor"}
+{"graine":85,"siege":0,"proposees":["Sultira","Inventrix"],"prise":"Sultira"}
+{"graine":85,"siege":1,"proposees":["Teractor Corporation","Ecoline"],"prise":"Teractor Corporation"}
+{"graine":86,"siege":0,"proposees":["Saturn Systems","Credicor"],"prise":"Credicor"}
+{"graine":86,"siege":1,"proposees":["Exocorp","Thorgate Corporation"],"prise":"Thorgate Corporation"}
+{"graine":87,"siege":0,"proposees":["Interplanetary Cinematics","Unmi"],"prise":"Interplanetary Cinematics"}
+{"graine":87,"siege":1,"proposees":["Tharsis Republic","Inventrix"],"prise":"Tharsis Republic"}
+{"graine":88,"siege":0,"proposees":["Saturn Systems","Helion Corporation"],"prise":"Helion Corporation"}
+{"graine":88,"siege":1,"proposees":["Teractor Corporation","Unmi"],"prise":"Teractor Corporation"}
+{"graine":89,"siege":0,"proposees":["Exocorp","Inventrix"],"prise":"Inventrix"}
+{"graine":89,"siege":1,"proposees":["Interplanetary Cinematics","Hyperion Systems"],"prise":"Interplanetary Cinematics"}
+{"graine":90,"siege":0,"proposees":["Phobolog","Thorgate Corporation"],"prise":"Thorgate Corporation"}
+{"graine":90,"siege":1,"proposees":["Helion Corporation","Unmi"],"prise":"Unmi"}
+{"graine":91,"siege":0,"proposees":["Helion Corporation","Inventrix"],"prise":"Inventrix"}
+{"graine":91,"siege":1,"proposees":["Tharsis Republic","Apollo Industries"],"prise":"Tharsis Republic"}
+{"graine":92,"siege":0,"proposees":["Teractor Corporation","Interplanetary Cinematics"],"prise":"Teractor Corporation"}
+{"graine":92,"siege":1,"proposees":["Helion Corporation","Sultira"],"prise":"Sultira"}
+{"graine":93,"siege":0,"proposees":["Thorgate Corporation","Credicor"],"prise":"Credicor"}
+{"graine":93,"siege":1,"proposees":["Sultira","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":94,"siege":0,"proposees":["Tharsis Republic","Phobolog"],"prise":"Tharsis Republic"}
+{"graine":94,"siege":1,"proposees":["Apollo Industries","Saturn Systems"],"prise":"Apollo Industries"}
+{"graine":95,"siege":0,"proposees":["Thorgate Corporation","Unmi"],"prise":"Thorgate Corporation"}
+{"graine":95,"siege":1,"proposees":["Apollo Industries","Exocorp"],"prise":"Apollo Industries"}
+{"graine":96,"siege":0,"proposees":["Ecoline","Exocorp"],"prise":"Ecoline"}
+{"graine":96,"siege":1,"proposees":["Thorgate Corporation","Phobolog"],"prise":"Thorgate Corporation"}
+{"graine":97,"siege":0,"proposees":["Credicor","Phobolog"],"prise":"Credicor"}
+{"graine":97,"siege":1,"proposees":["Mining Guild","Thorgate Corporation"],"prise":"Thorgate Corporation"}
+{"graine":98,"siege":0,"proposees":["Ecoline","Unmi"],"prise":"Unmi"}
+{"graine":98,"siege":1,"proposees":["Teractor Corporation","Exocorp"],"prise":"Teractor Corporation"}
+{"graine":99,"siege":0,"proposees":["Unmi","Thorgate Corporation"],"prise":"Thorgate Corporation"}
+{"graine":99,"siege":1,"proposees":["Hyperion Systems","Tharsis Republic"],"prise":"Tharsis Republic"}
+{"graine":100,"siege":0,"proposees":["Ecoline","Phobolog"],"prise":"Ecoline"}
+{"graine":100,"siege":1,"proposees":["Interplanetary Cinematics","Thorgate Corporation"],"prise":"Interplanetary Cinematics"}
+{"graine":101,"siege":0,"proposees":["Unmi","Sultira"],"prise":"Sultira"}
+{"graine":101,"siege":1,"proposees":["Phobolog","Ecoline"],"prise":"Ecoline"}
+{"graine":102,"siege":0,"proposees":["Unmi","Exocorp"],"prise":"Unmi"}
+{"graine":102,"siege":1,"proposees":["Helion Corporation","Saturn Systems"],"prise":"Helion Corporation"}
+{"graine":103,"siege":0,"proposees":["Sultira","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":103,"siege":1,"proposees":["Inventrix","Tharsis Republic"],"prise":"Tharsis Republic"}
+{"graine":104,"siege":0,"proposees":["Inventrix","Credicor"],"prise":"Credicor"}
+{"graine":104,"siege":1,"proposees":["Exocorp","Ecoline"],"prise":"Ecoline"}
+{"graine":105,"siege":0,"proposees":["Inventrix","Tharsis Republic"],"prise":"Tharsis Republic"}
+{"graine":105,"siege":1,"proposees":["Saturn Systems","Credicor"],"prise":"Credicor"}
+{"graine":106,"siege":0,"proposees":["Exocorp","Inventrix"],"prise":"Inventrix"}
+{"graine":106,"siege":1,"proposees":["Tharsis Republic","Unmi"],"prise":"Tharsis Republic"}
+{"graine":107,"siege":0,"proposees":["Exocorp","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":107,"siege":1,"proposees":["Tharsis Republic","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":108,"siege":0,"proposees":["Helion Corporation","Unmi"],"prise":"Unmi"}
+{"graine":108,"siege":1,"proposees":["Sultira","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":109,"siege":0,"proposees":["Ecoline","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":109,"siege":1,"proposees":["Thorgate Corporation","Tharsis Republic"],"prise":"Thorgate Corporation"}
+{"graine":110,"siege":0,"proposees":["Sultira","Tharsis Republic"],"prise":"Sultira"}
+{"graine":110,"siege":1,"proposees":["Unmi","Saturn Systems"],"prise":"Unmi"}
+{"graine":111,"siege":0,"proposees":["Mining Guild","Helion Corporation"],"prise":"Mining Guild"}
+{"graine":111,"siege":1,"proposees":["Unmi","Ecoline"],"prise":"Unmi"}
+{"graine":112,"siege":0,"proposees":["Mining Guild","Tharsis Republic"],"prise":"Tharsis Republic"}
+{"graine":112,"siege":1,"proposees":["Apollo Industries","Sultira"],"prise":"Sultira"}
+{"graine":113,"siege":0,"proposees":["Phobolog","Saturn Systems"],"prise":"Saturn Systems"}
+{"graine":113,"siege":1,"proposees":["Mining Guild","Hyperion Systems"],"prise":"Hyperion Systems"}
+{"graine":114,"siege":0,"proposees":["Tharsis Republic","Thorgate Corporation"],"prise":"Thorgate Corporation"}
+{"graine":114,"siege":1,"proposees":["Apollo Industries","Phobolog"],"prise":"Apollo Industries"}
+{"graine":115,"siege":0,"proposees":["Apollo Industries","Hyperion Systems"],"prise":"Apollo Industries"}
+{"graine":115,"siege":1,"proposees":["Saturn Systems","Thorgate Corporation"],"prise":"Thorgate Corporation"}
+{"graine":116,"siege":0,"proposees":["Inventrix","Helion Corporation"],"prise":"Inventrix"}
+{"graine":116,"siege":1,"proposees":["Tharsis Republic","Apollo Industries"],"prise":"Tharsis Republic"}
+{"graine":117,"siege":0,"proposees":["Mining Guild","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":117,"siege":1,"proposees":["Apollo Industries","Helion Corporation"],"prise":"Apollo Industries"}
+{"graine":118,"siege":0,"proposees":["Ecoline","Credicor"],"prise":"Credicor"}
+{"graine":118,"siege":1,"proposees":["Teractor Corporation","Thorgate Corporation"],"prise":"Teractor Corporation"}
+{"graine":119,"siege":0,"proposees":["Phobolog","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":119,"siege":1,"proposees":["Tharsis Republic","Sultira"],"prise":"Tharsis Republic"}
+{"graine":120,"siege":0,"proposees":["Interplanetary Cinematics","Unmi"],"prise":"Interplanetary Cinematics"}
+{"graine":120,"siege":1,"proposees":["Phobolog","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":121,"siege":0,"proposees":["Inventrix","Helion Corporation"],"prise":"Inventrix"}
+{"graine":121,"siege":1,"proposees":["Phobolog","Ecoline"],"prise":"Ecoline"}
+{"graine":122,"siege":0,"proposees":["Interplanetary Cinematics","Credicor"],"prise":"Interplanetary Cinematics"}
+{"graine":122,"siege":1,"proposees":["Apollo Industries","Saturn Systems"],"prise":"Apollo Industries"}
+{"graine":123,"siege":0,"proposees":["Teractor Corporation","Mining Guild"],"prise":"Teractor Corporation"}
+{"graine":123,"siege":1,"proposees":["Exocorp","Ecoline"],"prise":"Ecoline"}
+{"graine":124,"siege":0,"proposees":["Hyperion Systems","Thorgate Corporation"],"prise":"Thorgate Corporation"}
+{"graine":124,"siege":1,"proposees":["Phobolog","Tharsis Republic"],"prise":"Tharsis Republic"}
+{"graine":125,"siege":0,"proposees":["Unmi","Helion Corporation"],"prise":"Unmi"}
+{"graine":125,"siege":1,"proposees":["Exocorp","Hyperion Systems"],"prise":"Hyperion Systems"}
+{"graine":126,"siege":0,"proposees":["Teractor Corporation","Saturn Systems"],"prise":"Teractor Corporation"}
+{"graine":126,"siege":1,"proposees":["Thorgate Corporation","Sultira"],"prise":"Thorgate Corporation"}
+{"graine":127,"siege":0,"proposees":["Inventrix","Sultira"],"prise":"Sultira"}
+{"graine":127,"siege":1,"proposees":["Tharsis Republic","Ecoline"],"prise":"Tharsis Republic"}
+{"graine":128,"siege":0,"proposees":["Unmi","Helion Corporation"],"prise":"Unmi"}
+{"graine":128,"siege":1,"proposees":["Apollo Industries","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":129,"siege":0,"proposees":["Unmi","Hyperion Systems"],"prise":"Unmi"}
+{"graine":129,"siege":1,"proposees":["Thorgate Corporation","Phobolog"],"prise":"Thorgate Corporation"}
+{"graine":130,"siege":0,"proposees":["Thorgate Corporation","Tharsis Republic"],"prise":"Thorgate Corporation"}
+{"graine":130,"siege":1,"proposees":["Saturn Systems","Credicor"],"prise":"Credicor"}
+{"graine":131,"siege":0,"proposees":["Credicor","Saturn Systems"],"prise":"Credicor"}
+{"graine":131,"siege":1,"proposees":["Sultira","Mining Guild"],"prise":"Sultira"}
+{"graine":132,"siege":0,"proposees":["Helion Corporation","Unmi"],"prise":"Unmi"}
+{"graine":132,"siege":1,"proposees":["Ecoline","Sultira"],"prise":"Sultira"}
+{"graine":133,"siege":0,"proposees":["Hyperion Systems","Unmi"],"prise":"Unmi"}
+{"graine":133,"siege":1,"proposees":["Sultira","Ecoline"],"prise":"Sultira"}
+{"graine":134,"siege":0,"proposees":["Exocorp","Unmi"],"prise":"Unmi"}
+{"graine":134,"siege":1,"proposees":["Apollo Industries","Sultira"],"prise":"Sultira"}
+{"graine":135,"siege":0,"proposees":["Helion Corporation","Phobolog"],"prise":"Helion Corporation"}
+{"graine":135,"siege":1,"proposees":["Interplanetary Cinematics","Sultira"],"prise":"Interplanetary Cinematics"}
+{"graine":136,"siege":0,"proposees":["Ecoline","Inventrix"],"prise":"Inventrix"}
+{"graine":136,"siege":1,"proposees":["Exocorp","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":137,"siege":0,"proposees":["Credicor","Apollo Industries"],"prise":"Credicor"}
+{"graine":137,"siege":1,"proposees":["Exocorp","Inventrix"],"prise":"Inventrix"}
+{"graine":138,"siege":0,"proposees":["Unmi","Apollo Industries"],"prise":"Unmi"}
+{"graine":138,"siege":1,"proposees":["Credicor","Tharsis Republic"],"prise":"Credicor"}
+{"graine":139,"siege":0,"proposees":["Tharsis Republic","Mining Guild"],"prise":"Tharsis Republic"}
+{"graine":139,"siege":1,"proposees":["Teractor Corporation","Credicor"],"prise":"Teractor Corporation"}
+{"graine":140,"siege":0,"proposees":["Tharsis Republic","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":140,"siege":1,"proposees":["Interplanetary Cinematics","Inventrix"],"prise":"Interplanetary Cinematics"}
+{"graine":141,"siege":0,"proposees":["Phobolog","Hyperion Systems"],"prise":"Hyperion Systems"}
+{"graine":141,"siege":1,"proposees":["Apollo Industries","Unmi"],"prise":"Apollo Industries"}
+{"graine":142,"siege":0,"proposees":["Apollo Industries","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":142,"siege":1,"proposees":["Mining Guild","Saturn Systems"],"prise":"Mining Guild"}
+{"graine":143,"siege":0,"proposees":["Inventrix","Credicor"],"prise":"Credicor"}
+{"graine":143,"siege":1,"proposees":["Mining Guild","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":144,"siege":0,"proposees":["Saturn Systems","Exocorp"],"prise":"Exocorp"}
+{"graine":144,"siege":1,"proposees":["Apollo Industries","Unmi"],"prise":"Apollo Industries"}
+{"graine":145,"siege":0,"proposees":["Mining Guild","Ecoline"],"prise":"Mining Guild"}
+{"graine":145,"siege":1,"proposees":["Teractor Corporation","Sultira"],"prise":"Teractor Corporation"}
+{"graine":146,"siege":0,"proposees":["Tharsis Republic","Apollo Industries"],"prise":"Tharsis Republic"}
+{"graine":146,"siege":1,"proposees":["Inventrix","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":147,"siege":0,"proposees":["Helion Corporation","Phobolog"],"prise":"Helion Corporation"}
+{"graine":147,"siege":1,"proposees":["Teractor Corporation","Hyperion Systems"],"prise":"Teractor Corporation"}
+{"graine":148,"siege":0,"proposees":["Thorgate Corporation","Tharsis Republic"],"prise":"Thorgate Corporation"}
+{"graine":148,"siege":1,"proposees":["Inventrix","Helion Corporation"],"prise":"Inventrix"}
+{"graine":149,"siege":0,"proposees":["Tharsis Republic","Mining Guild"],"prise":"Tharsis Republic"}
+{"graine":149,"siege":1,"proposees":["Sultira","Saturn Systems"],"prise":"Sultira"}
+{"graine":150,"siege":0,"proposees":["Saturn Systems","Unmi"],"prise":"Unmi"}
+{"graine":150,"siege":1,"proposees":["Helion Corporation","Credicor"],"prise":"Credicor"}
+{"graine":151,"siege":0,"proposees":["Interplanetary Cinematics","Sultira"],"prise":"Interplanetary Cinematics"}
+{"graine":151,"siege":1,"proposees":["Credicor","Hyperion Systems"],"prise":"Credicor"}
+{"graine":152,"siege":0,"proposees":["Exocorp","Thorgate Corporation"],"prise":"Thorgate Corporation"}
+{"graine":152,"siege":1,"proposees":["Hyperion Systems","Saturn Systems"],"prise":"Hyperion Systems"}
+{"graine":153,"siege":0,"proposees":["Inventrix","Hyperion Systems"],"prise":"Inventrix"}
+{"graine":153,"siege":1,"proposees":["Exocorp","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":154,"siege":0,"proposees":["Phobolog","Helion Corporation"],"prise":"Helion Corporation"}
+{"graine":154,"siege":1,"proposees":["Credicor","Interplanetary Cinematics"],"prise":"Credicor"}
+{"graine":155,"siege":0,"proposees":["Exocorp","Ecoline"],"prise":"Ecoline"}
+{"graine":155,"siege":1,"proposees":["Helion Corporation","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":156,"siege":0,"proposees":["Thorgate Corporation","Exocorp"],"prise":"Thorgate Corporation"}
+{"graine":156,"siege":1,"proposees":["Tharsis Republic","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":157,"siege":0,"proposees":["Unmi","Mining Guild"],"prise":"Unmi"}
+{"graine":157,"siege":1,"proposees":["Sultira","Tharsis Republic"],"prise":"Sultira"}
+{"graine":158,"siege":0,"proposees":["Sultira","Tharsis Republic"],"prise":"Sultira"}
+{"graine":158,"siege":1,"proposees":["Helion Corporation","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":159,"siege":0,"proposees":["Phobolog","Helion Corporation"],"prise":"Helion Corporation"}
+{"graine":159,"siege":1,"proposees":["Credicor","Unmi"],"prise":"Credicor"}
+{"graine":160,"siege":0,"proposees":["Teractor Corporation","Sultira"],"prise":"Teractor Corporation"}
+{"graine":160,"siege":1,"proposees":["Ecoline","Mining Guild"],"prise":"Mining Guild"}
+{"graine":161,"siege":0,"proposees":["Apollo Industries","Mining Guild"],"prise":"Apollo Industries"}
+{"graine":161,"siege":1,"proposees":["Exocorp","Helion Corporation"],"prise":"Helion Corporation"}
+{"graine":162,"siege":0,"proposees":["Unmi","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":162,"siege":1,"proposees":["Ecoline","Credicor"],"prise":"Credicor"}
+{"graine":163,"siege":0,"proposees":["Exocorp","Saturn Systems"],"prise":"Exocorp"}
+{"graine":163,"siege":1,"proposees":["Inventrix","Mining Guild"],"prise":"Inventrix"}
+{"graine":164,"siege":0,"proposees":["Helion Corporation","Thorgate Corporation"],"prise":"Thorgate Corporation"}
+{"graine":164,"siege":1,"proposees":["Teractor Corporation","Unmi"],"prise":"Teractor Corporation"}
+{"graine":165,"siege":0,"proposees":["Credicor","Unmi"],"prise":"Credicor"}
+{"graine":165,"siege":1,"proposees":["Ecoline","Sultira"],"prise":"Sultira"}
+{"graine":166,"siege":0,"proposees":["Mining Guild","Hyperion Systems"],"prise":"Hyperion Systems"}
+{"graine":166,"siege":1,"proposees":["Sultira","Helion Corporation"],"prise":"Sultira"}
+{"graine":167,"siege":0,"proposees":["Sultira","Phobolog"],"prise":"Sultira"}
+{"graine":167,"siege":1,"proposees":["Tharsis Republic","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":168,"siege":0,"proposees":["Apollo Industries","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":168,"siege":1,"proposees":["Credicor","Tharsis Republic"],"prise":"Credicor"}
+{"graine":169,"siege":0,"proposees":["Hyperion Systems","Credicor"],"prise":"Credicor"}
+{"graine":169,"siege":1,"proposees":["Thorgate Corporation","Tharsis Republic"],"prise":"Thorgate Corporation"}
+{"graine":170,"siege":0,"proposees":["Saturn Systems","Unmi"],"prise":"Unmi"}
+{"graine":170,"siege":1,"proposees":["Teractor Corporation","Credicor"],"prise":"Teractor Corporation"}
+{"graine":171,"siege":0,"proposees":["Apollo Industries","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":171,"siege":1,"proposees":["Ecoline","Phobolog"],"prise":"Ecoline"}
+{"graine":172,"siege":0,"proposees":["Teractor Corporation","Apollo Industries"],"prise":"Teractor Corporation"}
+{"graine":172,"siege":1,"proposees":["Ecoline","Helion Corporation"],"prise":"Helion Corporation"}
+{"graine":173,"siege":0,"proposees":["Saturn Systems","Mining Guild"],"prise":"Mining Guild"}
+{"graine":173,"siege":1,"proposees":["Phobolog","Unmi"],"prise":"Unmi"}
+{"graine":174,"siege":0,"proposees":["Tharsis Republic","Thorgate Corporation"],"prise":"Thorgate Corporation"}
+{"graine":174,"siege":1,"proposees":["Ecoline","Sultira"],"prise":"Sultira"}
+{"graine":175,"siege":0,"proposees":["Helion Corporation","Thorgate Corporation"],"prise":"Thorgate Corporation"}
+{"graine":175,"siege":1,"proposees":["Exocorp","Sultira"],"prise":"Sultira"}
+{"graine":176,"siege":0,"proposees":["Helion Corporation","Ecoline"],"prise":"Helion Corporation"}
+{"graine":176,"siege":1,"proposees":["Mining Guild","Sultira"],"prise":"Sultira"}
+{"graine":177,"siege":0,"proposees":["Helion Corporation","Ecoline"],"prise":"Helion Corporation"}
+{"graine":177,"siege":1,"proposees":["Mining Guild","Sultira"],"prise":"Sultira"}
+{"graine":178,"siege":0,"proposees":["Phobolog","Saturn Systems"],"prise":"Saturn Systems"}
+{"graine":178,"siege":1,"proposees":["Hyperion Systems","Mining Guild"],"prise":"Hyperion Systems"}
+{"graine":179,"siege":0,"proposees":["Mining Guild","Sultira"],"prise":"Sultira"}
+{"graine":179,"siege":1,"proposees":["Unmi","Saturn Systems"],"prise":"Unmi"}
+{"graine":180,"siege":0,"proposees":["Mining Guild","Tharsis Republic"],"prise":"Tharsis Republic"}
+{"graine":180,"siege":1,"proposees":["Interplanetary Cinematics","Apollo Industries"],"prise":"Interplanetary Cinematics"}
+{"graine":181,"siege":0,"proposees":["Exocorp","Thorgate Corporation"],"prise":"Thorgate Corporation"}
+{"graine":181,"siege":1,"proposees":["Helion Corporation","Hyperion Systems"],"prise":"Hyperion Systems"}
+{"graine":182,"siege":0,"proposees":["Phobolog","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":182,"siege":1,"proposees":["Exocorp","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":183,"siege":0,"proposees":["Interplanetary Cinematics","Inventrix"],"prise":"Interplanetary Cinematics"}
+{"graine":183,"siege":1,"proposees":["Saturn Systems","Hyperion Systems"],"prise":"Hyperion Systems"}
+{"graine":184,"siege":0,"proposees":["Exocorp","Unmi"],"prise":"Unmi"}
+{"graine":184,"siege":1,"proposees":["Thorgate Corporation","Mining Guild"],"prise":"Thorgate Corporation"}
+{"graine":185,"siege":0,"proposees":["Phobolog","Credicor"],"prise":"Credicor"}
+{"graine":185,"siege":1,"proposees":["Hyperion Systems","Mining Guild"],"prise":"Hyperion Systems"}
+{"graine":186,"siege":0,"proposees":["Tharsis Republic","Credicor"],"prise":"Credicor"}
+{"graine":186,"siege":1,"proposees":["Interplanetary Cinematics","Ecoline"],"prise":"Interplanetary Cinematics"}
+{"graine":187,"siege":0,"proposees":["Hyperion Systems","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":187,"siege":1,"proposees":["Credicor","Exocorp"],"prise":"Credicor"}
+{"graine":188,"siege":0,"proposees":["Credicor","Hyperion Systems"],"prise":"Credicor"}
+{"graine":188,"siege":1,"proposees":["Phobolog","Thorgate Corporation"],"prise":"Thorgate Corporation"}
+{"graine":189,"siege":0,"proposees":["Apollo Industries","Thorgate Corporation"],"prise":"Thorgate Corporation"}
+{"graine":189,"siege":1,"proposees":["Phobolog","Unmi"],"prise":"Unmi"}
+{"graine":190,"siege":0,"proposees":["Interplanetary Cinematics","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":190,"siege":1,"proposees":["Sultira","Tharsis Republic"],"prise":"Sultira"}
+{"graine":191,"siege":0,"proposees":["Saturn Systems","Sultira"],"prise":"Sultira"}
+{"graine":191,"siege":1,"proposees":["Thorgate Corporation","Unmi"],"prise":"Thorgate Corporation"}
+{"graine":192,"siege":0,"proposees":["Phobolog","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":192,"siege":1,"proposees":["Unmi","Tharsis Republic"],"prise":"Tharsis Republic"}
+{"graine":193,"siege":0,"proposees":["Interplanetary Cinematics","Mining Guild"],"prise":"Interplanetary Cinematics"}
+{"graine":193,"siege":1,"proposees":["Phobolog","Hyperion Systems"],"prise":"Hyperion Systems"}
+{"graine":194,"siege":0,"proposees":["Phobolog","Thorgate Corporation"],"prise":"Thorgate Corporation"}
+{"graine":194,"siege":1,"proposees":["Credicor","Unmi"],"prise":"Credicor"}
+{"graine":195,"siege":0,"proposees":["Phobolog","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":195,"siege":1,"proposees":["Sultira","Helion Corporation"],"prise":"Sultira"}
+{"graine":196,"siege":0,"proposees":["Credicor","Saturn Systems"],"prise":"Credicor"}
+{"graine":196,"siege":1,"proposees":["Helion Corporation","Unmi"],"prise":"Unmi"}
+{"graine":197,"siege":0,"proposees":["Ecoline","Phobolog"],"prise":"Ecoline"}
+{"graine":197,"siege":1,"proposees":["Apollo Industries","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":198,"siege":0,"proposees":["Sultira","Exocorp"],"prise":"Sultira"}
+{"graine":198,"siege":1,"proposees":["Hyperion Systems","Ecoline"],"prise":"Hyperion Systems"}
+{"graine":199,"siege":0,"proposees":["Thorgate Corporation","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":199,"siege":1,"proposees":["Unmi","Phobolog"],"prise":"Unmi"}
+{"graine":200,"siege":0,"proposees":["Teractor Corporation","Mining Guild"],"prise":"Teractor Corporation"}
+{"graine":200,"siege":1,"proposees":["Hyperion Systems","Sultira"],"prise":"Sultira"}
+{"graine":201,"siege":0,"proposees":["Thorgate Corporation","Ecoline"],"prise":"Thorgate Corporation"}
+{"graine":201,"siege":1,"proposees":["Exocorp","Mining Guild"],"prise":"Mining Guild"}
+{"graine":202,"siege":0,"proposees":["Unmi","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":202,"siege":1,"proposees":["Credicor","Phobolog"],"prise":"Credicor"}
+{"graine":203,"siege":0,"proposees":["Exocorp","Unmi"],"prise":"Unmi"}
+{"graine":203,"siege":1,"proposees":["Apollo Industries","Inventrix"],"prise":"Apollo Industries"}
+{"graine":204,"siege":0,"proposees":["Interplanetary Cinematics","Inventrix"],"prise":"Interplanetary Cinematics"}
+{"graine":204,"siege":1,"proposees":["Ecoline","Phobolog"],"prise":"Ecoline"}
+{"graine":205,"siege":0,"proposees":["Ecoline","Sultira"],"prise":"Sultira"}
+{"graine":205,"siege":1,"proposees":["Unmi","Helion Corporation"],"prise":"Unmi"}
+{"graine":206,"siege":0,"proposees":["Apollo Industries","Thorgate Corporation"],"prise":"Thorgate Corporation"}
+{"graine":206,"siege":1,"proposees":["Unmi","Mining Guild"],"prise":"Unmi"}
+{"graine":207,"siege":0,"proposees":["Sultira","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":207,"siege":1,"proposees":["Apollo Industries","Credicor"],"prise":"Credicor"}
+{"graine":208,"siege":0,"proposees":["Apollo Industries","Inventrix"],"prise":"Apollo Industries"}
+{"graine":208,"siege":1,"proposees":["Interplanetary Cinematics","Credicor"],"prise":"Interplanetary Cinematics"}
+{"graine":209,"siege":0,"proposees":["Helion Corporation","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":209,"siege":1,"proposees":["Credicor","Hyperion Systems"],"prise":"Credicor"}
+{"graine":210,"siege":0,"proposees":["Mining Guild","Credicor"],"prise":"Credicor"}
+{"graine":210,"siege":1,"proposees":["Saturn Systems","Sultira"],"prise":"Sultira"}
+{"graine":211,"siege":0,"proposees":["Unmi","Saturn Systems"],"prise":"Unmi"}
+{"graine":211,"siege":1,"proposees":["Inventrix","Ecoline"],"prise":"Inventrix"}
+{"graine":212,"siege":0,"proposees":["Saturn Systems","Sultira"],"prise":"Sultira"}
+{"graine":212,"siege":1,"proposees":["Interplanetary Cinematics","Hyperion Systems"],"prise":"Interplanetary Cinematics"}
+{"graine":213,"siege":0,"proposees":["Hyperion Systems","Tharsis Republic"],"prise":"Tharsis Republic"}
+{"graine":213,"siege":1,"proposees":["Teractor Corporation","Phobolog"],"prise":"Teractor Corporation"}
+{"graine":214,"siege":0,"proposees":["Hyperion Systems","Exocorp"],"prise":"Hyperion Systems"}
+{"graine":214,"siege":1,"proposees":["Inventrix","Helion Corporation"],"prise":"Inventrix"}
+{"graine":215,"siege":0,"proposees":["Unmi","Helion Corporation"],"prise":"Unmi"}
+{"graine":215,"siege":1,"proposees":["Tharsis Republic","Credicor"],"prise":"Credicor"}
+{"graine":216,"siege":0,"proposees":["Teractor Corporation","Hyperion Systems"],"prise":"Teractor Corporation"}
+{"graine":216,"siege":1,"proposees":["Inventrix","Saturn Systems"],"prise":"Inventrix"}
+{"graine":217,"siege":0,"proposees":["Tharsis Republic","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":217,"siege":1,"proposees":["Unmi","Thorgate Corporation"],"prise":"Thorgate Corporation"}
+{"graine":218,"siege":0,"proposees":["Teractor Corporation","Helion Corporation"],"prise":"Teractor Corporation"}
+{"graine":218,"siege":1,"proposees":["Phobolog","Inventrix"],"prise":"Inventrix"}
+{"graine":219,"siege":0,"proposees":["Phobolog","Unmi"],"prise":"Unmi"}
+{"graine":219,"siege":1,"proposees":["Inventrix","Helion Corporation"],"prise":"Inventrix"}
+{"graine":220,"siege":0,"proposees":["Phobolog","Unmi"],"prise":"Unmi"}
+{"graine":220,"siege":1,"proposees":["Mining Guild","Helion Corporation"],"prise":"Mining Guild"}
+{"graine":221,"siege":0,"proposees":["Phobolog","Inventrix"],"prise":"Inventrix"}
+{"graine":221,"siege":1,"proposees":["Unmi","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":222,"siege":0,"proposees":["Inventrix","Helion Corporation"],"prise":"Inventrix"}
+{"graine":222,"siege":1,"proposees":["Exocorp","Thorgate Corporation"],"prise":"Thorgate Corporation"}
+{"graine":223,"siege":0,"proposees":["Tharsis Republic","Mining Guild"],"prise":"Tharsis Republic"}
+{"graine":223,"siege":1,"proposees":["Inventrix","Helion Corporation"],"prise":"Inventrix"}
+{"graine":224,"siege":0,"proposees":["Sultira","Hyperion Systems"],"prise":"Sultira"}
+{"graine":224,"siege":1,"proposees":["Exocorp","Apollo Industries"],"prise":"Apollo Industries"}
+{"graine":225,"siege":0,"proposees":["Tharsis Republic","Apollo Industries"],"prise":"Tharsis Republic"}
+{"graine":225,"siege":1,"proposees":["Teractor Corporation","Mining Guild"],"prise":"Teractor Corporation"}
+{"graine":226,"siege":0,"proposees":["Tharsis Republic","Apollo Industries"],"prise":"Tharsis Republic"}
+{"graine":226,"siege":1,"proposees":["Ecoline","Hyperion Systems"],"prise":"Hyperion Systems"}
+{"graine":227,"siege":0,"proposees":["Phobolog","Ecoline"],"prise":"Ecoline"}
+{"graine":227,"siege":1,"proposees":["Exocorp","Hyperion Systems"],"prise":"Hyperion Systems"}
+{"graine":228,"siege":0,"proposees":["Sultira","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":228,"siege":1,"proposees":["Phobolog","Saturn Systems"],"prise":"Saturn Systems"}
+{"graine":229,"siege":0,"proposees":["Tharsis Republic","Mining Guild"],"prise":"Tharsis Republic"}
+{"graine":229,"siege":1,"proposees":["Sultira","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":230,"siege":0,"proposees":["Thorgate Corporation","Sultira"],"prise":"Thorgate Corporation"}
+{"graine":230,"siege":1,"proposees":["Helion Corporation","Exocorp"],"prise":"Helion Corporation"}
+{"graine":231,"siege":0,"proposees":["Ecoline","Inventrix"],"prise":"Inventrix"}
+{"graine":231,"siege":1,"proposees":["Teractor Corporation","Saturn Systems"],"prise":"Teractor Corporation"}
+{"graine":232,"siege":0,"proposees":["Credicor","Interplanetary Cinematics"],"prise":"Credicor"}
+{"graine":232,"siege":1,"proposees":["Teractor Corporation","Thorgate Corporation"],"prise":"Teractor Corporation"}
+{"graine":233,"siege":0,"proposees":["Teractor Corporation","Apollo Industries"],"prise":"Teractor Corporation"}
+{"graine":233,"siege":1,"proposees":["Hyperion Systems","Ecoline"],"prise":"Hyperion Systems"}
+{"graine":234,"siege":0,"proposees":["Unmi","Saturn Systems"],"prise":"Unmi"}
+{"graine":234,"siege":1,"proposees":["Hyperion Systems","Mining Guild"],"prise":"Hyperion Systems"}
+{"graine":235,"siege":0,"proposees":["Sultira","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":235,"siege":1,"proposees":["Helion Corporation","Credicor"],"prise":"Credicor"}
+{"graine":236,"siege":0,"proposees":["Teractor Corporation","Interplanetary Cinematics"],"prise":"Teractor Corporation"}
+{"graine":236,"siege":1,"proposees":["Tharsis Republic","Unmi"],"prise":"Tharsis Republic"}
+{"graine":237,"siege":0,"proposees":["Thorgate Corporation","Mining Guild"],"prise":"Thorgate Corporation"}
+{"graine":237,"siege":1,"proposees":["Teractor Corporation","Exocorp"],"prise":"Teractor Corporation"}
+{"graine":238,"siege":0,"proposees":["Exocorp","Mining Guild"],"prise":"Mining Guild"}
+{"graine":238,"siege":1,"proposees":["Unmi","Hyperion Systems"],"prise":"Unmi"}
+{"graine":239,"siege":0,"proposees":["Sultira","Credicor"],"prise":"Credicor"}
+{"graine":239,"siege":1,"proposees":["Saturn Systems","Inventrix"],"prise":"Inventrix"}
+{"graine":240,"siege":0,"proposees":["Unmi","Sultira"],"prise":"Sultira"}
+{"graine":240,"siege":1,"proposees":["Teractor Corporation","Phobolog"],"prise":"Teractor Corporation"}
+{"graine":241,"siege":0,"proposees":["Sultira","Tharsis Republic"],"prise":"Sultira"}
+{"graine":241,"siege":1,"proposees":["Exocorp","Apollo Industries"],"prise":"Apollo Industries"}
+{"graine":242,"siege":0,"proposees":["Exocorp","Helion Corporation"],"prise":"Helion Corporation"}
+{"graine":242,"siege":1,"proposees":["Inventrix","Mining Guild"],"prise":"Inventrix"}
+{"graine":243,"siege":0,"proposees":["Thorgate Corporation","Hyperion Systems"],"prise":"Thorgate Corporation"}
+{"graine":243,"siege":1,"proposees":["Apollo Industries","Ecoline"],"prise":"Apollo Industries"}
+{"graine":244,"siege":0,"proposees":["Credicor","Phobolog"],"prise":"Credicor"}
+{"graine":244,"siege":1,"proposees":["Sultira","Exocorp"],"prise":"Sultira"}
+{"graine":245,"siege":0,"proposees":["Saturn Systems","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":245,"siege":1,"proposees":["Credicor","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":246,"siege":0,"proposees":["Mining Guild","Inventrix"],"prise":"Inventrix"}
+{"graine":246,"siege":1,"proposees":["Unmi","Tharsis Republic"],"prise":"Tharsis Republic"}
+{"graine":247,"siege":0,"proposees":["Sultira","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":247,"siege":1,"proposees":["Credicor","Hyperion Systems"],"prise":"Credicor"}
+{"graine":248,"siege":0,"proposees":["Exocorp","Sultira"],"prise":"Sultira"}
+{"graine":248,"siege":1,"proposees":["Apollo Industries","Helion Corporation"],"prise":"Apollo Industries"}
+{"graine":249,"siege":0,"proposees":["Exocorp","Ecoline"],"prise":"Ecoline"}
+{"graine":249,"siege":1,"proposees":["Interplanetary Cinematics","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":250,"siege":0,"proposees":["Credicor","Interplanetary Cinematics"],"prise":"Credicor"}
+{"graine":250,"siege":1,"proposees":["Thorgate Corporation","Saturn Systems"],"prise":"Thorgate Corporation"}
+{"graine":251,"siege":0,"proposees":["Apollo Industries","Credicor"],"prise":"Credicor"}
+{"graine":251,"siege":1,"proposees":["Phobolog","Saturn Systems"],"prise":"Saturn Systems"}
+{"graine":252,"siege":0,"proposees":["Phobolog","Ecoline"],"prise":"Ecoline"}
+{"graine":252,"siege":1,"proposees":["Interplanetary Cinematics","Inventrix"],"prise":"Interplanetary Cinematics"}
+{"graine":253,"siege":0,"proposees":["Helion Corporation","Tharsis Republic"],"prise":"Tharsis Republic"}
+{"graine":253,"siege":1,"proposees":["Sultira","Exocorp"],"prise":"Sultira"}
+{"graine":254,"siege":0,"proposees":["Interplanetary Cinematics","Phobolog"],"prise":"Interplanetary Cinematics"}
+{"graine":254,"siege":1,"proposees":["Mining Guild","Hyperion Systems"],"prise":"Hyperion Systems"}
+{"graine":255,"siege":0,"proposees":["Helion Corporation","Tharsis Republic"],"prise":"Tharsis Republic"}
+{"graine":255,"siege":1,"proposees":["Sultira","Hyperion Systems"],"prise":"Sultira"}
+{"graine":256,"siege":0,"proposees":["Exocorp","Credicor"],"prise":"Credicor"}
+{"graine":256,"siege":1,"proposees":["Unmi","Thorgate Corporation"],"prise":"Thorgate Corporation"}
+{"graine":257,"siege":0,"proposees":["Thorgate Corporation","Sultira"],"prise":"Thorgate Corporation"}
+{"graine":257,"siege":1,"proposees":["Unmi","Phobolog"],"prise":"Unmi"}
+{"graine":258,"siege":0,"proposees":["Hyperion Systems","Ecoline"],"prise":"Hyperion Systems"}
+{"graine":258,"siege":1,"proposees":["Inventrix","Mining Guild"],"prise":"Inventrix"}
+{"graine":259,"siege":0,"proposees":["Teractor Corporation","Helion Corporation"],"prise":"Teractor Corporation"}
+{"graine":259,"siege":1,"proposees":["Inventrix","Sultira"],"prise":"Sultira"}
+{"graine":260,"siege":0,"proposees":["Saturn Systems","Tharsis Republic"],"prise":"Tharsis Republic"}
+{"graine":260,"siege":1,"proposees":["Credicor","Apollo Industries"],"prise":"Credicor"}
+{"graine":261,"siege":0,"proposees":["Teractor Corporation","Thorgate Corporation"],"prise":"Teractor Corporation"}
+{"graine":261,"siege":1,"proposees":["Inventrix","Credicor"],"prise":"Credicor"}
+{"graine":262,"siege":0,"proposees":["Unmi","Apollo Industries"],"prise":"Unmi"}
+{"graine":262,"siege":1,"proposees":["Exocorp","Ecoline"],"prise":"Ecoline"}
+{"graine":263,"siege":0,"proposees":["Helion Corporation","Ecoline"],"prise":"Helion Corporation"}
+{"graine":263,"siege":1,"proposees":["Credicor","Exocorp"],"prise":"Credicor"}
+{"graine":264,"siege":0,"proposees":["Interplanetary Cinematics","Thorgate Corporation"],"prise":"Interplanetary Cinematics"}
+{"graine":264,"siege":1,"proposees":["Exocorp","Credicor"],"prise":"Credicor"}
+{"graine":265,"siege":0,"proposees":["Saturn Systems","Inventrix"],"prise":"Inventrix"}
+{"graine":265,"siege":1,"proposees":["Tharsis Republic","Unmi"],"prise":"Tharsis Republic"}
+{"graine":266,"siege":0,"proposees":["Tharsis Republic","Hyperion Systems"],"prise":"Tharsis Republic"}
+{"graine":266,"siege":1,"proposees":["Ecoline","Credicor"],"prise":"Credicor"}
+{"graine":267,"siege":0,"proposees":["Interplanetary Cinematics","Ecoline"],"prise":"Interplanetary Cinematics"}
+{"graine":267,"siege":1,"proposees":["Unmi","Inventrix"],"prise":"Unmi"}
+{"graine":268,"siege":0,"proposees":["Thorgate Corporation","Phobolog"],"prise":"Thorgate Corporation"}
+{"graine":268,"siege":1,"proposees":["Hyperion Systems","Sultira"],"prise":"Sultira"}
+{"graine":269,"siege":0,"proposees":["Helion Corporation","Sultira"],"prise":"Sultira"}
+{"graine":269,"siege":1,"proposees":["Tharsis Republic","Apollo Industries"],"prise":"Tharsis Republic"}
+{"graine":270,"siege":0,"proposees":["Mining Guild","Hyperion Systems"],"prise":"Hyperion Systems"}
+{"graine":270,"siege":1,"proposees":["Thorgate Corporation","Phobolog"],"prise":"Thorgate Corporation"}
+{"graine":271,"siege":0,"proposees":["Helion Corporation","Unmi"],"prise":"Unmi"}
+{"graine":271,"siege":1,"proposees":["Mining Guild","Tharsis Republic"],"prise":"Tharsis Republic"}
+{"graine":272,"siege":0,"proposees":["Apollo Industries","Tharsis Republic"],"prise":"Tharsis Republic"}
+{"graine":272,"siege":1,"proposees":["Hyperion Systems","Exocorp"],"prise":"Hyperion Systems"}
+{"graine":273,"siege":0,"proposees":["Unmi","Exocorp"],"prise":"Unmi"}
+{"graine":273,"siege":1,"proposees":["Credicor","Tharsis Republic"],"prise":"Credicor"}
+{"graine":274,"siege":0,"proposees":["Inventrix","Mining Guild"],"prise":"Inventrix"}
+{"graine":274,"siege":1,"proposees":["Apollo Industries","Tharsis Republic"],"prise":"Tharsis Republic"}
+{"graine":275,"siege":0,"proposees":["Interplanetary Cinematics","Credicor"],"prise":"Interplanetary Cinematics"}
+{"graine":275,"siege":1,"proposees":["Apollo Industries","Exocorp"],"prise":"Apollo Industries"}
+{"graine":276,"siege":0,"proposees":["Credicor","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":276,"siege":1,"proposees":["Sultira","Apollo Industries"],"prise":"Sultira"}
+{"graine":277,"siege":0,"proposees":["Ecoline","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":277,"siege":1,"proposees":["Sultira","Saturn Systems"],"prise":"Sultira"}
+{"graine":278,"siege":0,"proposees":["Teractor Corporation","Sultira"],"prise":"Teractor Corporation"}
+{"graine":278,"siege":1,"proposees":["Mining Guild","Saturn Systems"],"prise":"Mining Guild"}
+{"graine":279,"siege":0,"proposees":["Unmi","Credicor"],"prise":"Credicor"}
+{"graine":279,"siege":1,"proposees":["Interplanetary Cinematics","Helion Corporation"],"prise":"Interplanetary Cinematics"}
+{"graine":280,"siege":0,"proposees":["Phobolog","Unmi"],"prise":"Unmi"}
+{"graine":280,"siege":1,"proposees":["Thorgate Corporation","Exocorp"],"prise":"Thorgate Corporation"}
+{"graine":281,"siege":0,"proposees":["Inventrix","Tharsis Republic"],"prise":"Tharsis Republic"}
+{"graine":281,"siege":1,"proposees":["Saturn Systems","Unmi"],"prise":"Unmi"}
+{"graine":282,"siege":0,"proposees":["Phobolog","Credicor"],"prise":"Credicor"}
+{"graine":282,"siege":1,"proposees":["Mining Guild","Sultira"],"prise":"Sultira"}
+{"graine":283,"siege":0,"proposees":["Apollo Industries","Exocorp"],"prise":"Apollo Industries"}
+{"graine":283,"siege":1,"proposees":["Credicor","Mining Guild"],"prise":"Credicor"}
+{"graine":284,"siege":0,"proposees":["Inventrix","Exocorp"],"prise":"Inventrix"}
+{"graine":284,"siege":1,"proposees":["Sultira","Hyperion Systems"],"prise":"Sultira"}
+{"graine":285,"siege":0,"proposees":["Inventrix","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":285,"siege":1,"proposees":["Exocorp","Unmi"],"prise":"Unmi"}
+{"graine":286,"siege":0,"proposees":["Phobolog","Exocorp"],"prise":"Exocorp"}
+{"graine":286,"siege":1,"proposees":["Apollo Industries","Credicor"],"prise":"Credicor"}
+{"graine":287,"siege":0,"proposees":["Mining Guild","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":287,"siege":1,"proposees":["Hyperion Systems","Exocorp"],"prise":"Hyperion Systems"}
+{"graine":288,"siege":0,"proposees":["Unmi","Sultira"],"prise":"Sultira"}
+{"graine":288,"siege":1,"proposees":["Hyperion Systems","Apollo Industries"],"prise":"Apollo Industries"}
+{"graine":289,"siege":0,"proposees":["Teractor Corporation","Exocorp"],"prise":"Teractor Corporation"}
+{"graine":289,"siege":1,"proposees":["Interplanetary Cinematics","Inventrix"],"prise":"Interplanetary Cinematics"}
+{"graine":290,"siege":0,"proposees":["Phobolog","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":290,"siege":1,"proposees":["Sultira","Credicor"],"prise":"Credicor"}
+{"graine":291,"siege":0,"proposees":["Phobolog","Tharsis Republic"],"prise":"Tharsis Republic"}
+{"graine":291,"siege":1,"proposees":["Hyperion Systems","Ecoline"],"prise":"Hyperion Systems"}
+{"graine":292,"siege":0,"proposees":["Mining Guild","Apollo Industries"],"prise":"Apollo Industries"}
+{"graine":292,"siege":1,"proposees":["Hyperion Systems","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":293,"siege":0,"proposees":["Mining Guild","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":293,"siege":1,"proposees":["Saturn Systems","Sultira"],"prise":"Sultira"}
+{"graine":294,"siege":0,"proposees":["Unmi","Credicor"],"prise":"Credicor"}
+{"graine":294,"siege":1,"proposees":["Sultira","Tharsis Republic"],"prise":"Sultira"}
+{"graine":295,"siege":0,"proposees":["Exocorp","Apollo Industries"],"prise":"Apollo Industries"}
+{"graine":295,"siege":1,"proposees":["Thorgate Corporation","Helion Corporation"],"prise":"Thorgate Corporation"}
+{"graine":296,"siege":0,"proposees":["Ecoline","Mining Guild"],"prise":"Mining Guild"}
+{"graine":296,"siege":1,"proposees":["Tharsis Republic","Hyperion Systems"],"prise":"Tharsis Republic"}
+{"graine":297,"siege":0,"proposees":["Inventrix","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":297,"siege":1,"proposees":["Phobolog","Hyperion Systems"],"prise":"Hyperion Systems"}
+{"graine":298,"siege":0,"proposees":["Ecoline","Exocorp"],"prise":"Ecoline"}
+{"graine":298,"siege":1,"proposees":["Saturn Systems","Sultira"],"prise":"Sultira"}
+{"graine":299,"siege":0,"proposees":["Mining Guild","Credicor"],"prise":"Credicor"}
+{"graine":299,"siege":1,"proposees":["Interplanetary Cinematics","Exocorp"],"prise":"Interplanetary Cinematics"}
+{"graine":300,"siege":0,"proposees":["Teractor Corporation","Mining Guild"],"prise":"Teractor Corporation"}
+{"graine":300,"siege":1,"proposees":["Inventrix","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":301,"siege":0,"proposees":["Interplanetary Cinematics","Thorgate Corporation"],"prise":"Interplanetary Cinematics"}
+{"graine":301,"siege":1,"proposees":["Hyperion Systems","Saturn Systems"],"prise":"Hyperion Systems"}
+{"graine":302,"siege":0,"proposees":["Saturn Systems","Apollo Industries"],"prise":"Apollo Industries"}
+{"graine":302,"siege":1,"proposees":["Unmi","Helion Corporation"],"prise":"Unmi"}
+{"graine":303,"siege":0,"proposees":["Ecoline","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":303,"siege":1,"proposees":["Unmi","Thorgate Corporation"],"prise":"Thorgate Corporation"}
+{"graine":304,"siege":0,"proposees":["Inventrix","Apollo Industries"],"prise":"Inventrix"}
+{"graine":304,"siege":1,"proposees":["Tharsis Republic","Saturn Systems"],"prise":"Tharsis Republic"}
+{"graine":305,"siege":0,"proposees":["Unmi","Saturn Systems"],"prise":"Unmi"}
+{"graine":305,"siege":1,"proposees":["Ecoline","Inventrix"],"prise":"Inventrix"}
+{"graine":306,"siege":0,"proposees":["Hyperion Systems","Helion Corporation"],"prise":"Hyperion Systems"}
+{"graine":306,"siege":1,"proposees":["Mining Guild","Exocorp"],"prise":"Mining Guild"}
+{"graine":307,"siege":0,"proposees":["Thorgate Corporation","Credicor"],"prise":"Credicor"}
+{"graine":307,"siege":1,"proposees":["Hyperion Systems","Mining Guild"],"prise":"Hyperion Systems"}
+{"graine":308,"siege":0,"proposees":["Thorgate Corporation","Unmi"],"prise":"Thorgate Corporation"}
+{"graine":308,"siege":1,"proposees":["Ecoline","Phobolog"],"prise":"Ecoline"}
+{"graine":309,"siege":0,"proposees":["Apollo Industries","Ecoline"],"prise":"Apollo Industries"}
+{"graine":309,"siege":1,"proposees":["Thorgate Corporation","Hyperion Systems"],"prise":"Thorgate Corporation"}
+{"graine":310,"siege":0,"proposees":["Saturn Systems","Ecoline"],"prise":"Ecoline"}
+{"graine":310,"siege":1,"proposees":["Tharsis Republic","Apollo Industries"],"prise":"Tharsis Republic"}
+{"graine":311,"siege":0,"proposees":["Saturn Systems","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":311,"siege":1,"proposees":["Ecoline","Mining Guild"],"prise":"Mining Guild"}
+{"graine":312,"siege":0,"proposees":["Sultira","Helion Corporation"],"prise":"Sultira"}
+{"graine":312,"siege":1,"proposees":["Ecoline","Hyperion Systems"],"prise":"Hyperion Systems"}
+{"graine":313,"siege":0,"proposees":["Helion Corporation","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":313,"siege":1,"proposees":["Exocorp","Ecoline"],"prise":"Ecoline"}
+{"graine":314,"siege":0,"proposees":["Unmi","Hyperion Systems"],"prise":"Unmi"}
+{"graine":314,"siege":1,"proposees":["Tharsis Republic","Inventrix"],"prise":"Tharsis Republic"}
+{"graine":315,"siege":0,"proposees":["Inventrix","Mining Guild"],"prise":"Inventrix"}
+{"graine":315,"siege":1,"proposees":["Ecoline","Unmi"],"prise":"Unmi"}
+{"graine":316,"siege":0,"proposees":["Mining Guild","Phobolog"],"prise":"Mining Guild"}
+{"graine":316,"siege":1,"proposees":["Saturn Systems","Thorgate Corporation"],"prise":"Thorgate Corporation"}
+{"graine":317,"siege":0,"proposees":["Phobolog","Credicor"],"prise":"Credicor"}
+{"graine":317,"siege":1,"proposees":["Tharsis Republic","Hyperion Systems"],"prise":"Tharsis Republic"}
+{"graine":318,"siege":0,"proposees":["Sultira","Saturn Systems"],"prise":"Sultira"}
+{"graine":318,"siege":1,"proposees":["Phobolog","Helion Corporation"],"prise":"Helion Corporation"}
+{"graine":319,"siege":0,"proposees":["Helion Corporation","Saturn Systems"],"prise":"Helion Corporation"}
+{"graine":319,"siege":1,"proposees":["Thorgate Corporation","Apollo Industries"],"prise":"Thorgate Corporation"}
+{"graine":320,"siege":0,"proposees":["Teractor Corporation","Saturn Systems"],"prise":"Teractor Corporation"}
+{"graine":320,"siege":1,"proposees":["Exocorp","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":321,"siege":0,"proposees":["Saturn Systems","Ecoline"],"prise":"Ecoline"}
+{"graine":321,"siege":1,"proposees":["Exocorp","Mining Guild"],"prise":"Mining Guild"}
+{"graine":322,"siege":0,"proposees":["Ecoline","Hyperion Systems"],"prise":"Hyperion Systems"}
+{"graine":322,"siege":1,"proposees":["Exocorp","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":323,"siege":0,"proposees":["Ecoline","Helion Corporation"],"prise":"Helion Corporation"}
+{"graine":323,"siege":1,"proposees":["Tharsis Republic","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":324,"siege":0,"proposees":["Ecoline","Apollo Industries"],"prise":"Apollo Industries"}
+{"graine":324,"siege":1,"proposees":["Teractor Corporation","Inventrix"],"prise":"Teractor Corporation"}
+{"graine":325,"siege":0,"proposees":["Unmi","Apollo Industries"],"prise":"Unmi"}
+{"graine":325,"siege":1,"proposees":["Saturn Systems","Hyperion Systems"],"prise":"Hyperion Systems"}
+{"graine":326,"siege":0,"proposees":["Unmi","Credicor"],"prise":"Credicor"}
+{"graine":326,"siege":1,"proposees":["Teractor Corporation","Mining Guild"],"prise":"Teractor Corporation"}
+{"graine":327,"siege":0,"proposees":["Saturn Systems","Exocorp"],"prise":"Exocorp"}
+{"graine":327,"siege":1,"proposees":["Credicor","Hyperion Systems"],"prise":"Credicor"}
+{"graine":328,"siege":0,"proposees":["Ecoline","Thorgate Corporation"],"prise":"Thorgate Corporation"}
+{"graine":328,"siege":1,"proposees":["Sultira","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":329,"siege":0,"proposees":["Hyperion Systems","Inventrix"],"prise":"Inventrix"}
+{"graine":329,"siege":1,"proposees":["Saturn Systems","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":330,"siege":0,"proposees":["Phobolog","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":330,"siege":1,"proposees":["Exocorp","Unmi"],"prise":"Unmi"}
+{"graine":331,"siege":0,"proposees":["Unmi","Hyperion Systems"],"prise":"Unmi"}
+{"graine":331,"siege":1,"proposees":["Exocorp","Ecoline"],"prise":"Ecoline"}
+{"graine":332,"siege":0,"proposees":["Unmi","Tharsis Republic"],"prise":"Tharsis Republic"}
+{"graine":332,"siege":1,"proposees":["Inventrix","Credicor"],"prise":"Credicor"}
+{"graine":333,"siege":0,"proposees":["Helion Corporation","Inventrix"],"prise":"Inventrix"}
+{"graine":333,"siege":1,"proposees":["Saturn Systems","Credicor"],"prise":"Credicor"}
+{"graine":334,"siege":0,"proposees":["Thorgate Corporation","Unmi"],"prise":"Thorgate Corporation"}
+{"graine":334,"siege":1,"proposees":["Phobolog","Saturn Systems"],"prise":"Saturn Systems"}
+{"graine":335,"siege":0,"proposees":["Helion Corporation","Mining Guild"],"prise":"Mining Guild"}
+{"graine":335,"siege":1,"proposees":["Apollo Industries","Phobolog"],"prise":"Apollo Industries"}
+{"graine":336,"siege":0,"proposees":["Saturn Systems","Thorgate Corporation"],"prise":"Thorgate Corporation"}
+{"graine":336,"siege":1,"proposees":["Teractor Corporation","Credicor"],"prise":"Teractor Corporation"}
+{"graine":337,"siege":0,"proposees":["Interplanetary Cinematics","Unmi"],"prise":"Interplanetary Cinematics"}
+{"graine":337,"siege":1,"proposees":["Helion Corporation","Mining Guild"],"prise":"Mining Guild"}
+{"graine":338,"siege":0,"proposees":["Helion Corporation","Hyperion Systems"],"prise":"Hyperion Systems"}
+{"graine":338,"siege":1,"proposees":["Sultira","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":339,"siege":0,"proposees":["Credicor","Exocorp"],"prise":"Credicor"}
+{"graine":339,"siege":1,"proposees":["Inventrix","Tharsis Republic"],"prise":"Tharsis Republic"}
+{"graine":340,"siege":0,"proposees":["Saturn Systems","Apollo Industries"],"prise":"Apollo Industries"}
+{"graine":340,"siege":1,"proposees":["Teractor Corporation","Unmi"],"prise":"Teractor Corporation"}
+{"graine":341,"siege":0,"proposees":["Saturn Systems","Ecoline"],"prise":"Ecoline"}
+{"graine":341,"siege":1,"proposees":["Tharsis Republic","Sultira"],"prise":"Tharsis Republic"}
+{"graine":342,"siege":0,"proposees":["Thorgate Corporation","Exocorp"],"prise":"Thorgate Corporation"}
+{"graine":342,"siege":1,"proposees":["Mining Guild","Saturn Systems"],"prise":"Mining Guild"}
+{"graine":343,"siege":0,"proposees":["Tharsis Republic","Phobolog"],"prise":"Tharsis Republic"}
+{"graine":343,"siege":1,"proposees":["Hyperion Systems","Apollo Industries"],"prise":"Apollo Industries"}
+{"graine":344,"siege":0,"proposees":["Phobolog","Mining Guild"],"prise":"Mining Guild"}
+{"graine":344,"siege":1,"proposees":["Credicor","Apollo Industries"],"prise":"Credicor"}
+{"graine":345,"siege":0,"proposees":["Unmi","Tharsis Republic"],"prise":"Tharsis Republic"}
+{"graine":345,"siege":1,"proposees":["Helion Corporation","Phobolog"],"prise":"Helion Corporation"}
+{"graine":346,"siege":0,"proposees":["Teractor Corporation","Credicor"],"prise":"Teractor Corporation"}
+{"graine":346,"siege":1,"proposees":["Thorgate Corporation","Inventrix"],"prise":"Thorgate Corporation"}
+{"graine":347,"siege":0,"proposees":["Unmi","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":347,"siege":1,"proposees":["Helion Corporation","Exocorp"],"prise":"Helion Corporation"}
+{"graine":348,"siege":0,"proposees":["Sultira","Apollo Industries"],"prise":"Sultira"}
+{"graine":348,"siege":1,"proposees":["Helion Corporation","Phobolog"],"prise":"Helion Corporation"}
+{"graine":349,"siege":0,"proposees":["Unmi","Saturn Systems"],"prise":"Unmi"}
+{"graine":349,"siege":1,"proposees":["Credicor","Hyperion Systems"],"prise":"Credicor"}
+{"graine":350,"siege":0,"proposees":["Sultira","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":350,"siege":1,"proposees":["Hyperion Systems","Thorgate Corporation"],"prise":"Thorgate Corporation"}
+{"graine":351,"siege":0,"proposees":["Hyperion Systems","Mining Guild"],"prise":"Hyperion Systems"}
+{"graine":351,"siege":1,"proposees":["Inventrix","Tharsis Republic"],"prise":"Tharsis Republic"}
+{"graine":352,"siege":0,"proposees":["Phobolog","Inventrix"],"prise":"Inventrix"}
+{"graine":352,"siege":1,"proposees":["Exocorp","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":353,"siege":0,"proposees":["Saturn Systems","Helion Corporation"],"prise":"Helion Corporation"}
+{"graine":353,"siege":1,"proposees":["Ecoline","Apollo Industries"],"prise":"Apollo Industries"}
+{"graine":354,"siege":0,"proposees":["Credicor","Inventrix"],"prise":"Credicor"}
+{"graine":354,"siege":1,"proposees":["Teractor Corporation","Tharsis Republic"],"prise":"Teractor Corporation"}
+{"graine":355,"siege":0,"proposees":["Phobolog","Exocorp"],"prise":"Exocorp"}
+{"graine":355,"siege":1,"proposees":["Tharsis Republic","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":356,"siege":0,"proposees":["Thorgate Corporation","Hyperion Systems"],"prise":"Thorgate Corporation"}
+{"graine":356,"siege":1,"proposees":["Tharsis Republic","Phobolog"],"prise":"Tharsis Republic"}
+{"graine":357,"siege":0,"proposees":["Interplanetary Cinematics","Apollo Industries"],"prise":"Interplanetary Cinematics"}
+{"graine":357,"siege":1,"proposees":["Saturn Systems","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":358,"siege":0,"proposees":["Hyperion Systems","Exocorp"],"prise":"Hyperion Systems"}
+{"graine":358,"siege":1,"proposees":["Credicor","Unmi"],"prise":"Credicor"}
+{"graine":359,"siege":0,"proposees":["Apollo Industries","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":359,"siege":1,"proposees":["Thorgate Corporation","Inventrix"],"prise":"Thorgate Corporation"}
+{"graine":360,"siege":0,"proposees":["Tharsis Republic","Apollo Industries"],"prise":"Tharsis Republic"}
+{"graine":360,"siege":1,"proposees":["Sultira","Inventrix"],"prise":"Sultira"}
+{"graine":361,"siege":0,"proposees":["Saturn Systems","Credicor"],"prise":"Credicor"}
+{"graine":361,"siege":1,"proposees":["Helion Corporation","Exocorp"],"prise":"Helion Corporation"}
+{"graine":362,"siege":0,"proposees":["Saturn Systems","Thorgate Corporation"],"prise":"Thorgate Corporation"}
+{"graine":362,"siege":1,"proposees":["Tharsis Republic","Exocorp"],"prise":"Tharsis Republic"}
+{"graine":363,"siege":0,"proposees":["Helion Corporation","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":363,"siege":1,"proposees":["Unmi","Exocorp"],"prise":"Unmi"}
+{"graine":364,"siege":0,"proposees":["Inventrix","Exocorp"],"prise":"Inventrix"}
+{"graine":364,"siege":1,"proposees":["Saturn Systems","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":365,"siege":0,"proposees":["Hyperion Systems","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":365,"siege":1,"proposees":["Credicor","Saturn Systems"],"prise":"Credicor"}
+{"graine":366,"siege":0,"proposees":["Teractor Corporation","Hyperion Systems"],"prise":"Teractor Corporation"}
+{"graine":366,"siege":1,"proposees":["Saturn Systems","Apollo Industries"],"prise":"Apollo Industries"}
+{"graine":367,"siege":0,"proposees":["Helion Corporation","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":367,"siege":1,"proposees":["Tharsis Republic","Hyperion Systems"],"prise":"Tharsis Republic"}
+{"graine":368,"siege":0,"proposees":["Inventrix","Thorgate Corporation"],"prise":"Thorgate Corporation"}
+{"graine":368,"siege":1,"proposees":["Interplanetary Cinematics","Helion Corporation"],"prise":"Interplanetary Cinematics"}
+{"graine":369,"siege":0,"proposees":["Tharsis Republic","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":369,"siege":1,"proposees":["Interplanetary Cinematics","Exocorp"],"prise":"Interplanetary Cinematics"}
+{"graine":370,"siege":0,"proposees":["Mining Guild","Credicor"],"prise":"Credicor"}
+{"graine":370,"siege":1,"proposees":["Phobolog","Helion Corporation"],"prise":"Helion Corporation"}
+{"graine":371,"siege":0,"proposees":["Thorgate Corporation","Exocorp"],"prise":"Thorgate Corporation"}
+{"graine":371,"siege":1,"proposees":["Ecoline","Hyperion Systems"],"prise":"Hyperion Systems"}
+{"graine":372,"siege":0,"proposees":["Credicor","Tharsis Republic"],"prise":"Credicor"}
+{"graine":372,"siege":1,"proposees":["Teractor Corporation","Sultira"],"prise":"Teractor Corporation"}
+{"graine":373,"siege":0,"proposees":["Interplanetary Cinematics","Credicor"],"prise":"Interplanetary Cinematics"}
+{"graine":373,"siege":1,"proposees":["Ecoline","Exocorp"],"prise":"Ecoline"}
+{"graine":374,"siege":0,"proposees":["Hyperion Systems","Apollo Industries"],"prise":"Apollo Industries"}
+{"graine":374,"siege":1,"proposees":["Helion Corporation","Saturn Systems"],"prise":"Helion Corporation"}
+{"graine":375,"siege":0,"proposees":["Phobolog","Inventrix"],"prise":"Inventrix"}
+{"graine":375,"siege":1,"proposees":["Credicor","Thorgate Corporation"],"prise":"Credicor"}
+{"graine":376,"siege":0,"proposees":["Sultira","Exocorp"],"prise":"Sultira"}
+{"graine":376,"siege":1,"proposees":["Tharsis Republic","Unmi"],"prise":"Tharsis Republic"}
+{"graine":377,"siege":0,"proposees":["Unmi","Credicor"],"prise":"Credicor"}
+{"graine":377,"siege":1,"proposees":["Saturn Systems","Ecoline"],"prise":"Ecoline"}
+{"graine":378,"siege":0,"proposees":["Inventrix","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":378,"siege":1,"proposees":["Unmi","Credicor"],"prise":"Credicor"}
+{"graine":379,"siege":0,"proposees":["Inventrix","Tharsis Republic"],"prise":"Tharsis Republic"}
+{"graine":379,"siege":1,"proposees":["Saturn Systems","Exocorp"],"prise":"Exocorp"}
+{"graine":380,"siege":0,"proposees":["Mining Guild","Hyperion Systems"],"prise":"Hyperion Systems"}
+{"graine":380,"siege":1,"proposees":["Thorgate Corporation","Phobolog"],"prise":"Thorgate Corporation"}
+{"graine":381,"siege":0,"proposees":["Exocorp","Ecoline"],"prise":"Ecoline"}
+{"graine":381,"siege":1,"proposees":["Phobolog","Credicor"],"prise":"Credicor"}
+{"graine":382,"siege":0,"proposees":["Ecoline","Phobolog"],"prise":"Ecoline"}
+{"graine":382,"siege":1,"proposees":["Tharsis Republic","Inventrix"],"prise":"Tharsis Republic"}
+{"graine":383,"siege":0,"proposees":["Thorgate Corporation","Inventrix"],"prise":"Thorgate Corporation"}
+{"graine":383,"siege":1,"proposees":["Sultira","Helion Corporation"],"prise":"Sultira"}
+{"graine":384,"siege":0,"proposees":["Hyperion Systems","Phobolog"],"prise":"Hyperion Systems"}
+{"graine":384,"siege":1,"proposees":["Tharsis Republic","Sultira"],"prise":"Tharsis Republic"}
+{"graine":385,"siege":0,"proposees":["Ecoline","Sultira"],"prise":"Sultira"}
+{"graine":385,"siege":1,"proposees":["Unmi","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":386,"siege":0,"proposees":["Hyperion Systems","Sultira"],"prise":"Sultira"}
+{"graine":386,"siege":1,"proposees":["Inventrix","Helion Corporation"],"prise":"Inventrix"}
+{"graine":387,"siege":0,"proposees":["Unmi","Hyperion Systems"],"prise":"Unmi"}
+{"graine":387,"siege":1,"proposees":["Thorgate Corporation","Mining Guild"],"prise":"Thorgate Corporation"}
+{"graine":388,"siege":0,"proposees":["Helion Corporation","Sultira"],"prise":"Sultira"}
+{"graine":388,"siege":1,"proposees":["Saturn Systems","Hyperion Systems"],"prise":"Hyperion Systems"}
+{"graine":389,"siege":0,"proposees":["Unmi","Ecoline"],"prise":"Unmi"}
+{"graine":389,"siege":1,"proposees":["Hyperion Systems","Saturn Systems"],"prise":"Hyperion Systems"}
+{"graine":390,"siege":0,"proposees":["Credicor","Thorgate Corporation"],"prise":"Credicor"}
+{"graine":390,"siege":1,"proposees":["Apollo Industries","Saturn Systems"],"prise":"Apollo Industries"}
+{"graine":391,"siege":0,"proposees":["Teractor Corporation","Saturn Systems"],"prise":"Teractor Corporation"}
+{"graine":391,"siege":1,"proposees":["Sultira","Inventrix"],"prise":"Sultira"}
+{"graine":392,"siege":0,"proposees":["Exocorp","Credicor"],"prise":"Credicor"}
+{"graine":392,"siege":1,"proposees":["Unmi","Inventrix"],"prise":"Unmi"}
+{"graine":393,"siege":0,"proposees":["Exocorp","Helion Corporation"],"prise":"Helion Corporation"}
+{"graine":393,"siege":1,"proposees":["Sultira","Thorgate Corporation"],"prise":"Thorgate Corporation"}
+{"graine":394,"siege":0,"proposees":["Saturn Systems","Thorgate Corporation"],"prise":"Thorgate Corporation"}
+{"graine":394,"siege":1,"proposees":["Phobolog","Apollo Industries"],"prise":"Apollo Industries"}
+{"graine":395,"siege":0,"proposees":["Sultira","Helion Corporation"],"prise":"Sultira"}
+{"graine":395,"siege":1,"proposees":["Ecoline","Mining Guild"],"prise":"Mining Guild"}
+{"graine":396,"siege":0,"proposees":["Ecoline","Thorgate Corporation"],"prise":"Thorgate Corporation"}
+{"graine":396,"siege":1,"proposees":["Mining Guild","Hyperion Systems"],"prise":"Hyperion Systems"}
+{"graine":397,"siege":0,"proposees":["Unmi","Sultira"],"prise":"Sultira"}
+{"graine":397,"siege":1,"proposees":["Mining Guild","Credicor"],"prise":"Credicor"}
+{"graine":398,"siege":0,"proposees":["Ecoline","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":398,"siege":1,"proposees":["Inventrix","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":399,"siege":0,"proposees":["Ecoline","Inventrix"],"prise":"Inventrix"}
+{"graine":399,"siege":1,"proposees":["Mining Guild","Sultira"],"prise":"Sultira"}
+{"graine":400,"siege":0,"proposees":["Thorgate Corporation","Mining Guild"],"prise":"Thorgate Corporation"}
+{"graine":400,"siege":1,"proposees":["Unmi","Saturn Systems"],"prise":"Unmi"}
+{"graine":401,"siege":0,"proposees":["Mining Guild","Exocorp"],"prise":"Mining Guild"}
+{"graine":401,"siege":1,"proposees":["Thorgate Corporation","Apollo Industries"],"prise":"Thorgate Corporation"}
+{"graine":402,"siege":0,"proposees":["Hyperion Systems","Tharsis Republic"],"prise":"Tharsis Republic"}
+{"graine":402,"siege":1,"proposees":["Exocorp","Sultira"],"prise":"Sultira"}
+{"graine":403,"siege":0,"proposees":["Saturn Systems","Ecoline"],"prise":"Ecoline"}
+{"graine":403,"siege":1,"proposees":["Hyperion Systems","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":404,"siege":0,"proposees":["Helion Corporation","Saturn Systems"],"prise":"Helion Corporation"}
+{"graine":404,"siege":1,"proposees":["Credicor","Mining Guild"],"prise":"Credicor"}
+{"graine":405,"siege":0,"proposees":["Phobolog","Hyperion Systems"],"prise":"Hyperion Systems"}
+{"graine":405,"siege":1,"proposees":["Exocorp","Tharsis Republic"],"prise":"Tharsis Republic"}
+{"graine":406,"siege":0,"proposees":["Saturn Systems","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":406,"siege":1,"proposees":["Tharsis Republic","Credicor"],"prise":"Credicor"}
+{"graine":407,"siege":0,"proposees":["Hyperion Systems","Ecoline"],"prise":"Hyperion Systems"}
+{"graine":407,"siege":1,"proposees":["Teractor Corporation","Apollo Industries"],"prise":"Teractor Corporation"}
+{"graine":408,"siege":0,"proposees":["Ecoline","Exocorp"],"prise":"Ecoline"}
+{"graine":408,"siege":1,"proposees":["Unmi","Helion Corporation"],"prise":"Unmi"}
+{"graine":409,"siege":0,"proposees":["Credicor","Ecoline"],"prise":"Credicor"}
+{"graine":409,"siege":1,"proposees":["Interplanetary Cinematics","Inventrix"],"prise":"Interplanetary Cinematics"}
+{"graine":410,"siege":0,"proposees":["Ecoline","Tharsis Republic"],"prise":"Tharsis Republic"}
+{"graine":410,"siege":1,"proposees":["Saturn Systems","Helion Corporation"],"prise":"Helion Corporation"}
+{"graine":411,"siege":0,"proposees":["Thorgate Corporation","Hyperion Systems"],"prise":"Thorgate Corporation"}
+{"graine":411,"siege":1,"proposees":["Ecoline","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":412,"siege":0,"proposees":["Ecoline","Credicor"],"prise":"Credicor"}
+{"graine":412,"siege":1,"proposees":["Unmi","Thorgate Corporation"],"prise":"Thorgate Corporation"}
+{"graine":413,"siege":0,"proposees":["Ecoline","Inventrix"],"prise":"Inventrix"}
+{"graine":413,"siege":1,"proposees":["Exocorp","Helion Corporation"],"prise":"Helion Corporation"}
+{"graine":414,"siege":0,"proposees":["Credicor","Inventrix"],"prise":"Credicor"}
+{"graine":414,"siege":1,"proposees":["Tharsis Republic","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":415,"siege":0,"proposees":["Interplanetary Cinematics","Phobolog"],"prise":"Interplanetary Cinematics"}
+{"graine":415,"siege":1,"proposees":["Mining Guild","Helion Corporation"],"prise":"Mining Guild"}
+{"graine":416,"siege":0,"proposees":["Teractor Corporation","Hyperion Systems"],"prise":"Teractor Corporation"}
+{"graine":416,"siege":1,"proposees":["Saturn Systems","Tharsis Republic"],"prise":"Tharsis Republic"}
+{"graine":417,"siege":0,"proposees":["Credicor","Apollo Industries"],"prise":"Credicor"}
+{"graine":417,"siege":1,"proposees":["Hyperion Systems","Tharsis Republic"],"prise":"Tharsis Republic"}
+{"graine":418,"siege":0,"proposees":["Apollo Industries","Mining Guild"],"prise":"Apollo Industries"}
+{"graine":418,"siege":1,"proposees":["Teractor Corporation","Exocorp"],"prise":"Teractor Corporation"}
+{"graine":419,"siege":0,"proposees":["Sultira","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":419,"siege":1,"proposees":["Apollo Industries","Helion Corporation"],"prise":"Apollo Industries"}
+{"graine":420,"siege":0,"proposees":["Saturn Systems","Ecoline"],"prise":"Ecoline"}
+{"graine":420,"siege":1,"proposees":["Sultira","Exocorp"],"prise":"Sultira"}
+{"graine":421,"siege":0,"proposees":["Teractor Corporation","Sultira"],"prise":"Teractor Corporation"}
+{"graine":421,"siege":1,"proposees":["Helion Corporation","Tharsis Republic"],"prise":"Tharsis Republic"}
+{"graine":422,"siege":0,"proposees":["Sultira","Hyperion Systems"],"prise":"Sultira"}
+{"graine":422,"siege":1,"proposees":["Thorgate Corporation","Helion Corporation"],"prise":"Thorgate Corporation"}
+{"graine":423,"siege":0,"proposees":["Tharsis Republic","Mining Guild"],"prise":"Tharsis Republic"}
+{"graine":423,"siege":1,"proposees":["Phobolog","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":424,"siege":0,"proposees":["Phobolog","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":424,"siege":1,"proposees":["Unmi","Ecoline"],"prise":"Unmi"}
+{"graine":425,"siege":0,"proposees":["Hyperion Systems","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":425,"siege":1,"proposees":["Ecoline","Mining Guild"],"prise":"Mining Guild"}
+{"graine":426,"siege":0,"proposees":["Saturn Systems","Sultira"],"prise":"Sultira"}
+{"graine":426,"siege":1,"proposees":["Apollo Industries","Credicor"],"prise":"Credicor"}
+{"graine":427,"siege":0,"proposees":["Phobolog","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":427,"siege":1,"proposees":["Ecoline","Unmi"],"prise":"Unmi"}
+{"graine":428,"siege":0,"proposees":["Sultira","Tharsis Republic"],"prise":"Sultira"}
+{"graine":428,"siege":1,"proposees":["Credicor","Hyperion Systems"],"prise":"Credicor"}
+{"graine":429,"siege":0,"proposees":["Thorgate Corporation","Saturn Systems"],"prise":"Thorgate Corporation"}
+{"graine":429,"siege":1,"proposees":["Ecoline","Apollo Industries"],"prise":"Apollo Industries"}
+{"graine":430,"siege":0,"proposees":["Teractor Corporation","Credicor"],"prise":"Teractor Corporation"}
+{"graine":430,"siege":1,"proposees":["Interplanetary Cinematics","Thorgate Corporation"],"prise":"Interplanetary Cinematics"}
+{"graine":431,"siege":0,"proposees":["Saturn Systems","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":431,"siege":1,"proposees":["Mining Guild","Unmi"],"prise":"Unmi"}
+{"graine":432,"siege":0,"proposees":["Ecoline","Hyperion Systems"],"prise":"Hyperion Systems"}
+{"graine":432,"siege":1,"proposees":["Helion Corporation","Saturn Systems"],"prise":"Helion Corporation"}
+{"graine":433,"siege":0,"proposees":["Phobolog","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":433,"siege":1,"proposees":["Teractor Corporation","Helion Corporation"],"prise":"Teractor Corporation"}
+{"graine":434,"siege":0,"proposees":["Saturn Systems","Inventrix"],"prise":"Inventrix"}
+{"graine":434,"siege":1,"proposees":["Ecoline","Sultira"],"prise":"Sultira"}
+{"graine":435,"siege":0,"proposees":["Helion Corporation","Apollo Industries"],"prise":"Apollo Industries"}
+{"graine":435,"siege":1,"proposees":["Saturn Systems","Ecoline"],"prise":"Ecoline"}
+{"graine":436,"siege":0,"proposees":["Unmi","Exocorp"],"prise":"Unmi"}
+{"graine":436,"siege":1,"proposees":["Sultira","Helion Corporation"],"prise":"Sultira"}
+{"graine":437,"siege":0,"proposees":["Phobolog","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":437,"siege":1,"proposees":["Inventrix","Helion Corporation"],"prise":"Inventrix"}
+{"graine":438,"siege":0,"proposees":["Phobolog","Saturn Systems"],"prise":"Saturn Systems"}
+{"graine":438,"siege":1,"proposees":["Teractor Corporation","Sultira"],"prise":"Teractor Corporation"}
+{"graine":439,"siege":0,"proposees":["Credicor","Thorgate Corporation"],"prise":"Credicor"}
+{"graine":439,"siege":1,"proposees":["Inventrix","Mining Guild"],"prise":"Inventrix"}
+{"graine":440,"siege":0,"proposees":["Hyperion Systems","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":440,"siege":1,"proposees":["Inventrix","Sultira"],"prise":"Sultira"}
+{"graine":441,"siege":0,"proposees":["Thorgate Corporation","Inventrix"],"prise":"Thorgate Corporation"}
+{"graine":441,"siege":1,"proposees":["Ecoline","Phobolog"],"prise":"Ecoline"}
+{"graine":442,"siege":0,"proposees":["Credicor","Inventrix"],"prise":"Credicor"}
+{"graine":442,"siege":1,"proposees":["Phobolog","Unmi"],"prise":"Unmi"}
+{"graine":443,"siege":0,"proposees":["Helion Corporation","Mining Guild"],"prise":"Mining Guild"}
+{"graine":443,"siege":1,"proposees":["Credicor","Unmi"],"prise":"Credicor"}
+{"graine":444,"siege":0,"proposees":["Thorgate Corporation","Mining Guild"],"prise":"Thorgate Corporation"}
+{"graine":444,"siege":1,"proposees":["Hyperion Systems","Saturn Systems"],"prise":"Hyperion Systems"}
+{"graine":445,"siege":0,"proposees":["Apollo Industries","Unmi"],"prise":"Apollo Industries"}
+{"graine":445,"siege":1,"proposees":["Exocorp","Inventrix"],"prise":"Inventrix"}
+{"graine":446,"siege":0,"proposees":["Apollo Industries","Sultira"],"prise":"Sultira"}
+{"graine":446,"siege":1,"proposees":["Hyperion Systems","Tharsis Republic"],"prise":"Tharsis Republic"}
+{"graine":447,"siege":0,"proposees":["Helion Corporation","Hyperion Systems"],"prise":"Hyperion Systems"}
+{"graine":447,"siege":1,"proposees":["Unmi","Credicor"],"prise":"Credicor"}
+{"graine":448,"siege":0,"proposees":["Unmi","Inventrix"],"prise":"Unmi"}
+{"graine":448,"siege":1,"proposees":["Credicor","Saturn Systems"],"prise":"Credicor"}
+{"graine":449,"siege":0,"proposees":["Saturn Systems","Helion Corporation"],"prise":"Helion Corporation"}
+{"graine":449,"siege":1,"proposees":["Hyperion Systems","Sultira"],"prise":"Sultira"}
+{"graine":450,"siege":0,"proposees":["Helion Corporation","Phobolog"],"prise":"Helion Corporation"}
+{"graine":450,"siege":1,"proposees":["Hyperion Systems","Mining Guild"],"prise":"Hyperion Systems"}
+{"graine":451,"siege":0,"proposees":["Saturn Systems","Mining Guild"],"prise":"Mining Guild"}
+{"graine":451,"siege":1,"proposees":["Credicor","Exocorp"],"prise":"Credicor"}
+{"graine":452,"siege":0,"proposees":["Apollo Industries","Sultira"],"prise":"Sultira"}
+{"graine":452,"siege":1,"proposees":["Exocorp","Tharsis Republic"],"prise":"Tharsis Republic"}
+{"graine":453,"siege":0,"proposees":["Interplanetary Cinematics","Sultira"],"prise":"Interplanetary Cinematics"}
+{"graine":453,"siege":1,"proposees":["Saturn Systems","Apollo Industries"],"prise":"Apollo Industries"}
+{"graine":454,"siege":0,"proposees":["Interplanetary Cinematics","Mining Guild"],"prise":"Interplanetary Cinematics"}
+{"graine":454,"siege":1,"proposees":["Saturn Systems","Thorgate Corporation"],"prise":"Thorgate Corporation"}
+{"graine":455,"siege":0,"proposees":["Ecoline","Tharsis Republic"],"prise":"Tharsis Republic"}
+{"graine":455,"siege":1,"proposees":["Teractor Corporation","Mining Guild"],"prise":"Teractor Corporation"}
+{"graine":456,"siege":0,"proposees":["Phobolog","Mining Guild"],"prise":"Mining Guild"}
+{"graine":456,"siege":1,"proposees":["Hyperion Systems","Thorgate Corporation"],"prise":"Thorgate Corporation"}
+{"graine":457,"siege":0,"proposees":["Sultira","Apollo Industries"],"prise":"Sultira"}
+{"graine":457,"siege":1,"proposees":["Credicor","Interplanetary Cinematics"],"prise":"Credicor"}
+{"graine":458,"siege":0,"proposees":["Interplanetary Cinematics","Inventrix"],"prise":"Interplanetary Cinematics"}
+{"graine":458,"siege":1,"proposees":["Ecoline","Saturn Systems"],"prise":"Ecoline"}
+{"graine":459,"siege":0,"proposees":["Teractor Corporation","Hyperion Systems"],"prise":"Teractor Corporation"}
+{"graine":459,"siege":1,"proposees":["Tharsis Republic","Exocorp"],"prise":"Tharsis Republic"}
+{"graine":460,"siege":0,"proposees":["Credicor","Inventrix"],"prise":"Credicor"}
+{"graine":460,"siege":1,"proposees":["Sultira","Unmi"],"prise":"Sultira"}
+{"graine":461,"siege":0,"proposees":["Sultira","Phobolog"],"prise":"Sultira"}
+{"graine":461,"siege":1,"proposees":["Interplanetary Cinematics","Saturn Systems"],"prise":"Interplanetary Cinematics"}
+{"graine":462,"siege":0,"proposees":["Phobolog","Saturn Systems"],"prise":"Saturn Systems"}
+{"graine":462,"siege":1,"proposees":["Credicor","Tharsis Republic"],"prise":"Credicor"}
+{"graine":463,"siege":0,"proposees":["Inventrix","Saturn Systems"],"prise":"Inventrix"}
+{"graine":463,"siege":1,"proposees":["Thorgate Corporation","Sultira"],"prise":"Thorgate Corporation"}
+{"graine":464,"siege":0,"proposees":["Thorgate Corporation","Inventrix"],"prise":"Thorgate Corporation"}
+{"graine":464,"siege":1,"proposees":["Exocorp","Saturn Systems"],"prise":"Exocorp"}
+{"graine":465,"siege":0,"proposees":["Interplanetary Cinematics","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":465,"siege":1,"proposees":["Inventrix","Phobolog"],"prise":"Inventrix"}
+{"graine":466,"siege":0,"proposees":["Mining Guild","Inventrix"],"prise":"Inventrix"}
+{"graine":466,"siege":1,"proposees":["Tharsis Republic","Helion Corporation"],"prise":"Tharsis Republic"}
+{"graine":467,"siege":0,"proposees":["Tharsis Republic","Inventrix"],"prise":"Tharsis Republic"}
+{"graine":467,"siege":1,"proposees":["Saturn Systems","Mining Guild"],"prise":"Mining Guild"}
+{"graine":468,"siege":0,"proposees":["Ecoline","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":468,"siege":1,"proposees":["Apollo Industries","Tharsis Republic"],"prise":"Tharsis Republic"}
+{"graine":469,"siege":0,"proposees":["Sultira","Hyperion Systems"],"prise":"Sultira"}
+{"graine":469,"siege":1,"proposees":["Mining Guild","Tharsis Republic"],"prise":"Tharsis Republic"}
+{"graine":470,"siege":0,"proposees":["Sultira","Phobolog"],"prise":"Sultira"}
+{"graine":470,"siege":1,"proposees":["Saturn Systems","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":471,"siege":0,"proposees":["Hyperion Systems","Apollo Industries"],"prise":"Apollo Industries"}
+{"graine":471,"siege":1,"proposees":["Saturn Systems","Thorgate Corporation"],"prise":"Thorgate Corporation"}
+{"graine":472,"siege":0,"proposees":["Hyperion Systems","Tharsis Republic"],"prise":"Tharsis Republic"}
+{"graine":472,"siege":1,"proposees":["Apollo Industries","Phobolog"],"prise":"Apollo Industries"}
+{"graine":473,"siege":0,"proposees":["Credicor","Tharsis Republic"],"prise":"Credicor"}
+{"graine":473,"siege":1,"proposees":["Exocorp","Hyperion Systems"],"prise":"Hyperion Systems"}
+{"graine":474,"siege":0,"proposees":["Inventrix","Credicor"],"prise":"Credicor"}
+{"graine":474,"siege":1,"proposees":["Helion Corporation","Unmi"],"prise":"Unmi"}
+{"graine":475,"siege":0,"proposees":["Credicor","Unmi"],"prise":"Credicor"}
+{"graine":475,"siege":1,"proposees":["Helion Corporation","Tharsis Republic"],"prise":"Tharsis Republic"}
+{"graine":476,"siege":0,"proposees":["Teractor Corporation","Thorgate Corporation"],"prise":"Teractor Corporation"}
+{"graine":476,"siege":1,"proposees":["Interplanetary Cinematics","Saturn Systems"],"prise":"Interplanetary Cinematics"}
+{"graine":477,"siege":0,"proposees":["Hyperion Systems","Unmi"],"prise":"Unmi"}
+{"graine":477,"siege":1,"proposees":["Interplanetary Cinematics","Sultira"],"prise":"Interplanetary Cinematics"}
+{"graine":478,"siege":0,"proposees":["Hyperion Systems","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":478,"siege":1,"proposees":["Mining Guild","Thorgate Corporation"],"prise":"Thorgate Corporation"}
+{"graine":479,"siege":0,"proposees":["Phobolog","Unmi"],"prise":"Unmi"}
+{"graine":479,"siege":1,"proposees":["Thorgate Corporation","Sultira"],"prise":"Thorgate Corporation"}
+{"graine":480,"siege":0,"proposees":["Credicor","Unmi"],"prise":"Credicor"}
+{"graine":480,"siege":1,"proposees":["Sultira","Ecoline"],"prise":"Sultira"}
+{"graine":481,"siege":0,"proposees":["Interplanetary Cinematics","Helion Corporation"],"prise":"Interplanetary Cinematics"}
+{"graine":481,"siege":1,"proposees":["Saturn Systems","Hyperion Systems"],"prise":"Hyperion Systems"}
+{"graine":482,"siege":0,"proposees":["Tharsis Republic","Exocorp"],"prise":"Tharsis Republic"}
+{"graine":482,"siege":1,"proposees":["Thorgate Corporation","Mining Guild"],"prise":"Thorgate Corporation"}
+{"graine":483,"siege":0,"proposees":["Hyperion Systems","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":483,"siege":1,"proposees":["Apollo Industries","Tharsis Republic"],"prise":"Tharsis Republic"}
+{"graine":484,"siege":0,"proposees":["Interplanetary Cinematics","Teractor Corporation"],"prise":"Teractor Corporation"}
+{"graine":484,"siege":1,"proposees":["Mining Guild","Credicor"],"prise":"Credicor"}
+{"graine":485,"siege":0,"proposees":["Helion Corporation","Phobolog"],"prise":"Helion Corporation"}
+{"graine":485,"siege":1,"proposees":["Ecoline","Saturn Systems"],"prise":"Ecoline"}
+{"graine":486,"siege":0,"proposees":["Mining Guild","Inventrix"],"prise":"Inventrix"}
+{"graine":486,"siege":1,"proposees":["Phobolog","Apollo Industries"],"prise":"Apollo Industries"}
+{"graine":487,"siege":0,"proposees":["Ecoline","Saturn Systems"],"prise":"Ecoline"}
+{"graine":487,"siege":1,"proposees":["Unmi","Sultira"],"prise":"Sultira"}
+{"graine":488,"siege":0,"proposees":["Mining Guild","Unmi"],"prise":"Unmi"}
+{"graine":488,"siege":1,"proposees":["Phobolog","Saturn Systems"],"prise":"Saturn Systems"}
+{"graine":489,"siege":0,"proposees":["Apollo Industries","Sultira"],"prise":"Sultira"}
+{"graine":489,"siege":1,"proposees":["Teractor Corporation","Unmi"],"prise":"Teractor Corporation"}
+{"graine":490,"siege":0,"proposees":["Helion Corporation","Inventrix"],"prise":"Inventrix"}
+{"graine":490,"siege":1,"proposees":["Apollo Industries","Exocorp"],"prise":"Apollo Industries"}
+{"graine":491,"siege":0,"proposees":["Apollo Industries","Sultira"],"prise":"Sultira"}
+{"graine":491,"siege":1,"proposees":["Thorgate Corporation","Saturn Systems"],"prise":"Thorgate Corporation"}
+{"graine":492,"siege":0,"proposees":["Hyperion Systems","Saturn Systems"],"prise":"Hyperion Systems"}
+{"graine":492,"siege":1,"proposees":["Teractor Corporation","Exocorp"],"prise":"Teractor Corporation"}
+{"graine":493,"siege":0,"proposees":["Interplanetary Cinematics","Unmi"],"prise":"Interplanetary Cinematics"}
+{"graine":493,"siege":1,"proposees":["Tharsis Republic","Saturn Systems"],"prise":"Tharsis Republic"}
+{"graine":494,"siege":0,"proposees":["Hyperion Systems","Mining Guild"],"prise":"Hyperion Systems"}
+{"graine":494,"siege":1,"proposees":["Sultira","Apollo Industries"],"prise":"Sultira"}
+{"graine":495,"siege":0,"proposees":["Exocorp","Credicor"],"prise":"Credicor"}
+{"graine":495,"siege":1,"proposees":["Unmi","Saturn Systems"],"prise":"Unmi"}
+{"graine":496,"siege":0,"proposees":["Thorgate Corporation","Saturn Systems"],"prise":"Thorgate Corporation"}
+{"graine":496,"siege":1,"proposees":["Apollo Industries","Credicor"],"prise":"Credicor"}
+{"graine":497,"siege":0,"proposees":["Inventrix","Helion Corporation"],"prise":"Inventrix"}
+{"graine":497,"siege":1,"proposees":["Saturn Systems","Mining Guild"],"prise":"Mining Guild"}
+{"graine":498,"siege":0,"proposees":["Tharsis Republic","Interplanetary Cinematics"],"prise":"Interplanetary Cinematics"}
+{"graine":498,"siege":1,"proposees":["Sultira","Thorgate Corporation"],"prise":"Thorgate Corporation"}
+{"graine":499,"siege":0,"proposees":["Mining Guild","Tharsis Republic"],"prise":"Tharsis Republic"}
+{"graine":499,"siege":1,"proposees":["Credicor","Saturn Systems"],"prise":"Credicor"}
+{"graine":500,"siege":0,"proposees":["Thorgate Corporation","Helion Corporation"],"prise":"Thorgate Corporation"}
+{"graine":500,"siege":1,"proposees":["Inventrix","Exocorp"],"prise":"Inventrix"}
