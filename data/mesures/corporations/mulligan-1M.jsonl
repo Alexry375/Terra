@@ -1,0 +1,7 @@
+{"graine":700000,"siege":0,"vues":["Inventrix","Teractor Corporation"],"force_avant":4.27,"declenche":false}
+{"graine":700000,"siege":1,"vues":["Apollo Industries","Mining Guild"],"force_avant":14.02,"declenche":false}
+{"graine":700001,"siege":0,"vues":["Saturn Systems","Ecoline"],"force_avant":-4.28,"declenche":true,"remplace":{"corpo":"Exocorp","score":72,"score_adverse":92,"complete":true},"garde":{"corpo":"Saturn Systems","score":42,"score_adverse":96,"complete":true}}
+{"graine":700001,"siege":1,"vues":["Unmi","Tharsis Republic"],"force_avant":13.71,"declenche":false}
+{"graine":700002,"siege":0,"vues":["Credicor","Tharsis Republic"],"force_avant":13.71,"declenche":false}
+{"graine":700002,"siege":1,"vues":["Inventrix","Ecoline"],"force_avant":-4.28,"declenche":true,"remplace":{"corpo":"Teractor Corporation","score":70,"score_adverse":106,"complete":true},"garde":{"corpo":"Inventrix","score":108,"score_adverse":66,"complete":true}}
+{"graine":700003,"siege":0,"vues":["Exocorp","Credicor"],"force_avant":11.88,"declenche":false}
