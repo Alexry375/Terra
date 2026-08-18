@@ -3,7 +3,20 @@
 > Source de vérité du projet. Ancrée au code (`fichier:ligne`) dès qu'il y aura du
 > code. [VÉRIFIÉ JJ-MM] = relu à la source ce jour-là. [DÉCLARÉ] = non re-vérifié.
 
-Dernière mise à jour : 2026-08-17
+Dernière mise à jour : 2026-08-18
+
+## 📌 RAPPEL PERMANENT — L'ORDRE DES CINQ PHASES ET DE LA MISE EN PLACE
+
+**Les cinq phases, dans l'ordre** [VÉRIFIÉ 17-08, `engine/src/flow.rs:1731-1732`] :
+**I Développement · II Construction · III Action · IV Production · V Recherche.**
+Je me suis trompé deux fois là-dessus (« phase 2 = Développement », « phase 5 =
+Production ») et Alexis a corrigé. **La phase 5 est la RECHERCHE.**
+
+**L'ordre de la mise en place** [VÉRIFIÉ 17-08, `flow.rs:55-60`] : 1. deux
+corporations données · 2. mulligan des corporations, **les deux ou aucune, AVANT
+de voir les cartes projets** (décision aveugle) · 3. huit cartes projets ·
+4. mulligan des projets, carte par carte, de 0 à 8 · 5. **choix final de la
+corporation, cartes projets déjà en main** (`flow.rs:227`).
 
 ## 🔥 17-08 — LE VERDICT DU MILLION : LA DEVINETTE NE PAYE PAS. C'EST **A** QU'IL FAUT PROLONGER
 

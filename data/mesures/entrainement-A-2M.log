@@ -1,2 +1,7 @@
 reprise : data/poids/apprenti-1M.txt — 1000000 parties déjà vues
 amorçage sauté : on reprend des poids déjà entraînés
+{"parties": 50000, "erreur": 0.067870, "justes": 0.7967}
+{"parties": 100000, "erreur": 0.069638, "justes": 0.8021}
+{"parties": 150000, "erreur": 0.067549, "justes": 0.8027}
+{"parties": 200000, "erreur": 0.068406, "justes": 0.8005}
+instantané : data/poids/apprenti-2M.txt.200000 (200000 parties, 14378.4 s)
