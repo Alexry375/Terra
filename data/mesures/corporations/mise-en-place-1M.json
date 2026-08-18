@@ -1,0 +1,25 @@
+{
+ "joueur": "apprenti",
+ "poids": "data/poids/apprenti-1M.txt",
+ "donnes": 200,
+ "mulligan_corporations": {
+  "garde": 400,
+  "remplace": 0
+ },
+ "mulligan_projets": {
+  "occasions": 400,
+  "cartes_rendues_au_total": 797,
+  "moyenne_par_joueur": 1.99,
+  "distribution": {
+   "0": 92,
+   "1": 77,
+   "2": 93,
+   "3": 66,
+   "4": 36,
+   "5": 25,
+   "6": 10,
+   "7": 1
+  }
+ },
+ "choix_de_corporation": 400
+}

@@ -1,0 +1,24 @@
+{
+ "joueur": "reflechi",
+ "poids": "(defaut)",
+ "donnes": 200,
+ "mulligan_corporations": {
+  "garde": 400,
+  "remplace": 0
+ },
+ "mulligan_projets": {
+  "occasions": 400,
+  "cartes_rendues_au_total": 2429,
+  "moyenne_par_joueur": 6.07,
+  "distribution": {
+   "2": 1,
+   "3": 2,
+   "4": 35,
+   "5": 81,
+   "6": 134,
+   "7": 104,
+   "8": 43
+  }
+ },
+ "choix_de_corporation": 400
+}
