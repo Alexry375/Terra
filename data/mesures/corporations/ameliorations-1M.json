@@ -1,0 +1,49 @@
+{
+ "joueur": "apprenti",
+ "poids": "data/poids/apprenti-1M.txt",
+ "parties": 50,
+ "ameliorations_relevees": 526,
+ "variante_par_phase": {
+  "1": {
+   "A_prise": 41,
+   "B_prise": 69,
+   "A_proposee": 385,
+   "B_proposee": 329
+  },
+  "2": {
+   "A_prise": 95,
+   "B_prise": 2,
+   "A_proposee": 141,
+   "B_proposee": 452
+  },
+  "3": {
+   "A_prise": 81,
+   "B_prise": 3,
+   "A_proposee": 243,
+   "B_proposee": 473
+  },
+  "4": {
+   "A_prise": 68,
+   "B_prise": 42,
+   "A_proposee": 349,
+   "B_proposee": 415
+  },
+  "5": {
+   "A_prise": 25,
+   "B_prise": 100,
+   "A_proposee": 435,
+   "B_proposee": 160
+  }
+ },
+ "phase_imposee": {
+  "oui": 83,
+  "non": 443
+ },
+ "phase_choisie_quand_libre": {
+  "1": 99,
+  "2": 87,
+  "3": 41,
+  "4": 108,
+  "5": 108
+ }
+}

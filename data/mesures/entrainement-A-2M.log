@@ -1,0 +1,2 @@
+reprise : data/poids/apprenti-1M.txt — 1000000 parties déjà vues
+amorçage sauté : on reprend des poids déjà entraînés
