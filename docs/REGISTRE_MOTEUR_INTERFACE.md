@@ -128,6 +128,45 @@ le joueur Rust essaie ses coups sur un paquet rebattu, le joueur JavaScript sur
 la vraie partie. Il redeviendra vert quand le pont acceptera une graine d'essais.
 Ne pas le « réparer » autrement.
 
+### Lot L3 — La fiche que l'intelligence artificielle regarde  *(LIVRÉ le 20-08, commit `ada92b6`, audité `ok`)*
+
+Détail complet : `workspaces/la-fiche-que-l-ia-regarde/outputs/interface.md`.
+
+> **L'avertissement qui commande tout le reste : tous les fichiers de poids
+> d'avant ce lot sont devenus illisibles.** La fiche passe de **1 472 à 1 630
+> cases** — 216 noms neufs, 58 disparus, et le premier écart de rang est au 79e.
+> Le fichier de poids porte la table des noms (§ 3.7) et `reseau::Reseau::lire`
+> refuse au premier nom qui ne correspond pas. Ce n'est pas une panne : c'est le
+> verrou qui refuse au lieu de réinterpréter. Un fichier mal réinterprété
+> donnerait un joueur mauvais sans que rien ne le signale.
+>
+> **Réparé à l'audit** : `data/poids/apprenti.txt`, le nom canonique que six
+> outils chargent par défaut, porte désormais les poids d'amorçage du lot
+> (30 000 parties, fiche neuve). Les six outils remarchent — dont
+> `juge-main-cachee.mjs`, qui est le contrôle de secret du navigateur.
+
+| Changement moteur | Ce que l'interface doit faire | Ampleur | État |
+|---|---|---|---|
+| **La fiche passe de 1 472 à 1 630 cases** (six familles neuves, une amaigrie) | `web/webapp/joueurs/description.js` : **fait**, recopié case par case, même ordre. Banc de concordance vert sur **390 situations**, 1 630 cases, 0 divergence | recopie | **faite** |
+| **D3 — les corporations tenues en main entrent dans l'état** (`PlayerState::corps_en_main`), et la vue publie `corps_en_main` (les noms) par joueur | `description.js` : **fait** — 16 cases `corpo_…_ma_main`, **du seul côté du joueur qui regarde**. **Écran** : l'échange de corporations de la mise en place peut maintenant montrer les deux cartes tenues ; la donnée existe, l'écran ne s'en sert pas | petite à l'écran | recopie **faite**, écran à faire |
+| **2.8 — la vue d'état publie `tags` et `vp` sur chaque carte** (main et cartes posées) | `description.js` : **fait** (79 cases de résumé de ma main). **Écran** : les badges d'une carte sont lisibles sans ouvrir `cards.json` ; `vue/*.js` peut cesser de croiser deux sources | petite | recopie **faite**, simplification possible |
+| **2.10 — la vue d'état publie `valeurs_recompenses`** par joueur, calculé par `flow::award_value` | `description.js` : **fait** (21 cases de classement). **Écran** : l'affichage des Récompenses peut montrer qui mène sans recopier le barème | petite | recopie **faite**, écran à faire |
+| **2.9 — 46 cases d'écart entre les deux joueurs, échelle de score de 8 à 25 paliers** (elle monte à 147 : s'arrêter à 83 laissait 15 situations indiscernables sur mille) | `description.js` : **fait**. Rien à l'écran | recopie | **faite** |
+| **2.12 — la table des cartes suit la composition** : elle est bâtie sur `in_deck` et non plus sur l'appartenance à une boîte | `web/webapp/joueurs/paquet.js` : **fait**, réengendré, 257 → **246** cartes. **Piège** : la table n'est plus la même pour `base` seule et pour `base,decouverte`. La page joue `base,decouverte` ; si elle offre un jour la boîte de base seule, il lui faudra un `paquet.js` **et un fichier de poids** par composition | recopie + **piège de composition** | recopie **faite**, à surveiller |
+| **`web/webapp/terra.wasm` reconstruit** | Rien à faire, mais **obligatoire** : un binaire périmé publierait une vue sans `tags`, sans `vp`, sans `corps_en_main` ni `valeurs_recompenses`, et la recopie lirait des champs absents — des dizaines de cases figées à −1, **en silence**, puisque les noms concorderaient | recompilation | **faite** |
+| **Aucun point de décision n'a bougé** | Rien. Les parties enregistrées restent rejouables : les quatre empreintes d'état sont inchangées (`f781479fc2bce873`, `20fa65e8b81b3b39`, `7b5beb0c04da3776`, `42c1f72ad53c9264`), relevées par la main sur 1 200 parties | néant | néant |
+
+**Réserve d'audit portée au lot L5** : **10,6 %** des paliers de la fiche sortent
+de la bande 2 %–98 % du § 3.5, contre **5,4 %** avant le lot — mesuré par le même
+programme sur 164 550 situations, avec pour chaque côté les poids de son époque.
+Vingt-deux de ces paliers sont assumés et démontrés (fermer la case ouverte du
+haut de l'échelle de score oblige à poser des paliers dans la queue de la
+distribution) ; treize ne le sont pas. La cause est déclarée par l'agent : les
+seuils ont été relevés sur l'intelligence artificielle de l'**ancienne** fiche,
+faute d'en avoir une entraînée sur la neuve. **À re-poser dans le lot L5, juste
+avant le dernier entraînement** — c'est le seul moment où les deux conditions
+peuvent être vraies ensemble.
+
 ### Lot L5 — Vitesse et réglages
 
 Aucune répercussion sur l'interface, **sauf** : si la couche cachée passe de 50 à
