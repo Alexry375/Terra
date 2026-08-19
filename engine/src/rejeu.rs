@@ -280,6 +280,18 @@ pub struct Rejeu<'a> {
     /// carte Phase comprise. C'est l'état par défaut, et le contrôle 10 le
     /// vérifie sur trois parties entières.
     pub devinette: Option<Devinette<'a>>,
+    /// **(2.15) LE NUMÉRO DE L'OCCASION DE VENTE EN COURS.**
+    ///
+    /// Une entrée de vente ne dit pas d'elle-même À QUELLE occasion elle
+    /// appartient : le moteur en ouvre une avant chaque point de décision, pour
+    /// chacun des deux sièges, et il en ouvre aussi devant des points de décision
+    /// qu'il finit par ne pas poser. Sans numéro, une entrée décidée à l'occasion
+    /// 277 se faisait consommer à l'occasion 275 — reproduit sur la graine
+    /// 1 000 023 — et le rejeu appliquait la vente au mauvais endroit.
+    ///
+    /// Le numéro est celui de la PARTIE, pas de la manche : un rejeu qui repart du
+    /// milieu reçoit donc la valeur qu'il avait à son point de reprise.
+    pub occasions: u64,
     /// **Vrai quand le dernier `prendre` a rendu `None` PARCE QU'ON RÉPOND À LA
     /// PLACE DE L'AUTRE pendant l'avance du §4.1** — et non parce que le rejeu
     /// s'arrête ici, ni parce qu'une décision attend déjà.
@@ -304,6 +316,7 @@ impl<'a> Rejeu<'a> {
             plafond_atteint: false,
             phases_de_l_autre: 0,
             devinette: None,
+            occasions: 0,
             pour_l_autre: false,
         }
     }
@@ -314,6 +327,13 @@ impl<'a> Rejeu<'a> {
         let mut r = Rejeu::new(reponses);
         r.avance = Some(siege);
         r
+    }
+
+    /// Le même rejeu, mais qui sait combien d'occasions de vente la partie a déjà
+    /// ouvertes avant son point de reprise (§2.15).
+    pub fn depuis_occasion(mut self, n: u64) -> Rejeu<'a> {
+        self.occasions = n;
+        self
     }
 
     /// Rend la réponse enregistrée pour cette décision, ou `None` s'il faut
@@ -546,6 +566,11 @@ impl Policy for Rejeu<'_> {
     /// d'occasion, et jamais comme réponse à une question (même règle que le
     /// pont, `Harnais::vendre_librement`).
     fn vendre_librement(&mut self, _rng: &mut StdRng, joueur: usize, main: &[u16]) -> Vec<usize> {
+        // Le numéro de CETTE occasion-ci, compté avant toute chose : le moteur
+        // interroge chaque siège dont la main n'est pas vide, et le rejeu doit
+        // compter exactement comme le joueur a compté.
+        let numero = self.occasions;
+        self.occasions += 1;
         if self.attente.is_some() || self.curseur >= self.reponses.len() {
             return Vec::new();
         }
@@ -554,6 +579,24 @@ impl Policy for Rejeu<'_> {
         };
         if vente.get("joueur").and_then(Value::as_u64) != Some(joueur as u64) {
             return Vec::new();
+        }
+        // **Une entrée numérotée n'est JAMAIS consommée avant son occasion.**
+        //
+        // Le numéro dit à quelle occasion la vente a été décidée. Le consommer
+        // plus tôt appliquait la vente au mauvais endroit — reproduit sur la
+        // graine 1 000 023, vente décidée à l'occasion 277 et appliquée à la 275.
+        // On ne l'exige pas à l'unité près pour autant : un rejeu d'ESSAI part
+        // d'un paquet rebattu et peut sauter une occasion (un siège dont la main
+        // s'est vidée n'est pas interrogé). Exiger l'égalité stricte y refusait
+        // l'option au lieu de la juger. La règle est donc « jamais avant son
+        // heure, au plus tard à la première occasion suivante du même siège ».
+        //
+        // Une entrée SANS numéro reste acceptée telle quelle : les parties
+        // enregistrées d'avant ce lot, et le harnais du pont, n'en portent pas.
+        if let Some(n) = vente.get("occasion").and_then(Value::as_u64) {
+            if numero < n {
+                return Vec::new();
+            }
         }
         let Some(cartes) = vente.get("cartes").and_then(Value::as_array) else {
             self.faute("« cartes » attendu : une liste d'indices de main".to_string());

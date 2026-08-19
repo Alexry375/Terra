@@ -52,6 +52,20 @@ fn main() {
     // contrôle 10 vérifie sur trois parties entières, empreinte comprise.
     let mut poids_adversaire = String::new();
     let mut devinette = false;
+    // **(le-joueur-sans-voyance, V1) LA GRAINE DES REJEUX D'ESSAI.**
+    //
+    // Elle ne touche pas au déroulement de la vraie partie : elle fixe le
+    // rebattage du paquet que chaque essai de coup subit, pour que le joueur
+    // cesse de lire à l'avance les cartes qu'il recevra. C'est ce qui rend la
+    // correction vérifiable de l'extérieur : à graine de partie fixée, deux
+    // valeurs différentes donnent deux parties différentes, et une même valeur
+    // redonne toujours la même.
+    let mut graine_essais = joueur::GRAINE_ESSAIS_DEFAUT;
+    // (2.11 / 2.15) Les deux interrupteurs de mesure : ils servent à chiffrer le
+    // surcoût de l'énumération complète et celui de la vente, et à couper la
+    // vente si son coût explose. Allumés par défaut, tous les deux.
+    let mut combinaisons_completes = true;
+    let mut vente = true;
     let mut i = 1;
     while i < args.len() {
         let val = |i: usize| -> String {
@@ -67,6 +81,25 @@ fn main() {
             "--cards" => cartes = val(i),
             "--tracer-rang" => tracer = val(i).parse().unwrap_or(-1),
             "--poids-adversaire" => poids_adversaire = val(i),
+            "--graine-essais" => {
+                graine_essais = val(i).parse().unwrap_or_else(|_| mourir("--graine-essais"))
+            }
+            "--combinaisons" => {
+                combinaisons_completes = match val(i).as_str() {
+                    "completes" => true,
+                    "carte-par-carte" => false,
+                    autre => mourir(&format!(
+                        "--combinaisons attend « completes » ou « carte-par-carte », pas « {autre} »"
+                    )),
+                }
+            }
+            "--vente" => {
+                vente = match val(i).as_str() {
+                    "on" => true,
+                    "off" => false,
+                    autre => mourir(&format!("--vente attend « on » ou « off », pas « {autre} »")),
+                }
+            }
             "--devinette" => {
                 devinette = match val(i).as_str() {
                     "on" => true,
@@ -124,13 +157,21 @@ fn main() {
     j.apprendre = false;
     j.adversaire = adversaire.as_mut();
     j.devinette = devinette;
+    j.graine_essais = graine_essais;
+    j.combinaisons_completes = combinaisons_completes;
+    j.vente = vente;
     j.nouvelle_partie(graine);
 
+    // Le temps de la PARTIE seule — lecture des cartes et des poids exclues.
+    // C'est la grandeur que `result.md` chiffre : un pourcentage sans durée
+    // absolue ne vaut rien, et une durée qui compte le démarrage non plus.
+    let chrono = std::time::Instant::now();
     let mut game = setup_game(&db, graine, &mut j);
     while !game.game_over && game.generation <= MAX_GENERATIONS {
         j.debut_manche(&game);
         play_round(&mut game, &db, &mut j);
     }
+    let secondes = chrono.elapsed().as_secs_f64();
     let (scores, _, _) = score_parts(&game, &db);
     // **L'écart d'évaluation entre les options d'une même décision** (§2.2) : au
     // round 1 il valait 0,016, le niveau du bruit. C'est la mesure qui dit si le
@@ -157,6 +198,23 @@ fn main() {
             "partie_complete": game.game_over,
             "ecart_options": ecart,
             "decisions_multiples": j.compte_ecart,
+            // (2.11) Le prix de la partie en essais de coups, et la part que
+            // l'échange des cartes de départ y prend : 256 sous-ensembles par
+            // siège quand l'énumération est complète.
+            "essais": j.essais,
+            "essais_mulligan": j.essais_mulligan,
+            "essais_vente": j.essais_vente,
+            "essais_refuses": j.essais_refuses,
+            "rebattages_sautes": j.rebattages_sautes,
+            "temps_essais": j.t_essais,
+            // (2.15) Combien de fois l'IA a choisi de vendre une carte, et
+            // combien d'occasions lui ont été offertes.
+            "ventes_volontaires": j.ventes_volontaires,
+            "occasions_de_vente": j.occasions_de_vente,
+            // (V1) La graine des rejeux d'essai, pour qu'une sortie enregistrée
+            // dise avec quoi elle a été produite.
+            "graine_essais": graine_essais,
+            "secondes": secondes,
         })
     );
 }

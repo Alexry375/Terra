@@ -110,6 +110,14 @@ export const MARGE_PHASE = 1e-12;
  */
 export const PLAFOND_AVANCE = 60;
 
+/**
+ * **(2.11) Jusqu'où l'énumération complète est permise à l'échange des cartes de
+ * départ.** Huit cartes = 256 sous-ensembles, la taille exacte de la main de
+ * départ. Au-delà, on retombe sur la construction carte par carte. Même valeur
+ * que `joueur::LARGEUR_ENUMERATION` côté Rust — les deux doivent bouger ensemble.
+ */
+export const LARGEUR_ENUMERATION = 8;
+
 /** Compteurs de l'avance, relevés par les bancs (le §4.1 demande le second). */
 export let pasDAvance = 0;
 export let plafondsAtteints = 0;
@@ -536,19 +544,50 @@ export function fournisseurApprenti(graine, nom = "apprenti", poids, pont, boite
    * évaluée. Chaque candidat essayé doit donc être une réponse complète.
    *
    * - **nombre libre** (le mulligan projets) : toute liste vaut réponse, y
-   *   compris la vide ; on part d'elle et on ajoute la carte qui améliore le
-   *   plus, tant qu'une addition améliore.
+   *   compris la vide. **(2.11, le-joueur-sans-voyance)** On essaie désormais les
+   *   2^n sous-ensembles quand n ne dépasse pas huit — 256 au mulligan de départ,
+   *   au lieu des 37 que la construction carte par carte visitait au mieux. Elle
+   *   partait de la liste vide, ajoutait la carte dont l'ajout améliore le plus et
+   *   s'arrêtait au premier tour où aucune addition SEULE n'améliore : mesuré sur
+   *   onze mains réelles, elle restait bloquée sur une solution moins bonne 6 fois
+   *   sur 11. Au-delà de huit, on garde la construction carte par carte : le
+   *   constat n° 7 de l'audit a mesuré que l'énumération coûte dix à seize fois
+   *   plus cher sur les défausses de fin de manche (jusqu'à 19 448 combinaisons).
    * - **nombre imposé** : on part des k premières — complète, donc évaluable —
    *   et on essaie de REMPLACER chaque carte retenue par chacune des autres.
    *   Deux tours, ce qui borne le coût.
    *
-   * Copie conforme de `Joueur::choisir_liste` (`engine/src/joueur.rs`), même
-   * ordre de parcours : c'est ce que vérifie `verif/juge-meme-option.mjs`.
+   * Même énumération et même ordre de parcours que `Joueur::choisir_liste`
+   * (`engine/src/joueur.rs`) — masques croissants, donc « ne rien rendre » en
+   * premier et gagnant à égalité.
+   *
+   * **ATTENTION : `verif/juge-meme-option.mjs` ne peut plus être vert.** Le lot
+   * « le joueur sans voyance » a corrigé trois autres points côté Rust que ce
+   * fichier ne peut pas suivre seul : les essais y explorent un paquet rebattu
+   * (V1) et l'IA y vend des cartes (2.15). Le premier exige que le pont accepte
+   * une graine d'essais — `pont.pas(graine, boîtes, décisions, graineEssais)` —
+   * et le second que le fournisseur reçoive les occasions de vente. Les deux sont
+   * décrits dans `workspaces/le-joueur-sans-voyance/outputs/interface.md`. Tant
+   * qu'ils ne sont pas faits, le banc mesure un écart attendu, pas une faute de
+   * recopie.
    */
   function meilleureListe(d, siege) {
     const n = d.options ? d.options.length : 0;
     const libre = d.a_choisir === undefined || d.a_choisir === null;
     let pris = [];
+    if (libre && n <= LARGEUR_ENUMERATION) {
+      let meilleureNote = -Infinity;
+      for (let masque = 0; masque < 1 << n; masque++) {
+        const cand = [];
+        for (let i = 0; i < n; i++) if ((masque >> i) & 1) cand.push(i);
+        const x = noter(cand, siege);
+        if (x > meilleureNote + MARGE) {
+          meilleureNote = x;
+          pris = cand;
+        }
+      }
+      return pris;
+    }
     if (libre) {
       let note = noter([...pris], siege);
       while (pris.length < n) {
