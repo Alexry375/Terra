@@ -2281,3 +2281,82 @@ contenterait d'incrémenter des compteurs tomberait là.
   la même famille : je contrôlais une forme, une valeur brute ou une référence
   produite par un autre chemin, au lieu de la propriété que je voulais éprouver.
   Aucun n'a jamais laissé passer un défaut — ils ont tous **accusé à tort**.
+
+## 2026-08-20 — Le lot L3 est livré : l'IA voit enfin ce qu'elle tient, et trois de mes contrôles accusaient encore à tort
+
+- **Le lot L3 « la fiche que l'IA regarde » est livré, audité `ok` et commité**
+  (`ada92b6`). La fiche de situation passe de **1 472 à 1 630 cases**, et les six
+  défauts du contrat sont corrigés : D3 (les corporations tenues en main entrent
+  dans l'état), 2.8 (la main est résumée), 2.9 (les six écarts publiés, l'échelle
+  de score déplafonnée), 2.10 (ressources posées et classement des Récompenses),
+  2.12 (plus une case de carte jamais distribuée), D4 (les cinq modules remontent
+  dans la bibliothèque). [VÉRIFIÉ 20-08 — 1 111 tests verts, `cargo test --release`]
+- **Le défaut n°1 du projet est mort.** Au premier choix de chaque partie, l'IA
+  jouait à pile ou face : les deux corporations qu'elle tenait ne figuraient dans
+  aucune case, donc garder et rendre décrivaient la même situation. Avant :
+  **0 remplacement sur 400** et deux notes identiques à la dix-septième décimale.
+  Après : **15 paires rendues sur 40, 20 notes distinctes sur 20**.
+  [VÉRIFIÉ 20-08 — contrôle 01 corrigé, rejoué par moi]
+- **L'échelle de score ne sature plus du tout.** Deux joueurs séparés de 8 points
+  ou plus tombaient sur des lignes de score identiques dans **4,8 %** des
+  situations ; avec l'échelle qui monte à 147, c'est **zéro sur 31 944**.
+  [VÉRIFIÉ 20-08 — contrôle 04]
+- **Aucun point de décision n'a bougé** : les quatre empreintes d'état sont
+  identiques à celles de `e0310a8` sur 1 200 parties, 0 violation d'invariant.
+  [VÉRIFIÉ 20-08 — `simulate --games 300` sur les quatre combinaisons, relevé par moi]
+- **Ce que la relecture adversariale de l'agent a trouvé après sa campagne de
+  sabotage, et qui vaut pour tous les lots suivants.** Tous ses sabotages avaient
+  la même forme : **débrancher** une fonction. Un relecteur a saboté autrement —
+  il a **permuté** les compteurs du résumé de main d'un cran, gardant les sommes
+  justes et ne changeant que les noms sous lesquels elles sont publiées. Résultat :
+  **139 tests verts sur 139**, parce que les tests tiraient leur attendu de la
+  fonction même qui était fautive. Réparé par un test qui recompte depuis les
+  cartes, badge par nom. Cinq faux verts trouvés au total, tous sur les défauts
+  que le lot devait réparer. [DÉCLARÉ par l'agent, sabotage rejoué par moi : les
+  tests `c05` à `c12` tombent bien sur une fuite délibérée]
+- **TROIS DE MES CONTRÔLES ACCUSAIENT À TORT — le total monte à huit en deux jours.**
+  - Contrôle 01 : il capturait la sortie standard avec `2>/dev/null`, or
+    `--tracer-rang` imprime la note sur la sortie d'**erreur**. La ligne est
+    **identique avant le lot** (`engine/src/joueur.rs:787` des deux côtés) : ce
+    contrôle n'a **jamais** pu lire ce qu'il mesure, et `aw seal` ne l'a pas vu
+    parce qu'un contrôle rouge pour la mauvaise raison passe le scellement.
+    [VÉRIFIÉ 20-08 — corrigé, vert]
+  - Contrôle 02 : il mesurait les résumés de main par `decrire --graine G` sans
+    décisions, or cette commande s'arrête à la **première** question — l'échange
+    des corporations, posée **avant** la distribution des huit projets
+    (`flow.rs:206` contre `:235`). Les deux mains sont vides pour toute graine.
+    [VÉRIFIÉ 20-08 — lu à la source et mesuré]
+  - Hold-out `h1` : il appelait une méthode de chargement des cartes qui n'a
+    jamais existé (`CardsDb::charger_avec`), et lisait le fichier de cartes par un
+    chemin faux. Corrigé — et surtout **élargi** : sa mesure prenait ses situations
+    trois manches après la mise en place, quand la paire de corporations est déjà
+    installée et le champ vide des deux côtés. Il déclarait donc « aucune fuite »
+    même sur un code délibérément saboté pour lire la paire d'en face. Il regarde
+    maintenant aussi la **première question**, et il vire au rouge sur ce sabotage.
+    [VÉRIFIÉ 20-08 — éprouvé dans les deux sens]
+- **Le hold-out `h3` était rouge pour une dette réelle, pas pour une faute.** Le
+  banc qui vérifie que le navigateur ne lit pas la main d'en face charge
+  `data/poids/apprenti.txt`, devenu illisible puisque la fiche a changé de taille
+  (§3.7, le garde-fou fait son travail). Six outils étaient dans ce cas. Réparé
+  par la main : le nom canonique pointe désormais sur les poids d'amorçage du lot.
+  [VÉRIFIÉ 20-08 — `juge-main-cachee` vert, 60 questions reposées, 0 fuite]
+- **Le hold-out `h2` reste ROUGE, et il a raison.** La règle §3.5 veut qu'un
+  palier ne soit retenu que si entre 2 % et 98 % des situations le franchissent.
+  Mesuré sur **164 550 situations** (200 parties, les deux sièges, poids livrés) :
+  **10,6 % des paliers sortent de la bande, contre 5,4 % avant le lot** — mesure
+  refaite par le même programme sur un arbre détaché de `367a73c` avec les poids
+  de l'époque. Sur les 35 paliers fautifs supplémentaires, 20 sont le haut de
+  l'échelle de score et 2 le prix total de la main : **assumés et démontrés** par
+  l'agent (fermer la case ouverte du haut oblige à poser des paliers dans la queue
+  de la distribution). Les **13 autres ne sont pas déclarés**. La cause, elle, est
+  déclarée : les seuils ont été relevés sur l'IA de l'**ancienne** fiche, faute
+  d'IA entraînée sur la neuve. **Porté au lot L5**, où les seuils seront re-posés
+  juste avant le dernier entraînement. [VÉRIFIÉ 20-08 — mesure appariée, deux
+  arbres, même programme]
+- **La leçon de ma première mesure, qui allait m'égarer.** Comparés en bloc, les
+  cases hors bande passent de 416 à 339 : le lot semblait *améliorer* la fiche. Ce
+  chiffre est dominé par les 984 cases « telle carte est là », qui ne sont pas des
+  paliers et ne le seront jamais. En ne comptant que les paliers, le rapport
+  s'inverse. **Une moyenne prise sur une population hétérogène dit le contraire de
+  la vérité** — il faut compter dans la famille où la règle s'applique.
+  [VÉRIFIÉ 20-08]
