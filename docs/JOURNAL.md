@@ -2069,3 +2069,86 @@ six lots du banc du mulligan sont terminés (1 986 donnes) et `choix-libre-1M.js
 complet à 700 donnes : à dépouiller. Et deux questions attendent Alexis avec le plateau
 physique en main : la longueur de la piste de température, et la seconde ligne du carton de
 *Mining Guild*.
+
+## 2026-08-19 — Le premier lot du plan est livré, et deux de mes contrôles étaient faux
+
+### Ce qui a été fait
+
+Le chantier **L1 « le secret et l'ordre »** a été délégué à un agent en workspace scellé,
+puis audité. Six défauts corrigés d'un coup, plus un arbitrage d'Alexis :
+
+- **D1** — la carte Phase choisie ne fuite plus vers le second interrogé. Un champ neuf,
+  `phase_revelee`, porte « ce que la table voit » et n'est écrit qu'une fois les deux
+  réponses données (`livret-base.md:272`) ; `previous_phase` reste, privé au joueur, pour
+  interdire deux fois la même phase de suite. Les douze cases de la fiche restent aux mêmes
+  rangs, et portent bien la phase de la manche précédente : l'information légitime est
+  préservée. [VÉRIFIÉ 19-08 — `engine/src/description.rs:389`, `engine/src/state.rs:290`,
+  mesure ci-dessous]
+- **D1 bis** — un **second chemin de fuite** que ni mon contrôle ni les tests n'atteignaient :
+  le gain « lorsque vous révélez une carte Phase améliorée » était versé à la seconde où
+  chacun répondait, et le MC apparu dans la fiche de l'adversaire trahissait le choix
+  secret. Trouvé par la relecture adversariale de l'agent, pas par moi. [VÉRIFIÉ 19-08 —
+  `engine/src/flow.rs`, `play_round`, étape de révélation]
+- **D14** — la mise en place est simultanée aux trois étapes du départ.
+- **D10** — Objectifs et Récompenses ne comptent qu'avec l'extension.
+- **D15** — l'extension seule est refusée au chargement, sur les deux chemins.
+- **D11** — le départage d'égalité du livret p.16 s'applique : **0 partie nulle sur 1500**,
+  contre 11 sur 400 avant.
+- **D16** — la phase IV Production suit l'ordre du tour.
+- **Le premier joueur est tiré au sort** par le générateur de la partie (22/18 sur 40
+  graines), et alterne ensuite comme avant.
+
+**33 tests neufs** (`engine/tests/lot_secret_ordre_tests.rs`, 1 009 lignes, 61 assertions),
+chacun citant la ligne de livret qu'il fait respecter, et **chacun vu rouge** sur le code
+d'avant par retrait du correctif un par un. Suite complète : **941 tests verts**.
+`terra.wasm` reconstruit, banc de concordance Rust/JavaScript vert (201 situations,
+1 472 cases). Commit `3d14d25`. [VÉRIFIÉ 19-08 — `cargo test --release`, `aw audit`]
+
+### Mon audit, par un chemin indépendant
+
+J'ai créé un arbre de travail parallèle sur le code d'avant (`git worktree` sur `HEAD`) et
+rejoué la même mesure des deux côtés, sur 57 graines inédites, cinq choix cachés comparés
+chacun : **57 fuites sur 57 avant, 0 sur 57 après**. Même protocole pour la mise en place :
+**80 sur 80 avant, 0 sur 80 après** au mulligan des projets et au choix de corporation.
+Deux hold-outs sur trois verts. [VÉRIFIÉ 19-08]
+
+### Mes erreurs de la journée
+
+1. **Deux de mes contrôles étaient faussement rouges** sur un travail correct : le contrôle
+   visible `01-le-secret-de-la-phase.sh` et le hold-out `h1`. Deux causes, toutes deux dans
+   mes scripts. D'abord une **liste de décisions écrite d'avance** : le rang et le nombre
+   d'options d'une question dépendent des réponses précédentes, si bien que ma « 11ᵉ
+   question de carte Phase » tombait tantôt en manche 2 (où le livret n'autorise plus que
+   quatre phases, donc l'indice 4 est refusé), tantôt sur une action de construction.
+   Ensuite, je lisais le premier joueur par `simulate --seed N`, **qui ne joue pas la partie
+   de graine N** : il passe la graine par un générateur maître
+   (`engine/src/sim.rs:502-509`). [VÉRIFIÉ 19-08]
+   L'agent a diagnostiqué les deux, a essayé vingt configurations, et a **refusé** de
+   chercher celle qui ferait tomber mes graines du bon côté — ce qui aurait été contourner
+   l'intention du contrôle. C'est le bon comportement, et c'est mon contrat qui était
+   mauvais. Leçon consignée en mémoire durable.
+2. **J'avais annoncé L1 et L4 en parallèle** au motif que leurs fichiers sont disjoints.
+   Faux : ils partagent le même programme Rust, et une modification en cours chez l'un
+   empêche l'autre de compiler. Lancés l'un après l'autre.
+3. **Le seuil de non-régression de L4 était périmé** (925 tests, alors que L1 en apporte
+   941) : le contrôle était vert au scellement, donc inutile. Relevé à 960 et re-scellé.
+
+### Deux divergences acceptées
+
+- **Un point de décision est déplacé** à l'installation des corporations : rendre le choix
+  simultané oblige à installer après les deux réponses. Déclaré par l'agent au moment où il
+  l'a pris ; **accepté par moi** — il est nécessaire à la simultanéité, sans effet en boîte
+  de base, et les parties enregistrées sont de toute façon invalidées par le tirage du
+  premier joueur.
+- **La fiche lit `phase_revelee` des deux côtés** et non du seul adversaire, pour qu'une
+  case nommée `previous_phase_3` veuille dire la même chose des deux côtés.
+
+### Reste ouvert
+
+Trois choses signalées et non corrigées, à porter dans un lot suivant : la **distribution
+de la mise en place suit toujours le numéro de siège** (même reproche que D16, devenu
+visible maintenant que le premier joueur est tiré au sort) ; `bin/predire.rs` **écarte** les
+parties à points égaux au lieu de les départager ; `bin/entraine.rs` **redétermine** le
+vainqueur en comparant les scores, sans départage — tant que c'est le cas, D11 n'atteint
+l'IA ni à l'entraînement ni à la mesure. Le chantier **L4 « le joueur sans voyance »** a été
+lancé dans la foulée.

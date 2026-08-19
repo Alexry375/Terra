@@ -40,17 +40,28 @@
 
 Colonnes : le changement moteur, ce que l'interface doit faire, l'ampleur, l'état.
 
-### Lot L1 — Le secret et l'ordre
+### Lot L1 — Le secret et l'ordre  *(LIVRÉ le 19-08, commit `3d14d25`, audité `ok`)*
+
+Le détail complet, écrit par l'agent du chantier, est dans
+`workspaces/le-secret-et-l-ordre/outputs/interface.md`. Résumé ici.
 
 | Changement moteur | Ce que l'interface doit faire | Ampleur | État |
 |---|---|---|---|
-| **D1** — la carte Phase du siège 0 cesse d'être écrite dans l'état avant que le siège 1 ait répondu | `description.js` : retirer la publication de la phase adverse (recopie de `description.rs:389-403`, aujourd'hui en `description.js:263-268`). **Et surtout** : le mode en ligne (`distant.js`, `relais/serveur.js`) doit collecter les **deux** réponses avant d'en révéler une seule | **écran + réseau** | à faire |
-| **D10** — Objectifs et Récompenses comptés seulement avec l'extension | L'écran de score ne doit plus afficher de ligne Objectifs/Récompenses en boîte de base | petite | à faire |
-| **D11** — départage d'égalité du livret | Nouvel affichage de fin de partie : montrer le total chaleur + MC + plantes des deux joueurs, et les cartes en main converties à 3 MC | **écran neuf** | à faire |
-| **D14** — mise en place simultanée | Les cartes rendues et la corporation installée par l'adversaire ne s'affichent qu'une fois les deux joueurs ayant répondu. Écran d'attente à prévoir | **écran** | à faire |
-| **D15** — extension seule refusée | Le menu de choix des boîtes doit refuser la combinaison, avec un message | petite | à faire |
-| **D16** — phase IV à l'ordre du tour | Aucun changement visible, mais **les parties enregistrées divergent** : à graine égale les cartes reçues ne sont plus les mêmes | recompilation + regénération | à faire |
-| **Premier joueur tiré au sort** | Afficher qui commence, puisque ce n'est plus toujours le même siège | petite | à faire |
+| **D1** — la carte Phase choisie n'est plus publiée avant que les deux joueurs aient répondu. Champ nouveau `phase_revelee` (ce que la table voit) ; `previous_phase` reste, privé au joueur | `description.js` : **fait** — les six cases `previous_phase_*` lisent `phase_revelee`, des deux côtés, comme `description.rs`. **Reste** : le mode en ligne (`distant.js`, `relais/serveur.js`) transmet toujours au fil de l'eau et doit recueillir les **deux** réponses avant d'en révéler une seule ; écran d'attente à prévoir | **écran + réseau** | recopie **faite**, réseau à faire |
+| **D1 bis** — la vue d'état (`observe.rs`) publie une clef de plus, `phase_revelee` | Tout lecteur de la vue d'état qui montre « la phase de l'adversaire » doit basculer sur cette clef. `vue/table.js:18-25` s'en protège aujourd'hui à la main ; ce garde-fou peut être remplacé par une simple lecture | petite | à faire |
+| **D10** — Objectifs et Récompenses comptés seulement avec l'extension | L'écran de score ne doit plus afficher de ligne Objectifs/Récompenses en boîte de base. Les tuiles restent **tirées** : ce sont les points qui valent zéro | petite | à faire |
+| **D11** — départage d'égalité du livret | Nouvel affichage de fin de partie : total chaleur + MC + plantes des deux joueurs, cartes en main converties à 3 MC. Le moteur expose `flow::tiebreak_total` et `flow::winner` — l'écran ne recalcule pas le barème | **écran neuf** | à faire |
+| **D14** — mise en place simultanée | Les cartes rendues et la corporation installée par l'adversaire ne s'affichent qu'une fois les deux joueurs ayant répondu, aux **trois** étapes. Écran d'attente à prévoir. Attention : le premier interrogé n'est plus toujours le siège 0 | **écran** | à faire |
+| **D15** — extension seule refusée | Le menu de choix des boîtes doit refuser la combinaison, avec le message du moteur (l'écran ne réécrit pas la règle) | petite | à faire |
+| **D16** — phase IV à l'ordre du tour | Aucun changement visible, mais **les parties enregistrées divergent**. `terra.wasm` **reconstruit**, banc de concordance Rust/JavaScript vert (201 situations, 1472 cases) | recompilation + regénération | **wasm fait**, parties à regénérer |
+| **Premier joueur tiré au sort** | Afficher qui commence (clef `first_player` déjà publiée). Conséquence plus lourde : la **place d'une réponse** dans la liste des décisions ne désigne plus le siège 0 mais le premier joueur de la manche | petite à l'écran, **structurante** pour le rejeu | à faire |
+
+**Piège rencontré, à ne pas oublier pour les lots suivants** : `terra.wasm` était
+resté périmé un moment, pendant que la recopie JavaScript lisait déjà
+`phase_revelee`. Douze cases de la fiche seraient restées figées à une constante,
+**en silence** — le garde-fou des noms ne compare que des noms, et ils
+concordaient. Seul le banc de concordance `web/webapp/verif/juge-descriptions.mjs`
+voit ce genre de divergence, et il n'est vert qu'après `bash web/construire.sh`.
 
 ### Lot L2 — Les règles de cartes et de phases
 
