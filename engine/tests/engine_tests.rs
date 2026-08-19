@@ -201,7 +201,18 @@ fn cards_load_208_projects_and_12_corporations() {
     for fantome in ["Microbiology Patents", "Project Inspection"] {
         let c = db.projects.iter().find(|c| c.name == fantome).unwrap();
         assert!(!c.in_deck, "{fantome} n'existe sur aucune planche physique");
-        assert!(c.in_deck_v1, "…et pourtant le portage Java la distribuait");
+        // (D2 — lot regles-cartes) ASSERTION RETOURNÉE, et c'est le correctif
+        // qu'elle scelle : le drapeau `in_deck_v1` de `data/cards.json` a été
+        // retiré à ces deux cartes (défaut D21 de `docs/AUDIT_MOTEUR.md`). Il
+        // annonçait 248 cartes projets dans la pioche là où les planches en
+        // portent 246 (208 base + 38 Découverte, livret-base l. 43 et
+        // livret-decouverte l. 34), et toute mesure qui le lisait comptait deux
+        // cartes qui n'existent pas. La carte, elle, RESTE dans le fichier :
+        // c'est un drapeau qu'on retire, pas une ligne.
+        assert!(
+            !c.in_deck_v1,
+            "{fantome} ne doit plus porter le drapeau « dans la pioche »"
+        );
     }
     assert_eq!(db.projects.len(), 331, "toutes cartes green/blue/red");
     // (corpo-1) ASSERTION RENFORCÉE : la pioche de corporations ne contient plus
@@ -858,14 +869,57 @@ fn milestone_terraformer_first_claim_locks_it() {
     for _ in 0..10 {
         game.players[0].gain_tr();
     }
+    game.phase_en_cours = 2;
     assign_milestones(&mut game);
     assert_eq!(game.milestones[0].achieved_by, [true, false]);
     // p1 l'atteint APRÈS : le milestone est déjà revendiqué, pas de 2e prise.
+    //
+    // (les-regles-des-cartes / D17) « APRÈS » veut dire À UNE PHASE ULTÉRIEURE,
+    // et c'est maintenant écrit dans le test au lieu d'être supposé. Le livret
+    // Découverte l. 72 tient en deux phrases : le premier prend la tuile, ET
+    // « si plusieurs joueurs remplissent la condition durant la MÊME PHASE, l'un
+    // d'entre eux prend la tuile tandis que les autres reçoivent un jeton
+    // 3 PV ». Tant que les Objectifs n'étaient attribués qu'au bilan de fin de
+    // phase, un seul appel jugeait toute la phase et la distinction ne se voyait
+    // pas ; depuis que l'Objectif est pris AU VOL, elle se voit — et sans le
+    // changement de phase ci-dessous, ce test demanderait au moteur de voler
+    // 3 PV à p1. L'assertion, elle, est intacte.
+    game.phase_en_cours = 3;
     for _ in 0..10 {
         game.players[1].gain_tr();
     }
     assign_milestones(&mut game);
     assert_eq!(game.milestones[0].achieved_by, [true, false]);
+}
+
+#[test]
+fn milestone_terraformer_meme_phase_les_deux_scorent() {
+    // (les-regles-des-cartes / D17) L'AUTRE SENS du test ci-dessus, et la
+    // seconde phrase de `docs/regles/livret-decouverte.md:72` : p1 atteint le
+    // seuil un instant plus tard mais DANS LA MÊME PHASE. Il n'a pas la tuile
+    // en propre, il a son jeton 3 PV — le moteur marque les deux.
+    let db = db();
+    let mut pol = TestPolicy::new();
+    let mut game = setup_game(&db, 42, &mut pol);
+    game.milestones[0] = MilestoneSlot {
+        kind: MilestoneKind::Terraformer,
+        achieved_by: [false, false],
+    };
+    game.phase_en_cours = 2;
+    for _ in 0..10 {
+        game.players[0].gain_tr();
+    }
+    assign_milestones(&mut game);
+    assert_eq!(game.milestones[0].achieved_by, [true, false]);
+    for _ in 0..10 {
+        game.players[1].gain_tr();
+    }
+    assign_milestones(&mut game);
+    assert_eq!(
+        game.milestones[0].achieved_by,
+        [true, true],
+        "même phase : le second reçoit son jeton 3 PV"
+    );
 }
 
 #[test]

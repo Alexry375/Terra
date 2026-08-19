@@ -496,9 +496,18 @@ fn d17_peut_ameliorer_deux_fois_la_meme_phase_sans_rien_cumuler() {
     // la même phase — la seconde REMPLACE la première (bascule A ↔ B, livret
     // l. 66) et ne cumule rien. Les deux choix sont imposés par le script pour
     // viser la même phase : candidates = [(1,A),(1,B),(2,A),…], donc l'indice 0
-    // désigne 1A, puis, 1A étant en place, l'indice 0 désigne 1B.
+    // désigne 1A.
+    //
+    // (D8 — lot regles-cartes) SCRIPT MIS À JOUR, `[0, 0]` → `[0, 1]`, et
+    // l'assertion est INCHANGÉE. La variante déjà en place reste désormais
+    // candidate (livret Découverte l. 66 : « vous **pouvez** » — défaut D8 de
+    // `docs/AUDIT_MOTEUR.md`), si bien que la liste ne se raccourcit plus après
+    // la première amélioration : l'indice 0 désigne toujours 1A, et c'est
+    // l'indice 1 qui désigne 1B. Le second choix vise donc la même phase, comme
+    // avant, et ce que le test prouve — la seconde amélioration remplace la
+    // première sans rien cumuler — est identique.
     let db = db();
-    let r = probe_choix(&db, "Imported Construction Crews", vec![0, 0]);
+    let r = probe_choix(&db, "Imported Construction Crews", vec![0, 1]);
     assert_eq!(
         r.upgrades,
         vec!["1B".to_string()],
@@ -1030,11 +1039,37 @@ fn l_empreinte_de_la_boite_de_base_est_inchangee() {
     //   — la phase IV Production suit elle aussi l'ordre du tour (D16), si bien
     //     que les cartes du paquet commun ne tombent plus dans les mêmes mains.
     // Les parties de référence enregistrées doivent donc être regénérées.
-    // Repères précédents : 8e4ec5b0296470e6 (05-08), bf70799ff3fee1d8 (04-08),
-    // 7dda3ea2e9b2901b (03-08), c1c52fcbe4e057b0 (01-08), d6a7267472501b13 (31-07).
+    //
+    // Repère REFIXÉ le 19-08 (les-regles-des-cartes). Ce que la MESURE dit, et
+    // rien de plus — l'attribution qui figurait ici défaut par défaut était en
+    // partie fausse, et dans un lot qui corrige des commentaires menteurs elle
+    // n'avait rien à faire :
+    //   — l'empreinte a bougé : 47030e306f1006cd → 15cd9db748878cec ;
+    //   — TROIS correctifs du lot ne peuvent pas en être la cause, et c'est
+    //     mesuré : sur 200 parties de la seule boîte de base,
+    //     `joker_badges_reposes`, `phase_upgrades_granted` et
+    //     `upgraded_extra_builds` valent tous ZÉRO. D5 (le badge joker
+    //     redemandé à la pose), D8 (les deux variantes d'amélioration toujours
+    //     offertes) et D18 (la phase I améliorée B) n'ont aucun mécanisme qui
+    //     joue en boîte de base ;
+    //   — les correctifs dont le mécanisme joue bel et bien en boîte de base :
+    //     D6/D7 (la répétition de la phase III se choisit librement au lieu
+    //     d'être dépensée d'office — `activations_bonus_libres` = 708 sur ces
+    //     mêmes 200 parties), D9 (une branche qui ne peut rien produire n'est
+    //     plus offerte — `branches_a_parametre_prises` = 79), D2 (Mining Guild
+    //     rend 1 NT par acier de savoir-faire), D17 (l'Objectif est pris au
+    //     vol), D19 et D20 (le comptage des badges) ;
+    //   — ce qui n'est PAS mesuré, donc pas affirmé : lequel de ces six a
+    //     déplacé l'empreinte, et de combien. L'attribution demanderait de les
+    //     retirer un à un ; elle n'a pas été faite.
+    // Les parties de référence enregistrées doivent être regénérées.
+    // Repères précédents : 47030e306f1006cd (19-08, le-secret-et-l-ordre),
+    // 8e4ec5b0296470e6 (05-08), bf70799ff3fee1d8 (04-08),
+    // 7dda3ea2e9b2901b (03-08), c1c52fcbe4e057b0 (01-08),
+    // d6a7267472501b13 (31-07).
     let db = CardsDb::load_boites(CARDS, BoiteSet::parse("base").unwrap()).expect("base");
     let s = run_simulation(&db, 1000, 2024, &mut RandomPolicy);
-    assert_eq!(format!("{:016x}", s.state_hash), "47030e306f1006cd");
+    assert_eq!(format!("{:016x}", s.state_hash), "15cd9db748878cec");
 }
 
 #[test]

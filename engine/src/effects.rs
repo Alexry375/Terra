@@ -91,7 +91,7 @@ pub enum Req {
     /// qu'une définition d'« avoir un Objectif » dans le moteur.
     ///
     /// **Ce prérequis ne figure pas dans le tableau du contrat** ; il figure
-    /// dans `inputs/refs/projets-decouverte.json`, qui fait foi (`reqs_fr` :
+    /// dans `data/cartes-imprimees/projets-decouverte/projets-decouverte.json`, qui fait foi (`reqs_fr` :
     /// « Requiert un Objectif. »). Voir `result.md`, § Où je vous contredis.
     HasObjective,
 }
@@ -404,13 +404,15 @@ impl Reduction {
     pub fn amount_for(self, tags: &[Tag], price: i64) -> i64 {
         match self {
             Reduction::AnyCard(n) => n,
-            Reduction::Tag(t, n) => {
-                if tags.contains(&t) {
-                    n
-                } else {
-                    0
-                }
-            }
+            // (D20) Le NOMBRE de badges, pas leur présence — livret de base
+            // l. 106, exactement la règle qui fait déjà compter les badges à la
+            // moitié « piochez » de la même phrase imprimée (*Energy Subsidies* :
+            // « you pay 4 MC less for it AND draw a card », dont le `ptrig`
+            // porte `scale_by_matched_tags: true`). Aucune carte de la pioche ne
+            // porte aujourd'hui deux fois le même badge parmi ceux concernés :
+            // la correction ne change aucune partie, elle ferme la classe de
+            // défaut.
+            Reduction::Tag(t, n) => n * tags.iter().filter(|&&x| x == t).count() as i64,
             Reduction::MinPrice { min, amount } => {
                 if price >= min {
                     amount
@@ -571,6 +573,22 @@ pub enum TrigCond {
     /// Animal ou Plante ; Anaerobic/Decomposers/Viral Enhancers : Animal,
     /// Microbe ou Plante).
     AnyOfTags(&'static [Tag]),
+    /// **(D2) La carte posée apporte un savoir-faire** du secteur donné —
+    /// *Mining Guild*, « EFFECT: Each time you play steel production, excluding
+    /// this, gain 1 TR ».
+    ///
+    /// C'est la seule condition du moteur qui ne se lit pas sur les badges de la
+    /// carte : elle se lit sur les unités de savoir-faire que la carte APPORTE,
+    /// dérivées de ses réductions encodées par le service unique
+    /// `flow::capacites_apportees` (lot acier-titane). [`TrigCond::matched_tags`]
+    /// rend donc 0 pour elle — les badges seuls ne peuvent pas y répondre — et
+    /// c'est `flow::trig_matched`, qui tient la carte posée, qui la résout.
+    ///
+    /// Le nombre rendu est le NOMBRE D'UNITÉS apportées : avec
+    /// `scale_by_matched_tags`, une carte qui apporte deux aciers accorde deux
+    /// fois le gain (arbitrage d'Alexis du 18-08, carton en main : « 1 niveau de
+    /// terraformation par acier gagné »).
+    GrantsCapacity(Capacity),
 }
 
 impl TrigCond {
@@ -586,6 +604,12 @@ impl TrigCond {
             TrigCond::AnyOfTags(list) => {
                 tags.iter().filter(|x| list.contains(x)).count() as u32
             }
+            // (D2) Les badges ne disent rien du savoir-faire apporté : cette
+            // fonction n'a pas de quoi répondre, et elle ne devine pas. La
+            // condition est résolue par `flow::trig_matched`, qui tient la carte
+            // posée — c'est le seul appelant des conditions de déclenchement du
+            // moteur.
+            TrigCond::GrantsCapacity(_) => 0,
         }
     }
 }
@@ -1461,12 +1485,17 @@ pub static LOT1: &[(&str, CardEffects)] = &[
           red: [], ptrig: [], gtrig: [],
           action: Some(Action::Fixed { cost: &[ActionCost::Heat(8)],
                     effect: &[ActionEff::Tr(1)] })),
-    // (B) « When you play an Event tag, you gain 2 heat and 2 plants. » (forfait.)
+    // (B) « When you play an Event tag, you gain 2 heat and 2 plants. »
+    // (D19) `scale_by_matched_tags: true` — livret de base l. 106 : « Si la
+    // condition d'un effet est remplie plusieurs fois lorsqu'une carte est
+    // jouée, résolvez l'effet correspondant plusieurs fois. » Le « forfait »
+    // annoncé ici était une lecture du portage Java, pas du livret ; les neuf
+    // autres déclencheurs de la même famille comptaient déjà les badges.
     card!("Optimal Aerobraking", reqs: [], effects: [],
           red: [],
           ptrig: [PlayTrigger { cond: TrigCond::Tag(Tag::Event),
                     gains: &[TrigGain::Heat(2), TrigGain::Plants(2)],
-                    scale_by_matched_tags: false, include_self: false }],
+                    scale_by_matched_tags: true, include_self: false }],
           gtrig: [], action: None),
     // (B) « When you play a Science tag, including this, draw a card. » (draw = nb
     // de tags Science de la carte posée ; include_self = true.)
@@ -1550,10 +1579,13 @@ pub static LOT1: &[(&str, CardEffects)] = &[
                     include_self: false }],
           gtrig: [], action: None),
     // « When you play an Event, draw 2 cards. » (forfait.)
+    // (D19) `scale_by_matched_tags: true`, même raison qu'*Optimal Aerobraking* :
+    // livret de base l. 106. Une carte à deux badges Événement fait piocher
+    // quatre cartes, pas deux.
     card!("Recycled Detritus", reqs: [], effects: [],
           red: [],
           ptrig: [PlayTrigger { cond: TrigCond::Tag(Tag::Event),
-                    gains: &[TrigGain::Draw(2)], scale_by_matched_tags: false,
+                    gains: &[TrigGain::Draw(2)], scale_by_matched_tags: true,
                     include_self: false }],
           gtrig: [], action: None),
     // « When you raise the temperature, gain 2 plants. »
@@ -1643,7 +1675,11 @@ pub static LOT1: &[(&str, CardEffects)] = &[
           ])),
           holds: Some(ResKind::Microbe), on_build: [ResStep::Do(put_self(3))]),
     // « Add 3 science resources to this card. Action: Add 1 science to this card
-    //   or remove 3 science to upgrade a phase. » (amélioration non gérée : D8.)
+    //   or remove 3 science to upgrade a phase. »
+    //   (D24) L'amélioration EST gérée : `ResEff::PhaseUpgrade(None)` emprunte le
+    //   chemin unique d'octroi `flow::apply_phase_upgrade`, avec la source
+    //   ACTION — c'est elle qui alimente `phase_upgrades_by_action`. Le
+    //   commentaire d'origine annonçait le contraire du code.
     card!("Fibrous Composite Material", reqs: [], effects: [],
           red: [], ptrig: [], gtrig: [],
           action: Some(Action::Res(&[
@@ -1838,8 +1874,10 @@ pub static LOT1: &[(&str, CardEffects)] = &[
               &[put_another(K_ANIMAL, 3)],
           ])]),
     // « Upgrade a Phase card. Add 3 microbes or 2 animals to ANOTHER card. »
-    // (amélioration de phase non gérée : sautée et comptée, aucune
-    //  compensation — D8.)
+    // (D24) L'amélioration EST gérée : `ResEff::PhaseUpgrade(None)` posé en
+    // `on_build` passe par `flow::apply_phase_upgrade` (source BUILD). Rien
+    // n'est sauté, `phase_upgrades_skipped` ne bouge pas — mesuré nul sur deux
+    // mille parties. Le commentaire d'origine annonçait le contraire du code.
     card!("Cryogenic Shipment", reqs: [], effects: [],
           red: [], ptrig: [], gtrig: [], action: None, holds: None,
           on_build: [ResStep::Do(ResEff::PhaseUpgrade(None)),
@@ -1939,7 +1977,7 @@ pub static LOT1: &[(&str, CardEffects)] = &[
 
     // ================================================= LOT 5 (chantier cartes-5)
     // 33 cartes MUETTES de la boîte de base rendues vivantes. Source du texte :
-    // `inputs/textes-cartes.json` champ `text` — la transcription des cartons —
+    // `data/cartes-imprimees/textes-cartes.json` champ `text` — la transcription des cartons —
     // JAMAIS le champ `description` de `cards.json`. Correspondances carte par
     // carte, texte imprimé cité et traces de sonde : `outputs/cartes5.md`.
     //
@@ -2054,7 +2092,7 @@ pub static LOT1: &[(&str, CardEffects)] = &[
     // ================================================= LOT 6 (chantier cartes-6)
     // Les 11 cartes muettes qui tournent autour de « ce que le joueur active
     // pendant son tour » et de « ce qu'il fait de sa main ». Source du texte :
-    // `inputs/textes-cartes.json`, champs `text`, `requirement`, `production` et
+    // `data/cartes-imprimees/textes-cartes.json`, champs `text`, `requirement`, `production` et
     // `vp_printed` — JAMAIS le champ `description` de `cards.json`. Texte cité
     // carte par carte et traces de sonde : `outputs/cartes6.md`.
     //
@@ -2153,7 +2191,7 @@ pub static LOT1: &[(&str, CardEffects)] = &[
     // d'aciers ou de titanes. Elles étaient muettes pour cette seule raison :
     // le nombre n'existait pas. Il existe désormais (`flow::capacities`), et
     // leur encodage n'est que la transcription de leur texte imprimé
-    // (`inputs/textes-cartes.json`, champs `text` / `requirement` / `notes` —
+    // (`data/cartes-imprimees/textes-cartes.json`, champs `text` / `requirement` / `notes` —
     // aucune des quatre ne porte de prérequis).
     //
     // Les quatre sont BLEUES : elles se servent des savoir-faire des autres,
@@ -2199,7 +2237,7 @@ pub static LOT1: &[(&str, CardEffects)] = &[
     // Les 9 dernières cartes muettes de la boîte de base qui soient des
     // MODIFICATEURS PERMANENTS : aucune ne crée de flux de jeu, chacune change
     // une valeur qu'un service unique du moteur calcule déjà. Source du texte :
-    // `inputs/textes-cartes.json` champ `text` — jamais le champ `description`
+    // `data/cartes-imprimees/textes-cartes.json` champ `text` — jamais le champ `description`
     // de `cards.json`. Traces de sonde : `outputs/cartes-7.md`.
 
     // ---- Groupe A : la phase de recherche (3) -------------------------------
@@ -2311,7 +2349,7 @@ pub static LOT1: &[(&str, CardEffects)] = &[
     // =========================================================================
     // (decouverte-projets) LES 28 DERNIERS PROJETS MUETS DE L'EXTENSION
     //
-    // Source du texte : `inputs/refs/projets-decouverte.json`, transcription à
+    // Source du texte : `data/cartes-imprimees/projets-decouverte/projets-decouverte.json`, transcription à
     // l'image des cartons — jamais le champ `description` de `cards.json`. Le
     // code `Dnn` est celui du carton. Quand le carton et `cards.json` divergent,
     // le carton gagne, et la divergence est déclarée dans `result.md`.
@@ -2521,7 +2559,7 @@ pub static LOT1: &[(&str, CardEffects)] = &[
 // Les 12 planches de corporation de la BOÎTE DE BASE. Même discipline que la
 // table `LOT1` des cartes projets : des DONNÉES interprétées par `flow`, jamais
 // une exception codée par corporation. La source du texte est
-// `inputs/textes-cartes.json` (champ `text`, transcription des planches
+// `data/cartes-imprimees/textes-cartes.json` (champ `text`, transcription des planches
 // imprimées) — surtout PAS le champ `description` de `cards.json`, qui est une
 // paraphrase infidèle sur quatre corporations (Interplanetary Cinematics,
 // Mining Guild, Phobolog, Saturn Systems : voir `outputs/corporations.md`).
@@ -2721,17 +2759,32 @@ pub static CORPS: &[(&str, CorpEffects)] = &[
     // 214 Mining Guild — « You start with 27 MC. When you play a [building], you
     // pay 2 MC less for it. EFFECT: Each time you play steel production,
     // excluding this, gain 1 TR. »
+    // (transcription `data/cartes-imprimees/textes-cartes.json`, entrée « Mining
+    // Guild » ; ses notes décrivent l'encart : « phase I, vignette outils :
+    // +1 [TR] », la vignette outils étant celle du savoir-faire acier —
+    // livret de base l. 527.)
     //
-    // (lot acier-titane) Le commentaire d'origine disait « l'acier n'existe pas
-    // dans le moteur » : ce n'est plus vrai — la planche porte un acier (encart
-    // gris, dérivé de son −2 MC bâtiment) et il compte. Le DÉCLENCHEUR, lui,
-    // reste hors portée, et pour une autre raison : « play steel production »
-    // parle d'une PRODUCTION d'acier, pas d'un compte d'aciers ; c'est une
-    // notion que le moteur ne modélise toujours pas, et la transcription de ce
-    // texte est elle-même signalée « légèrement floue »
-    // (`inputs/textes-cartes.json`, champ `notes`). Cadrage imposé par le prompt.
+    // (D2) LES DEUX LIGNES DE LA PLANCHE SONT MAINTENANT LÀ. La première est le
+    // −2 MC des cartes bâtiment, qui EST aussi son savoir-faire acier (encart
+    // gris, un acier, dérivé par `flow::capacities`). La seconde est ce
+    // déclencheur : « chaque fois que vous jouez de la production d'acier ».
+    //
+    // Le commentaire d'origine renvoyait le déclencheur à une notion « que le
+    // moteur ne modélise pas » : c'est devenu faux au lot acier-titane, qui
+    // dérive exactement combien d'aciers chaque carte apporte
+    // (`flow::capacites_apportees`). C'était le dernier pouvoir imprimé sauté
+    // en silence du jeu.
+    //
+    // `include_self: false` = « excluding this » : l'acier de la planche
+    // elle-même ne rapporte rien, la corporation n'étant jamais « jouée ».
+    // `scale_by_matched_tags: true` = un niveau de terraformation PAR ACIER
+    // apporté — arbitrage d'Alexis du 18-08, carton en main, appuyé sur le
+    // livret de base l. 106. Une carte à deux aciers en accorde donc deux.
     corp!("Mining Guild", prod: NO_PROD, draw: 0,
-          red: [Reduction::Tag(Tag::Building, 2)], ptrig: [],
+          red: [Reduction::Tag(Tag::Building, 2)],
+          ptrig: [PlayTrigger { cond: TrigCond::GrantsCapacity(Capacity::Steel),
+                    gains: &[TrigGain::Tr(1)], scale_by_matched_tags: true,
+                    include_self: false }],
           research: None, forest: 0, heat_as_mc: false, flex: false, tr_boost: None),
     // 215 PhoboLog — « You start with 20 MC. When you play a [space], you pay
     // 3 MC less for it. EFFECT: Each titanium you have reduces the cost of
@@ -3060,7 +3113,7 @@ pub static PHASE_BASE: [SelectorSpec; 5] = [
 ];
 
 /// **Les dix cartes Phase améliorées** (extension Découverte, transcription
-/// `inputs/refs/phases-ameliorees.json`), indexées `[phase - 1][variante]`
+/// `data/cartes-imprimees/phases-ameliorees/phases-ameliorees.json`), indexées `[phase - 1][variante]`
 /// (variante 0 = A, 1 = B).
 ///
 /// Chaque entrée donne le bonus COMPLET de la carte améliorée : il REMPLACE

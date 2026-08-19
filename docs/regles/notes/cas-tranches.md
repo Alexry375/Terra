@@ -71,8 +71,58 @@ la façon dont ils ont été tranchés. Un cas = une entrée. Statuts : **TRANCH
   Science) sur respectivement 11 et 7 tuiles. Le reste devra venir des scans ou
   de photos des tuiles physiques.
 
-## Améliorations de phases : 2 options par phase, non toutes détaillées — EN ATTENTE
+## Améliorations de phases : 2 options par phase, non toutes détaillées — TRANCHÉ (19-08, transcription des scans)
 
 - Le livret montre des exemples (Développement amélioré : −6 MC au lieu de −3 ;
   Recherche améliorée : +2 piochées +1 gardée) mais ne liste pas les 10 cartes
-  Phase améliorées. À compléter par les scans des cartes.
+  Phase améliorées.
+- **Le manque est comblé** : les dix cartes sont transcrites dans
+  `data/cartes-imprimees/phases-ameliorees/phases-ameliorees.json`. C'est cette
+  transcription qui fait foi pour le moteur tant qu'aucun livret ne les détaille,
+  et c'est elle que citent les tests du lot « les règles des cartes ».
+
+## Améliorer une phase déjà améliorée : peut-on garder la sienne ? — TRANCHÉ (19-08, arbitrage moteur)
+
+- **Le texte** (`livret-decouverte.md:66`) : « Lors de la résolution d'un effet
+  "Améliorez une carte Phase", vous **pouvez** choisir d'améliorer en une
+  amélioration **différente** une carte Phase que vous avez déjà améliorée. »
+- **La question.** Trois cartes IMPOSENT la phase à améliorer. Si cette phase est
+  déjà améliorée, il ne reste qu'une variante différente : le moteur l'appliquait
+  sans rien demander, et le joueur qui avait bâti sa manche sur sa variante la
+  perdait de force (audit D8). Le livret dit « vous pouvez », donc il ne peut pas
+  s'agir d'une obligation — mais il n'écrit nulle part qu'on peut rechoisir la
+  sienne.
+- **Verdict** : la variante DÉJÀ EN PLACE reste candidate, et rechoisir la sienne
+  vaut « je ne change rien ». Raison : le moteur n'a aucun « je renonce » pour une
+  amélioration imposée ; sans cette candidate, la seule autre issue serait de
+  sauter l'effet de la carte en silence, ce qui est pire. La même règle vaut pour
+  la phase libre — il n'y a pas deux façons d'améliorer.
+- **Ce que ce verdict DÉBORDE** : le contrat du lot ne visait que la phase
+  imposée. L'appliquer aussi à la phase libre fait passer la liste de 9 à 10
+  candidates dans ce cas. Divergence déclarée dans
+  `workspaces/les-regles-des-cartes/outputs/result.md`.
+- **Ce qu'il faudrait pour trancher mieux** : le texte des trois cartes à phase
+  imposée, ou une réponse d'Alexis sur « rechoisir sa propre amélioration ».
+
+## Phase III améliorée B : « deux de vos effets », combien de répétitions et sur quoi ? — TRANCHÉ (19-08, transcription + Alexis)
+
+- **Le texte** (`phases-ameliorees.json`, carte III-B) : « Vous pouvez activer
+  **deux de vos effets** "Action :" une fois de plus. » À comparer à III-A :
+  « Vous pouvez activer **un de vos effets** "Action :" une fois de plus. »
+- **La question.** Le moteur ouvrait un budget de deux répétitions sans jamais
+  retirer une carte de la liste : la même carte pouvait encaisser les deux, et se
+  retrouvait activée **trois** fois dans la phase (une fois normalement, deux fois
+  en rappel). Fallait-il lire « deux répétitions, à répartir librement » ou
+  « deux effets distincts, une répétition chacun » ?
+- **Verdict** : deux effets **DISTINCTS**, une répétition chacun. Le carton
+  compte des *effets*, pas des *répétitions* — « deux de vos effets », comme
+  III-A dit « un de vos effets ». Une carte qui a consommé sa répétition ne
+  revient donc jamais dans la liste des activables, et aucune carte ne peut être
+  activée trois fois dans une phase.
+- **Confirmé par Alexis le 18-08** : le comportement d'avant est bien un défaut
+  (audit D7). Corrigé dans `flow::phase_action`, tenu par la sentinelle
+  `state::GameState::cartes_activees_trois_fois`, qui doit rester nulle.
+- **Ce que le verdict ne tranche pas** : le budget est-il perdu s'il n'y a qu'une
+  seule carte activable ? Le moteur répond oui — une répétition non dépensée ne
+  survit pas à la phase, comme toute permission « lors de cette phase ». Aucune
+  source ne le contredit, mais aucune ne l'écrit non plus.

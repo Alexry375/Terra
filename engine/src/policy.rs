@@ -328,6 +328,50 @@ pub trait Policy {
         best
     }
 
+    /// **(D5) « Choisissez un badge » — LA QUESTION REPOSÉE AU MOMENT DE LA
+    /// POSE.**
+    ///
+    /// Livret Découverte l. 98-100 : « Si vous jouez (ou défaussez) la carte
+    /// plus tard, vous pourrez choisir un badge différent. » Le badge posé
+    /// pendant que la carte était en main n'était qu'un badge de travail, servant
+    /// à juger de ce que le joueur pouvait se payer ; celui-ci est définitif.
+    ///
+    /// `candidats` porte les indices, dans [`crate::cards::JOKER_TAG_CHOICES`],
+    /// des seuls badges qui laissent la carte PAYABLE — la carte a quitté la
+    /// main, un badge moins favorable ne doit pas la rendre impayable après
+    /// coup. La réponse est un indice **dans `candidats`**, comme `reveal_pick`
+    /// rend des indices dans ses candidates : la forme de la réponse suit la
+    /// liste qu'on donne, jamais une liste plus large.
+    ///
+    /// Le moteur n'appelle cette méthode qu'à partir de DEUX candidats.
+    ///
+    /// **Le corps par défaut redit l'avis de la politique sans rien inventer** :
+    /// il lui demande le badge qu'elle voudrait sans contrainte
+    /// ([`Policy::pick_joker_tag`]), le retient s'il est encore permis, et se
+    /// rabat sinon sur celui des candidats que le joueur possède déjà le plus —
+    /// la même heuristique, restreinte. Une politique qui n'a pas d'avis
+    /// particulier sur ce second temps n'a donc rien à écrire.
+    fn pick_joker_tag_a_la_pose(
+        &mut self,
+        rng: &mut StdRng,
+        player: usize,
+        card: u16,
+        tag_counts: &[u32],
+        candidats: &[usize],
+    ) -> usize {
+        let libre = self.pick_joker_tag(rng, player, card, tag_counts);
+        if let Some(k) = candidats.iter().position(|&i| i == libre) {
+            return k;
+        }
+        let mut best = 0usize;
+        for k in 1..candidats.len() {
+            if tag_counts[candidats[k]] > tag_counts[candidats[best]] {
+                best = k;
+            }
+        }
+        best
+    }
+
     /// Recherche : garder `keep` cartes parmi `drawn` — renvoie les indices gardés.
     fn research_keep(&mut self, rng: &mut StdRng, player: usize, drawn: &[u16], keep: usize)
         -> Vec<usize>;

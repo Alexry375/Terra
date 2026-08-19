@@ -10,7 +10,7 @@
 //!
 //! * **Boîte de base et cartes promotionnelles** : de `textes-cartes.json`, la
 //!   transcription des planches physiques, embarquée dans le binaire par
-//!   [`TEXTES`] (copie verbatim de `inputs/textes-cartes.json`). Une carte
+//!   [`TEXTES`] (copie verbatim de `data/cartes-imprimees/textes-cartes.json`). Une carte
 //!   appartient à la boîte de base **si et seulement si** une planche `P1`..`P4`
 //!   (projet) ou `CORP` (corporation) la nomme ; à la boîte promo si la planche
 //!   `PROMO` la nomme. Critère POSITIF : rien n'est exclu par une liste de noms,
@@ -39,8 +39,8 @@
 use serde::Deserialize;
 
 /// Transcription des planches physiques d'Alexis, embarquée dans le binaire.
-/// Copie verbatim de `inputs/textes-cartes.json`
-/// (sha256 `4951a994e51f6d543fcb93d099aa564d2a287ce8294e9191eb6bf20688010649`).
+/// Copie verbatim de `data/cartes-imprimees/textes-cartes.json`
+/// (sha256 `3f819a7d8f863343737c1d3194463ee291783bc36a6e2f25e838e14c28ea1bc7`).
 /// Embarquée plutôt que lue sur disque : le binaire doit composer sa pioche
 /// quel que soit le répertoire courant, et aucune interface du contrat ne
 /// transporte de chemin vers ce fichier.
@@ -233,8 +233,8 @@ static FAMILLES: &[Famille] = &[
 pub const DECOUVERTE_BOX: &str = "discovery";
 
 /// Dénombrement attendu de Découverte : (projets, corporations). Contre-vérifié
-/// par `inputs/decouverte/projets-decouverte.json` (38 entrées, `D05`..`D42`)
-/// et `inputs/decouverte/corporations-discovery.json` (4). Ces fichiers sont en
+/// par `data/cartes-imprimees/projets-decouverte/projets-decouverte.json` (38 entrées, `D05`..`D42`)
+/// et `data/cartes-imprimees/corporations-discovery/corporations-discovery.json` (4). Ces fichiers sont en
 /// français et ne sont pas des clefs de jointure : ils servent de garde-fou de
 /// dénombrement, pas de source de noms.
 pub const DECOUVERTE_ATTENDU: (usize, usize) = (38, 4);
@@ -391,7 +391,7 @@ pub fn composer(lignes: &[Ligne], demandees: BoiteSet) -> Result<Composition, St
     if (dp, dc) != DECOUVERTE_ATTENDU {
         return Err(format!(
             "Découverte : {dp} projets / {dc} corporations dans cards.json, \
-             {} / {} attendus (contre-vérification inputs/decouverte/)",
+             {} / {} attendus (contre-vérification data/cartes-imprimees/)",
             DECOUVERTE_ATTENDU.0, DECOUVERTE_ATTENDU.1
         ));
     }

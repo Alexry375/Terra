@@ -567,6 +567,7 @@ fn main() {
         "phase_upgrades_reupgraded": s.phase_upgrades_reupgraded,
         "upgraded_bonus_applied": s.upgraded_bonus_applied,
         "upgraded_extra_builds": s.upgraded_extra_builds,
+        "premieres_poses_substituees": s.premieres_poses_substituees,
         // (decouverte-projets) les cinq mécanismes de ce lot en partie réelle.
         "phase_upgrades_targeted": s.phase_upgrades_targeted,
         "phase_upgrades_by_action": s.phase_upgrades_by_action,
@@ -607,6 +608,18 @@ fn main() {
         "corp_phase_upgrades_at_setup": s.corp_phase_upgrades_at_setup,
         "discard_bonus_mc": s.discard_bonus_mc,
         "action_phase_self_bonus": s.action_phase_self_bonus,
+        // (regles-cartes) LES SIX COMPTEURS DU LOT DES RÈGLES DE CARTES : ce qui
+        // rend treize défauts de règles vérifiables du DEHORS. Les trois
+        // premiers comptent un geste normal du jeu et sont strictement positifs
+        // dès qu'un lot de parties est joué ; les trois derniers sont des
+        // sentinelles et valent zéro tant que les correctifs tiennent.
+        "joker_badges_reposes": s.joker_badges_reposes,
+        "activations_bonus_libres": s.activations_bonus_libres,
+        "cartes_activees_trois_fois": s.cartes_activees_trois_fois,
+        "ameliorations_imposees_sans_choix": s.ameliorations_imposees_sans_choix,
+        "branches_a_parametre_prises": s.branches_a_parametre_prises,
+        "branches_impossibles_offertes": s.branches_impossibles_offertes,
+        "secondes_poses_sans_premiere": s.secondes_poses_sans_premiere,
     });
     println!("{line}");
 }

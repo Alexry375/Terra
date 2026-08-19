@@ -854,13 +854,40 @@ fn les_cinq_compteurs_bougent_en_partie_reelle_et_sont_nuls_en_squelette() {
 /// changé, et mille parties vont au bout sans casser d'invariant.
 #[test]
 fn la_boite_de_base_est_intacte_et_l_extension_a_change() {
+    // Repère REFIXÉ le 19-08 (les-regles-des-cartes). Ce que la MESURE dit, et
+    // rien de plus — l'attribution qui figurait ici défaut par défaut était en
+    // partie fausse, et dans un lot qui corrige des commentaires menteurs elle
+    // n'avait rien à faire :
+    //   — l'empreinte a bougé : 47030e306f1006cd → 15cd9db748878cec ;
+    //   — TROIS correctifs du lot ne peuvent pas en être la cause, et c'est
+    //     mesuré : sur 200 parties de la seule boîte de base,
+    //     `joker_badges_reposes`, `phase_upgrades_granted` et
+    //     `upgraded_extra_builds` valent tous ZÉRO. D5 (le badge joker
+    //     redemandé à la pose), D8 (les deux variantes d'amélioration toujours
+    //     offertes) et D18 (la phase I améliorée B) n'ont aucun mécanisme qui
+    //     joue en boîte de base ;
+    //   — les correctifs dont le mécanisme joue bel et bien en boîte de base :
+    //     D6/D7 (la répétition de la phase III se choisit librement au lieu
+    //     d'être dépensée d'office — `activations_bonus_libres` = 708 sur ces
+    //     mêmes 200 parties), D9 (une branche qui ne peut rien produire n'est
+    //     plus offerte — `branches_a_parametre_prises` = 79), D2 (Mining Guild
+    //     rend 1 NT par acier de savoir-faire), D17 (l'Objectif est pris au
+    //     vol), D19 et D20 (le comptage des badges) ;
+    //   — ce qui n'est PAS mesuré, donc pas affirmé : lequel de ces six a
+    //     déplacé l'empreinte, et de combien. L'attribution demanderait de les
+    //     retirer un à un ; elle n'a pas été faite.
+    // Les parties de référence enregistrées doivent être regénérées.
+    // Repères précédents : 47030e306f1006cd (19-08, le-secret-et-l-ordre),
+    // 8e4ec5b0296470e6 (05-08), bf70799ff3fee1d8 (04-08),
+    // 7dda3ea2e9b2901b (03-08), c1c52fcbe4e057b0 (01-08),
+    // d6a7267472501b13 (31-07).
     let base = CardsDb::load_boites(CARDS, BoiteSet::parse("base").unwrap()).expect("base");
     let mut pol = RandomPolicy;
     let s = run_simulation(&base, 1000, 2024, &mut pol);
     assert_eq!(
         format!("{:016x}", s.state_hash),
-        "47030e306f1006cd",
-        "empreinte de la boîte de base, REFIXÉE le 19-08 (le-secret-et-l-ordre) : le premier joueur est tiré au sort à la mise en place, la mise en place et la planification interrogent les joueurs dans l'ordre du tour, et la phase IV Production le suit elle aussi (D16) — les cartes du paquet commun ne tombent donc plus dans les mêmes mains. Les parties de référence enregistrées doivent être regénérées. Repères précédents : 8e4ec5b0296470e6 (05-08), bf70799ff3fee1d8 (04-08), 7dda3ea2e9b2901b (03-08), c1c52fcbe4e057b0 (01-08), d6a7267472501b13 (31-07)"
+        "15cd9db748878cec",
+        "empreinte de la boîte de base — voir le bloc ci-dessus pour ce qui est mesuré et ce qui ne l'est pas"
     );
 
     let db = db();

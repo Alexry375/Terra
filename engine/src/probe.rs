@@ -687,6 +687,9 @@ fn probe_state_base(db: &CardsDb, ids: &[u16], opts: ProbeOptions) -> GameState 
             }
             m
         },
+        // (D17) La sonde peut poser un Objectif DÉJÀ revendiqué (`opts.objectif`) :
+        // il l'a été avant la situation sondée, donc hors de la phase en cours.
+        milestones_claimed_at: [opts.objectif.map(|_| (0u32, 0u8)), None, None],
         awards: [AwardKind::Celebrity; 3],
         game_over: false,
         blue_actions: 0,
@@ -720,6 +723,7 @@ fn probe_state_base(db: &CardsDb, ids: &[u16], opts: ProbeOptions) -> GameState 
         objective_condition_hits: 0,
         draw_then_discard_uses: 0,
         upgraded_extra_builds: 0,
+        premieres_poses_substituees: 0,
         cards_effects_unhandled: 0,
         derived_mc: 0,
         derived_heat: 0,
@@ -746,6 +750,13 @@ fn probe_state_base(db: &CardsDb, ids: &[u16], opts: ProbeOptions) -> GameState 
         corp_phase_upgrades_at_setup: 0,
         discard_bonus_mc: 0,
         action_phase_self_bonus: 0,
+        joker_badges_reposes: 0,
+        activations_bonus_libres: 0,
+        cartes_activees_trois_fois: 0,
+        ameliorations_imposees_sans_choix: 0,
+        branches_a_parametre_prises: 0,
+        branches_impossibles_offertes: 0,
+        secondes_poses_sans_premiere: 0,
     };
     game.snapshot_planet();
     game

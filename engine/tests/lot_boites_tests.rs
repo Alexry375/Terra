@@ -63,14 +63,21 @@ fn une_boite_inconnue_est_refusee_plutot_que_silencieusement_ignoree() {
 #[test]
 fn in_deck_v1_ne_compose_plus_la_pioche() {
     let db = db_de("base");
-    // Les 40 cartes que le portage Java distribuait et que les planches ne
-    // contiennent pas : 38 de Découverte + les 2 inventées.
+    // (D21 — lot regles-cartes) ATTENTE MISE À JOUR : 40 → 38. Les deux cartes
+    // inventées par le portage (*Microbiology Patents*, *Project Inspection*)
+    // ne portent plus le drapeau `in_deck_v1` dans `data/cards.json` — défaut
+    // D21 de `docs/AUDIT_MOTEUR.md` : elles faisaient compter 248 cartes
+    // projets là où les planches en portent 246 (livret-base l. 43 +
+    // livret-decouverte l. 34). Ne restent donc hors pioche « base » que les
+    // 38 cartes de Découverte. Ce que ce test vérifie — le drapeau v1 ne
+    // compose pas la pioche — est inchangé, et l'assertion suivante, qui prouve
+    // l'inverse sur les 11 promotionnelles, ne bouge pas.
     let v1_hors_pioche = db
         .projects
         .iter()
         .filter(|c| c.in_deck_v1 && !c.in_deck)
         .count();
-    assert_eq!(v1_hors_pioche, 40, "38 Découverte + 2 cartes inexistantes");
+    assert_eq!(v1_hors_pioche, 38, "les 38 cartes de Découverte");
 
     // …et l'inverse : 11 cartes que le portage EXCLUAIT alors qu'Alexis les
     // possède (les promotionnelles), entrent bien dans la pioche quand on

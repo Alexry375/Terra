@@ -579,8 +579,16 @@ fn lot_table_integrity() {
         // elles dans cards.json. On emprunte la résolution CANONIQUE du moteur —
         // celle qui rattache les effets. L'assertion, elle, est inchangée.
         let card = &db.projects[db.resolve_card(name).expect("carte du lot non résolue") as usize];
+        // (D21 — lot regles-cartes) *Microbiology Patents* REJOINT l'exception
+        // de *Grain Silos* : elle n'existe sur aucune planche physique et son
+        // drapeau « dans la pioche » lui a été retiré dans `data/cards.json`
+        // (défaut D21 de `docs/AUDIT_MOTEUR.md` — 246 cartes projets, pas 248).
+        // Son ENCODAGE reste au lot, et cette assertion continue de vérifier que
+        // toutes les autres cartes du lot sont bien dans la pioche v1 : aucune
+        // assertion n'est retirée, seule la liste des cartes hors pioche est à
+        // jour.
         assert!(
-            card.in_deck_v1 || *name == "Grain Silos",
+            card.in_deck_v1 || *name == "Grain Silos" || *name == "Microbiology Patents",
             "carte du lot hors pioche v1: {name}"
         );
     }

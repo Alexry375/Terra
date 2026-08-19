@@ -120,15 +120,26 @@ impl Policy for EspionAmelioration {
             self.recus += 1;
             // ORACLE INDÉPENDANT : la liste du livret, reconstruite depuis
             // l'état vivant, sans lire une ligne de `apply_phase_upgrade`.
+            //
+            // (D8 — lot regles-cartes) ORACLE MIS À JOUR, et c'est lui qui a
+            // signalé le correctif. Il retirait la variante DÉJÀ EN PLACE des
+            // candidates attendues : c'était le défaut D8 de
+            // `docs/AUDIT_MOTEUR.md`. Le livret Découverte l. 66 ouvre une
+            // faculté — « vous **pouvez** choisir d'améliorer en une amélioration
+            // différente une carte Phase que vous avez déjà améliorée » — et le
+            // moteur en faisait une obligation : à phase imposée déjà améliorée
+            // il ne restait qu'une candidate et le basculement était appliqué
+            // sans rien demander. Les deux variantes sont donc désormais
+            // attendues pour chaque phase éligible, et rechoisir celle qui est
+            // en place vaut « je ne change rien ». Aucune assertion n'est
+            // retirée : c'est la liste de référence qui suit la règle écrite.
             let mut attendues: Vec<(u8, PhaseUpgrade)> = Vec::new();
             for phase in 1u8..=5 {
                 if imposed_phase.is_some_and(|t| t != phase) {
                     continue;
                 }
                 for v in [PhaseUpgrade::VariantA, PhaseUpgrade::VariantB] {
-                    if self.avant[player][phase as usize - 1] != Some(v) {
-                        attendues.push((phase, v));
-                    }
+                    attendues.push((phase, v));
                 }
             }
             let annoncees: Vec<(u8, PhaseUpgrade)> =

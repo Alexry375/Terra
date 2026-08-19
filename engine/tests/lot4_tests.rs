@@ -676,7 +676,17 @@ fn the_seventeen_cards_are_encoded_and_resolve_to_the_v1_deck() {
     for name in LOT4 {
         let id = db.resolve_card(name).unwrap_or_else(|| panic!("{name} non résolue"));
         let card = &db.projects[id as usize];
-        assert!(card.in_deck_v1, "{name} doit venir du deck v1");
+        // (D21 — lot regles-cartes) *Microbiology Patents* n'existe sur aucune
+        // planche physique : son drapeau « dans la pioche » lui a été retiré
+        // dans `data/cards.json` (défaut D21 de `docs/AUDIT_MOTEUR.md`, 246
+        // cartes projets et non 248). Elle reste encodée — c'est ce que la
+        // seconde assertion vérifie, et elle vaut pour les dix-sept. L'exigence
+        // « pioche v1 » ne vaut plus que pour les seize autres ; aucune
+        // assertion n'est retirée.
+        assert!(
+            card.in_deck_v1 || name == "Microbiology Patents",
+            "{name} doit venir du deck v1"
+        );
         assert!(card.effect.is_some(), "{name} doit être encodée");
     }
     // 110 (lots 1-2) + 28 (ressources) + 17 (lot 4) + 33 (lot 5) + 11 (lot 6)

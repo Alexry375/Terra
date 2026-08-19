@@ -12,7 +12,7 @@
 use crate::cards::{CardsDb, Color, Tag, TAG_COUNT};
 use crate::effects::{BuildGrant, NextCardMod};
 use rand::rngs::StdRng;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 pub const NUM_PLAYERS: usize = 2;
 /// Niveau max de température (index 19 == +8 °C).
@@ -367,9 +367,19 @@ pub struct PlayerState {
     /// il déclenchera les effets relatifs à ce badge. »
     ///
     /// Une entrée PAR CARTE, jamais par joueur : deux cartes joker déclarées
-    /// Terre valent deux badges Terre. L'entrée est écrite une seule fois
-    /// (`flow::ensure_joker_tag` ne réécrit jamais une case occupée) : le choix
-    /// est DÉFINITIF, comme le veut le carton.
+    /// Terre valent deux badges Terre.
+    ///
+    /// **(D5) Le jeton posé tant que la carte est en MAIN est PROVISOIRE.** Le
+    /// livret Découverte l. 98-100 tranche : « Dès qu'une carte indiquant un
+    /// badge joker est révélée, le joueur qui l'a révélée choisit à quel badge
+    /// équivaut le joker. […] **Si vous jouez (ou défaussez) la carte plus tard,
+    /// vous pourrez choisir un badge différent.** » Le moteur gelait le choix à
+    /// la première fois qu'il regardait la carte pour juger de ce que le joueur
+    /// pouvait se payer — souvent des manches avant la pose, et pour 41 % des
+    /// choix sur une carte qui n'entrerait jamais en jeu. Le jeton n'est donc
+    /// définitif qu'à la POSE, où la question est reposée
+    /// (`flow::ensure_joker_tag_a_la_pose`) ; la liste des cartes dont le jeton
+    /// est scellé est [`PlayerState::joker_tags_definitifs`].
     ///
     /// `BTreeMap` et non une table de hachage, pour la même raison que
     /// `card_resources` : l'ordre d'itération doit être totalement déterministe.
@@ -377,6 +387,14 @@ pub struct PlayerState {
     /// Le badge choisi n'est pas un onzième badge : il est l'un des dix, et
     /// c'est `tags_of` qui fait la substitution.
     pub joker_tags: BTreeMap<u16, Tag>,
+    /// **(D5) Les cartes dont le jeton Badge est DÉFINITIF** — celles qui sont
+    /// entrées en jeu, où la question a été reposée une dernière fois. Un jeton
+    /// qui n'y figure pas est provisoire : il ne sert qu'à juger du prix pendant
+    /// que la carte est en main, et il est réécrit à la pose.
+    ///
+    /// `BTreeSet` pour la même raison que `joker_tags` : l'ordre d'itération
+    /// doit être totalement déterministe.
+    pub joker_tags_definitifs: BTreeSet<u16>,
     /// **(le-moteur-dit-quand-on-peut-vendre) L'OCCASION DE VENDRE EST-ELLE
     /// ENCORE OUVERTE POUR CE JOUEUR, ICI ET MAINTENANT ?**
     ///
@@ -489,6 +507,7 @@ impl PlayerState {
             pending_builds: Vec::new(),
             next_card_mod: NextCardMod::default(),
             joker_tags: BTreeMap::new(),
+            joker_tags_definitifs: BTreeSet::new(),
             occasion_de_vendre_ouverte: false,
             occasion_de_vendre_consommee: false,
             defausses_imposees_esquivees: 0,
@@ -648,6 +667,20 @@ pub struct GameState {
     pub players: [PlayerState; NUM_PLAYERS],
     pub generation: u32,
     pub milestones: [MilestoneSlot; 3],
+    /// **(D17) À quel moment chaque Objectif a été revendiqué** — génération et
+    /// phase. `None` tant qu'il ne l'est pas.
+    ///
+    /// Il sert la SECONDE phrase de la règle des Objectifs, celle qu'on oublie :
+    /// « Si plusieurs joueurs remplissent la condition durant la même phase,
+    /// l'un d'entre eux prend la tuile Objectif tandis que les autres reçoivent
+    /// un jeton 3 PV » (`livret-decouverte.md` l. 72). Tant que le moteur
+    /// n'attribuait qu'au bilan de fin de phase, la fenêtre « même phase »
+    /// était gratuite : tout le monde était jugé dans la même passe. En prenant
+    /// l'Objectif AU VOL (D17), elle se refermait à l'instant — un adversaire
+    /// qui atteignait le seuil un peu plus tard dans la même phase perdait ses
+    /// 3 PV. Ce champ la rouvre, et rien de plus : à la phase suivante, la
+    /// tuile est bel et bien partie.
+    pub milestones_claimed_at: [Option<(u32, u8)>; 3],
     pub awards: [AwardKind; 3],
     pub game_over: bool,
     /// Compteur d'audit : activations d'actions bleues ayant réellement appliqué
@@ -938,6 +971,78 @@ pub struct GameState {
     /// LUI-MÊME sélectionnée** (`PhaseBonus` à `phase != 0`) — incrémenté dans
     /// `flow::apply_action_spec`, au site du versement.
     pub action_phase_self_bonus: u64,
+    // ------------------------------------------------- lot regles-cartes
+    // SIX compteurs, un par défaut de règle rendu observable du dehors. Chacun
+    // est incrémenté au SITE EXACT de son mécanisme, jamais dans une fonction de
+    // résumé, jamais depuis la sonde. Trois d'entre eux comptent un geste normal
+    // du jeu et sont donc strictement positifs ; les trois autres sont des
+    // SENTINELLES : ils mesurent, sur l'état réel de la partie, la propriété que
+    // le correctif rend fausse, et valent zéro tant qu'il tient. Ils ne sont pas
+    // des branches mortes — la mesure est faite à chaque occasion, c'est son
+    // RÉSULTAT qui est nul.
+    /// **(D5) Badges jokers REPOSÉS à la pose** — incrémenté dans
+    /// `flow::ensure_joker_tag_a_la_pose`, une fois par carte joker dont le
+    /// badge provisoire est remis en question au moment où elle entre en jeu,
+    /// et seulement quand la question est réellement ouverte (au moins deux
+    /// badges laissent la carte payable). Livret Découverte l. 98-100.
+    pub joker_badges_reposes: u64,
+    /// **(D6) Activations supplémentaires de phase III portées sur une carte
+    /// CHOISIE** — incrémenté dans `flow::phase_action`, au moment où le joueur
+    /// désigne une carte déjà activée pour la rejouer. Livret de base l. 371,
+    /// « l'une de vos cartes en jeu ».
+    pub activations_bonus_libres: u64,
+    /// **(D7) Cartes activées TROIS fois dans une même manche** — sentinelle.
+    /// `flow::phase_action` compte les activations carte par carte pendant la
+    /// phase ; le compteur monte à la troisième. Le carton de la phase III
+    /// améliorée B dit « deux de vos effets », donc deux cartes DISTINCTES :
+    /// il doit rester nul.
+    pub cartes_activees_trois_fois: u64,
+    /// **(D8) Améliorations de carte Phase appliquées SANS ouvrir de point de
+    /// décision** — sentinelle, incrémentée dans `flow::apply_phase_upgrade`
+    /// quand l'octroi a lieu sans que la politique ait été consultée. Livret
+    /// Découverte l. 66 : le livret ouvre une faculté, jamais une obligation.
+    pub ameliorations_imposees_sans_choix: u64,
+    /// **(D9) Branches à gain de paramètre RÉELLEMENT PRISES** — le compteur
+    /// d'occasions de la sentinelle qui suit. Sans lui, un zéro ne voudrait
+    /// rien dire : une sentinelle muette parce que le cas ne s'est jamais
+    /// présenté ne prouve rien. Incrémenté dans `flow::juger_branche_appliquee`.
+    pub branches_a_parametre_prises: u64,
+    /// **(D9) Branches offertes qui n'ont RIEN produit** — sentinelle.
+    ///
+    /// Mesurée sur l'EFFET, jamais sur le prédicat du correctif : on relève
+    /// l'état du plateau (océans, oxygène, température, niveau de
+    /// terraformation du joueur) avant et après l'application de la branche
+    /// que le joueur a retenue. Si la branche ne promettait que des hausses de
+    /// paramètre et que rien n'a bougé, le moteur a offert un marché qui ne
+    /// pouvait rien rapporter, et le compteur monte.
+    ///
+    /// Cette mesure est INDÉPENDANTE de `flow::branche_peut_produire` : elle
+    /// ne l'appelle pas. Un prédicat faux, débranché, ou toujours vrai fait
+    /// monter le compteur. La version précédente relisait la liste déjà
+    /// filtrée avec le prédicat qui l'avait filtrée : elle valait zéro par
+    /// construction, quelle que soit la justesse du correctif.
+    ///
+    /// Portée honnête : elle juge la branche PRISE, pas les branches offertes
+    /// et écartées. Quand une seule branche survit au filtre, elle est
+    /// imposée, donc toujours jugée ; quand il en survit plusieurs, une
+    /// politique de hasard finit par prendre l'impossible si elle est offerte.
+    pub branches_impossibles_offertes: u64,
+    /// **(D18) Seconds temps de la phase I améliorée B accordés sans qu'une
+    /// première carte ait été posée** — sentinelle, incrémentée dans
+    /// `flow::phase_development` sur la permission réellement versée dans la
+    /// file. Sans première carte, il n'y a pas de seconde.
+    pub secondes_poses_sans_premiere: u64,
+    /// **(D18) Permissions de PREMIÈRE carte substituées** — le joueur n'avait
+    /// rien posé au premier temps de la phase I améliorée B, et reçoit la
+    /// permission de la pose ORDINAIRE, remise comprise, au lieu de celle de la
+    /// seconde carte.
+    ///
+    /// Il existe parce que `upgraded_extra_builds` compte, lui, TOUTES les poses
+    /// supplémentaires dues à une carte Phase améliorée — vraies secondes cartes
+    /// et premières substituées confondues. Les deux cas ne se ressemblent pas :
+    /// l'un porte le plafond imprimé de la seconde, l'autre la remise de la
+    /// première. Sans ce compteur, personne ne peut mesurer le second.
+    pub premieres_poses_substituees: u64,
 }
 
 impl GameState {

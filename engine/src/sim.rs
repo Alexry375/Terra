@@ -268,6 +268,8 @@ pub struct GameOutcome {
     pub objective_condition_hits: u64,
     pub draw_then_discard_uses: u64,
     pub upgraded_extra_builds: u64,
+    /// (regles-cartes) voir `state::GameState::premieres_poses_substituees`.
+    pub premieres_poses_substituees: u64,
     /// (Découverte) Points distribués par la seule tuile VISIONNAIRE, les deux
     /// joueurs cumulés — lus sur `flow::award_points_split`, le parcours qui
     /// les a réellement distribués.
@@ -317,6 +319,20 @@ pub struct GameOutcome {
     pub discard_bonus_mc: u64,
     /// (jokers-corpos) voir `state::GameState::action_phase_self_bonus`.
     pub action_phase_self_bonus: u64,
+    /// (regles-cartes) voir `state::GameState::joker_badges_reposes`.
+    pub joker_badges_reposes: u64,
+    /// (regles-cartes) voir `state::GameState::activations_bonus_libres`.
+    pub activations_bonus_libres: u64,
+    /// (regles-cartes) voir `state::GameState::cartes_activees_trois_fois`.
+    pub cartes_activees_trois_fois: u64,
+    /// (regles-cartes) voir `state::GameState::ameliorations_imposees_sans_choix`.
+    pub ameliorations_imposees_sans_choix: u64,
+    /// (regles-cartes) voir `state::GameState::branches_a_parametre_prises`.
+    pub branches_a_parametre_prises: u64,
+    /// (regles-cartes) voir `state::GameState::branches_impossibles_offertes`.
+    pub branches_impossibles_offertes: u64,
+    /// (regles-cartes) voir `state::GameState::secondes_poses_sans_premiere`.
+    pub secondes_poses_sans_premiere: u64,
 }
 
 /// Joue une partie complète (politique fournie), invariants vérifiés à chaque
@@ -373,6 +389,7 @@ pub fn play_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameOutcom
         objective_condition_hits: game.objective_condition_hits,
         draw_then_discard_uses: game.draw_then_discard_uses,
         upgraded_extra_builds: game.upgraded_extra_builds,
+        premieres_poses_substituees: game.premieres_poses_substituees,
         visionary_award_points,
         cards_effects_unhandled: game.cards_effects_unhandled,
         vp_from_resources,
@@ -401,6 +418,13 @@ pub fn play_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameOutcom
         corp_phase_upgrades_at_setup: game.corp_phase_upgrades_at_setup,
         discard_bonus_mc: game.discard_bonus_mc,
         action_phase_self_bonus: game.action_phase_self_bonus,
+        joker_badges_reposes: game.joker_badges_reposes,
+        activations_bonus_libres: game.activations_bonus_libres,
+        cartes_activees_trois_fois: game.cartes_activees_trois_fois,
+        ameliorations_imposees_sans_choix: game.ameliorations_imposees_sans_choix,
+        branches_a_parametre_prises: game.branches_a_parametre_prises,
+        branches_impossibles_offertes: game.branches_impossibles_offertes,
+        secondes_poses_sans_premiere: game.secondes_poses_sans_premiere,
     }
 }
 
@@ -451,6 +475,8 @@ pub struct SimSummary {
     pub objective_condition_hits: u64,
     pub draw_then_discard_uses: u64,
     pub upgraded_extra_builds: u64,
+    /// (regles-cartes) voir `state::GameState::premieres_poses_substituees`.
+    pub premieres_poses_substituees: u64,
     pub visionary_award_points: i64,
     /// (boites-1) Cartes sans encodage entrées en jeu, toutes parties cumulées.
     pub cards_effects_unhandled: u64,
@@ -496,6 +522,20 @@ pub struct SimSummary {
     pub discard_bonus_mc: u64,
     /// (jokers-corpos) voir `state::GameState::action_phase_self_bonus`.
     pub action_phase_self_bonus: u64,
+    /// (regles-cartes) voir `state::GameState::joker_badges_reposes`.
+    pub joker_badges_reposes: u64,
+    /// (regles-cartes) voir `state::GameState::activations_bonus_libres`.
+    pub activations_bonus_libres: u64,
+    /// (regles-cartes) voir `state::GameState::cartes_activees_trois_fois`.
+    pub cartes_activees_trois_fois: u64,
+    /// (regles-cartes) voir `state::GameState::ameliorations_imposees_sans_choix`.
+    pub ameliorations_imposees_sans_choix: u64,
+    /// (regles-cartes) voir `state::GameState::branches_a_parametre_prises`.
+    pub branches_a_parametre_prises: u64,
+    /// (regles-cartes) voir `state::GameState::branches_impossibles_offertes`.
+    pub branches_impossibles_offertes: u64,
+    /// (regles-cartes) voir `state::GameState::secondes_poses_sans_premiere`.
+    pub secondes_poses_sans_premiere: u64,
 }
 
 /// Lance `games` parties aléatoires. Graine unique : un RNG maître seedé par
@@ -535,6 +575,7 @@ pub fn run_simulation(
     let mut objective_condition_hits = 0u64;
     let mut draw_then_discard_uses = 0u64;
     let mut upgraded_extra_builds = 0u64;
+    let mut premieres_poses_substituees = 0u64;
     let mut visionary_award_points = 0i64;
     let mut cards_effects_unhandled = 0u64;
     let mut vp_from_resources = 0i64;
@@ -563,6 +604,13 @@ pub fn run_simulation(
     let mut corp_phase_upgrades_at_setup = 0u64;
     let mut discard_bonus_mc = 0u64;
     let mut action_phase_self_bonus = 0u64;
+    let mut joker_badges_reposes = 0u64;
+    let mut activations_bonus_libres = 0u64;
+    let mut cartes_activees_trois_fois = 0u64;
+    let mut ameliorations_imposees_sans_choix = 0u64;
+    let mut branches_a_parametre_prises = 0u64;
+    let mut branches_impossibles_offertes = 0u64;
+    let mut secondes_poses_sans_premiere = 0u64;
 
     let t0 = std::time::Instant::now();
     for _ in 0..games {
@@ -599,6 +647,7 @@ pub fn run_simulation(
         objective_condition_hits += out.objective_condition_hits;
         draw_then_discard_uses += out.draw_then_discard_uses;
         upgraded_extra_builds += out.upgraded_extra_builds;
+        premieres_poses_substituees += out.premieres_poses_substituees;
         visionary_award_points += out.visionary_award_points;
         cards_effects_unhandled += out.cards_effects_unhandled;
         vp_from_resources += out.vp_from_resources;
@@ -627,6 +676,13 @@ pub fn run_simulation(
         corp_phase_upgrades_at_setup += out.corp_phase_upgrades_at_setup;
         discard_bonus_mc += out.discard_bonus_mc;
         action_phase_self_bonus += out.action_phase_self_bonus;
+        joker_badges_reposes += out.joker_badges_reposes;
+        activations_bonus_libres += out.activations_bonus_libres;
+        cartes_activees_trois_fois += out.cartes_activees_trois_fois;
+        ameliorations_imposees_sans_choix += out.ameliorations_imposees_sans_choix;
+        branches_a_parametre_prises += out.branches_a_parametre_prises;
+        branches_impossibles_offertes += out.branches_impossibles_offertes;
+        secondes_poses_sans_premiere += out.secondes_poses_sans_premiere;
         turn_orders.push(out.turn_order);
         agg.write_u64(out.state_hash);
     }
@@ -664,6 +720,7 @@ pub fn run_simulation(
         objective_condition_hits,
         draw_then_discard_uses,
         upgraded_extra_builds,
+        premieres_poses_substituees,
         visionary_award_points,
         cards_effects_unhandled,
         vp_from_resources,
@@ -692,5 +749,12 @@ pub fn run_simulation(
         corp_phase_upgrades_at_setup,
         discard_bonus_mc,
         action_phase_self_bonus,
+        joker_badges_reposes,
+        activations_bonus_libres,
+        cartes_activees_trois_fois,
+        ameliorations_imposees_sans_choix,
+        branches_a_parametre_prises,
+        branches_impossibles_offertes,
+        secondes_poses_sans_premiere,
     }
 }

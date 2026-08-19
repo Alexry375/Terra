@@ -14,7 +14,7 @@ use crate::effects::{
     self, Action, ActionCost, ActionEff, ActionRes, BuildGrant, Capacity, CorpEffects, Eff,
     GlobalTrigger,
     PhaseBonus, ProdCount, ProdRes, Reduction, Req, ResAmount, ResEff, ResKind, ResPut, ResStep,
-    ResTarget, Reveal, RevealFilter, SelectorGrant, SelectorSpec, TrigGain,
+    ResTarget, Reveal, RevealFilter, SelectorGrant, SelectorSpec, TrigCond, TrigGain,
 };
 use crate::policy::{ActionOpt, ConstructionBonus, Policy};
 use crate::state::*;
@@ -100,6 +100,7 @@ pub fn setup_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameState
             kind: MilestoneKind::Builder,
             achieved_by: [false; NUM_PLAYERS],
         }; 3],
+        milestones_claimed_at: [None; 3],
         awards: [AwardKind::Celebrity; 3],
         game_over: false,
         blue_actions: 0,
@@ -134,6 +135,7 @@ pub fn setup_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameState
         objective_condition_hits: 0,
         draw_then_discard_uses: 0,
         upgraded_extra_builds: 0,
+        premieres_poses_substituees: 0,
         cards_effects_unhandled: 0,
         derived_mc: 0,
         derived_heat: 0,
@@ -160,6 +162,13 @@ pub fn setup_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameState
         corp_phase_upgrades_at_setup: 0,
         discard_bonus_mc: 0,
         action_phase_self_bonus: 0,
+        joker_badges_reposes: 0,
+        activations_bonus_libres: 0,
+        cartes_activees_trois_fois: 0,
+        ameliorations_imposees_sans_choix: 0,
+        branches_a_parametre_prises: 0,
+        branches_impossibles_offertes: 0,
+        secondes_poses_sans_premiere: 0,
     };
 
     // Milestones/awards : 3 + 3 tirés des pools (Discovery p.2 « reveal three »).
@@ -420,7 +429,8 @@ fn fire_corp_self_triggers(
         if !trig.include_self {
             continue;
         }
-        let matched = trig.cond.matched_tags(&own_tags);
+        // (D2) `played = None` : la planche n'est pas une carte posée.
+        let matched = trig_matched(db, trig.cond, &own_tags, None);
         if matched == 0 {
             continue;
         }
@@ -484,9 +494,27 @@ fn effective_cost(price: i64, discount: i64) -> i64 {
 // Le CHOIX lui-même n'est pas dans le déroulement : il est demandé à
 // `Policy::pick_joker_tag`, au même titre que `pick_phase` (NEVER 4).
 //
-// Une entrée PAR CARTE (`PlayerState::joker_tags`), écrite une seule fois : le
-// badge est définitif, et deux cartes joker déclarées Terre valent deux badges
-// Terre.
+// Une entrée PAR CARTE (`PlayerState::joker_tags`) : deux cartes joker déclarées
+// Terre valent deux badges Terre.
+//
+// (D5) LE JETON DE LA MAIN EST PROVISOIRE, CELUI DE LA POSE EST DÉFINITIF.
+// Le livret continue, deux lignes plus loin : « **Si vous jouez (ou défaussez)
+// la carte plus tard, vous pourrez choisir un badge différent.** » Le moteur
+// gelait le premier choix (« le badge est DÉFINITIF : jamais réécrit ») alors
+// qu'il le posait des manches avant la pose, pour juger de ce que le joueur
+// pouvait se payer : une carte joker arrivée en main quand le joueur avait deux
+// savoir-faire acier restait « Construction » quand il la jouait, sept manches
+// plus tard, avec deux savoir-faire titane et l'envie d'« Espace ». C'est
+// exactement l'exemple que le livret donne.
+//
+// Deux moments, donc, et deux fonctions :
+//   `ensure_joker_tag`             — en main, jeton PROVISOIRE, jamais scellé ;
+//   `ensure_joker_tag_a_la_pose`   — à la pose, la question est REPOSÉE, et le
+//                                    jeton retenu est scellé
+//                                    (`joker_tags_definitifs`).
+// Le second choix est LIMITÉ AUX BADGES QUI LAISSENT LA CARTE PAYABLE : un
+// badge moins favorable choisi à la pose rendrait sinon impayable une carte
+// déjà sortie de la main.
 // =============================================================================
 
 /// (jokers-corpos) La carte `card_id` porte-t-elle un badge joker ?
@@ -514,7 +542,11 @@ pub fn ensure_joker_tag(
         return;
     }
     if game.players[p].joker_tags.contains_key(&card_id) {
-        return; // le badge est DÉFINITIF : jamais réécrit.
+        // (D5) Le jeton posé en main n'est pas redemandé à chaque énumération
+        // d'abordabilité — ce serait une question par carte et par phase. Il est
+        // PROVISOIRE : c'est `ensure_joker_tag_a_la_pose` qui le remet en jeu,
+        // une fois, au moment où la carte entre en jeu.
+        return;
     }
     let counts = game.players[p].tag_counts;
     avant_decision(game, db, p, policy);
@@ -535,6 +567,111 @@ pub fn ensure_joker_tag(
     let tag = JOKER_TAG_CHOICES[i];
     game.players[p].joker_tags.insert(card_id, tag);
     game.joker_tag_choices += 1;
+}
+
+/// **(D5) REPOSE LA QUESTION DU BADGE JOKER AU MOMENT DE LA POSE**, et scelle le
+/// jeton retenu.
+///
+/// Livret Découverte l. 98-100 : « Si vous jouez (ou défaussez) la carte plus
+/// tard, vous pourrez choisir un badge différent. » C'est le seul endroit du
+/// moteur qui rende un jeton définitif.
+///
+/// **Le second choix est limité aux badges qui laissent la carte payable.** La
+/// carte a quitté la main sur la foi de son badge provisoire : un badge moins
+/// favorable choisi maintenant la rendrait impayable, et le moteur devrait
+/// revenir sur une pose déjà annoncée. Le verdict employé est celui de
+/// l'énumération elle-même (`verdict_de_pose`), avec la même remise, la même
+/// réduction en microbes et la même réduction en plantes — l'abordabilité et le
+/// paiement ne peuvent donc pas diverger (I2).
+///
+/// Convention du moteur : on n'interroge la politique qu'à partir de DEUX
+/// candidats. Un seul badge payable, ou aucun, ne pose aucune question — et le
+/// compteur `joker_badges_reposes` ne compte que les questions réellement
+/// ouvertes.
+pub fn ensure_joker_tag_a_la_pose(
+    game: &mut GameState,
+    db: &CardsDb,
+    p: usize,
+    card_id: u16,
+    grant: &BuildGrant,
+    discount: i64,
+    policy: &mut dyn Policy,
+) {
+    if !db.effects_on || !has_joker_tag(db, card_id) {
+        return;
+    }
+    if game.players[p].joker_tags_definitifs.contains(&card_id) {
+        return;
+    }
+    let candidats = badges_qui_laissent_payable(game, db, p, card_id, grant, discount);
+    if candidats.len() >= 2 {
+        let counts = game.players[p].tag_counts;
+        avant_decision(game, db, p, policy);
+        let k = policy.pick_joker_tag_a_la_pose(&mut game.rng, p, card_id, &counts, &candidats);
+        // Même discipline que `ensure_joker_tag` : un indice hors bornes est un
+        // manquement au contrat de `Policy`, pas un cas de jeu.
+        assert!(
+            k < candidats.len(),
+            "badge joker (pose) hors bornes : la politique doit rendre un indice              dans 0..{} (reçu {k})",
+            candidats.len()
+        );
+        game.players[p]
+            .joker_tags
+            .insert(card_id, JOKER_TAG_CHOICES[candidats[k]]);
+        // Compteur d'audit au site EXACT de la question reposée.
+        game.joker_badges_reposes += 1;
+    } else if let Some(&seul) = candidats.first() {
+        // Un seul badge laisse la carte payable : rien à demander, il s'impose.
+        game.players[p]
+            .joker_tags
+            .insert(card_id, JOKER_TAG_CHOICES[seul]);
+    } else {
+        // Aucun badge ne la laisse payable — le cas des poses FORCÉES qui
+        // n'énumèrent rien (la sonde, les tests, une permission offerte hors
+        // budget). Le jeton provisoire est conservé ; s'il n'y en a pas, le
+        // chemin ordinaire lui en donne un.
+        ensure_joker_tag(game, db, p, card_id, policy);
+    }
+    game.players[p].joker_tags_definitifs.insert(card_id);
+}
+
+/// **(D5) Les badges qui laissent la carte `c` payable**, en indices dans
+/// [`JOKER_TAG_CHOICES`]. Les jetons hypothétiques sont posés puis le jeton
+/// d'origine est RESTAURÉ : l'état ressort inchangé, exactement comme dans
+/// `posable_quel_que_soit_le_badge`, dont c'est la question symétrique (celle-là
+/// demande « tous », celle-ci demande « lesquels »).
+fn badges_qui_laissent_payable(
+    game: &mut GameState,
+    db: &CardsDb,
+    p: usize,
+    c: u16,
+    grant: &BuildGrant,
+    discount: i64,
+) -> Vec<usize> {
+    let avant = game.players[p].joker_tags.get(&c).copied();
+    // Les trois valeurs que l'énumération calcule elle aussi, relues sur l'état
+    // COURANT.
+    let disc = discount + next_card_discount(&game.players[p]);
+    let payable_disc = microbe_discount(game, db, p).map_or(0, |(_, _, a)| a);
+    let plant_red = plant_reduction(db, &game.players[p]);
+    let mut out = Vec::with_capacity(JOKER_TAG_CHOICES.len());
+    for (i, &tag) in JOKER_TAG_CHOICES.iter().enumerate() {
+        game.players[p].joker_tags.insert(c, tag);
+        if verdict_de_pose(game, db, p, c, grant, disc, payable_disc, plant_red)
+            == Verdict::Posable
+        {
+            out.push(i);
+        }
+    }
+    match avant {
+        Some(t) => {
+            game.players[p].joker_tags.insert(c, t);
+        }
+        None => {
+            game.players[p].joker_tags.remove(&c);
+        }
+    }
+    out
 }
 
 /// **(jokers-corpos) Pose le jeton sur tous les badges jokers de la MAIN** du
@@ -741,6 +878,40 @@ impl Capacities {
     }
 }
 
+/// **(lot acier-titane / D2) Les unités de savoir-faire qu'UNE carte APPORTE.**
+///
+/// Le critère complet du module, appliqué à une seule carte : la COULEUR en
+/// fait partie (I4 — une réduction bâtiment ou espace portée par une carte
+/// bleue n'est pas un savoir-faire), et le compte se DÉRIVE des réductions déjà
+/// encodées, divisées par le taux du livret porté par `Capacity`. Rien n'est
+/// ressaisi dans une seconde table (I2).
+///
+/// Extrait du corps de [`capacities`], qui l'appelle carte par carte : il n'y a
+/// donc toujours qu'UN endroit dans le moteur où l'on dit combien d'aciers une
+/// carte apporte. C'est aussi ce que lit la condition de déclenchement
+/// `TrigCond::GrantsCapacity` (*Mining Guild*, D2) : le déclencheur et le compte
+/// du joueur ne peuvent pas diverger.
+///
+/// `--effects off` : (0, 0), comme toute la couche d'effets.
+pub fn capacites_apportees(db: &CardsDb, card_id: u16) -> Capacities {
+    let mut out = Capacities::default();
+    if !db.effects_on {
+        return out;
+    }
+    let card = &db.projects[card_id as usize];
+    // I4 — la couleur fait partie du critère du savoir-faire.
+    if card.color != Color::Green {
+        return out;
+    }
+    let Some(spec) = card.effect else { return out };
+    for r in spec.reductions {
+        if let Some((cap, n)) = r.capacity_units() {
+            out.add(cap, n);
+        }
+    }
+    out
+}
+
 /// **(lot acier-titane) Point de calcul UNIQUE du compte d'aciers et de titanes**
 /// (I1). Aucun autre endroit du moteur ne recalcule ce nombre : les champs
 /// `PlayerState::steel_capacity` / `titanium_capacity` sont écrits par
@@ -761,17 +932,9 @@ pub fn capacities(db: &CardsDb, pl: &PlayerState) -> Capacities {
         return out;
     }
     for &owned in &pl.played {
-        let card = &db.projects[owned as usize];
-        // I4 — la couleur fait partie du critère du savoir-faire.
-        if card.color != Color::Green {
-            continue;
-        }
-        let Some(spec) = card.effect else { continue };
-        for r in spec.reductions {
-            if let Some((cap, n)) = r.capacity_units() {
-                out.add(cap, n);
-            }
-        }
+        let c = capacites_apportees(db, owned);
+        out.add(Capacity::Steel, c.steel);
+        out.add(Capacity::Titanium, c.titanium);
     }
     if let Some(spec) = corp_effects(db, pl) {
         for r in spec.reductions {
@@ -988,6 +1151,26 @@ pub fn forest_plant_cost(db: &CardsDb, pl: &PlayerState) -> i64 {
 /// Helion s'excluent, mais le chemin reste unique).
 pub fn gain_tr(game: &mut GameState, db: &CardsDb, p: usize, policy: &mut dyn Policy) {
     game.players[p].gain_tr();
+    // (D17) **L'Objectif est pris AU MOMENT où la condition est remplie.**
+    // `livret-decouverte.md` l. 72 : « Le PREMIER joueur à remplir cette
+    // condition prend la tuile Objectif correspondante. » Le moteur n'attribuait
+    // les Objectifs qu'au bilan de fin de phase — ce qui convient aux dix
+    // Objectifs dont la quantité mesurée ne peut que monter, mais pas au
+    // onzième : le niveau de terraformation est DÉPENSABLE. Un joueur qui
+    // atteignait 15 puis en dépensait un dans la même phase terminait à 14 et
+    // n'obtenait jamais la tuile Terraformeur, alors qu'il avait bien été le
+    // premier à remplir la condition.
+    //
+    // L'attribution est posée ici, dans le service UNIQUE de hausse de NT, et
+    // pas sur un Objectif nommé. À dire exactement : ce site rattrape tout
+    // Objectif dont la condition est remplie AU MOMENT d'une hausse de niveau —
+    // ce qui suffit au Terraformeur, le seul dont la quantité mesurée peut
+    // redescendre. Un Objectif rempli ailleurs (une huitième carte verte, par
+    // exemple) n'est pas pris à cet instant-là : il l'est au prochain passage
+    // ici ou au bilan de fin de phase, selon ce qui vient d'abord — et cela ne
+    // lui coûte rien, sa quantité ne peut que monter. Le bilan de fin de phase
+    // reste donc en place.
+    assign_milestones(game);
     let first = !game.players[p].tr_raised_this_phase;
     game.players[p].tr_raised_this_phase = true;
     if !first {
@@ -1014,6 +1197,9 @@ pub fn gain_tr(game: &mut GameState, db: &CardsDb, p: usize, policy: &mut dyn Po
     for _ in 0..boost.steps {
         game.players[p].gain_tr();
     }
+    // (D17) Le pas bonus n'emprunte pas ce service (il ne doit pas récurser) :
+    // l'attribution au plus tôt est donc redite ici, à son site.
+    assign_milestones(game);
     game.corp_tr_boosts += boost.steps as u64;
 }
 
@@ -1136,8 +1322,66 @@ fn put_targets(
     }
 }
 
+/// **(D9) Ce paramètre planétaire peut-il encore monter ?** Le seuil est celui
+/// du moteur partout ailleurs : l'INSTANTANÉ de début de phase, jamais la valeur
+/// courante — c'est ce qui fait qu'on continue de gagner pendant la phase où un
+/// maximum est atteint, et plus après (livret de base l. 365).
+fn parametre_peut_monter(game: &GameState, e: Eff) -> bool {
+    match e {
+        Eff::Ocean(_) => game.snap_oceans < NUM_OCEANS,
+        Eff::Oxygen(_) => game.snap_oxygen < OXYGEN_MAX,
+        Eff::Temperature(_) => game.snap_temperature < TEMPERATURE_MAX,
+        // Tout le reste produit toujours quelque chose. Les jetons Forêt
+        // compris : ils continuent d'être gagnés une fois l'oxygène au maximum,
+        // seul le pas d'oxygène est perdu.
+        _ => true,
+    }
+}
+
+/// **(D9) Cette branche peut-elle encore produire quelque chose ?**
+///
+/// La règle est écrite sur la PROPRIÉTÉ, jamais sur un nom de carte : une
+/// branche dont tous les gains portent sur un paramètre déjà au maximum ne peut
+/// plus rien rapporter, et la choisir ne ferait que détruire les ressources
+/// qu'elle demande en échange de rien. Le livret autorise le gaspillage (l. 365 :
+/// « Vous pouvez jouer des cartes qui augmentent les paramètres au-delà de leur
+/// maximum […] Vous ne recevrez simplement pas les avantages liés à ces
+/// effets ») — mais le moteur, lui, s'est donné pour règle de ne jamais offrir
+/// une action dont l'effet imprimé ne peut plus rien produire, et il l'applique
+/// partout ailleurs (`action_effs_possible`, les actions standard d'
+/// `action_options`). C'est cette règle-là qui manquait aux branches.
+///
+/// Une branche SANS aucun gain n'est pas jugée ici : il n'y a rien à produire à
+/// évaluer, ses conditions suffisent.
+fn branche_peut_produire(game: &GameState, branch: &[ResEff]) -> bool {
+    let mut a_un_gain = false;
+    let mut productive = false;
+    for e in branch {
+        match e {
+            ResEff::Gain(g) => {
+                a_un_gain = true;
+                productive |= parametre_peut_monter(game, *g);
+            }
+            // Une amélioration de carte Phase et une pose de ressource
+            // produisent toujours quelque chose ; la pose a par ailleurs sa
+            // propre condition (avoir une cible) dans `branch_playable`.
+            ResEff::Put(_) | ResEff::PhaseUpgrade(_) => {
+                a_un_gain = true;
+                productive = true;
+            }
+            // Des coûts : ils ne produisent rien par définition.
+            ResEff::RemoveSelf(_) | ResEff::RemoveAny(_, _) => {}
+        }
+    }
+    !a_un_gain || productive
+}
+
 /// Une branche d'alternative est-elle jouable ? Les branches impossibles sont
 /// filtrées AVANT d'être présentées à la politique (contrat).
+///
+/// (D9) Deux exigences, et non plus une : ses conditions doivent être
+/// satisfaites (avoir les ressources à retirer, avoir une cible où poser), ET
+/// elle doit pouvoir encore produire quelque chose ([`branche_peut_produire`]).
 fn branch_playable(
     game: &GameState,
     db: &CardsDb,
@@ -1145,24 +1389,118 @@ fn branch_playable(
     self_card: u16,
     branch: &[ResEff],
 ) -> bool {
-    branch.iter().all(|e| match e {
+    let conditions = branch.iter().all(|e| match e {
         ResEff::Gain(_) | ResEff::PhaseUpgrade(_) => true,
         ResEff::Put(put) => !put_targets(game, db, p, self_card, put).is_empty(),
         ResEff::RemoveSelf(n) => game.players[p].resources_on(self_card) >= *n,
         ResEff::RemoveAny(kinds, n) => !res_sources(game, db, p, kinds, *n).is_empty(),
-    })
+    });
+    conditions && branche_peut_produire(game, branch)
+}
+
+/// **(D9) SENTINELLE — la branche prise a-t-elle vraiment produit quelque
+/// chose ?**
+///
+/// La première version de cette sentinelle était FAUSSE, et il faut le dire ici
+/// pour que personne ne la réécrive : elle relisait la liste des branches déjà
+/// filtrées et y cherchait, avec le prédicat même qui venait de les filtrer,
+/// celles que ce prédicat rejette. Elle valait zéro par construction — un
+/// prédicat toujours vrai, faux ou débranché l'aurait laissée à zéro tout
+/// pareil. Une sentinelle qui relit la sortie du correctif ne mesure rien.
+///
+/// Celle-ci mesure l'EFFET. On relève l'état du plateau avant et après
+/// l'application de la branche retenue ; si la branche ne promettait que des
+/// hausses de paramètre et que rien n'a bougé, le moteur a offert un marché qui
+/// ne pouvait rien rapporter. Aucun appel à [`branche_peut_produire`] : les
+/// deux chemins sont indépendants, et c'est tout l'intérêt.
+///
+/// Le compteur d'occasions `branches_a_parametre_prises` monte à chaque branche
+/// jugée, pour qu'un zéro à la sentinelle veuille dire « la mesure a eu lieu et
+/// n'a rien trouvé » et non « le cas ne s'est jamais présenté ».
+fn empreinte_de_production(game: &GameState, p: usize) -> (u8, u8, u8, i64) {
+    (
+        game.oceans_revealed,
+        game.oxygen,
+        game.temperature,
+        game.players[p].tr,
+    )
+}
+
+/// Cette branche ne promet-elle QUE des hausses de paramètre ? Ce sont les
+/// seules que la sentinelle sait juger sur l'effet : un gain d'argent, de
+/// production ou de carte se produit toujours, une pose et une amélioration de
+/// carte Phase aussi. Une branche sans aucun gain n'a rien à produire.
+fn branche_ne_promet_que_des_parametres(branch: &[ResEff]) -> bool {
+    let mut un_parametre = false;
+    for e in branch {
+        match e {
+            ResEff::Gain(Eff::Ocean(_)) | ResEff::Gain(Eff::Oxygen(_)) | ResEff::Gain(Eff::Temperature(_)) => {
+                un_parametre = true
+            }
+            ResEff::Gain(_) | ResEff::Put(_) | ResEff::PhaseUpgrade(_) => return false,
+            // Les coûts ne promettent rien : ils ne disqualifient pas la
+            // branche du jugement, ils en sont justement le prix payé pour rien.
+            ResEff::RemoveSelf(_) | ResEff::RemoveAny(_, _) => {}
+        }
+    }
+    un_parametre
+}
+
+/// Juge la branche que le joueur vient d'appliquer. `avant` est l'empreinte
+/// relevée juste avant l'application.
+fn juger_branche_appliquee(
+    game: &mut GameState,
+    p: usize,
+    branche: &[ResEff],
+    avant: (u8, u8, u8, i64),
+) {
+    if !branche_ne_promet_que_des_parametres(branche) {
+        return;
+    }
+    game.branches_a_parametre_prises += 1;
+    if empreinte_de_production(game, p) == avant {
+        game.branches_impossibles_offertes += 1;
+    }
 }
 
 /// (Découverte) **« Améliorez une carte Phase »** — le SEUL chemin d'octroi
 /// d'une amélioration dans tout le moteur.
 ///
 /// Le joueur choisit l'une des dix cartes Phase améliorées mises de côté et en
-/// remplace la carte Phase correspondante (livret l. 64). Améliorer une phase
-/// DÉJÀ améliorée est permis, à condition de basculer sur l'autre variante
-/// (l. 66) : la variante en place est donc retirée des candidates, ce qui
-/// interdit le gaspillage sans jamais interdire le geste. Il reste toujours au
-/// moins cinq candidates : l'effet n'est jamais sauté, et
-/// `phase_upgrades_skipped` ne peut plus bouger.
+/// remplace la carte Phase correspondante (livret l. 64).
+///
+/// **(D8) La variante DÉJÀ EN PLACE reste candidate.** Le livret Découverte
+/// l. 66 ouvre une faculté — « vous **pouvez** choisir d'améliorer en une
+/// amélioration différente une carte Phase que vous avez déjà améliorée » — et
+/// le moteur en faisait une obligation : quand une carte imposait la phase et
+/// que celle-ci était déjà améliorée, il ne restait qu'une candidate, l'autre
+/// variante, et le basculement était appliqué sans que rien ne soit demandé. Le
+/// joueur qui avait bâti sa manche sur la variante B la perdait sans pouvoir
+/// refuser. Garder la variante en place dans la liste rétablit la faculté :
+/// la question est posée, et rechoisir ce qui est en place vaut « je ne change
+/// rien ». La règle est la même pour une phase libre et pour une phase imposée
+/// — il n'y a pas deux façons d'améliorer.
+///
+/// **ARBITRAGE, à ne pas confondre avec une lecture du livret.** Le livret
+/// écrit la permission de basculer vers une amélioration DIFFÉRENTE ; il
+/// n'écrit nulle part qu'on peut rechoisir la sienne. Deux lectures se
+/// tenaient :
+///   1. n'offrir que les variantes différentes, et ne rien appliquer quand il
+///      n'en reste aucune que le joueur veuille — mais le moteur n'a aucun
+///      « je renonce » pour une amélioration imposée, si bien que cette lecture
+///      revient soit à imposer le basculement (le défaut D8), soit à sauter
+///      l'effet de la carte en silence ;
+///   2. garder la variante en place dans la liste, ce qui donne au joueur le
+///      moyen de refuser sans que l'effet de la carte disparaisse.
+/// C'est la seconde qui est retenue, et elle DÉBORDE le contrat : celui-ci ne
+/// visait que la phase imposée, le moteur applique la même règle à la phase
+/// libre. Consigné dans `docs/regles/notes/cas-tranches.md` et déclaré dans
+/// `outputs/result.md`.
+///
+/// Il y a donc toujours dix candidates à phase libre et deux à phase imposée :
+/// l'effet n'est jamais sauté, `phase_upgrades_skipped` ne peut pas bouger, et
+/// aucun octroi n'a plus lieu sans point de décision
+/// (`ameliorations_imposees_sans_choix`).
 ///
 /// Le CHOIX appartient à `Policy` (NEVER 4) ; les candidates sont énumérées
 /// dans un ordre totalement déterministe (phase croissante, puis A avant B).
@@ -1204,22 +1542,34 @@ fn apply_phase_upgrade(
         if target.is_some_and(|t| t != phase) {
             continue;
         }
+        // (D8) Les DEUX variantes, toujours — celle qui est en place comprise.
         for v in PhaseUpgrade::ALL {
-            if game.players[p].phase_upgrade(phase) != Some(v) {
-                cands.push((phase, v));
-            }
+            cands.push((phase, v));
         }
     }
-    // Phase libre : au moins 5 candidates. Phase imposée : 2 si la carte Phase
-    // est encore normale, 1 si elle est déjà améliorée (la variante en place est
-    // retirée, la bascule A ↔ B reste offerte — livret l. 66). Jamais zéro :
-    // l'effet ne peut pas être sauté, et `phase_upgrades_skipped` reste à 0.
+    // Phase libre : 10 candidates. Phase imposée : 2. Jamais zéro : l'effet ne
+    // peut pas être sauté, et `phase_upgrades_skipped` reste à 0.
     debug_assert!(!cands.is_empty(), "aucune amélioration possible : impossible");
     if cands.is_empty() {
         return;
     }
     // Une seule candidate = plus de choix à faire (convention du lot 3 pour les
     // alternatives) : on n'interroge la politique qu'à partir de deux.
+    //
+    // (D8) SENTINELLE — posée sur l'OCTROI, pas sur le nombre de candidates.
+    //
+    // Une première version comptait `cands.len() == 1`. Elle avait un trou :
+    // une régression qui aurait construit ses dix candidates puis sauté la
+    // question (`let i = if target.is_some() { 0 } else { … }`) serait passée
+    // sans faire monter le compteur. Ici le drapeau est levé À L'INTÉRIEUR de
+    // la branche qui interroge la politique, et relu après : TOUT chemin qui
+    // atteint l'octroi sans être passé par la question fait monter le compteur.
+    //
+    // Elle doit rester nulle, et c'est bien le contrat (contrôle 04) : une
+    // sentinelle vaut par le fait qu'elle ne se déclenche pas alors que
+    // l'occasion se présente. Le nombre d'occasions est `phase_upgrades_granted`
+    // — 1256 sur 200 parties des deux boîtes, la mesure a lieu.
+    let mut consultee = false;
     let i = if cands.len() == 1 {
         0
     } else {
@@ -1241,8 +1591,12 @@ fn apply_phase_upgrade(
             source: src,
         };
         avant_decision(game, db, p, policy);
+        consultee = true;
         policy.choose_option_ctx(&mut game.rng, p, &ctx)
     };
+    if !consultee {
+        game.ameliorations_imposees_sans_choix += 1;
+    }
     let (phase, variant) = cands[i.min(cands.len() - 1)];
     let deja = game.players[p].upgrade_phase(phase, variant);
     game.phase_upgrades_granted += 1;
@@ -1445,9 +1799,14 @@ fn apply_choice(
         }
         c
     };
-    for e in branches[playable[k]] {
+    // (D9) La sentinelle juge sur l'EFFET : empreinte avant, application,
+    // empreinte après. Voir `juger_branche_appliquee`.
+    let choisie = branches[playable[k]];
+    let avant = empreinte_de_production(game, p);
+    for e in choisie {
         apply_res_eff(game, db, p, self_card, e, policy, src);
     }
+    juger_branche_appliquee(game, p, choisie, avant);
 }
 
 /// Exécute les étapes `on_build` d'une carte, DANS L'ORDRE DU TEXTE IMPRIMÉ
@@ -2890,7 +3249,13 @@ pub fn build_card_granted(
     // second appel est le garde-fou des chemins qui posent une carte sans passer
     // par une énumération (la sonde, les tests), et il ne réécrit jamais un
     // jeton déjà posé.
-    ensure_joker_tag(game, db, p, card_id, policy);
+    // (D5) La question est REPOSÉE ici, et le jeton scellé : c'est le moment que
+    // le livret désigne (« si vous jouez la carte plus tard, vous pourrez
+    // choisir un badge différent »). Le second choix est borné aux badges qui
+    // laissent la carte payable. Pour les chemins qui posent une carte sans
+    // aucune énumération (la sonde, les tests), le jeton provisoire est posé au
+    // passage : aucune carte n'entre en jeu sans badge.
+    ensure_joker_tag_a_la_pose(game, db, p, card_id, grant, discount, policy);
     // (lot cartes-8) Le modificateur armé pour la prochaine carte de la phase
     // (*Work Crews*, *Special Design*) est consommé PAR CETTE POSE : lu ici,
     // effacé aussitôt. Il vaut pour la carte qu'on est en train de poser, pas
@@ -3079,6 +3444,26 @@ pub fn build_card_granted(
     0
 }
 
+/// **(D2) Combien de fois la condition d'un déclencheur est-elle remplie par la
+/// carte posée ?** POINT DE LECTURE UNIQUE des conditions de déclenchement : les
+/// trois sites qui lèvent des déclencheurs passent tous par lui.
+///
+/// Les quatre conditions à badges délèguent mot pour mot à
+/// [`TrigCond::matched_tags`] — rien ne change pour elles. La cinquième,
+/// `GrantsCapacity` (*Mining Guild*), ne se lit pas sur les badges : elle lit
+/// les unités de savoir-faire que la carte POSÉE apporte, par le service unique
+/// [`capacites_apportees`]. `played = None` (la corporation levant ses PROPRES
+/// déclencheurs à la mise en place) rend donc 0 : une planche n'est jamais
+/// « jouée », et « excluding this » n'a rien à retrancher.
+fn trig_matched(db: &CardsDb, cond: TrigCond, tags: &[Tag], played: Option<u16>) -> u32 {
+    match cond {
+        TrigCond::GrantsCapacity(cap) => played
+            .map(|c| capacites_apportees(db, c).get(cap).max(0) as u32)
+            .unwrap_or(0),
+        autre => autre.matched_tags(tags),
+    }
+}
+
 /// (B) Déclencheurs de pose : évalués à la pose de `played_id`, sur les tags de
 /// la carte posée, pour toutes les cartes persistantes en jeu du joueur `p`
 /// (la carte elle-même incluse ssi son déclencheur porte `include_self`).
@@ -3103,7 +3488,7 @@ fn fire_play_triggers(
     if let Some(spec) = corp_effects(db, &game.players[p]) {
         let triggers = spec.play_triggers;
         for trig in triggers {
-            let matched = trig.cond.matched_tags(&played_tags);
+            let matched = trig_matched(db, trig.cond, &played_tags, Some(played_id));
             if matched == 0 {
                 continue;
             }
@@ -3127,7 +3512,7 @@ fn fire_play_triggers(
             if src == played_id && !trig.include_self {
                 continue;
             }
-            let matched = trig.cond.matched_tags(&played_tags);
+            let matched = trig_matched(db, trig.cond, &played_tags, Some(played_id));
             if matched == 0 {
                 continue;
             }
@@ -3526,6 +3911,19 @@ fn action_options(
     // disponible cette phase ? Même budget qu'une carte bleue : une fois, plus
     // les répétitions accordées par le bonus du sélectionneur.
     corp_action_left: bool,
+    // **(D6) Les cartes DÉJÀ activées cette phase et pas encore rejouées.**
+    // Le livret de base l. 371 dit : « vous pouvez résoudre une fois de plus la
+    // capacité "Action :" de **l'une de vos cartes en jeu** » — un choix libre.
+    // Le moteur, lui, dépensait la répétition d'office sur la carte que le
+    // joueur venait d'activer : il la retirait de la liste des activables puis
+    // l'y remettait aussitôt. Le joueur ne choisissait jamais, et ne pouvait pas
+    // garder sa répétition pour plus tard dans la phase — typiquement pour une
+    // action « dépensez N MC pour… » qu'il ne peut se payer qu'après en avoir
+    // activé une autre. Elles sont donc offertes EN PLUS, tant que le budget de
+    // répétition est ouvert.
+    rejouables: &[u16],
+    // (D6) Idem pour l'action de la planche de corporation.
+    corp_rejouable: bool,
     out: &mut Vec<ActionOpt>,
 ) {
     out.clear();
@@ -3557,6 +3955,22 @@ fn action_options(
     for &c in remaining_blue {
         if !db.effects_on || blue_action_peut_produire(game, db, p, c) {
             out.push(ActionOpt::BlueAction(c));
+        }
+    }
+    // (D6) Les répétitions : « l'une de vos cartes en jeu », au choix. Elles ne
+    // paraissent que tant que le budget que porte l'état du joueur est ouvert,
+    // et elles subissent le même filtre d'utilité que les autres (MOT-2).
+    // Une carte ne figure jamais dans les deux listes : elle est soit pas encore
+    // activée, soit déjà activée. (D7) Et elle quitte celle-ci dès qu'elle a
+    // consommé sa répétition — c'est ce qui interdit une troisième activation.
+    if pl.extra_blue_activations > 0 {
+        if corp_rejouable && corp_action_peut_produire(game, db, p) {
+            out.push(ActionOpt::CorpAction);
+        }
+        for &c in rejouables {
+            if !db.effects_on || blue_action_peut_produire(game, db, p, c) {
+                out.push(ActionOpt::BlueAction(c));
+            }
         }
     }
     if pl.plants >= forest_plant_cost(db, pl) {
@@ -3926,10 +4340,24 @@ fn reveal_top(
     // pas une décision — c'est un affichage —, et un affichage n'a pas à offrir
     // une vente. On observe alors seulement, pour que l'écran ait de quoi
     // dessiner.
+    // (les-regles-des-cartes) `observer` ET NON `policy.observe` NU. L'appel nu
+    // sautait la PUBLICATION des drapeaux de vente : l'écran recevait alors ceux
+    // du point de décision PRÉCÉDENT, c'est-à-dire « une occasion de vendre est
+    // ouverte » alors qu'aucune ne l'était — le mensonge que `observer` existe
+    // précisément pour rendre impossible (« le drapeau se consomme ici »).
+    // Le banc `occasion_de_vendre_tests` l'a attrapé dès que les répétitions
+    // libres de la phase III (D6) ont multiplié les révélations sans prise.
+    //
+    // `observer` n'OFFRE toujours aucune vente : il ne fait que publier. Rien
+    // n'est armé à ce point (`occasion_ouverte` est faux), donc il publie
+    // exactement ce que l'intention d'origine voulait — « un affichage n'a pas à
+    // offrir une vente » — au lieu de laisser traîner la valeur d'avant. Aucun
+    // tirage de hasard, aucun point de décision de plus : l'empreinte ne bouge
+    // pas.
     if take > 0 {
         avant_decision(game, db, p, policy);
     } else {
-        policy.observe(game, p);
+        observer(game, p, policy);
     }
     let idx = policy.reveal_pick(&mut game.rng, p, &revealed, &cands, take, r.keep);
     for &i in idx.iter().take(take) {
@@ -4350,9 +4778,15 @@ fn apply_action_spec(
                 }
                 c
             };
-            for e in branches[playable[k]] {
+            // (D9) Même sentinelle sur l'effet réel qu'en `apply_choice` :
+            // c'est le second — et dernier — endroit du moteur qui présente des
+            // branches d'alternative.
+            let choisie = branches[playable[k]];
+            let avant = empreinte_de_production(game, p);
+            for e in choisie {
                 apply_res_eff(game, db, p, card_id, e, policy, UpgradeSource::Action);
             }
+            juger_branche_appliquee(game, p, choisie, avant);
             true
         }
     };
@@ -4539,14 +4973,57 @@ fn phase_development(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy
         resolve_hand_jokers_posables(game, db, p, policy, &GRANT_DEVELOPMENT, discount);
         let opts = affordable(game, db, p, &GRANT_DEVELOPMENT, discount);
         observer(game, p, policy);
+        // (D18) A-t-il posé une PREMIÈRE carte ? Toute la suite en dépend.
+        let mut premiere_posee = false;
         if let Some(idx) = policy.choose_build(&mut game.rng, p, &opts) {
             assert!(opts.contains(&idx), "choix de construction hors options");
             build_card_granted(game, db, p, idx, discount, &GRANT_DEVELOPMENT, policy);
+            premiere_posee = true;
         }
-        // (Découverte, I-B) « Vous pouvez jouer une SECONDE carte verte » : la
-        // permission est versée APRÈS la pose ordinaire — c'est bien une carte
-        // de plus, et le texte réserve la remise à « la première carte ».
-        grant_selector_builds(game, p, g);
+        // (Découverte, I-B) « Le coût de la PREMIÈRE carte que vous jouez lors de
+        // cette phase est réduit de 3 MC. Vous pouvez jouer une SECONDE carte
+        // verte… » La permission est versée APRÈS la pose ordinaire — c'est bien
+        // une carte de plus, et le texte réserve la remise à « la première ».
+        //
+        // (D18) **SANS PREMIÈRE CARTE, IL N'Y A PAS DE SECONDE.** Le moteur
+        // versait le second temps quoi qu'il arrive : le joueur qui n'avait rien
+        // posé au premier temps — parce qu'il ne pouvait rien s'offrir, et il
+        // peut s'enrichir entre les deux en vendant des cartes à l'occasion
+        // libre — voyait sa carte suivante traitée comme une SECONDE : privée
+        // de la remise de 3 MC et bornée au plafond imprimé de la seconde. Elle
+        // est pourtant sa première.
+        //
+        // Le correctif verse donc, dans ce cas, la permission de la POSE
+        // ORDINAIRE de la phase, avec la remise de la carte Phase : la carte
+        // suivante est traitée comme la première, ce qu'elle est.
+        let remise_du_drainage = if premiere_posee {
+            grant_selector_builds(game, p, g);
+            // Une seconde carte ne reçoit pas la remise de la première.
+            0
+        } else if !g.builds.is_empty() {
+            game.players[p].pending_builds.push(GRANT_DEVELOPMENT);
+            game.extra_builds_granted += 1;
+            game.upgraded_extra_builds += 1;
+            // (D18) Le cas PROPRE à ce correctif, compté à part : la permission
+            // versée est celle de la première carte, pas celle de la seconde.
+            game.premieres_poses_substituees += 1;
+            discount
+        } else {
+            0
+        };
+        // (D18) SENTINELLE. Elle ne lit pas la branche empruntée mais la FILE
+        // elle-même : combien de permissions imprimées « seconde carte » y
+        // dorment alors qu'aucune première n'a été posée. Zéro tant que le
+        // correctif tient — c'est le résultat de la mesure, faite à chaque
+        // passage de chaque joueur en phase I.
+        if !premiere_posee {
+            let sans = g
+                .builds
+                .iter()
+                .filter(|b| game.players[p].pending_builds.contains(b))
+                .count() as u64;
+            game.secondes_poses_sans_premiere += sans;
+        }
         // (lot cartes-8) *Automated Factories* et *Tall Station* offrent ici une
         // carte verte à 9 MC ou moins. La permission ne peut naître que de la
         // pose qui précède, d'où le drainage APRÈS elle.
@@ -4555,7 +5032,9 @@ fn phase_development(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy
         // phase » vise la pose ordinaire, pas les poses supplémentaires (le
         // drainage forçait déjà 0 pour les permissions offertes, les seules que
         // la boîte de base produise en phase I : l'empreinte ne bouge pas).
-        drain_pending_builds(game, db, p, 0, policy);
+        // (D18) SAUF quand la permission versée EST celle de la première carte,
+        // faute de première pose : elle porte alors la remise de la carte Phase.
+        drain_pending_builds(game, db, p, remise_du_drainage, policy);
     }
 }
 
@@ -4729,6 +5208,20 @@ fn phase_action(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
 
     // Chaque carte bleue jouée offre son action une fois par phase.
     let mut remaining_blue: [Vec<u16>; NUM_PLAYERS] = Default::default();
+    // (D6) Les cartes déjà activées cette phase, offertes en RÉPÉTITION tant que
+    // le budget du sélectionneur est ouvert. (D7) Une carte en sort dès qu'elle a
+    // consommé une répétition et n'y revient jamais : la carte Phase III
+    // améliorée B ouvre deux répétitions, donc deux cartes DISTINCTES au plus
+    // (« Vous pouvez activer **deux de vos effets** "Action :" une fois de
+    // plus » — transcription
+    // `data/cartes-imprimees/phases-ameliorees/phases-ameliorees.json`), et
+    // jamais la même trois fois.
+    let mut rejouables: [Vec<u16>; NUM_PLAYERS] = Default::default();
+    let mut corp_rejouable = [false; NUM_PLAYERS];
+    // (D7) SENTINELLE : le nombre d'activations de la manche, carte par carte.
+    // Elle ne lit pas le correctif, elle compte les activations réellement
+    // faites ; le compteur monte à la troisième. Il doit rester nul.
+    let mut activations: [std::collections::BTreeMap<u16, u32>; NUM_PLAYERS] = Default::default();
     let mut passed = [false; NUM_PLAYERS];
     // (jokers-corpos) L'action de la planche de corporation, une fois par phase
     // comme celle d'une carte bleue. Le drapeau vaut pour tous les joueurs :
@@ -4790,6 +5283,8 @@ fn phase_action(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
                 p,
                 &remaining_blue[p],
                 corp_action_left[p],
+                &rejouables[p],
+                corp_rejouable[p],
                 &mut options,
             );
             observer(game, p, policy);
@@ -4807,15 +5302,26 @@ fn phase_action(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
                     if db.effects_on && apply_blue_action(game, db, p, card, policy) {
                         game.blue_actions += 1;
                     }
+                    // (D7) SENTINELLE, au site exact de l'activation.
+                    let n = activations[p].entry(card).or_insert(0);
+                    *n += 1;
+                    if *n == 3 {
+                        game.cartes_activees_trois_fois += 1;
+                    }
                     // L'activation est consommée dans tous les cas.
                     if let Some(pos) = remaining_blue[p].iter().position(|&c| c == card) {
+                        // Première activation de la phase : la carte devient
+                        // candidate à une répétition, elle n'en consomme pas.
                         remaining_blue[p].remove(pos);
-                    }
-                    // Bonus du sélectionneur : une activation supplémentaire,
-                    // prise sur le budget que porte l'état du joueur.
-                    if game.players[p].extra_blue_activations > 0 {
-                        game.players[p].extra_blue_activations -= 1;
-                        remaining_blue[p].push(card);
+                        rejouables[p].push(card);
+                    } else if let Some(pos) = rejouables[p].iter().position(|&c| c == card) {
+                        // (D6) UNE RÉPÉTITION, et c'est le joueur qui l'a
+                        // désignée : le budget n'est décompté qu'ici. (D7) La
+                        // carte quitte la liste et n'y revient pas.
+                        rejouables[p].remove(pos);
+                        game.players[p].extra_blue_activations =
+                            game.players[p].extra_blue_activations.saturating_sub(1);
+                        game.activations_bonus_libres += 1;
                     }
                 }
                 // (jokers-corpos) L'action de la planche : même comptabilité
@@ -4827,10 +5333,18 @@ fn phase_action(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
                     if db.effects_on && apply_corp_action(game, db, p, policy) {
                         game.blue_actions += 1;
                     }
-                    corp_action_left[p] = false;
-                    if game.players[p].extra_blue_activations > 0 {
-                        game.players[p].extra_blue_activations -= 1;
-                        corp_action_left[p] = true;
+                    // (D6, D7) Même comptabilité que pour une carte bleue :
+                    // la première activation ouvre une candidature à la
+                    // répétition, la répétition consomme le budget et ferme la
+                    // candidature pour de bon.
+                    if corp_action_left[p] {
+                        corp_action_left[p] = false;
+                        corp_rejouable[p] = true;
+                    } else if corp_rejouable[p] {
+                        corp_rejouable[p] = false;
+                        game.players[p].extra_blue_activations =
+                            game.players[p].extra_blue_activations.saturating_sub(1);
+                        game.activations_bonus_libres += 1;
                     }
                 }
                 ActionOpt::ForestWithPlants => build_forest(game, db, p, true, policy),
@@ -5114,14 +5628,33 @@ fn milestone_goal(kind: MilestoneKind) -> i64 {
 /// non revendiqué est acquis par tout joueur remplissant l'objectif (les
 /// revendications simultanées scorent toutes 3 VP — Discovery p.3).
 pub fn assign_milestones(game: &mut GameState) {
-    for slot in game.milestones.iter_mut() {
-        if slot.achieved_by.iter().any(|&b| b) {
+    // (D17) Le MOMENT, au sens du livret : une génération et une phase. Les
+    // deux phrases de la règle des Objectifs sont servies ici, et ensemble —
+    // « le PREMIER joueur à remplir cette condition prend la tuile » (donc au
+    // vol, à l'instant, ce que D17 demandait) ET « si plusieurs joueurs
+    // remplissent la condition durant la MÊME PHASE, l'un d'entre eux prend la
+    // tuile tandis que les autres reçoivent un jeton 3 PV »
+    // (`livret-decouverte.md` l. 72). Prendre au vol sans rouvrir la fenêtre de
+    // la phase aurait volé 3 PV à l'adversaire qui atteint le seuil un instant
+    // plus tard dans la même phase.
+    let moment = (game.generation, game.phase_en_cours);
+    for i in 0..game.milestones.len() {
+        // Tuile déjà revendiquée lors d'une phase ANTÉRIEURE : elle est partie,
+        // et plus aucun jeton n'est distribué.
+        if game.milestones_claimed_at[i].is_some_and(|m| m != moment) {
             continue;
         }
+        let kind = game.milestones[i].kind;
+        let goal = milestone_goal(kind);
         for p in 0..NUM_PLAYERS {
-            if milestone_value(slot.kind, &game.players[p]) >= milestone_goal(slot.kind) {
-                slot.achieved_by[p] = true;
+            if milestone_value(kind, &game.players[p]) >= goal {
+                game.milestones[i].achieved_by[p] = true;
             }
+        }
+        if game.milestones_claimed_at[i].is_none()
+            && game.milestones[i].achieved_by.iter().any(|&b| b)
+        {
+            game.milestones_claimed_at[i] = Some(moment);
         }
     }
 }

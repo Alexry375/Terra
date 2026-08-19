@@ -23,7 +23,7 @@
 
 use engine::boites::BoiteSet;
 use engine::cards::{verifier_multiple, CardsDb, Color, Tag};
-use engine::effects::{Capacity, CardEffects, Reduction};
+use engine::effects::{Capacity, CardEffects, Reduction, TrigCond};
 use engine::flow::{capacities, player_capacities, setup_game};
 use engine::policy::RandomPolicy;
 use engine::probe::{
@@ -717,13 +717,25 @@ fn la_table_des_corporations_porte_les_deux_lignes_de_phobolog() {
 }
 
 #[test]
-fn le_declencheur_de_mining_guild_reste_hors_perimetre() {
-    // « Each time you play steel production, excluding this, gain 1 TR » : une
-    // PRODUCTION d'acier, pas un compte d'aciers. Toujours non encodé — et
-    // toujours pas inventé.
+fn le_declencheur_de_mining_guild_est_encode_et_ne_paie_que_l_acier() {
+    // (D2 — lot regles-cartes) ASSERTION CORRIGÉE, jamais retirée. Ce test
+    // scellait « aucun déclencheur encodé » : c'était le défaut D2 de
+    // `docs/AUDIT_MOTEUR.md`, la seconde ligne du carton jamais appliquée. Le
+    // déclencheur est désormais là, et les deux autres assertions — celles qui
+    // interdisent d'INVENTER un NT — sont conservées mot pour mot : *Titanium
+    // Mine* n'apporte pas d'acier mais du titane, elle ne doit donc toujours
+    // rien rapporter, et l'acier de la planche elle-même reste compté sans
+    // rapporter (« excluding this »).
     let db = db_all();
     let spec = engine::effects::corp_lookup("Mining Guild").expect("Mining Guild");
-    assert!(spec.play_triggers.is_empty(), "aucun déclencheur encodé");
+    assert_eq!(spec.play_triggers.len(), 1, "le déclencheur du carton, encodé");
+    let trig = &spec.play_triggers[0];
+    assert!(
+        matches!(trig.cond, TrigCond::GrantsCapacity(Capacity::Steel)),
+        "la condition porte sur le savoir-faire ACIER apporté par la carte posée"
+    );
+    assert!(trig.scale_by_matched_tags, "1 NT PAR acier (arbitrage 18-08)");
+    assert!(!trig.include_self, "« excluding this »");
     let r = seq_corp(&db, "Mining Guild", &["Titanium Mine"], 300);
     assert_eq!(r.delta.tr, 0, "aucun NT inventé");
     assert_eq!(r.steel, 1, "son acier, lui, compte");

@@ -874,15 +874,25 @@ impl Policy for Activeur {
 
 /// Combien de fois le joueur 0 active-t-il RÉELLEMENT l'action de sa carte
 /// bleue pendant une phase III complète ?
-fn activations_reelles(db: &CardsDb, upgrade: Option<PhaseUpgrade>) -> usize {
+fn activations_reelles(db: &CardsDb, upgrade: Option<PhaseUpgrade>, cartes: &[&str]) -> usize {
     let mut g = jeu(db);
     let mut pose = RandomPolicy;
-    // Une carte bleue à action gratuite : son activation ne dépend d'aucune
+    // Des cartes bleues à action gratuite : leur activation ne dépend d'aucune
     // ressource, donc le compte mesure le BUDGET et rien d'autre.
-    let id = en_main(&mut g, db, "Advanced Screening Tech");
-    let i = g.players[0].hand.iter().position(|&c| c == id).unwrap();
+    //
+    // (les-regles-des-cartes, D7) Le NOMBRE de cartes est devenu un paramètre
+    // parce qu'il compte désormais : « Vous pouvez activer DEUX DE VOS EFFETS
+    // "Action :" une fois de plus » (transcription
+    // `data/cartes-imprimees/phases-ameliorees/phases-ameliorees.json`, III-B)
+    // désigne deux cartes DISTINCTES. Une seule carte en jeu ne peut donc plus
+    // absorber les deux répétitions, et mesurer le budget de III-B exige d'en
+    // avoir deux sous la main.
     g.players[0].mc = 1000;
-    build_card_with(&mut g, db, 0, i, 0, &mut pose);
+    for nom in cartes {
+        let id = en_main(&mut g, db, nom);
+        let i = g.players[0].hand.iter().position(|&c| c == id).unwrap();
+        build_card_with(&mut g, db, 0, i, 0, &mut pose);
+    }
     if let Some(v) = upgrade {
         g.players[0].upgrade_phase(3, v);
     }
@@ -896,22 +906,38 @@ fn le_budget_de_repetitions_de_la_phase_iii_est_reellement_exerce() {
     // Le témoin que le câblage — et pas seulement l'état — fait son travail :
     // une carte bleue, une phase III, et on compte les activations obtenues.
     let db = db();
-    let base = activations_reelles(&db, None);
+    const UNE: &[&str] = &["Advanced Screening Tech"];
+    const DEUX: &[&str] = &["Advanced Screening Tech", "Circuit Board Factory"];
+    let base = activations_reelles(&db, None, UNE);
     assert_eq!(base, 2, "une activation, plus la répétition du sélectionneur");
-    let a = activations_reelles(&db, Some(PhaseUpgrade::VariantA));
+    let a = activations_reelles(&db, Some(PhaseUpgrade::VariantA), UNE);
     assert_eq!(a, 2, "III-A garde la répétition unique de la carte de base");
-    let b = activations_reelles(&db, Some(PhaseUpgrade::VariantB));
-    assert_eq!(b, 3, "III-B : deux répétitions, donc trois activations");
-    assert!(b > base, "III-B doit rendre PLUS d'activations que la carte de base");
-    assert_ne!(b, 4, "4 activations seraient le cumul du +1 de base et du +2");
+    // (les-regles-des-cartes, D7) AVEC UNE SEULE CARTE, III-B PLAFONNE À DEUX.
+    // Le moteur remettait la carte activée dans les activables à chaque fois :
+    // elle encaissait les deux répétitions et montait à trois activations. Le
+    // carton dit « deux de vos effets », donc deux cartes distinctes, et jamais
+    // la même trois fois.
+    let b_une = activations_reelles(&db, Some(PhaseUpgrade::VariantB), UNE);
+    assert_eq!(b_une, 2, "une seule carte ne peut pas être activée trois fois");
+    // Avec DEUX cartes, le budget de III-B s'exerce en entier.
+    let base_deux = activations_reelles(&db, None, DEUX);
+    assert_eq!(base_deux, 3, "deux activations fraîches, plus la répétition de base");
+    let b = activations_reelles(&db, Some(PhaseUpgrade::VariantB), DEUX);
+    assert_eq!(b, 4, "III-B : deux fraîches, plus deux répétitions");
+    assert!(b > base_deux, "III-B doit rendre PLUS d'activations que la carte de base");
+    assert_ne!(b, 5, "5 activations seraient le cumul du +1 de base et du +2");
 }
 
 #[test]
 fn le_budget_de_repetitions_est_consomme_et_ne_survit_pas_a_la_phase() {
     // Le budget vit dans l'état du joueur : la boucle d'actions le DÉCRÉMENTE
-    // à chaque répétition accordée. Une même carte bleue peut absorber les
-    // deux répétitions de III-B (elle revient dans les activables à chaque
-    // fois) : à la fin de la phase, le budget est à zéro.
+    // à chaque répétition accordée.
+    //
+    // (les-regles-des-cartes, D7) Une même carte bleue ne peut PLUS absorber les
+    // deux répétitions de III-B. Le carton dit « deux de vos effets "Action :" »
+    // — deux cartes distinctes. Avec une seule carte en jeu, une répétition
+    // reste donc en caisse, faute de seconde cible ; avec deux cartes, le budget
+    // part en entier. Les deux sens sont mesurés ici.
     let db = db();
     let mut g = jeu(&db);
     let mut pose = RandomPolicy;
@@ -922,7 +948,25 @@ fn le_budget_de_repetitions_est_consomme_et_ne_survit_pas_a_la_phase() {
     g.players[0].upgrade_phase(3, PhaseUpgrade::VariantB);
     let mut pol = Activeur { phase: 3, activations: 0 };
     play_round(&mut g, &db, &mut pol);
-    assert_eq!(pol.activations, 3);
+    assert_eq!(pol.activations, 2, "une fraîche et une répétition, pas davantage");
+    assert_eq!(
+        g.players[0].extra_blue_activations, 1,
+        "la seconde répétition reste en caisse : il n'y a pas de seconde carte"
+    );
+
+    // L'AUTRE SENS — deux cartes bleues, et le budget est bien à sec.
+    let mut g = jeu(&db);
+    let mut pose = RandomPolicy;
+    g.players[0].mc = 1000;
+    for nom in ["Advanced Screening Tech", "Circuit Board Factory"] {
+        let id = en_main(&mut g, &db, nom);
+        let i = g.players[0].hand.iter().position(|&c| c == id).unwrap();
+        build_card_with(&mut g, &db, 0, i, 0, &mut pose);
+    }
+    g.players[0].upgrade_phase(3, PhaseUpgrade::VariantB);
+    let mut pol = Activeur { phase: 3, activations: 0 };
+    play_round(&mut g, &db, &mut pol);
+    assert_eq!(pol.activations, 4, "deux fraîches et deux répétitions");
     assert_eq!(
         g.players[0].extra_blue_activations, 0,
         "les deux répétitions ont été dépensées : le budget est à sec"
@@ -1160,8 +1204,17 @@ fn ameliorer_deux_fois_la_meme_phase_est_compte_comme_une_bascule() {
     g.corp_phase_upgrades_at_setup = 0;
     g.players[0].upgrade_phase(1, PhaseUpgrade::VariantA);
     g.phase_upgrades_granted = 0;
-    // 1A étant déjà en place, elle n'est plus candidate : l'indice 0 vise 1B.
-    let mut pol = Scenario::new(1).choix(&[0]);
+    // (les-regles-des-cartes, D8) 1A étant déjà en place, elle RESTE candidate.
+    // C'est un ARBITRAGE et non une citation : `livret-decouverte.md:66` écrit
+    // « vous pouvez choisir d'améliorer en une amélioration DIFFÉRENTE une
+    // carte Phase que vous avez déjà améliorée », il n'écrit pas qu'on peut
+    // rechoisir la sienne. Le moteur n'ayant aucun « je renonce » pour une
+    // amélioration imposée, garder la variante en place est le seul moyen de
+    // rendre au joueur la faculté que le livret lui donne sans faire
+    // disparaître l'effet de la carte. Voir `docs/regles/notes/cas-tranches.md`.
+    // La liste est donc toujours les dix cartes, dans l'ordre phase puis
+    // variante : l'indice 0 vise 1A (« je ne change rien ») et l'indice 1 vise 1B.
+    let mut pol = Scenario::new(1).choix(&[1]);
     let id = en_main(&mut g, &db, "Cryogenic Shipment");
     let i = g.players[0].hand.iter().position(|&c| c == id).unwrap();
     g.players[0].mc = 1000;
@@ -1250,12 +1303,32 @@ fn effets_coupes_les_cinq_compteurs_restent_nuls() {
 #[test]
 fn le_deroulement_de_la_boite_de_base_n_a_pas_bouge() {
     // Le témoin de non-régression le plus dur : à graine fixe, la boîte de base
-    // rend exactement l'empreinte de référence. Repère REFIXÉ le 19-08
-    // (le-secret-et-l-ordre) : le premier joueur est tiré au sort à la mise en
-    // place, la mise en place et la planification interrogent les joueurs dans
-    // l'ordre du tour, et la phase IV Production le suit elle aussi (D16). Les
-    // parties de référence enregistrées doivent être regénérées.
-    // Repères précédents : 8e4ec5b0296470e6 (05-08), bf70799ff3fee1d8 (04-08),
+    // rend exactement l'empreinte de référence.
+    // Repère REFIXÉ le 19-08 (les-regles-des-cartes). Ce que la MESURE dit, et
+    // rien de plus — l'attribution qui figurait ici défaut par défaut était en
+    // partie fausse, et dans un lot qui corrige des commentaires menteurs elle
+    // n'avait rien à faire :
+    //   — l'empreinte a bougé : 47030e306f1006cd → 15cd9db748878cec ;
+    //   — TROIS correctifs du lot ne peuvent pas en être la cause, et c'est
+    //     mesuré : sur 200 parties de la seule boîte de base,
+    //     `joker_badges_reposes`, `phase_upgrades_granted` et
+    //     `upgraded_extra_builds` valent tous ZÉRO. D5 (le badge joker
+    //     redemandé à la pose), D8 (les deux variantes d'amélioration toujours
+    //     offertes) et D18 (la phase I améliorée B) n'ont aucun mécanisme qui
+    //     joue en boîte de base ;
+    //   — les correctifs dont le mécanisme joue bel et bien en boîte de base :
+    //     D6/D7 (la répétition de la phase III se choisit librement au lieu
+    //     d'être dépensée d'office — `activations_bonus_libres` = 708 sur ces
+    //     mêmes 200 parties), D9 (une branche qui ne peut rien produire n'est
+    //     plus offerte — `branches_a_parametre_prises` = 79), D2 (Mining Guild
+    //     rend 1 NT par acier de savoir-faire), D17 (l'Objectif est pris au
+    //     vol), D19 et D20 (le comptage des badges) ;
+    //   — ce qui n'est PAS mesuré, donc pas affirmé : lequel de ces six a
+    //     déplacé l'empreinte, et de combien. L'attribution demanderait de les
+    //     retirer un à un ; elle n'a pas été faite.
+    // Les parties de référence enregistrées doivent être regénérées.
+    // Repères précédents : 47030e306f1006cd (19-08, le-secret-et-l-ordre),
+    // 8e4ec5b0296470e6 (05-08), bf70799ff3fee1d8 (04-08),
     // 7dda3ea2e9b2901b (03-08), c1c52fcbe4e057b0 (01-08),
     // d6a7267472501b13 (31-07).
     let db = db();
@@ -1263,7 +1336,7 @@ fn le_deroulement_de_la_boite_de_base_n_a_pas_bouge() {
     let s = run_simulation(&db, 1000, 2024, &mut pol);
     assert_eq!(
         format!("{:016x}", s.state_hash),
-        "47030e306f1006cd",
+        "15cd9db748878cec",
         "la boîte de base doit se dérouler exactement comme la mesure de référence"
     );
 }
