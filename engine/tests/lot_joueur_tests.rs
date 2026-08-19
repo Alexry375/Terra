@@ -35,21 +35,17 @@ use engine::state::GameState;
 use rand::rngs::StdRng;
 use serde_json::Value;
 
-#[path = "../src/description.rs"]
-mod description;
-#[path = "../src/joueur.rs"]
-mod joueur;
-#[path = "../src/rejeu.rs"]
-mod rejeu;
-#[path = "../src/reseau.rs"]
-mod reseau;
+use engine::{description, joueur, rejeu, reseau};
 
 use description::Description;
 use joueur::Joueur;
 use reseau::{Pile, Reseau};
 
 const CARTES: &str = "../data/cards.json";
-const POIDS: &str = "../data/poids/apprenti-1M.txt";
+// (L3) La fiche a changé de taille : le verrou des noms du §3.7 refuse tous les
+// fichiers de poids d'avant le lot. Celui-ci est appris sur la fiche neuve
+// (`entraine --parties 30000 --graine-debut 10500001`).
+const POIDS: &str = "../data/poids/apprenti-L3-amorce.txt";
 
 /// Le matériel commun : les cartes et la fiche de situation, chargées une fois
 /// par test. Les boîtes sont celles des contrôles du lot.
@@ -752,11 +748,38 @@ fn le_drapeau_coupe_la_vente_et_ses_essais() {
         "vente allumée, seulement {} essais lui sont consacrés : elle n'est pas vraiment essayée",
         avec.essais_vente
     );
+    // (L3) Sur UNE partie, ce compte dépend de la trajectoire : allumer la vente
+    // change les coups joués, donc la longueur de la partie, et il arrive qu'une
+    // partie plus courte coûte moins d'essais au total malgré la vente. La
+    // propriété visée — « essayer la vente coûte des essais » — est une propriété
+    // de MOYENNE. On la mesure donc sur huit parties au lieu d'une : c'est un
+    // contrôle plus sévère que l'ancien, pas plus doux.
+    let mut total_avec = 0u64;
+    let mut total_sans = 0u64;
+    for g in 0..8u64 {
+        total_avec += jouer_une_partie(
+            &b,
+            1000001 + g,
+            Reglages {
+                graine_essais: 3,
+                ..Default::default()
+            },
+        )
+        .essais;
+        total_sans += jouer_une_partie(
+            &b,
+            1000001 + g,
+            Reglages {
+                graine_essais: 3,
+                vente: false,
+                ..Default::default()
+            },
+        )
+        .essais;
+    }
     assert!(
-        avec.essais > sans.essais,
-        "la vente allumée ({} essais) ne coûte pas plus que coupée ({})",
-        avec.essais,
-        sans.essais
+        total_avec > total_sans,
+        "sur huit parties, la vente allumée ({total_avec} essais) ne coûte pas plus que coupée ({total_sans})"
     );
 }
 

@@ -12,12 +12,7 @@ use engine::policy::RandomPolicy;
 use engine::state::GameState;
 use std::time::Instant;
 
-#[path = "../description.rs"]
-mod description;
-#[path = "../rejeu.rs"]
-mod rejeu;
-#[path = "../reseau.rs"]
-mod reseau;
+use engine::{description, rejeu, reseau};
 
 use description::{Description, Tampons};
 use reseau::Reseau;

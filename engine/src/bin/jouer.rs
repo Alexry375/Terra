@@ -21,14 +21,7 @@ use engine::flow::{play_round, score_parts, setup_game};
 use engine::sim::MAX_GENERATIONS;
 use serde_json::json;
 
-#[path = "../description.rs"]
-mod description;
-#[path = "../joueur.rs"]
-mod joueur;
-#[path = "../rejeu.rs"]
-mod rejeu;
-#[path = "../reseau.rs"]
-mod reseau;
+use engine::{description, joueur, reseau};
 
 use description::Description;
 use joueur::Joueur;

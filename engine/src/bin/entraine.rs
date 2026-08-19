@@ -35,14 +35,7 @@ use engine::flow::{play_round, score_parts, setup_game};
 use engine::sim::MAX_GENERATIONS;
 use std::time::Instant;
 
-#[path = "../description.rs"]
-mod description;
-#[path = "../joueur.rs"]
-mod joueur;
-#[path = "../rejeu.rs"]
-mod rejeu;
-#[path = "../reseau.rs"]
-mod reseau;
+use engine::{description, joueur, rejeu, reseau};
 
 use description::Description;
 use joueur::Joueur;

@@ -38,13 +38,13 @@
 //! décision : une prise sur K (K = 8), sur l'état du repère de l'option retenue —
 //! celui-là même que le joueur vient de juger, et aucun autre.
 
-use engine::cards::CardsDb;
-use engine::choice::ChoiceContext;
-use engine::effects::RevealFilter;
-use engine::flow::{play_round, setup_game};
-use engine::policy::{ActionOpt, ConstructionBonus, Policy};
-use engine::sim::MAX_GENERATIONS;
-use engine::state::GameState;
+use crate::cards::CardsDb;
+use crate::choice::ChoiceContext;
+use crate::effects::RevealFilter;
+use crate::flow::{play_round, setup_game};
+use crate::policy::{ActionOpt, ConstructionBonus, Policy};
+use crate::sim::MAX_GENERATIONS;
+use crate::state::GameState;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use serde_json::{json, Value};
@@ -1421,7 +1421,7 @@ impl Policy for Joueur<'_> {
         _card: u16,
         _tag_counts: &[u32],
     ) -> usize {
-        let n = engine::cards::JOKER_TAG_CHOICES.len();
+        let n = crate::cards::JOKER_TAG_CHOICES.len();
         let c: Vec<Value> = (0..n).map(|i| json!(i)).collect();
         self.choisir(rng, player, &c)
     }

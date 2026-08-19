@@ -61,12 +61,60 @@ fn player_view(game: &GameState, db: &CardsDb, p: usize, parts: &ScoreBreakdown)
             "name": c.name,
             "couleur": c.color.nom_fr(),
             "price": c.price,
+            // (2.8) **LES BADGES ET LES POINTS IMPRIMÉS DE LA CARTE.** La vue ne
+            // publiait que la couleur, le numéro, le nom et le prix : le jumeau
+            // JavaScript de la fiche de situation (`web/webapp/joueurs/description.js`)
+            // ne pouvait donc pas résumer une main par ses symboles ni par ses
+            // points de victoire, et il ne lit rien d'autre que cette vue-ci.
+            //
+            // La liste des badges est celle de la carte, `Tag::as_str()`, dans
+            // l'ordre imprimé. Un BADGE JOKER non déterminé y figure sous son
+            // propre nom : c'est `Tag::index()` qui décide s'il compte, et il ne
+            // compte nulle part tant qu'aucun jeton n'est posé — la même règle
+            // que `PlayerState::tag_counts`, du côté qui compte.
+            "tags": c.tags.iter().map(|t| t.as_str()).collect::<Vec<_>>(),
+            // Points de victoire IMPRIMÉS. Les points dynamiques n'en sont pas :
+            // ils dépendent d'un état que la carte n'a pas tant qu'elle n'est
+            // pas posée. Pour une carte POSÉE, le compte réel est publié à côté
+            // par `pv_ressources` et par `score_parts.cards`.
+            "vp": c.vp,
         })
     };
+
+    // (2.10) **CE QUE CHAQUE RÉCOMPENSE EN JEU VAUT POUR CE JOUEUR.** Le
+    // classement des Récompenses n'était déductible que de cinq des sept
+    // grandeurs publiées (`docs/AUDIT_ENTRAINEMENT.md`, § 2.10). Le nombre vient
+    // de `flow::award_value`, le point de calcul UNIQUE du barème — le même que
+    // `flow::award_points_split` emploie pour distribuer les points en fin de
+    // partie. Ni l'écran ni la fiche JavaScript ne recopient la règle : ils
+    // comparent deux nombres que le moteur a calculés.
+    //
+    // Seules les trois tuiles RÉELLEMENT en jeu y figurent : une tuile absente
+    // ne vaut rien à personne.
+    let mut valeurs_recompenses = serde_json::Map::new();
+    for kind in game.awards.iter() {
+        valeurs_recompenses.insert(format!("{kind:?}"), json!(crate::flow::award_value(*kind, pl)));
+    }
 
     json!({
         "player": p,
         "corporation": pl.corporation.map(|c| db.corporations[c as usize].name.clone()),
+        // (D3) **LES CORPORATIONS QUE CE JOUEUR TIENT EN MAIN**, par leur NOM,
+        // comme la corporation installée ci-dessus. Vide dès qu'une corporation
+        // est installée (`flow::install_corporation_with`). Sans elles, les deux
+        // options de l'échange de corporations décrivaient la même situation
+        // (`docs/AUDIT_MOTEUR.md`, § D3).
+        //
+        // Mode bac à sable, comme les deux mains : la vue les publie pour les
+        // deux joueurs. C'est la FICHE qui interdit de lire celles d'en face —
+        // `description.js` ne prend que celles du siège qui regarde, et une
+        // seule fonction y accède aux joueurs.
+        "corps_en_main": pl
+            .corps_en_main
+            .iter()
+            .map(|c| db.corporations[*c as usize].name.clone())
+            .collect::<Vec<_>>(),
+        "valeurs_recompenses": Value::Object(valeurs_recompenses),
         // Ressources en réserve.
         "mc": pl.mc,
         "heat": pl.heat,

@@ -19,11 +19,11 @@
 //! `--games 20 --seed 3` donnent des sorties identiques au caractère près des
 //! deux côtés).
 
-use engine::cards::CardsDb;
-use engine::choice::ChoiceContext;
-use engine::effects::RevealFilter;
-use engine::policy::{ActionOpt, ConstructionBonus, Policy};
-use engine::state::GameState;
+use crate::cards::CardsDb;
+use crate::choice::ChoiceContext;
+use crate::effects::RevealFilter;
+use crate::policy::{ActionOpt, ConstructionBonus, Policy};
+use crate::state::GameState;
 use rand::rngs::StdRng;
 use serde_json::Value;
 
@@ -670,7 +670,7 @@ impl Policy for Rejeu<'_> {
         card: u16,
         tag_counts: &[u32],
     ) -> usize {
-        let n = engine::cards::JOKER_TAG_CHOICES.len();
+        let n = crate::cards::JOKER_TAG_CHOICES.len();
         match self.prendre(player) {
             Some(r) => self.indice(&r, n).unwrap_or(0),
             None => self.defaut.pick_joker_tag(rng, player, card, tag_counts),
@@ -736,17 +736,17 @@ impl Policy for Rejeu<'_> {
 /// décision non prise (ou l'état final si tout a été joué), avec le siège
 /// concerné.
 pub fn rejouer(
-    db: &engine::cards::CardsDb,
+    db: &crate::cards::CardsDb,
     seed: u64,
     decisions: Vec<Value>,
 ) -> Result<(GameState, Option<usize>), String> {
     let mut pol = Rejeu::new(decisions);
-    let mut game = engine::flow::setup_game(db, seed, &mut pol);
+    let mut game = crate::flow::setup_game(db, seed, &mut pol);
     while pol.attente.is_none()
         && !game.game_over
-        && game.generation <= engine::sim::MAX_GENERATIONS
+        && game.generation <= crate::sim::MAX_GENERATIONS
     {
-        engine::flow::play_round(&mut game, db, &mut pol);
+        crate::flow::play_round(&mut game, db, &mut pol);
     }
     if let Some(e) = pol.erreur {
         return Err(e);

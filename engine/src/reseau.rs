@@ -35,7 +35,9 @@
 //!    répété. Or deux situations consécutives de la pile ne diffèrent que par une
 //!    poignée d'entrées. En écrivant `x_k = x_{k−1} + δ_k`, la somme devient
 //!
-//!        Σ_k d_k[j]·x_k[i]  =  S_0[j]·x_0[i]  +  Σ_{m≥1} S_m[j]·δ_m[i]
+//!    ```text
+//!    Σ_k d_k[j]·x_k[i]  =  S_0[j]·x_0[i]  +  Σ_{m≥1} S_m[j]·δ_m[i]
+//!    ```
 //!
 //!    avec `S_m = Σ_{k≥m} d_k` (sommes suffixes). Un seul parcours complet du
 //!    tableau des poids par correction, au lieu de cinquante ; le reste ne touche

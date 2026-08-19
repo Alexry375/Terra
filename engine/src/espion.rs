@@ -1,6 +1,6 @@
 //! **(le-juge-apprend) Une politique qui REGARDE une partie sans y toucher.**
 //!
-//! Jumelle de `engine::observe::ObservingPolicy`, à une différence près : au
+//! Jumelle de `crate::observe::ObservingPolicy`, à une différence près : au
 //! lieu d'un relevé figé de douze champs, elle appelle une fermeture avec
 //! l'état VIVANT et le siège concerné. C'est ce qui permet de relever la
 //! distribution réelle des quantités (prompt §3.5) sans écrire une seconde
@@ -14,10 +14,10 @@
 //! Ce module n'écrit jamais dans `GameState` et ne consomme jamais le RNG de la
 //! partie.
 
-use engine::choice::ChoiceContext;
-use engine::effects::RevealFilter;
-use engine::policy::{ActionOpt, ConstructionBonus, Policy};
-use engine::state::GameState;
+use crate::choice::ChoiceContext;
+use crate::effects::RevealFilter;
+use crate::policy::{ActionOpt, ConstructionBonus, Policy};
+use crate::state::GameState;
 use rand::rngs::StdRng;
 
 /// Enveloppe `inner` et appelle `vu(game, joueur)` avant chaque décision.
@@ -33,6 +33,15 @@ impl<P: Policy, F: FnMut(&GameState, usize)> Espion<P, F> {
 
     pub fn into_inner(self) -> P {
         self.inner
+    }
+
+    /// La politique enveloppée, empruntée. Sans elle, une politique qui a besoin
+    /// qu'on l'appelle ENTRE deux manches — `joueur::Joueur::debut_manche`, qui
+    /// fixe le point de reprise des essais — ne peut pas être espionnée : on ne
+    /// peut ni la sortir de l'enveloppe ni la retrouver. Aucune décision n'en
+    /// dépend : l'enveloppe reste un observateur.
+    pub fn inner_mut(&mut self) -> &mut P {
+        &mut self.inner
     }
 }
 

@@ -276,6 +276,27 @@ pub struct PlayerState {
     pub played: Vec<u16>,
     /// Corporation choisie (indice dans CardsDb.corporations).
     pub corporation: Option<u16>,
+    /// **(D3) LES CORPORATIONS QUE CE JOUEUR TIENT EN MAIN**, indices dans
+    /// `CardsDb.corporations` — les mêmes identifiants que `corporation`
+    /// ci-dessus et que `GameState::corp_deck`.
+    ///
+    /// Elles n'étaient nulle part dans l'état : `flow::setup_game` les passait
+    /// en paramètre à `Policy::corp_mulligan` et à `Policy::pick_corporation`,
+    /// et à personne d'autre. Une fonction qui reçoit `&GameState` — la fiche de
+    /// situation du réseau, la vue de `observe::state_view`, un test — ne
+    /// pouvait donc pas les voir, et les deux options de l'échange des
+    /// corporations décrivaient la MÊME situation
+    /// (`docs/AUDIT_MOTEUR.md`, §D3).
+    ///
+    /// **Vie du champ** (`flow::setup_game`) : rempli à la distribution, AVANT
+    /// que la première question soit posée ; réécrit quand le mulligan rend la
+    /// paire ; VIDÉ par `flow::install_corporation_with` au moment où une
+    /// corporation s'installe — sinon la case « en main » resterait allumée
+    /// toute la partie et mentirait.
+    ///
+    /// **Ce n'est pas `GameState::corp_deck`** : celui-là est le paquet de
+    /// corporations non distribuées, commun aux deux joueurs.
+    pub corps_en_main: Vec<u16>,
     /// Compteurs de tags en jeu (corporation incluse).
     pub tag_counts: [u32; TAG_COUNT],
     /// Compteurs de couleurs jouées (vert/bleu/rouge).
@@ -493,6 +514,7 @@ impl PlayerState {
             hand: Vec::new(),
             played: Vec::new(),
             corporation: None,
+            corps_en_main: Vec::new(),
             tag_counts: [0; TAG_COUNT],
             color_counts: [0; 3],
             chosen_phase: 0,

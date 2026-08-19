@@ -22,12 +22,7 @@ use engine::boites::BoiteSet;
 use engine::cards::CardsDb;
 use serde_json::{json, Value};
 
-#[path = "../description.rs"]
-mod description;
-#[path = "../rejeu.rs"]
-mod rejeu;
-#[path = "../reseau.rs"]
-mod reseau;
+use engine::{description, rejeu, reseau};
 
 use description::{Description, Tampons};
 

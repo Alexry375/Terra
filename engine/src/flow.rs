@@ -196,6 +196,14 @@ pub fn setup_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameState
         for _ in 0..2 {
             corps[p].push(game.corp_deck.pop().expect("paquet corporations épuisé"));
         }
+        // (D3) **LA PAIRE ENTRE DANS L'ÉTAT, ET ELLE Y ENTRE MAINTENANT.**
+        // `corps[p]` est une variable locale : la fiche de situation du réseau,
+        // qui ne reçoit que `&GameState`, ne pouvait pas la lire, et les deux
+        // options de l'échange décrivaient la même situation
+        // (`docs/AUDIT_MOTEUR.md`, §D3). Le champ est écrit AVANT que la
+        // première question soit posée — sinon la fiche évaluée au moment de
+        // l'échange serait encore vide et le défaut demeurerait.
+        game.players[p].corps_en_main = corps[p].clone();
     }
 
     // 2. Mulligan corporations — règle maison n°1 (avant les cartes projets).
@@ -220,6 +228,8 @@ pub fn setup_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameState
         for _ in 0..2 {
             corps[p].push(game.corp_deck.pop().expect("paquet corporations épuisé"));
         }
+        // (D3) La paire rendue est remplacée : l'état suit.
+        game.players[p].corps_en_main = corps[p].clone();
     }
 
     // 3. Huit cartes projets chacun (livret setup + Constants.DEFAULT_START_HAND_SIZE).
@@ -340,6 +350,12 @@ pub fn install_corporation_with(
     let spec = corp.effect;
 
     game.players[p].corporation = Some(corp_id);
+    // (D3) **LA MAIN DE CORPORATIONS SE VIDE ICI**, et pas ailleurs : une
+    // corporation installée est publique (`corpo_…_moi` / `corpo_…_adv`), et la
+    // case « en main » qui resterait allumée toute la partie mentirait. Le point
+    // d'installation est UNIQUE — `install_corporation` y délègue — donc il n'y
+    // a pas de second chemin par lequel la main pourrait survivre.
+    game.players[p].corps_en_main.clear();
     game.players[p].mc = starting_mc;
     // (boites-1) I4 — corporation sans encodage (les 4 de Découverte) : son
     // pouvoir imprimé ne sera jamais appliqué de la partie, on le compte.
@@ -5680,7 +5696,14 @@ pub fn award_pool(db: &CardsDb) -> Vec<AwardKind> {
         .collect()
 }
 
-fn award_value(kind: AwardKind, pl: &PlayerState) -> i64 {
+/// **(2.10) La valeur disputée d'une récompense, pour un joueur.**
+///
+/// Rendue PUBLIQUE — et rien d'autre n'a changé — pour que la fiche de situation
+/// puisse publier le classement des récompenses (`description.rs`, préfixe
+/// `recompense_…_classement_`) sans recopier le barème. C'est le seul chemin :
+/// `award_points_split` ci-dessous lit la même fonction, il n'en existe pas de
+/// second (NEVER 3).
+pub fn award_value(kind: AwardKind, pl: &PlayerState) -> i64 {
     match kind {
         AwardKind::Celebrity => pl.mc_prod,
         // (28-07) Réparée. « Le plus de ressources sur les cartes » (tuile
