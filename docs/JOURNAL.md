@@ -2152,3 +2152,71 @@ parties à points égaux au lieu de les départager ; `bin/entraine.rs` **redét
 vainqueur en comparant les scores, sans départage — tant que c'est le cas, D11 n'atteint
 l'IA ni à l'entraînement ni à la mesure. Le chantier **L4 « le joueur sans voyance »** a été
 lancé dans la foulée.
+
+### Le même jour, plus tard — le lot L4 est livré, et mon second contrôle de forme était faux
+
+Le chantier **L4 « le joueur sans voyance »** a rendu, commit `701a875`. Quatre défauts de
+l'intelligence artificielle :
+
+- **V1, la voyance.** L'essai d'un coup rejouait la partie avec la graine réelle : le paquet
+  y était mélangé exactement comme dans la vraie partie, et l'IA lisait à l'avance les cartes
+  qu'elle allait recevoir. Désormais l'essai **rebat les trois tas cachés** — paquet de
+  projets, tuiles Océan encore face cachée (chacune porte un bonus tiré à la mise en place),
+  paquet de corporations — avec une graine dérivée de `--graine-essais`, de la graine de
+  partie et du rang de la décision. **Ce qui est déjà sorti est épargné** : sans ce
+  garde-fou, le rejeu diverge avant la décision et le moteur refuse des réponses déjà
+  données — 12,1 % des essais rendus injouables, contre 0,44 % avec.
+  [VÉRIFIÉ 19-08 — `engine/src/joueur.rs:116-190`, et mesure ci-dessous]
+- **2.11** — l'échange des cartes de départ essaie les **256** sous-ensembles au lieu de 37.
+  Le joueur rend 4,16 cartes en moyenne contre 2,12.
+- **2.14** — la mise en place est apprise dans **70,8 %** des parties contre 13 %, et les
+  deux sièges reçoivent autant de corrections (1 378 contre 1 364).
+- **2.15** — l'IA peut **vendre** une carte : les deux options, vendre et ne rien vendre,
+  sont notées par le réseau.
+
+**28 tests neufs, 979 tests verts.** Mesure d'audit à moi : sur 12 graines inédites, les
+décisions changent avec la graine d'essais **12 fois sur 12**, et se rejouent identiques à
+graine fixée. [VÉRIFIÉ 19-08]
+
+**Coût mesuré** : 124 ms par partie contre 75 ms avant le lot, soit **+65 %** — ce qui
+confirme le +64 % annoncé. Le détail : la voyance corrigée coûte +3,5 %, l'énumération du
+mulligan +8 %, et **la vente +43 %**. L'audit avait estimé la vente à +0,3 % : le chiffre
+est réfuté par la mesure, parce que le moteur ouvre environ 400 occasions de vente par
+partie et non 17. Un drapeau `--vente off` permet de la couper. **Décision d'Alexis
+attendue avant le dernier entraînement.**
+
+**Ma seconde erreur de contrôle, de la même famille que celle du matin.** Mon contrôle caché
+`h1` interdisait par simple recherche de texte la présence de `setup_game(self.db,
+self.seed` dans `joueur.rs`. Or la solution livrée est **plus fine que celle que j'avais en
+tête** : elle reconstruit légitimement la mise en place avec la vraie graine — c'est ce que
+le joueur a réellement sous les yeux, sa main et ses corporations — puis rebat l'avenir et
+retire de l'état évalué les cartes venues du futur. **Je contrôlais la forme au lieu de la
+propriété**, ce que ma mémoire durable m'interdit depuis un incident antérieur. Contrôle
+faux, travail bon. [VÉRIFIÉ 19-08 — lecture du code et mesure indépendante]
+
+J'ai aussi cru un moment que la reproductibilité était cassée sur 12 graines sur 12 : je
+comparais les sorties entières, or elles contiennent les **temps de calcul**, seules clefs
+qui bougent d'une exécution à l'autre. Les décisions et les quatorze autres compteurs sont
+identiques.
+
+**Deux dettes réelles, déclarées par l'agent et portées au registre.**
+
+1. **Le joueur du navigateur voit toujours l'avenir.** Le correctif exige de modifier le
+   pont (`web/webapp/wasm/src/lib.rs`), qui n'était pas dans le territoire du lot.
+   `espion.origine(espion.graine, …)` subsiste donc dans `apprenti.js`, et le banc
+   `juge-meme-option.mjs` est **rouge** — ce qui est attendu et expliqué, puisque les deux
+   joueurs n'essaient plus leurs coups sur le même avenir. **Première priorité du lot
+   interface.** [VÉRIFIÉ 19-08]
+2. **L'écran ne sait pas animer une vente décidée par l'IA**, ni offrir l'occasion de vente
+   au fournisseur du navigateur.
+
+**Réserve de l'agent, à trancher plus tard** : l'IA vend 90 cartes par partie contre 34 pour
+le témoin à règles écrites — sur un réseau qui n'a **jamais** été entraîné à vendre. Ses
+notes sur ces options sont donc du bruit ; c'est le dernier entraînement qui répondra.
+
+Le chantier **L2 « les règles des cartes »** — treize défauts, dont *Mining Guild* — a été
+scellé dans la foulée : onze contrôles visibles et trois cachés, tous rouges, dont un qui
+vérifie que le niveau de terraformation accordé vaut **exactement un par acier** sur huit
+cartes que le contrat ne cite jamais, et un autre qui exige que le nombre de décisions par
+partie **augmente** — sept des treize défauts ajoutent un point de décision, un agent qui se
+contenterait d'incrémenter des compteurs tomberait là.

@@ -92,13 +92,23 @@ voit ce genre de divergence, et il n'est vert qu'après `bash web/construire.sh`
 > Ce garde-fou existe (`reseau.rs:588-620`) ; il doit rester actif après chaque
 > changement de description.
 
-### Lot L4 — Le joueur
+### Lot L4 — Le joueur  *(LIVRÉ le 19-08, commit `701a875`, audité `ok`)*
+
+Détail complet : `workspaces/le-joueur-sans-voyance/outputs/interface.md`.
 
 | Changement moteur | Ce que l'interface doit faire | Ampleur | État |
 |---|---|---|---|
-| **V1** — le joueur cesse de voir le hasard futur | `apprenti.js:349-354,482` espionne la graine vivante (`espion.origine`) : à retirer, et à remplacer par un tirage indépendant | moyenne | à faire |
-| **2.11** — 256 combinaisons essayées à l'échange de départ | Aucun écran, mais l'IA met plus de temps à répondre : vérifier que l'attente reste tenable | petite | à faire |
-| **2.15** — l'IA peut vendre une carte | La vente doit s'animer correctement quand c'est l'IA qui la déclenche | petite | à faire |
+| **V1** — les essais de coups ne rejouent plus l'avenir réel : les trois tas cachés (paquet de projets, tuiles Océan face cachée, paquet de corporations) sont rebattus par une graine d'essais | **PRIORITÉ 1 DU LOT INTERFACE.** Le pont doit accepter une graine d'essais : `pont.pas(graine, boîtes, décisions, graineEssais)`. **Tant que ce n'est pas fait, l'intelligence artificielle du navigateur voit l'avenir** — elle lit le dessus de la pioche pendant qu'elle réfléchit, et aucun contrôle ne le signale : elle est simplement meilleure qu'elle ne devrait l'être. Le rebattage doit refaire à l'identique `joueur::rebattre_le_reste` (Fisher-Yates sur les trois tas, en épargnant ce qui est déjà sorti) et `joueur::ecarter_les_cartes_du_futur` | **pont + recompilation `terra.wasm`** | **à faire** |
+| **2.11** — l'échange des cartes de départ essaie les 256 sous-ensembles | `apprenti.js` : **fait**, même ordre qu'en Rust. Reste à l'écran : 256 appels au pont par siège, l'attente du mulligan est le seul moment où elle se verra ; prévoir un voyant d'attente. Et l'animation doit tenir avec **huit cartes rendues d'un coup** (le joueur rend 4,16 cartes en moyenne contre 2,12) | recopie **faite**, attente à vérifier | **fait côté joueur** |
+| **2.15 bis** — l'entrée de vente porte un champ nouveau : `{"vendre": {"joueur": j, "occasion": n, "cartes": [i]}}` | Le harnais du pont doit **compter les occasions de vente** et refuser de consommer une entrée avant son numéro. Sans cela, une vente décidée à une occasion s'applique à une occasion antérieure | **pont** | à faire |
+| **2.15** — l'IA peut vendre une carte | L'écran doit **animer une vente déclenchée par l'IA** (la main perd une carte, le compte de MC monte de 3). Et le miroir `apprenti.js` **ne vend pas encore** : l'API du fournisseur doit exposer l'occasion de vente | **écran + API du fournisseur** | à faire |
+| **Sortie de `jouer`** — neuf clefs nouvelles (`essais`, `essais_mulligan`, `ventes_volontaires`, `graine_essais`, …) | Rien à l'écran ; aucune clef existante n'a changé de nom ni de sens | rien | sans objet |
+| **Les parties enregistrées d'avant le 19-08 sont périmées** | Une partie enregistrée est une graine plus une liste d'indices ; l'énumération du mulligan et les entrées de vente changent la liste. À regénérer avant tout banc de concordance | regénération | à faire |
+
+**Le banc `web/webapp/verif/juge-meme-option.mjs` est rouge, et c'est attendu** :
+le joueur Rust essaie ses coups sur un paquet rebattu, le joueur JavaScript sur
+la vraie partie. Il redeviendra vert quand le pont acceptera une graine d'essais.
+Ne pas le « réparer » autrement.
 
 ### Lot L5 — Vitesse et réglages
 
