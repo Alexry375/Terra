@@ -34,8 +34,12 @@ consigné dans `notes/cas-tranches.md`.
   résoudre « en simultané » sans ordre — la règle p. 14 « pendant la phase où
   un paramètre atteint son maximum, tous les joueurs peuvent continuer et
   reçoivent tous les avantages » reste appliquée.)
-- **Égalité au score final = égalité** (décision 24-07) : pas de départage par
-  chaleur + MC + plantes (le livret p. 16 départage ; nous non).
+- ~~**Égalité au score final = égalité** (décision 24-07) : pas de départage par
+  chaleur + MC + plantes.~~ **CADUQUE — révoquée le 19-08.** Alexis avait pris
+  cette décision sans savoir que le livret prévoyait un départage. Le départage
+  officiel s'applique désormais (livret p. 16, `livret-base.md:461`) : le plus
+  grand total cumulé de chaleur, de MC et de plantes l'emporte, cartes Projet en
+  main converties au préalable à 3 MC chacune.
 
 ## Arbitrages du 19-08 (Alexis, après les deux audits)
 
