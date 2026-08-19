@@ -2220,3 +2220,64 @@ vérifie que le niveau de terraformation accordé vaut **exactement un par acier
 cartes que le contrat ne cite jamais, et un autre qui exige que le nombre de décisions par
 partie **augmente** — sept des treize défauts ajoutent un point de décision, un agent qui se
 contenterait d'incrémenter des compteurs tomberait là.
+
+## 2026-08-19 (suite 2) — Le lot L2 est livré : treize règles de cartes corrigées, et deux de mes hold-outs étaient faux
+
+- **Le lot L2 « les règles des cartes et des phases » est livré, audité `ok` et
+  commité** (`e0310a8`). Les treize défauts du contrat sont corrigés :
+  D2 (*Mining Guild*), D5 (badge joker reposé à la pose), D6 et D7 (activation
+  supplémentaire choisie, deux répétitions à deux cartes distinctes), D8
+  (variantes d'amélioration toujours proposées), D9 (branches impossibles
+  écartées), D17 (Objectif pris au vol), D18 (seconde carte verte seulement
+  après une première), D19 et D20 (une fois par badge, et les badges comptés),
+  D21 (deux cartes fantômes), D22 et D24 (commentaires menteurs).
+  [VÉRIFIÉ 19-08 — 11/11 contrôles visibles rejoués par moi, 3/3 hold-outs après
+  correction, 1 029 tests verts, `git log e0310a8`]
+- **L'agent a trouvé et corrigé un bloquant chez lui-même.** Sa sentinelle de D9
+  était une **tautologie** : elle relisait la liste déjà filtrée par le prédicat
+  qu'elle prétendait éprouver, et valait donc zéro par construction, correctif
+  juste ou faux. Réécrite pour mesurer l'**effet** — empreinte du plateau relevée
+  avant et après la branche appliquée. Vérifiée dans les deux sens : saine
+  → 194 occasions, 0 impossible ; défaut remis → 245 occasions, **51**
+  impossibles. [DÉCLARÉ par l'agent, chiffres non re-mesurés par moi]
+- **Il a aussi trouvé une régression de règle qu'il avait introduite** : prendre
+  l'Objectif au vol refermait la fenêtre « même phase » que
+  `docs/regles/livret-decouverte.md:72` laisse ouverte (l'adversaire qui
+  franchit le seuil un peu plus tard dans la même phase reçoit 3 PV). Corrigé
+  par un champ `GameState::milestones_claimed_at`. [VÉRIFIÉ 19-08 — lu à la
+  source, `engine/src/flow.rs:5644-5657` et `:1152-1173`]
+- **Une régression trouvée en chemin, hors des treize défauts** :
+  `flow::reveal_top` appelait `policy.observe` nu quand rien n'était prenable,
+  ce qui sautait la publication des drapeaux de vente — l'écran recevait ceux du
+  point de décision précédent. [VÉRIFIÉ 19-08 — `engine/src/flow.rs:2344`]
+- **Quatre divergences déclarées**, dont une qui contredit deux fois la lettre du
+  contrat : D18 ne lève **pas** la restriction au vert, parce que la phase I ne
+  joue que des cartes vertes par règle (`docs/regles/livret-base.md:304`) et que
+  la seule restriction propre au second temps est le plafond de 12 MC.
+  **J'accepte** : l'argument est juste, et lever le vert casserait la phase.
+- **DEUX DE MES HOLD-OUTS ÉTAIENT FAUX, et c'est la même faute que les trois
+  précédentes de la journée.**
+  - `h1` comparait le niveau de terraformation **en valeur absolue** sous
+    *Mining Guild*, en supposant qu'une carte n'en donne pas d'elle-même :
+    *Strip Mine* en fait **perdre un**. Il fallait comparer l'**écart** avec un
+    témoin. Mesuré après correction : 1 niveau par acier sur neuf cartes, dont
+    trois en apportent deux. [VÉRIFIÉ 19-08]
+  - `h2` exigeait « plus de 470 décisions par partie », chiffre relevé par
+    `simulate` sur des parties jouées **au hasard**, sur d'autres graines et par
+    un autre générateur, alors que le hold-out fait jouer l'IA sur six graines
+    nommées. Référence refaite **par la même commande** sur un arbre détaché du
+    commit d'avant : **445,8**, contre 437,8 après — 15 parties montent, 15
+    descendent, 2 égales, sur 32 graines. Aucune tendance : sept défauts ajoutent
+    des questions, D9 et D18 en retirent, les effets se compensent.
+    [VÉRIFIÉ 19-08 — arbre `git worktree` sur `b1d5dfc`, mesure appariée]
+  - Les deux corrigés, éprouvés **dans les deux sens** : rouges sur le code
+    d'avant, verts sur la livraison. Leçon consignée en mémoire durable.
+- **Ce que j'ai fait moi-même après la livraison** : reconstruit
+  `web/webapp/terra.wasm` (l'agent l'avait laissé, hors périmètre) et rejoué la
+  concordance des fiches — **185 situations, 1 472 cases, aucune divergence** —
+  plus `juge-main-cachee` (aucune fuite), `simulate.mjs`, `partie-pas-a-pas` et
+  `occasion-dans-les-deux-sens`, tous verts. [VÉRIFIÉ 19-08]
+- **Le compte des faux rouges de la journée est de cinq**, tous de moi, tous de
+  la même famille : je contrôlais une forme, une valeur brute ou une référence
+  produite par un autre chemin, au lieu de la propriété que je voulais éprouver.
+  Aucun n'a jamais laissé passer un défaut — ils ont tous **accusé à tort**.

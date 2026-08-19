@@ -63,20 +63,38 @@ resté périmé un moment, pendant que la recopie JavaScript lisait déjà
 concordaient. Seul le banc de concordance `web/webapp/verif/juge-descriptions.mjs`
 voit ce genre de divergence, et il n'est vert qu'après `bash web/construire.sh`.
 
-### Lot L2 — Les règles de cartes et de phases
+### Lot L2 — Les règles de cartes et de phases  *(LIVRÉ le 19-08, commit `e0310a8`, audité `ok`)*
+
+**Le détail complet, ligne par ligne, est dans
+`workspaces/les-regles-des-cartes/outputs/interface.md`.** Ce qui suit est le
+résumé, avec l'état réel après audit.
+
+**Le binaire du navigateur a été reconstruit par la main le 19-08**
+(`bash web/construire.sh`), et la concordance des fiches est verte après
+reconstruction : 185 situations, 1 472 cases, aucune divergence. Le déroulement
+de la boîte de **base** a changé — l'empreinte de référence passe de
+`47030e306f1006cd` à `15cd9db748878cec` — donc un binaire périmé aurait fait
+jouer deux jeux différents en silence.
+
+**Aucune case de la fiche vue par l'IA n'a changé** : `engine/src/description.rs`
+n'est pas touché par ce lot, donc `web/webapp/joueurs/description.js` n'a rien à
+recopier. (Le lot L3, lui, la changera de fond en comble.)
 
 | Changement moteur | Ce que l'interface doit faire | Ampleur | État |
 |---|---|---|---|
-| **D2** — *Mining Guild* gagne 1 NT par acier | Afficher le gain de niveau de terraformation au bon moment (le journal de partie doit le nommer) | petite | à faire |
-| **D5** — le badge joker se choisit au moment de jouer la carte | **Nouvelle question posée au joueur** : nouveau point de décision, donc nouvel écran et décalage des indices | **écran neuf** | à faire |
-| **D6** — le bonus de phase III n'est plus attaché de force | Nouvelle question : à quelle action appliquer le bonus | **écran neuf** | à faire |
-| **D7** — trois activations ramenées à deux | Aucun écran, mais les listes d'options changent | recompilation | à faire |
-| **D8** — le basculement A→B est demandé | **Nouvelle question posée au joueur** | **écran neuf** | à faire |
-| **D9** — pas de destruction de ressources pour un paramètre au maximum | L'option disparaît de la liste : décalage d'indices | recompilation | à faire |
-| **D17** — Objectif « Terraformeur » attribué à l'instant où la condition est remplie | La tuile peut être prise au milieu d'une phase : l'animation doit suivre | petite | à faire |
-| **D18** — phase I-B : remise correcte et couleur libre sans première carte | Les options affichées changent | recompilation | à faire |
-| **D19, D20** — comptage des badges | Aucun effet observable aujourd'hui | rien | à faire |
-| **D21** — deux cartes retirées du drapeau « dans la pioche » | `assets/cards.json` à regénérer | petite | à faire |
+| **D2** — *Mining Guild* gagne 1 NT par acier gagné (deux aciers, deux niveaux) | Afficher le gain au bon moment ; le journal de partie doit le nommer | petite | à faire |
+| **D5** — le badge joker se choisit au moment de POSER la carte, borné aux badges qui la laissent payable | **Nouvelle question posée au joueur** : écran neuf, et la place des réponses suivantes se décale | **écran neuf** | à faire |
+| **D6** — l'activation supplémentaire de la phase III est choisie, plus imposée | Nouvelle question : à quelle carte appliquer la répétition | **écran neuf** | à faire |
+| **D7** — avec la carte Phase III améliorée B, les deux répétitions vont à deux cartes DISTINCTES | Aucun écran neuf, mais les listes d'options changent | recompilation | **wasm fait**, écran à revoir |
+| **D8** — sur une phase déjà améliorée, les deux variantes sont toujours proposées (la liste passe de 9 à 10 candidates) | **Nouvelle question**, et une option de plus : « je garde celle que j'ai » | **écran neuf** | à faire |
+| **D9** — une action dont le seul gain porte sur un paramètre au maximum n'est plus offerte | L'option disparaît de la liste : les indices se décalent | recompilation | **wasm fait** |
+| **D17** — l'Objectif est pris à l'instant où la condition est remplie, et la fenêtre « même phase » du livret reste ouverte le temps de la phase | La tuile peut être prise au milieu d'une phase : l'animation doit suivre, et l'adversaire qui franchit le seuil dans la même phase reçoit 3 PV à montrer | petite | à faire |
+| **D18** — la seconde carte verte n'est accordée qu'après une première ; sans première, c'est la pose ordinaire qui est versée | Les options affichées changent | recompilation | **wasm fait** |
+| **D19, D20** — les effets déclenchés se résolvent une fois par badge, et les réductions comptent les badges | Aucun effet observable aujourd'hui : aucune carte de la pioche ne porte deux fois le badge concerné | rien | sans objet |
+| **D21** — deux cartes fantômes quittent le drapeau « dans la pioche » | `web/webapp/assets/cards.json` a été resynchronisé à l'octet dans le même geste | petite | **fait** |
+| **Régression corrigée en chemin** — `flow::reveal_top` publie de nouveau les drapeaux de vente quand rien n'est prenable | L'écran cesse de recevoir les drapeaux du point de décision précédent : il n'offrira plus le bouton « vendre » là où l'occasion n'existe pas | petite | **fait côté moteur**, à vérifier à l'écran |
+| **Six compteurs neufs dans la sortie de `simulate`** (`joker_badges_reposes`, `activations_bonus_libres`, `cartes_activees_trois_fois`, `ameliorations_imposees_sans_choix`, `branches_impossibles_offertes`, `secondes_poses_sans_premiere`, plus `branches_a_parametre_prises` et `premieres_poses_substituees`) | Rien à l'écran. Aucune clef existante n'a changé de nom ni de sens | rien | sans objet |
+| **Les parties enregistrées d'avant ce lot sont périmées** | D5, D6 et D8 ajoutent des questions : toute partie de référence antérieure au 19-08 est injouable au rejeu, et les empreintes correspondantes sont fausses | regénération | à faire |
 
 ### Lot L3 — La description que voit l'IA
 
