@@ -36,3 +36,21 @@ consigné dans `notes/cas-tranches.md`.
   reçoivent tous les avantages » reste appliquée.)
 - **Égalité au score final = égalité** (décision 24-07) : pas de départage par
   chaleur + MC + plantes (le livret p. 16 départage ; nous non).
+
+## Arbitrages du 19-08 (Alexis, après les deux audits)
+
+- **Mining Guild** : la seconde ligne du carton s'applique. « Each time you play
+  steel production, excluding this, gain 1 TR » = **1 NT par acier gagné** (une
+  carte qui apporte deux aciers donne donc 2 NT). L'acier est déjà compté par le
+  moteur (`state.rs:269`, `steel_capacity`), il ne manque que l'écouteur.
+- **Premier joueur** : **tiré au sort** au départ, puis alterné à chaque manche
+  comme le prévoit déjà la règle maison du 24-07.
+- **Mise en place** : les deux joueurs reçoivent l'information **simultanément**
+  au mulligan de départ (ni les cartes rendues ni la corporation installée par
+  l'autre ne sont visibles avant). En cours de partie, la défausse reste publique.
+- **Extension seule** : configuration **refusée au chargement** (elle ne se joue
+  pas sans la boîte de base).
+- **Objectifs et Récompenses** : comptés **seulement** si l'extension est en jeu.
+- **Phase IV Production** : passe à l'ordre du tour, comme les quatre autres.
+- **Carte Phase** : le choix des deux joueurs est **secret et simultané** ; aucun
+  des deux ne voit celui de l'autre avant que les deux aient répondu.
