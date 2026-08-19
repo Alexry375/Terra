@@ -3,7 +3,80 @@
 > Source de vérité du projet. Ancrée au code (`fichier:ligne`) dès qu'il y aura du
 > code. [VÉRIFIÉ JJ-MM] = relu à la source ce jour-là. [DÉCLARÉ] = non re-vérifié.
 
-Dernière mise à jour : 2026-08-18
+Dernière mise à jour : 2026-08-20
+
+## 🔥 20-08 — QUATRE LOTS SUR NEUF SONT LIVRÉS. L'IA VOIT ENFIN CE QU'ELLE TIENT
+
+**État du grand plan** (`docs/PLAN_FINAL.md` § 3) : **L1, L2, L3, L4 livrés,
+audités `ok`, commités et poussés.** Restent L5 (vitesse et réglages), L6
+(interface), L7 (tests en force), L8 (répétition générale), L9 (dernier
+entraînement).
+
+| Lot | Objet | Commit | Tests |
+|---|---|---|---|
+| L1 | le secret et l'ordre (D1, D10, D11, D14, D15, D16) | `3d14d25` | 941 |
+| L4 | le joueur sans voyance (V1, 2.11, 2.14, 2.15) | `701a875` | 979 |
+| L2 | les règles de cartes et de phases (13 défauts) | `e0310a8` | 1 029 |
+| **L3** | **la fiche que l'IA regarde (D3, D4, 2.8, 2.9, 2.10, 2.12)** | **`ada92b6`** | **1 111** |
+
+### Ce que le lot L3 change, et pourquoi c'est le plus important des quatre
+
+**Le défaut n°1 du projet est mort** [VÉRIFIÉ 20-08]. Au premier choix de chaque
+partie, l'intelligence artificielle jouait à pile ou face : les deux corporations
+qu'elle tenait en main ne figuraient dans **aucune** des 1 472 cases de sa fiche,
+donc garder et rendre décrivaient exactement la même situation. Mesuré avant :
+**0 remplacement sur 400** et deux notes identiques jusqu'à la dix-septième
+décimale. Mesuré après : **15 paires rendues sur 40, 20 notes distinctes sur 20**.
+
+**L'échelle de score ne sature plus** : deux joueurs séparés de 8 points ou plus
+tombaient sur des lignes de score identiques dans **4,8 %** des situations ; c'est
+**zéro sur 31 944** avec l'échelle qui monte à 147 [VÉRIFIÉ 20-08, contrôle 04].
+
+La fiche passe de **1 472 à 1 630 cases** : résumé de la main (79 cases), écarts
+signés entre les deux joueurs (46), corporations tenues (16), ressources posées et
+classement des Récompenses (27), moins 44 cases de cartes jamais distribuées.
+
+**Aucun point de décision n'a bougé** : les quatre empreintes d'état sont
+identiques à celles de `e0310a8` sur 1 200 parties, 0 violation d'invariant
+[VÉRIFIÉ 20-08, relevé par moi].
+
+### La conséquence qu'il faut avoir en tête
+
+**Tous les fichiers de poids d'avant le 20-08 sont illisibles.** Le fichier porte
+le nom de chaque case et le chargement **refuse** au premier écart (§ 3.7) — c'est
+le garde-fou contre la divergence silencieuse, et il a fonctionné. Le nom canonique
+`data/poids/apprenti.txt` porte désormais les poids d'amorçage du lot (30 000
+parties, 40 min), ce qui remet en marche les six outils qui le chargent par défaut.
+**Le dernier entraînement repart de zéro, c'était prévu.**
+
+### La réserve d'audit, portée au lot L5
+
+**10,6 % des paliers de la fiche sortent de la bande 2 %–98 %** de la règle § 3.5,
+contre **5,4 %** avant le lot — mesuré par le même programme sur 164 550
+situations, chaque côté avec les poids de son époque [VÉRIFIÉ 20-08]. Vingt-deux
+de ces paliers sont assumés et démontrés par l'agent ; treize ne le sont pas. La
+cause est déclarée : les seuils ont été relevés sur l'IA de l'**ancienne** fiche,
+faute d'en avoir une entraînée sur la neuve. **À re-poser dans L5, juste avant le
+dernier entraînement** — le seul moment où les deux conditions peuvent être vraies
+ensemble.
+
+### Trois dettes de L1 qui doivent être payées avant le dernier entraînement
+
+1. `engine/src/bin/entraine.rs:318` redétermine le vainqueur en comparant les
+   scores : **le départage d'égalité du livret (D11) n'atteint donc pas l'IA à
+   l'entraînement** [DÉCLARÉ par l'agent L1, non re-vérifié].
+2. `engine/src/bin/predire.rs:155` écarte les parties à points égaux au lieu de
+   les départager.
+3. La distribution de la mise en place suit encore le numéro de siège.
+
+### Le compte des faux verdicts, que je tiens ouvert
+
+**Huit faux rouges en deux jours, tous de moi** : trois au lot L3 (contrôles 01 et
+02, hold-out h1), cinq au lot L2. Aucun n'a jamais laissé passer un défaut — ils
+ont tous **accusé à tort** un travail correct. Deux leçons neuves en mémoire
+durable : `aw seal` ne distingue pas un contrôle cassé d'un travail non fait ; et
+une moyenne prise sur une population hétérogène peut inverser le sens de la
+variation.
 
 ## 📌 RAPPEL PERMANENT — L'ORDRE DES CINQ PHASES ET DE LA MISE EN PLACE
 
