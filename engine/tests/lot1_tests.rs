@@ -352,6 +352,12 @@ fn requirements_gate_construction_in_real_flow() {
         game.players[0].hand.push(bushes);
         game.players[0].mc = 100;
         game.temperature = temp_level;
+        // (premier-joueur) `phase_script` et `build_offers` suivent l'ORDRE DES
+        // APPELS, c'est-à-dire l'ordre du tour, dont le premier joueur est
+        // désormais tiré au sort. Ce test porte sur les prérequis d'une carte,
+        // pas sur l'ordre du tour : on épingle le premier joueur pour que la
+        // main contrôlée soit bien celle du joueur interrogé en premier.
+        game.first_player = 0;
 
         play_round(&mut game, &db, &mut pol);
         let p0_offer = &pol.build_offers[0];

@@ -283,7 +283,29 @@ pub struct PlayerState {
     /// Phase choisie cette ronde (1-5), 0 = pas encore choisie.
     pub chosen_phase: u8,
     /// Phase choisie à la ronde précédente (interdite cette ronde).
+    ///
+    /// **Champ PRIVÉ au joueur** : il est écrit à la seconde où ce joueur-ci
+    /// répond, donc avant que l'autre ait répondu. C'est ce qu'un joueur sait
+    /// de sa propre carte Phase, y compris posée face cachée — jamais ce que la
+    /// table peut voir. `allowed_phases` le lit pour interdire deux fois la même
+    /// phase de suite ; la fiche de situation ne le lit que pour le joueur qui
+    /// regarde.
     pub previous_phase: Option<u8>,
+    /// (D1) **La carte Phase RÉVÉLÉE**, c'est-à-dire ce que la table voit.
+    ///
+    /// Livret `docs/regles/livret-base.md:268` : « Chaque joueur choisit
+    /// simultanément une carte Phase de sa main et la place, face cachée,
+    /// devant lui » ; ligne 272 : « Une fois que TOUS les joueurs ont fait leur
+    /// choix, les cartes Phase choisies sont révélées. »
+    ///
+    /// Ce champ n'est donc écrit — pour les deux joueurs à la fois — qu'une fois
+    /// l'étape de planification terminée. Pendant la planification, il porte
+    /// encore le choix de la manche PRÉCÉDENTE : exactement ce qu'un joueur
+    /// humain lit sur la pile de cartes Phase déjà jouées de son adversaire.
+    ///
+    /// `previous_phase` portait auparavant les deux sens à lui seul, et c'est
+    /// par là que le choix secret du premier joueur fuitait vers le second.
+    pub phase_revelee: Option<u8>,
     /// Activations bonus de la phase action, RELEVÉES AU DÉBUT DE LA PHASE III
     /// depuis le point de calcul unique `flow::selector_bonus` (base : +1 ;
     /// III-A : +1 ; III-B : +2).
@@ -457,6 +479,7 @@ impl PlayerState {
             color_counts: [0; 3],
             chosen_phase: 0,
             previous_phase: None,
+            phase_revelee: None,
             extra_blue_activations: 0,
             phase_upgrades: [None; 5],
             tr_raised_this_phase: false,

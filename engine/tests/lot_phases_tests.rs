@@ -568,6 +568,13 @@ fn le_bonus_permanent_de_recherche_s_ajoute_a_la_carte_amelioree() {
     // qui remplace la carte de base — les deux ne se confondent pas.
     let db = db();
     let mut g = jeu(&db);
+    // (premier-joueur) La mise en place interroge désormais les joueurs dans
+    // l'ordre du tour, dont le premier joueur est tiré au sort : à graine égale,
+    // `RandomPolicy` ne retient plus les mêmes corporations qu'avant. Ces tests
+    // portent sur les CARTES PHASE, pas sur les corporations : on coupe l'effet
+    // de corporation, comme `jeu()` vide déjà les mains et les bourses.
+    g.players[0].corporation = None;
+    g.players[1].corporation = None;
     g.players[0].chosen_phase = 5;
     let sans = research_draw_keep(&db, &g.players[0]);
     assert_eq!(sans, (5, 2), "carte de base, aucune carte en jeu");
@@ -1044,6 +1051,13 @@ fn iv_a_sans_carte_verte_ne_rejoue_rien() {
 fn v_a_pioche_quatre_cartes_et_en_garde_trois() {
     let db = db();
     let mut g = jeu(&db);
+    // (premier-joueur) La mise en place interroge désormais les joueurs dans
+    // l'ordre du tour, dont le premier joueur est tiré au sort : à graine égale,
+    // `RandomPolicy` ne retient plus les mêmes corporations qu'avant. Ces tests
+    // portent sur les CARTES PHASE, pas sur les corporations : on coupe l'effet
+    // de corporation, comme `jeu()` vide déjà les mains et les bourses.
+    g.players[0].corporation = None;
+    g.players[1].corporation = None;
     g.players[0].upgrade_phase(5, PhaseUpgrade::VariantA);
     let main = g.players[0].hand.len();
     let pioche = g.deck.len();
@@ -1059,6 +1073,13 @@ fn v_a_pioche_quatre_cartes_et_en_garde_trois() {
 fn v_b_pioche_huit_cartes_et_en_garde_deux() {
     let db = db();
     let mut g = jeu(&db);
+    // (premier-joueur) La mise en place interroge désormais les joueurs dans
+    // l'ordre du tour, dont le premier joueur est tiré au sort : à graine égale,
+    // `RandomPolicy` ne retient plus les mêmes corporations qu'avant. Ces tests
+    // portent sur les CARTES PHASE, pas sur les corporations : on coupe l'effet
+    // de corporation, comme `jeu()` vide déjà les mains et les bourses.
+    g.players[0].corporation = None;
+    g.players[1].corporation = None;
     g.players[0].upgrade_phase(5, PhaseUpgrade::VariantB);
     let main = g.players[0].hand.len();
     let pioche = g.deck.len();
@@ -1229,11 +1250,12 @@ fn effets_coupes_les_cinq_compteurs_restent_nuls() {
 #[test]
 fn le_deroulement_de_la_boite_de_base_n_a_pas_bouge() {
     // Le témoin de non-régression le plus dur : à graine fixe, la boîte de base
-    // rend exactement l'empreinte de référence. Repère REFIXÉ le 05-08
-    // (choix-au-bon-moment) : les trois points du lot déplacent ou suppriment
-    // des points de décision (MOT-2, MOT-3, MOT-8), la liste ordonnée des
-    // réponses se décale donc et `RandomPolicy` ne tire plus aux mêmes
-    // endroits. Repères précédents : bf70799ff3fee1d8 (04-08),
+    // rend exactement l'empreinte de référence. Repère REFIXÉ le 19-08
+    // (le-secret-et-l-ordre) : le premier joueur est tiré au sort à la mise en
+    // place, la mise en place et la planification interrogent les joueurs dans
+    // l'ordre du tour, et la phase IV Production le suit elle aussi (D16). Les
+    // parties de référence enregistrées doivent être regénérées.
+    // Repères précédents : 8e4ec5b0296470e6 (05-08), bf70799ff3fee1d8 (04-08),
     // 7dda3ea2e9b2901b (03-08), c1c52fcbe4e057b0 (01-08),
     // d6a7267472501b13 (31-07).
     let db = db();
@@ -1241,7 +1263,7 @@ fn le_deroulement_de_la_boite_de_base_n_a_pas_bouge() {
     let s = run_simulation(&db, 1000, 2024, &mut pol);
     assert_eq!(
         format!("{:016x}", s.state_hash),
-        "8e4ec5b0296470e6",
+        "47030e306f1006cd",
         "la boîte de base doit se dérouler exactement comme la mesure de référence"
     );
 }

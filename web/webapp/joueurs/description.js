@@ -257,15 +257,22 @@ export function parcours(etat, siege, s) {
     }
     s.thermo(prefixe, -1, "", "acier", pl.steel_capacity, S_ACIER);
     s.thermo(prefixe, -1, "", "titane", pl.titanium_capacity, S_TITANE);
+    // (D1) La carte Phase TELLE QUE LA TABLE LA VOIT — `phase_revelee`, et non
+    // plus `previous_phase`, exactement comme côté moteur
+    // (`engine/src/description.rs`). Pendant l'étape de planification, c'est la
+    // carte de la manche PRÉCÉDENTE : les cartes ne sont révélées qu'une fois
+    // que tous les joueurs ont choisi (livret
+    // `docs/regles/livret-base.md:268` et `:272`).
+    const phaseVue = pl.phase_revelee;
     s.drapeau(
       prefixe,
       -1,
       "previous_phase_",
       "aucune",
-      pl.previous_phase === null || pl.previous_phase === undefined,
+      phaseVue === null || phaseVue === undefined,
     );
     for (let ph = 1; ph <= 5; ph++) {
-      s.drapeau(prefixe, -1, "previous_phase_", String(ph), pl.previous_phase === ph);
+      s.drapeau(prefixe, -1, "previous_phase_", String(ph), phaseVue === ph);
     }
     for (const a of AMELIORATIONS) {
       s.drapeau(prefixe, -1, "amelioration_", a, pl.phase_upgrades.includes(a));
@@ -343,6 +350,7 @@ const JOUEUR_VIDE = (p) => ({
   played: [],
   chosen_phase: 0,
   previous_phase: null,
+  phase_revelee: null,
   phase_upgrades: [],
   score: 0,
   score_acquis: 0,

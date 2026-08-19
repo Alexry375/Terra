@@ -17,6 +17,29 @@ fn db() -> CardsDb {
     CardsDb::load("../data/cards.json").expect("cards.json doit se charger")
 }
 
+/// (D10) La boîte de base PLUS l'extension. Les Objectifs et les Récompenses
+/// sont un module de l'extension (`docs/regles/livret-decouverte.md:51`) : ils
+/// ne rapportent des points que dans cette configuration-là.
+fn db_avec_extension() -> CardsDb {
+    CardsDb::load_boites(
+        "../data/cards.json",
+        engine::boites::BoiteSet::parse("base,decouverte").unwrap(),
+    )
+    .expect("base + extension")
+}
+
+/// (premier-joueur) Ce que la politique de test a vu au premier appel POUR CE
+/// JOUEUR-LÀ. Le premier joueur étant désormais tiré au sort, l'ordre des
+/// appels ne suit plus l'ordre des sièges : on cherche donc par joueur, on
+/// n'indexe plus par rang d'appel.
+fn vu_par<'a, T>(memoire: &'a [(usize, T)], joueur: usize) -> &'a T {
+    &memoire
+        .iter()
+        .find(|(j, _)| *j == joueur)
+        .expect("ce joueur a bien été interrogé")
+        .1
+}
+
 /// Politique scriptée pour les tests : décisions forcées là où le test le
 /// demande, aléatoire (RNG de la partie) sinon. Enregistre l'ordre des appels.
 struct TestPolicy {
@@ -231,7 +254,7 @@ fn corp_mulligan_replaces_both_corporations() {
     let game = setup_game(&db, 11, &mut pol);
 
     // p0 a mulligané : sa corporation finale ne vient PAS de sa paire initiale.
-    let p0_initial = &pol.corp_mulligan_offers[0].1;
+    let p0_initial = vu_par(&pol.corp_mulligan_offers, 0);
     let p0_final = game.players[0].corporation.unwrap();
     assert!(!p0_initial.contains(&p0_final), "les 2 corporations doivent être remplacées");
     // Ses 2 corporations initiales sont écartées.
@@ -239,7 +262,7 @@ fn corp_mulligan_replaces_both_corporations() {
         assert!(game.corp_discard.contains(c));
     }
     // p1 n'a pas mulligané : sa corporation vient de sa paire initiale.
-    let p1_initial = &pol.corp_mulligan_offers[1].1;
+    let p1_initial = vu_par(&pol.corp_mulligan_offers, 1);
     assert!(p1_initial.contains(&game.players[1].corporation.unwrap()));
     // Conservation : 2 choisies + écartées + paquet = 12 (corpo-1 : la pioche
     // est celle de la boîte de base, pas les 16 entrées in_deck_v1).
@@ -254,7 +277,7 @@ fn corp_mulligan_refused_keeps_both() {
     pol.corp_mulligans = [false, false];
     let game = setup_game(&db, 12, &mut pol);
     for p in 0..2 {
-        let initial = &pol.corp_mulligan_offers[p].1;
+        let initial = vu_par(&pol.corp_mulligan_offers, p);
         assert!(initial.contains(&game.players[p].corporation.unwrap()));
     }
     // Aucune corporation partie au rebut par mulligan : seulement les 2 non choisies.
@@ -288,7 +311,7 @@ fn project_mulligan_replaces_all_eight_when_all_designated() {
     pol.project_mulligans = [(0..8).collect(), Vec::new()];
     let game = setup_game(&db, 14, &mut pol);
 
-    let p0_initial = &pol.project_mulligan_hands[0].1;
+    let p0_initial = vu_par(&pol.project_mulligan_hands, 0);
     assert_eq!(game.players[0].hand.len(), 8);
     // Les 8 anciennes cartes sont en défausse, aucune n'est restée en main.
     for c in p0_initial {
@@ -296,7 +319,7 @@ fn project_mulligan_replaces_all_eight_when_all_designated() {
         assert!(!game.players[0].hand.contains(c));
     }
     // p1 n'a rien désigné : il garde exactement sa main initiale.
-    assert_eq!(&game.players[1].hand, &pol.project_mulligan_hands[1].1);
+    assert_eq!(&game.players[1].hand, vu_par(&pol.project_mulligan_hands, 1));
 }
 
 #[test]
@@ -482,6 +505,11 @@ fn production_pays_mc_prod_plus_tr_plus_selector_bonus() {
     let hand1 = game.players[1].hand.len();
 
     // p0 sélectionne la production (bonus +4), p1 la recherche.
+    // (premier-joueur) `phase_script` sert les phases DANS L'ORDRE DES APPELS,
+    // et l'ordre des appels suit désormais l'ordre du tour, dont le premier
+    // joueur est tiré au sort. On épingle donc le premier joueur : ce test
+    // porte sur les montants de la production, pas sur l'ordre du tour.
+    game.first_player = 0;
     pol.phase_script = VecDeque::from(vec![4, 5]);
     play_round(&mut game, &db, &mut pol);
 
@@ -556,6 +584,10 @@ fn sell_card_gives_3_mc() {
     let hand0 = game.players[0].hand.len();
     let discard0 = game.discard.len();
 
+    // (premier-joueur) Même raison que ci-dessus : le script des phases suit
+    // l'ordre des appels, donc l'ordre du tour. Ce test porte sur le taux de la
+    // vente, pas sur l'ordre du tour.
+    game.first_player = 0;
     pol.phase_script = VecDeque::from(vec![3, 4]);
     pol.ventes_libres = 1;
     play_round(&mut game, &db, &mut pol);
@@ -769,7 +801,11 @@ fn truncated_games_are_not_completed() {
 
 #[test]
 fn score_counts_tr_forests_milestones_awards() {
-    let db = db();
+    // (D10) Les Objectifs et les Récompenses sont un module de l'EXTENSION
+    // (`docs/regles/livret-decouverte.md:51`) ; le décompte de la boîte de base
+    // ne les connaît pas (`docs/regles/livret-base.md:455-459`). Ce test, qui
+    // vérifie qu'ils entrent bien au score, se joue donc avec l'extension.
+    let db = db_avec_extension();
     let mut pol = TestPolicy::new();
     let mut game = setup_game(&db, 40, &mut pol);
 

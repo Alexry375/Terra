@@ -1019,11 +1019,22 @@ fn l_empreinte_de_la_boite_de_base_est_inchangee() {
     // ne tire plus aux mêmes endroits. Ce qui est vérifié à côté, c'est que les
     // parties vont toutes au bout sans casser d'invariant
     // (`les_invariants_tiennent_avec_l_extension`).
-    // Repères précédents : bf70799ff3fee1d8 (04-08), 7dda3ea2e9b2901b (03-08),
-    // c1c52fcbe4e057b0 (01-08), d6a7267472501b13 (31-07).
+    //
+    // Repère REFIXÉ le 19-08 (le-secret-et-l-ordre). Trois corrections de ce
+    // lot déplacent le hasard ou l'ordre des questions, et le contrat les
+    // annonce toutes les trois :
+    //   — le PREMIER JOUEUR est tiré au sort à la mise en place, sur le
+    //     générateur de hasard de la partie ;
+    //   — la mise en place et la planification interrogent les joueurs dans
+    //     l'ORDRE DU TOUR, qui n'est plus toujours celui des sièges ;
+    //   — la phase IV Production suit elle aussi l'ordre du tour (D16), si bien
+    //     que les cartes du paquet commun ne tombent plus dans les mêmes mains.
+    // Les parties de référence enregistrées doivent donc être regénérées.
+    // Repères précédents : 8e4ec5b0296470e6 (05-08), bf70799ff3fee1d8 (04-08),
+    // 7dda3ea2e9b2901b (03-08), c1c52fcbe4e057b0 (01-08), d6a7267472501b13 (31-07).
     let db = CardsDb::load_boites(CARDS, BoiteSet::parse("base").unwrap()).expect("base");
     let s = run_simulation(&db, 1000, 2024, &mut RandomPolicy);
-    assert_eq!(format!("{:016x}", s.state_hash), "8e4ec5b0296470e6");
+    assert_eq!(format!("{:016x}", s.state_hash), "47030e306f1006cd");
 }
 
 #[test]

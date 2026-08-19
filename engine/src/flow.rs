@@ -75,6 +75,14 @@ pub fn setup_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameState
     let mut oceans = OCEAN_TILES;
     shuffle(&mut oceans, &mut rng);
 
+    // (premier-joueur, arbitrage du 19-08) LE PREMIER JOUEUR EST TIRÉ AU SORT.
+    // Il était fixé au siège 0, sous couvert d'une « règle maison » qui ne
+    // figure pas dans `docs/regles/README.md`. Le tirage passe par le
+    // générateur de hasard DE LA PARTIE, et par lui seul : à graine égale, le
+    // rejeu retrouve le même premier joueur, donc la même partie. Il alterne
+    // ensuite à chaque manche, comme avant (`play_round`, fin de manche).
+    let first_player = rng.gen_range(0..NUM_PLAYERS);
+
     let mut game = GameState {
         rng,
         deck,
@@ -99,8 +107,8 @@ pub fn setup_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameState
         snap_oxygen: 0,
         snap_oceans: 0,
         snap_infrastructure: 0,
-        // (C4) Règle maison : la manche 1 commence par le joueur 0.
-        first_player: 0,
+        // (premier-joueur) Tiré au sort ci-dessus, plus fixé au siège 0.
+        first_player,
         turn_order: Vec::new(),
         prereq_snapshot_blocks: 0,
         draw_before_build: 0,
@@ -169,7 +177,11 @@ pub fn setup_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameState
         game.awards[i] = apool[i];
     }
 
-    // 1. Deux corporations chacun.
+    // 1. Deux corporations chacun. La DISTRIBUTION reste inchangée (par numéro
+    //    de siège) : ce lot ne corrige que les points de décision et le
+    //    décompte. Voir `result.md` §Adjacent work — servir le paquet dans
+    //    l'ordre du tour serait un défaut du même ordre que D16, à traiter
+    //    ailleurs.
     let mut corps: [Vec<u16>; NUM_PLAYERS] = [Vec::new(), Vec::new()];
     for p in 0..NUM_PLAYERS {
         for _ in 0..2 {
@@ -178,15 +190,26 @@ pub fn setup_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameState
     }
 
     // 2. Mulligan corporations — règle maison n°1 (avant les cartes projets).
-    for p in 0..NUM_PLAYERS {
+    //
+    // (D14) EN DEUX TEMPS : on pose la question aux DEUX joueurs, puis on
+    // applique les deux réponses. Un joueur interrogé après l'autre ne doit rien
+    // apprendre de ce que l'autre vient de rendre — la mise en place est
+    // simultanée (arbitrage d'Alexis du 19-08). Les deux temps sont parcourus
+    // dans l'ORDRE DU TOUR, le premier joueur d'abord.
+    let mut echange_corpos = [false; NUM_PLAYERS];
+    for p in game.players_in_turn_order() {
         avant_decision(&mut game, db, p, policy);
-        if policy.corp_mulligan(&mut game.rng, p, &corps[p]) {
-            for c in corps[p].drain(..) {
-                game.corp_discard.push(c);
-            }
-            for _ in 0..2 {
-                corps[p].push(game.corp_deck.pop().expect("paquet corporations épuisé"));
-            }
+        echange_corpos[p] = policy.corp_mulligan(&mut game.rng, p, &corps[p]);
+    }
+    for p in game.players_in_turn_order() {
+        if !echange_corpos[p] {
+            continue;
+        }
+        for c in corps[p].drain(..) {
+            game.corp_discard.push(c);
+        }
+        for _ in 0..2 {
+            corps[p].push(game.corp_deck.pop().expect("paquet corporations épuisé"));
         }
     }
 
@@ -200,7 +223,14 @@ pub fn setup_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameState
     // 4. Mulligan projets — règle maison n°2 : le joueur désigne CARTE PAR
     //    CARTE celles qu'il remplace, de zéro à huit. Contrairement au mulligan
     //    corporations, ce n'est PAS du tout ou rien.
-    for p in 0..NUM_PLAYERS {
+    //
+    // (D14) EN DEUX TEMPS, pour la même raison qu'au mulligan des corporations :
+    // le second interrogé voyait dans sa fiche les cartes que le premier venait
+    // de rendre à la défausse. On recueille les deux réponses, puis on applique.
+    // (En cours de partie, la défausse reste publique : c'est le mulligan de
+    // DÉPART, et lui seul, qui est simultané.)
+    let mut rendus: [Vec<usize>; NUM_PLAYERS] = [Vec::new(), Vec::new()];
+    for p in game.players_in_turn_order() {
         let hand_snapshot = game.players[p].hand.clone();
         avant_decision(&mut game, db, p, policy);
         let mut idx = policy.project_mulligan(&mut game.rng, p, &hand_snapshot);
@@ -209,6 +239,10 @@ pub fn setup_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameState
         idx.retain(|&i| i < hand_snapshot.len());
         idx.sort_unstable();
         idx.dedup();
+        rendus[p] = idx;
+    }
+    for p in game.players_in_turn_order() {
+        let idx = std::mem::take(&mut rendus[p]);
         if idx.is_empty() {
             continue;
         }
@@ -225,11 +259,32 @@ pub fn setup_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameState
     }
 
     // 5. Choix final de corporation, cartes projets en main.
-    for p in 0..NUM_PLAYERS {
+    //
+    // (D14) EN DEUX TEMPS, encore : le second interrogé voyait la corporation
+    // que le premier venait d'installer — sa planche, son MC de départ, ses
+    // badges. On recueille les deux choix, puis on installe les deux.
+    //
+    // C'est ici que ce lot déplace un point de décision DANS LA SUITE DES
+    // QUESTIONS : l'installation d'une corporation peut en ouvrir un (les
+    // corporations Découverte qui améliorent une carte Phase à la mise en
+    // place), et il vient désormais après le choix de l'autre joueur au lieu de
+    // venir avant. En boîte de base seule, aucune installation n'ouvre de
+    // décision : rien ne bouge de ce côté-là.
+    //
+    // À ne pas confondre avec l'autre changement, qui touche TOUTES les boucles
+    // de ce fichier : elles suivent maintenant l'ordre du tour et non le numéro
+    // de siège, si bien que le joueur interrogé en PREMIER n'est plus toujours
+    // le siège 0. Les deux sont déclarés dans `outputs/journal.md`
+    // §Decision Log (n° 1 et n° 3).
+    let mut corpo_choisie = [0usize; NUM_PLAYERS];
+    for p in game.players_in_turn_order() {
         avant_decision(&mut game, db, p, policy);
         let pick = policy.pick_corporation(&mut game.rng, p, &corps[p]);
         assert!(pick < corps[p].len(), "choix de corporation hors bornes");
-        let chosen = corps[p].remove(pick);
+        corpo_choisie[p] = pick;
+    }
+    for p in game.players_in_turn_order() {
+        let chosen = corps[p].remove(corpo_choisie[p]);
         for other in corps[p].drain(..) {
             game.corp_discard.push(other);
         }
@@ -4833,7 +4888,13 @@ fn phase_action(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
 /// MC = production MC + TR (+4 sélectionneur) ; chaleur, plantes, cartes
 /// selon production.
 pub(crate) fn phase_production(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
-    for p in 0..NUM_PLAYERS {
+    // (D16) Un passage chacun, DANS L'ORDRE DU TOUR (règle maison C4), comme
+    // les quatre autres phases (`phase_development`, `phase_construction`,
+    // `phase_action`, `phase_research`). La phase IV fait piocher dans le
+    // paquet COMMUN : parcourue par numéro de siège, elle donnait toujours le
+    // dessus du paquet au siège 0, quel que soit le premier joueur de la
+    // manche.
+    for p in game.players_in_turn_order() {
         let sb = selector_bonus_applied(game, db, p, 4);
         let g = selector_branch(game, db, &sb, p, policy);
         let bonus = g.mc;
@@ -5177,6 +5238,47 @@ pub fn card_points(db: &CardsDb, pl: &PlayerState, card_id: u16) -> (i64, i64) {
 }
 
 
+/// **(D11) Le total de départage d'un joueur**, au sens du livret p.16
+/// (`docs/regles/livret-base.md:461`) : « le joueur à égalité ayant le plus
+/// grand total cumulé de chaleur, de MC et de plantes est déclaré vainqueur.
+/// Veillez à convertir au préalable toutes les cartes Projet en main en MC. »
+///
+/// La conversion se fait au taux du livret — une carte Projet en main vaut
+/// 3 MC (`docs/regles/livret-base.md:96`), c'est-à-dire `SELL_CARD_MC`, la
+/// constante que le moteur tient déjà pour ce barème-là. Ce n'est PAS le taux
+/// réel de défausse du joueur (`discard_mc_rate`, que des cartes en jeu peuvent
+/// gonfler) : le livret décrit ici une conversion comptable de fin de partie,
+/// pas une vente jouée.
+pub fn tiebreak_total(pl: &PlayerState) -> i64 {
+    pl.heat + pl.mc + pl.plants + pl.hand.len() as i64 * SELL_CARD_MC
+}
+
+/// **(D11) Le vainqueur de la partie**, ou `None` si l'égalité est parfaite
+/// jusque sur le critère de départage lui-même.
+///
+/// C'est le service que le SIMULATEUR emploie : il ne recompare pas les scores
+/// de son côté (`sim.rs`, `GameOutcome::draw` et `::winner`). Ce n'est pas
+/// encore le seul juge du dépôt — `bin/predire.rs` écarte les parties à points
+/// égaux au lieu de les départager, et `bin/entraine.rs` redétermine le
+/// vainqueur en comparant les scores. Les deux sont hors du périmètre de ce
+/// lot ; l'écart est consigné dans sa livraison. Le livret
+/// (`docs/regles/livret-base.md:461`) donne deux critères, dans cet ordre :
+/// d'abord les PV, ensuite — et seulement à PV égaux — le total cumulé de
+/// chaleur, de MC et de plantes, cartes en main converties.
+pub fn winner(game: &GameState, db: &CardsDb) -> Option<usize> {
+    let scores = score(game, db);
+    if scores[0] != scores[1] {
+        return Some(if scores[0] > scores[1] { 0 } else { 1 });
+    }
+    let t0 = tiebreak_total(&game.players[0]);
+    let t1 = tiebreak_total(&game.players[1]);
+    if t0 == t1 {
+        None
+    } else {
+        Some(if t0 > t1 { 0 } else { 1 })
+    }
+}
+
 /// Score final (livret p.16-17 + Discovery p.3) : TR + 1 VP par forêt +
 /// VP des cartes jouées (fixes + dynamiques, effets ON uniquement — `--effects
 /// off` reproduit le squelette) + 3 VP par milestone + awards.
@@ -5265,6 +5367,18 @@ pub fn score_breakdown(
     db: &CardsDb,
 ) -> ([ScoreBreakdown; NUM_PLAYERS], i64, i64) {
     let (awards, visionary) = award_points_split(game);
+    // (D10) LES OBJECTIFS ET LES RÉCOMPENSES SONT UN MODULE DE L'EXTENSION
+    // (`docs/regles/livret-decouverte.md:51`). Le livret de base ne les cite ni
+    // dans son matériel, ni dans sa mise en place, ni dans son décompte final
+    // (`docs/regles/livret-base.md:455-459`) : en boîte de base seule, ils ne
+    // rapportent aucun point.
+    //
+    // Seul le COMPTAGE est conditionné. Le tirage de la mise en place reste
+    // intact : le retirer décalerait le générateur de hasard et ferait diverger
+    // toutes les parties déjà enregistrées en boîte de base. C'est exactement
+    // la coupure que le moteur applique déjà à la seule récompense VISIONNAIRE
+    // (`award_pool`, plus haut dans ce fichier).
+    let modules_decouverte = db.boites.contains(Boite::Decouverte);
     let mut out = [ScoreBreakdown::default(); NUM_PLAYERS];
     let mut vp_from_resources = 0i64;
     for p in 0..NUM_PLAYERS {
@@ -5281,12 +5395,14 @@ pub fn score_breakdown(
                 vp_from_resources += from_res;
             }
         }
-        for slot in &game.milestones {
-            if slot.achieved_by[p] {
-                s.milestones += 3;
+        if modules_decouverte {
+            for slot in &game.milestones {
+                if slot.achieved_by[p] {
+                    s.milestones += 3;
+                }
             }
+            s.awards = awards[p];
         }
-        s.awards = awards[p];
         out[p] = s;
     }
     (out, vp_from_resources, visionary)
@@ -5308,10 +5424,17 @@ pub fn play_round(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
     // `occasion_de_vendre`, qui lisent tous deux ce champ-là et pas un autre.
     game.phase_en_cours = 0;
 
-    // A. Planification (simultanée et secrète dans le jeu réel ; l'ordre
-    // d'appel n'influe pas sur l'information disponible en politique v1).
+    // A. Planification. (D1) SIMULTANÉE ET SECRÈTE, pour de bon : le moteur
+    // interroge les joueurs l'un après l'autre — il le faut bien —, mais rien
+    // de ce que le premier répond n'est visible du second. Ce qu'il écrit dans
+    // `previous_phase` reste privé ; ce que la fiche de situation montre de
+    // l'adversaire, c'est `phase_revelee`, écrit plus bas, une fois les deux
+    // réponses données (livret `docs/regles/livret-base.md:272`).
+    //
+    // (premier-joueur) Dans l'ORDRE DU TOUR : c'est le premier joueur de la
+    // manche qui répond en premier, et il alterne d'une manche à l'autre.
     let mut picked = [false; 6];
-    for p in 0..NUM_PLAYERS {
+    for p in game.players_in_turn_order() {
         let allowed = allowed_phases(&game.players[p]);
         avant_decision(game, db, p, policy);
         let phase = policy.pick_phase(&mut game.rng, p, &allowed);
@@ -5329,13 +5452,40 @@ pub fn play_round(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
         // manche-ci (livret l. 64, ASK 1) — ce qu'une valeur figée à la
         // planification aurait rendu impossible.
         game.players[p].extra_blue_activations = 0;
-        // (decouverte-projets) La carte Phase vient d'être RÉVÉLÉE par ce
-        // joueur : si elle est améliorée, les cartes en jeu qui portent
-        // « Effet : lorsque vous révélez une carte Phase améliorée, … »
-        // versent leur gain, ici et pour ce
-        // joueur seul.
-        fire_upgraded_reveal(game, db, p, policy);
         picked[phase as usize] = true;
+    }
+
+    // (D1) LA RÉVÉLATION, une fois que TOUS les joueurs ont fait leur choix
+    // (livret `docs/regles/livret-base.md:272` : « une fois que TOUS les joueurs
+    // ont fait leur choix, les cartes Phase choisies sont révélées »).
+    //
+    // Deux choses s'y passent, et elles ne peuvent pas se passer plus tôt :
+    //
+    // 1. `phase_revelee` est écrit pour les deux joueurs du même geste. C'est
+    //    l'unique endroit où ce champ est écrit : aucun des deux joueurs ne peut
+    //    donc lire le choix de l'autre avant que les deux cartes ne soient
+    //    retournées.
+    //
+    // 2. (decouverte-projets) Les cartes en jeu qui portent « Effet : lorsque
+    //    vous RÉVÉLEZ une carte Phase améliorée, … » versent leur gain. Cet
+    //    appel était fait dans la boucle ci-dessus, à la seconde où chaque
+    //    joueur répondait — c'est-à-dire AVANT que l'autre ait répondu. Le gain
+    //    (aujourd'hui 1 MC, versé par une seule carte du paquet — voir la table
+    //    d'effets) apparaissait alors dans la fiche de l'autre joueur et lui
+    //    apprenait que son adversaire
+    //    venait de révéler une carte améliorée : un renseignement sur un choix
+    //    encore secret. Versé ici, il ne dit plus rien de plus que la révélation
+    //    elle-même. Aucun point de décision ne bouge : le seul gain de ce type
+    //    du paquet est un gain de MC, qui ne pose aucune question.
+    //
+    // L'ordre du tour est repris tel quel pour le versement, afin que deux
+    // joueurs qui gagneraient tous deux sur la même réserve soient servis dans
+    // le même ordre qu'avant.
+    for p in game.players_in_turn_order() {
+        game.players[p].phase_revelee = Some(game.players[p].chosen_phase);
+    }
+    for p in game.players_in_turn_order() {
+        fire_upgraded_reveal(game, db, p, policy);
     }
 
     // B. Exécution : seules les phases choisies, dans l'ordre I..V.

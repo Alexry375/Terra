@@ -1191,6 +1191,12 @@ fn the_phase_bonus_cost_replacement_is_visible_in_a_real_game() {
     let db = db();
     let mut pol = Lot6Script::new(3, 1);
     let mut game = game_with_card(&db, 12, "Wood Burning Stoves", &mut pol);
+    // (premier-joueur) Le script des phases est servi DANS L'ORDRE DES APPELS,
+    // c'est-à-dire l'ordre du tour, dont le premier joueur est désormais tiré au
+    // sort. Ce test porte sur le coût réduit d'une action, pas sur l'ordre du
+    // tour : on épingle le premier joueur pour que la phase III soit bien celle
+    // du joueur dont la main est contrôlée.
+    game.first_player = 0;
     game.players[0].plants = 3;
     play_round(&mut game, &db, &mut pol);
     assert_eq!(game.action_phase_bonuses, 1, "le coût réduit a bien été employé");

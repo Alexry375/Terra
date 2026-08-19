@@ -158,6 +158,10 @@ fn player_view(game: &GameState, db: &CardsDb, p: usize, parts: &ScoreBreakdown)
         }).collect::<Vec<_>>(),
         "chosen_phase": pl.chosen_phase,
         "previous_phase": pl.previous_phase,
+        // (D1) La carte Phase RÉVÉLÉE — ce que la table voit, et donc la seule
+        // que l'écran et la fiche de situation ont le droit de montrer de
+        // l'adversaire (livret `docs/regles/livret-base.md:272`).
+        "phase_revelee": pl.phase_revelee,
         "phase_upgrades": pl.phase_upgrade_labels(),
         "score": parts.total(),
         // (regles-de-la-vente) **Le score ACQUIS** : le total moins les

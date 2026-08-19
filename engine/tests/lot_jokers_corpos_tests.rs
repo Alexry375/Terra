@@ -859,8 +859,8 @@ fn la_boite_de_base_est_intacte_et_l_extension_a_change() {
     let s = run_simulation(&base, 1000, 2024, &mut pol);
     assert_eq!(
         format!("{:016x}", s.state_hash),
-        "8e4ec5b0296470e6",
-        "empreinte de la boîte de base, REFIXÉE le 05-08 (choix-au-bon-moment) : les trois points du lot déplacent ou suppriment des points de décision — les actions stériles quittent la liste (MOT-2), le bonus de Construction se demande en deux temps (MOT-3), le badge joker n'est plus demandé pour toute la main (MOT-8). La liste ordonnée des réponses se décale, RandomPolicy ne tire plus aux mêmes endroits, les parties ne se déroulent donc plus pareil. Repères précédents : bf70799ff3fee1d8 (04-08), 7dda3ea2e9b2901b (03-08), c1c52fcbe4e057b0 (01-08), d6a7267472501b13 (31-07)"
+        "47030e306f1006cd",
+        "empreinte de la boîte de base, REFIXÉE le 19-08 (le-secret-et-l-ordre) : le premier joueur est tiré au sort à la mise en place, la mise en place et la planification interrogent les joueurs dans l'ordre du tour, et la phase IV Production le suit elle aussi (D16) — les cartes du paquet commun ne tombent donc plus dans les mêmes mains. Les parties de référence enregistrées doivent être regénérées. Repères précédents : 8e4ec5b0296470e6 (05-08), bf70799ff3fee1d8 (04-08), 7dda3ea2e9b2901b (03-08), c1c52fcbe4e057b0 (01-08), d6a7267472501b13 (31-07)"
     );
 
     let db = db();

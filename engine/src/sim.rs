@@ -225,6 +225,9 @@ pub struct GameOutcome {
     pub completed: bool,
     pub generations: u32,
     pub scores: [i64; NUM_PLAYERS],
+    /// (D11) Le vainqueur au sens du livret p.16 — départage compris —, ou
+    /// `None` si l'égalité est parfaite jusque sur le critère de départage.
+    pub winner: Option<usize>,
     pub violations: u64,
     pub state_hash: u64,
     /// Activations d'actions bleues ayant appliqué un effet (lot 2).
@@ -334,6 +337,9 @@ pub fn play_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameOutcom
     // part de VISIONNAIRE rapportée ici est celle que ce parcours-là a
     // réellement distribuée, pas un second calcul.
     let (scores, vp_from_resources, visionary_award_points) = score_parts(&game, db);
+    // (D11) Le vainqueur au sens du livret, départage compris — calculé UNE
+    // fois, par le point unique `flow::winner`.
+    let vainqueur = crate::flow::winner(&game, db);
     GameOutcome {
         completed: game.game_over,
         generations: game.generation,
@@ -347,8 +353,13 @@ pub fn play_game(db: &CardsDb, seed: u64, policy: &mut dyn Policy) -> GameOutcom
         draw_before_build: game.draw_before_build,
         draw_after_build: game.draw_after_build,
         discard_payments: game.discard_payments,
-        // (C5) Aucun départage n'est appliqué : deux scores égaux = une égalité.
-        draw: scores[0] == scores[1],
+        // (D11) Le départage du livret p.16 est appliqué
+        // (`docs/regles/livret-base.md:461`) : une partie n'est nulle que si
+        // les deux joueurs sont à égalité de PV ET de total cumulé chaleur +
+        // MC + plantes, cartes en main converties. La comparaison n'est pas
+        // refaite ici : elle vient du point unique `flow::winner`.
+        draw: vainqueur.is_none(),
+        winner: vainqueur,
         res_added: game.res_added,
         res_removed: game.res_removed,
         res_targets_missing: game.res_targets_missing,

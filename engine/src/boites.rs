@@ -142,7 +142,32 @@ impl BoiteSet {
         if n == 0 {
             return Err("--boites : liste vide".to_string());
         }
+        s.valider()?;
         Ok(s)
+    }
+
+    /// (D15, décision d'Alexis du 19-08) **L'EXTENSION NE SE JOUE PAS SEULE.**
+    ///
+    /// La boîte Découverte n'apporte que quatre corporations : la mise en place
+    /// en distribue quatre, le mulligan des corporations en réclame deux de
+    /// plus, et la partie s'arrêtait alors en plein milieu sur « paquet
+    /// corporations épuisé » — quatre graines sur cinq. Le garde-fou du
+    /// chargement de `cards.json`, lui, laissait passer exactement quatre
+    /// corporations, c'est-à-dire le cas qui casse.
+    ///
+    /// La configuration est donc REFUSÉE AU CHARGEMENT : aucune partie ne
+    /// démarre pour s'interrompre ensuite. Le contrôle vit ici, sur l'ensemble
+    /// de boîtes lui-même, parce que c'est le seul endroit que TOUS les chemins
+    /// traversent — la ligne de commande comme la composition de la pioche.
+    pub fn valider(&self) -> Result<(), String> {
+        if self.decouverte && !self.base {
+            return Err(
+                "--boites : l'extension Découverte ne se joue pas seule ; la boîte de base est \
+                 obligatoire (essayez « base,decouverte »)"
+                    .to_string(),
+            );
+        }
+        Ok(())
     }
 
     pub fn contains(&self, b: Boite) -> bool {
@@ -253,6 +278,10 @@ pub struct Composition {
 /// `cards.json`, si une ligne se retrouve dans deux boîtes, ou si le
 /// dénombrement de Découverte s'écarte de [`DECOUVERTE_ATTENDU`].
 pub fn composer(lignes: &[Ligne], demandees: BoiteSet) -> Result<Composition, String> {
+    // (D15) Second verrou, sur le chemin que TOUTE composition de pioche
+    // emprunte : un ensemble de boîtes fabriqué à la main, sans passer par
+    // `BoiteSet::parse`, est refusé ici aussi. Le refus reste AU CHARGEMENT.
+    demandees.valider()?;
     let textes: Vec<RawTexte> = serde_json::from_str(TEXTES)
         .map_err(|e| format!("parse de la transcription des planches: {e}"))?;
 

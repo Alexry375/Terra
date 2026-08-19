@@ -374,6 +374,12 @@ fn c3_les_mc_seuls_paient_et_le_surplus_est_rendu() {
     let db = db();
     for (poche, reste) in [(8i64, 0i64), (9, 1)] {
         let mut game = setup_game(&db, 8, &mut RandomPolicy);
+        // (premier-joueur) La mise en place interroge désormais les joueurs dans
+        // l'ORDRE DU TOUR, dont le premier joueur est tiré au sort : à graine
+        // égale, `RandomPolicy` ne retient plus la même corporation qu'avant.
+        // Ce test porte sur le PAIEMENT, pas sur les corporations : on coupe
+        // l'effet de corporation, qui peut remiser une construction.
+        game.players[0].corporation = None;
         let target = card_id(&db, "Geothermal Power");
         let fillers: Vec<u16> =
             game.deck.iter().copied().filter(|&c| c != target).take(4).collect();
@@ -888,6 +894,10 @@ fn c4_phases_one_and_two_follow_the_turn_order() {
     let db = db();
     let mut pol = Script::new(vec![4, 1], vec![5, 1]);
     let mut game = setup_game(&db, 12, &mut pol);
+    // (premier-joueur) Le premier joueur est désormais tiré au sort ; ce test
+    // porte sur l'ALTERNANCE, pas sur le tirage. On épingle la manche 1 sur le
+    // joueur 0 pour que la manche 2 commence par le joueur 1.
+    game.first_player = 0;
     play_round(&mut game, &db, &mut pol); // manche 1 (phases 4 et 5)
     pol.build_calls.clear();
     play_round(&mut game, &db, &mut pol); // manche 2 : phase I, premier joueur = 1
@@ -919,6 +929,9 @@ fn c4_a_player_who_passes_leaves_the_turn() {
     let mut pol = Script::new(vec![3], vec![4]);
     pol.action_budget = [3, 0];
     let mut game = setup_game(&db, 14, &mut pol);
+    // (premier-joueur) Même raison : le script des phases et la liste des appels
+    // suivent l'ordre du tour, dont le premier joueur est tiré au sort.
+    game.first_player = 0;
     game.players[0].mc = 500;
     play_round(&mut game, &db, &mut pol);
     assert_eq!(pol.action_calls, vec![0, 1, 0, 0, 0]);
@@ -938,7 +951,15 @@ fn c4_turn_order_is_read_from_the_game_loop_and_matches_the_rounds_played() {
             out.generations as usize,
             "une entrée par manche jouée (graine {seed})"
         );
-        assert_eq!(out.turn_order[0], 0, "manche 1 : joueur 0");
+        // (premier-joueur, arbitrage du 19-08) La manche 1 ne commence plus
+        // d'office par le joueur 0 : le premier joueur est TIRÉ AU SORT à la
+        // mise en place. Ce que la liste doit dire, c'est qu'elle commence par
+        // le joueur que le tirage a désigné pour cette graine-là.
+        let tire = setup_game(&db, seed, &mut RandomPolicy).first_player;
+        assert_eq!(
+            out.turn_order[0], tire as u8,
+            "manche 1 : le premier joueur tiré au sort (graine {seed})"
+        );
         for w in out.turn_order.windows(2) {
             assert_ne!(w[0], w[1], "alternance stricte");
         }
@@ -947,13 +968,17 @@ fn c4_turn_order_is_read_from_the_game_loop_and_matches_the_rounds_played() {
 }
 
 // ===================================================================== C5
-// Égalité sèche (aucun départage) + conversion obligatoire sur l'instantané.
+// Le SCORE ne départage pas — c'est `flow::winner` qui départage.
+// (D11, 19-08 : la règle maison « une égalité reste une égalité » est révoquée ;
+// le critère du livret p.16 s'applique désormais.)
 
 #[test]
 fn c5_equal_scores_stay_equal_no_tiebreak() {
-    // Règle maison : une égalité reste une égalité. `score` ne départage pas,
-    // même quand chaleur/MC/plantes diffèrent nettement (critère du livret p.17
-    // volontairement NON implémenté).
+    // Le partage des rôles, vérifié dans les deux sens : `score` compte les
+    // points et rien d'autre — deux joueurs à points égaux le restent, même avec
+    // des réserves très différentes ; c'est `flow::winner` qui applique ensuite
+    // le départage du livret (`docs/regles/livret-base.md:461`). Avant D11,
+    // personne ne départageait, et l'assertion du bas n'existait pas.
     let db = db();
     let mut game = setup_game(&db, 15, &mut RandomPolicy);
     game.milestones.iter_mut().for_each(|m| m.achieved_by = [false, false]);
@@ -967,15 +992,35 @@ fn c5_equal_scores_stay_equal_no_tiebreak() {
     game.players[1].mc = 0;
     game.players[1].plants = 0;
     let s = score(&game, &db);
-    assert_eq!(s[0], s[1], "scores égaux : aucun départage n'est appliqué");
+    assert_eq!(s[0], s[1], "le score, lui, ne départage pas");
+    // (D11) Et le départage, lui, tranche : le joueur 0 a 40 de chaleur, 40 MC
+    // et 40 plantes contre zéro partout.
+    assert_eq!(
+        engine::flow::winner(&game, &db),
+        Some(0),
+        "à points égaux, le plus grand total cumulé l'emporte"
+    );
 }
 
 #[test]
 fn c5_draws_are_counted_over_real_simulations() {
     let db = db();
     let s = run_simulation(&db, 1000, 42, &mut RandomPolicy);
-    assert!(s.draws > 0, "des égalités existent et sont comptées");
-    assert!(s.draws < s.games, "et ce ne sont pas toutes les parties");
+    // (D11, décision du 19-08) Le départage du livret p.16 est désormais
+    // appliqué (`docs/regles/livret-base.md:461`) : une partie n'est nulle que
+    // si les deux joueurs sont à égalité de PV ET de total cumulé chaleur + MC
+    // + plantes, cartes en main converties. Le compteur existe toujours et il
+    // est toujours lu — mais il ne compte presque plus rien. Avant le
+    // départage, ce même échantillon donnait des dizaines de nulles.
+    assert!(
+        s.draws <= 1,
+        "{} parties nulles sur {} : le départage n'est pas appliqué",
+        s.draws,
+        s.games
+    );
+    // Et le compteur n'est pas mort : il est toujours lu, et la simulation a
+    // bien joué ses mille parties.
+    assert_eq!(s.games, 1000, "mille parties jouées");
 }
 
 #[test]

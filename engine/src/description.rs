@@ -386,7 +386,29 @@ impl Description {
             }
             s.thermo(prefixe, -1, "", "acier", pl.steel_capacity, S_ACIER);
             s.thermo(prefixe, -1, "", "titane", pl.titanium_capacity, S_TITANE);
-            s.drapeau(prefixe, -1, "previous_phase_", "aucune", pl.previous_phase.is_none());
+            // (D1) LA CARTE PHASE, TELLE QUE LA TABLE LA VOIT.
+            //
+            // Ces six cases lisent `phase_revelee`, et non plus
+            // `previous_phase`. La différence est tout le défaut : le moteur
+            // interroge les joueurs l'un après l'autre, et `previous_phase` est
+            // écrit à la seconde où chacun répond. Les six cases livraient donc
+            // au second interrogé la carte que le premier venait de poser FACE
+            // CACHÉE (livret `docs/regles/livret-base.md:268`).
+            //
+            // `phase_revelee`, lui, n'est écrit qu'une fois les deux réponses
+            // données (ligne 272 : « une fois que TOUS les joueurs ont fait leur
+            // choix, les cartes Phase choisies sont révélées »). Pendant l'étape
+            // de planification, ces cases montrent donc la carte de la manche
+            // PRÉCÉDENTE — exactement ce qu'un joueur humain lit sur la pile de
+            // cartes Phase déjà jouées ; dès la résolution, celle de la manche en
+            // cours, comme avant.
+            //
+            // Le MÊME champ des deux côtés : une case nommée `previous_phase_3`
+            // veut dire la même chose qu'on la lise de soi ou de l'adversaire,
+            // à savoir « la carte Phase retournée sur la table ». C'est ce qui
+            // rend la fiche du second interrogé insensible au choix caché du
+            // premier, quel que soit le siège qui la regarde.
+            s.drapeau(prefixe, -1, "previous_phase_", "aucune", pl.phase_revelee.is_none());
             for ph in 1u8..=5 {
                 s.drapeau(
                     prefixe,
@@ -399,7 +421,7 @@ impl Description {
                         4 => "4",
                         _ => "5",
                     },
-                    pl.previous_phase == Some(ph),
+                    pl.phase_revelee == Some(ph),
                 );
             }
             // Lu sur le tableau du joueur plutôt que sur
