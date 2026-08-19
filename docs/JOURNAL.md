@@ -1959,3 +1959,113 @@ améliorations mesurées. Le seul juge final sera Alexis devant l'écran.
 commits en place (découpe du symbole des flammes, point jaune, distribution), arbre propre,
 manquent le balayage général et le rapport. Un agent arrêté ne se reprend pas ; il faut sa
 demande explicite pour en lancer un neuf.
+
+## 2026-08-16 au 18 — Deux défauts d'architecture trouvés par une question d'Alexis, puis deux audits de cinquante et un agents
+
+Rattrapage : les journées des 16 et 17 août n'avaient pas d'entrée. Elles ont produit le
+classement mesuré des seize corporations sur 799 parties chacune (`258d705`), le verdict du
+million de parties — la devinette de phase adverse n'apporte rien, c'est l'entraînement A
+qu'il faut prolonger (`5ae33b3`) — puis trois mesures de comportement les 17 et 18 : ce que
+l'IA fait vraiment en mise en place (`a1c6774`), les améliorations de carte Phase
+(`9440708`), et l'absence d'accord entre la corporation choisie et la main tenue
+(`2094d9a`).
+
+### La question d'Alexis qui a tout déclenché
+
+« Et on fera comment pour apprendre l'IA à mulligan ? Et d'ailleurs tu dis que vraiment
+l'IA n'utilise pas du tout la corporation qu'elle va probablement choisir pour faire ses
+choix de mulligan ? »
+
+Réponse vérifiée, et elle était pire que ma prévision. **Deux défauts d'architecture, tous
+deux présents depuis le premier jour.**
+
+**Défaut n°1 — le mulligan des corporations est structurellement aveugle.** `description.rs:356-360`
+ne publie les cases `corpo_<nom>_moi` et `corpo_<nom>_adv` que pour la corporation
+**installée**. Or `moi.corporation` est vide tant que le choix final n'a pas eu lieu. Au
+moment de décider si l'on rend ses deux corporations, la fiche de situation ne contient
+donc **aucune** trace de celles qu'on tient. Preuve directe : les deux options reçoivent
+une note identique **à dix-sept décimales**. Le choix se joue sur l'ordre des options, pas
+sur leur contenu. [VÉRIFIÉ 18-08]
+
+**Défaut n°2 — le joueur voit le hasard futur.** `joueur.rs:352` appelle
+`setup_game(self.db, self.seed, &mut rejeu)` avec la graine de la **vraie** partie
+(`entraine.rs:296-297`). Chaque essai de coup rejoue donc l'avenir exact au lieu d'un
+avenir plausible. Démontré sur la graine 700001 : quelles que soient les cartes rendues,
+les cartes reçues sont toujours *Developed Infrastructure*, puis *Vesta Shipyard*, puis
+*Aerated Magma*. Côté navigateur, `apprenti.js:349-354,482` espionne la graine vivante.
+[VÉRIFIÉ 18-08]
+
+Alexis n'avait pas compris le mécanisme de la graine ; le lui expliquer m'a obligé à le
+vérifier, et c'est cette vérification qui a trouvé le défaut. La leçon vaut d'être écrite :
+**une question naïve a trouvé en une heure ce que six semaines de bancs n'avaient pas vu.**
+
+### Le témoin, gelé avant de tout casser
+
+Sur demande d'Alexis — « garder bien au chaud toutes les stats auxquelles on était arrivées
+avec l'IA qui lit l'avenir » — `docs/TEMOIN_AVANT_AUDIT.md` (`7754ebc`) fige l'intégralité
+des mesures de l'IA voyante, chaque tableau avec ses réserves, et `data/temoin/` conserve
+les deux fichiers de poids. Sans cela, aucune comparaison « avant / après » n'aurait été
+possible après le dernier entraînement.
+
+### Les deux audits
+
+Alexis a demandé « un audit immense de toute l'architecture d'entraînement » et « un dernier
+audit final du moteur du jeu », en deux processus séparés. Lancés tous les deux.
+
+- **Architecture d'entraînement** : 33 agents, 2 h 13, 3,09 millions de jetons. 48 constats
+  bruts, ramenés à **17 changements** et **9 constats réfutés** par un contradicteur.
+  `docs/AUDIT_ENTRAINEMENT.md`.
+- **Moteur de règles** : 18 agents, 2 h 35, 2,80 millions de jetons. **25 défauts confirmés**
+  (13 majeurs ou moyens, 12 mineurs), 4 réfutés. `docs/AUDIT_MOTEUR.md`.
+
+Les deux rapports commis en `e4ec6fe`.
+
+### Le désaccord entre les deux audits, et qui avait raison
+
+L'audit d'architecture avait signalé que le siège 1 voit la carte Phase secrète du siège 0,
+puis son contradicteur l'a **réfuté** : « vrai mais sans conséquence, le réseau n'est ni
+évalué ni entraîné sur cet état » (constat réfuté n°2). L'audit du moteur en a fait son
+défaut le plus grave (D1).
+
+**J'ai tranché en refaisant la mesure moi-même, et l'audit du moteur avait raison.** En
+lisant les 1 472 noms d'entrées en tête du fichier de poids puis en comparant deux
+exécutions de `decrire` : changer le seul choix caché du siège 0 fait changer exactement
+deux cases, `adv_previous_phase_1` et `adv_previous_phase_5`. Et ces cases **subsistent
+dans l'état évalué après la réponse du siège 1** : `0,0,[],[],0,0,0,2` donne
+`moi_3 + adv_1`, `0,0,[],[],0,0,4,2` donne `moi_3 + adv_5`. Le réseau qui joue est donc
+bien entraîné sur un état contenant la phase secrète adverse. [VÉRIFIÉ 19-08]
+
+Un audit qui se contredit lui-même est un audit qui travaille. Ce qui aurait été grave,
+c'est que je prenne la réfutation pour argent comptant.
+
+### Mes propres erreurs, dans l'ordre
+
+1. **J'ai dit à plusieurs reprises que la machine a huit cœurs.** Faux : `lscpu` donne
+   **quatre cœurs physiques** (Intel i5-11300H), deux fils d'exécution chacun. Le chiffre 8
+   de `nproc` compte les fils, pas les cœurs. Correction livrée à Alexis.
+2. **Mon explication du défaut n°1 était fausse au premier jet.** J'avais parlé de « réseau
+   linéaire » ; le réseau a une couche cachée de 50 neurones (`reseau.rs:54`), il peut donc
+   représenter des interactions. La vraie raison est ailleurs : la main est donnée carte par
+   carte (248 drapeaux) sans aucun compteur agrégé, alors que les badges **posés**, eux, ont
+   des compteurs (`description.rs:385`). La prévision était bonne, le mécanisme annoncé ne
+   l'était pas.
+3. **Mes graines de mesure tombent à l'intérieur de la plage d'entraînement** (point 2.13 de
+   l'audit). L'entraînement de référence a consommé les graines 300 000 à 1 299 999 ; mes
+   bancs témoins jouent 500 000, 700 000, 900 000 et 1 210 000 — **tous dedans**. Convention
+   à établir : entraînement au-dessus de 10 000 000, mesures entre 1 et 10 millions,
+   vérification des règles en dessous de 1 000 000.
+4. **Deux de mes bancs de vérification calculent la faute puis ne tombent pas dessus**
+   (D12), et mon contrôle « aucun pouvoir sauté en silence » ne peut pas voir une
+   corporation à moitié encodée (D13) — c'est exactement ce qui a laissé passer *Mining
+   Guild*. Mes contrôles étaient aveugles à ce qu'ils étaient censés attraper.
+5. **J'ai annoncé « treize défauts » à Alexis** le soir du 18. Le compte exact du rapport est
+   de **vingt-cinq** : treize majeurs ou moyens, douze mineurs. Corrigé le 19.
+
+### Reste ouvert au 19 août
+
+L'entraînement A vers 2 millions tourne toujours (720 000 parties de la reprise, 13 heures
+de calcul) alors qu'il sera jeté si tout est réentraîné de zéro — décision à prendre. Les
+six lots du banc du mulligan sont terminés (1 986 donnes) et `choix-libre-1M.jsonl` est
+complet à 700 donnes : à dépouiller. Et deux questions attendent Alexis avec le plateau
+physique en main : la longueur de la piste de température, et la seconde ligne du carton de
+*Mining Guild*.
