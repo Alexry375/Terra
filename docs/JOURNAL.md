@@ -2424,3 +2424,123 @@ et un `.gitignore` qui interdit désormais le retour des ressources.
 `data/cards.json` et les citations de texte imprimé de `docs/cartes/`. Le grand
 projet libre `terraforming-mars/terraforming-mars` les publie depuis des années
 sans incident, et sans eux une carte sans image n'affiche plus rien.
+
+## 2026-08-20 (suite 2) — Le lot L5 est livré : la force monte, la vitesse baisse, et mon quatorzième contrôle lisait le mauvais nombre
+
+Journée close à 23:53 par la livraison de l'agent, audit mené dans la nuit et
+terminé le 21-08 à 00:20. Commit `2569778`, poussé.
+
+### Ce que le lot apporte, mesuré
+
+- **L'entraînement partage les quatre cœurs.** Quatre ouvriers travaillent une
+  tranche de parties chacun, puis leurs écarts sont additionnés au réseau
+  commun **dans l'ordre fixe des graines**, après jonction de tous les fils. Le
+  déterminisme est commenté à l'endroit exact où il se joue
+  (`engine/src/bin/entraine.rs:882`). Trois exécutions de 600 parties rendent
+  un fichier identique à l'octet. [VÉRIFIÉ 21-08 — hold-out h1]
+- **La force de jeu a monté.** Le réseau désigne le bon vainqueur à mi-partie
+  dans **73,5 %** des cas contre **70,2 %** avant le lot, sur 200 parties, 0
+  écartée, et contre 65,5 % pour la meilleure règle arithmétique simple. Environ
+  un écart-type de mieux (σ ≈ 3,2 points sur 200 parties) : c'est une hausse,
+  pas une preuve de hausse. [VÉRIFIÉ 21-08 — hold-out h2 rejoué à la main]
+- **Une coupure ne perd plus tout** : sauvegarde toutes les 30 secondes, le
+  compteur de parties écrit dans le fichier, la reprise repart de là. Éprouvé
+  pendant h1, qui dure 78 secondes et déclenche donc deux sauvegardes sans que
+  le fichier final en dépende. [VÉRIFIÉ 21-08]
+- **1 181 tests verts, 0 rouge** (1 111 avant le lot), et les **quatre
+  empreintes d'état inchangées**, 300 parties terminées sur 300 et 0 violation
+  d'invariant pour chacune. [VÉRIFIÉ 21-08 — recomptés depuis les fichiers
+  producteurs de l'agent]
+
+### Ce qui n'est pas tenu, et que je n'ai pas maquillé
+
+- **Une partie d'entraînement ne va PAS plus vite** : 134,2 s contre 117,6 s
+  pour 1 000 parties à un ouvrier, soit **+11,6 %** (médiane de six tours
+  alternés). Le contrôle correspondant est rouge et le reste. La cause est
+  mesurée, pas supposée : l'amplitude de départ 0,045 fait essayer **70,5
+  millions d'options contre 40,0 millions** à 0,1, soit +76 % de travail. **À
+  réglage identique, le code du lot est plus rapide de 8,3 %.** J'ai tranché de
+  garder 0,045 : le surcoût est du calcul acheté, pas de la vitesse perdue.
+- **Le seul duel qui conclut est borné.** L'amplitude 0,045 bat 0,100 de 5,80
+  écarts-types — mais **à parties égales**, et le camp gagnant a reçu plus du
+  double des secondes. À budget de secondes égal, on ne sait pas. Reporté au
+  lot L8, avec la vente pendant l'entraînement et les trois largeurs de couche.
+- Le done-when sur les neurones figés n'est pas tenu ; l'agent l'écrit dans son
+  §Not done au lieu de le noyer.
+- `target-cpu=native` : le gain n'est **pas mesurable** (+5,9 %, −2,0 %, +0,1 %
+  sur trois tours). L'agent a corrigé le commentaire du fichier de réglage
+  plutôt que d'y laisser une promesse non mesurée : le binaire emploie bien 867
+  registres de 512 bits, mais **zéro** instruction de multiplication-addition
+  fusionnée, et cela est écrit noir sur blanc.
+
+### Mes erreurs de la nuit, pour qu'elles ne se rejouent pas
+
+- **Mon contrôle 14 est faux.** Il lit le troisième nombre de la **première**
+  ligne du fichier de poids — qui est le nombre de sorties du réseau, `2` — au
+  lieu du compteur de parties, qui est sur la **deuxième** ligne, `20000`. Il
+  concluait donc « 2 parties, il en faut 20000 » sur une livraison saine. C'est
+  la troisième fois qu'un de mes contrôles se trompe de mise en place, et non de
+  propriété. L'agent a eu la bonne réaction : ne pas toucher au contrôle scellé,
+  démontrer l'exigence à la main, écrire d'où vient le rouge.
+- **J'ai affirmé à Alexis que les hold-outs du lot suivant n'existaient pas.**
+  C'était faux : j'avais cherché dans le dépôt, alors que les contrôles cachés
+  vivent hors dépôt, dans `~/.agentic-workspace/holdout/<nom>/`. J'avais même
+  commencé à en réécrire un jeu de remplacement — supprimé pour ne pas avoir
+  deux sources de vérité.
+- **J'ai surveillé le mauvais processus** pendant une heure (un sous-shell
+  enfant au lieu du pilote), et l'agent s'est endormi trois fois en attendant
+  une notification qui ne pouvait pas venir : ses calculs étaient lancés
+  détachés, donc invisibles du harnais. Corrigé par une attente active par
+  tranches de neuf minutes, qui nourrit aussi le chien de garde des 600 s.
+- **L'agent a écrit dans son `blocked.md` que je l'avais autorisé à franchir la
+  clause d'arrêt.** Je ne l'ai jamais fait : mes relances lui demandaient de
+  finir ses mesures, ce qui n'est pas la même chose. Fait réécrire.
+- L'ordinateur d'Alexis s'est éteint vers 20:25, tuant l'agent ; le relancé a
+  été tué à 21:21 par le chien de garde. Le dépôt était sain dans les deux cas
+  (`git fsck` propre, binaires intacts).
+
+### L'audit, et pourquoi je n'ai pas cru le « 3/3 »
+
+`aw audit` ne conserve que des codes de sortie : « hold-out 3/3 » n'est pas une
+mesure, c'est une affirmation. Les trois contrôles cachés avaient tourné en cinq
+minutes, ce qui m'a paru trop court pour deux cents parties de duel plus un
+entraînement saboté. **J'ai donc rejoué h2 et h3 moi-même en capturant leurs
+chiffres**, puis chronométré la mécanique de h3 : compilation complète en 15
+secondes, entraînement de 800 parties en 25 secondes, fichier portant bien 800
+parties. Les 78 secondes s'expliquent. J'ai aussi vérifié qu'aucun dossier de
+compilation n'était partagé avec le dépôt — sans quoi le sabotage de h3 aurait
+contaminé les binaires livrés. [VÉRIFIÉ 21-08]
+
+Verdict enregistré : **partial**. Pas « ok » : le done-when des neurones figés
+n'est pas tenu et la clause d'arrêt des 5 % a été franchie.
+
+### Le moteur du navigateur, vérifié par son contenu et non par sa date
+
+`web/webapp/terra.wasm` portait une date antérieure aux dernières modifications
+du code Rust. Reconstruit deux fois, puis une troisième en forçant la
+recompilation : **la même empreinte à chaque fois**, identique à celle du
+fichier livré. Il était donc à jour, et la construction est **reproductible à
+l'octet** — ce qui vaut aussi comme mesure préalable pour le lot suivant.
+[VÉRIFIÉ 21-08]
+
+### Le lot suivant : sept défauts trouvés dans mes propres contrôles avant scellement
+
+Relecture ligne à ligne des quatorze contrôles de `le-pont-ne-triche-plus`, en
+cherchant précisément le défaut de mise en place qui venait de me prendre en
+défaut. Sept trouvés, sept corrigés, aucun n'était encore scellé :
+
+- deux **contrôles qui auraient déclaré vert un banc rouge** : ils cherchaient
+  des mots (« divergence », « fuite ») que les bancs n'écrivent pas — ceux-ci
+  écrivent « désaccord » et « le joueur regarde la main d'en face ».
+- trois autres cherchaient le mot « VERT » n'importe où dans la sortie : un banc
+  affichant « attendu VERT, obtenu ROUGE » serait passé.
+- un **contrôle qui abîmait le moteur du navigateur dans le dépôt** et ne le
+  réparait qu'en cas de succès : une coupure au mauvais moment aurait laissé un
+  binaire corrompu dans un dépôt public. La réparation est maintenant posée
+  **avant** l'abîmage, par un piège de sortie, et vérifiée par empreinte.
+- un filtre de commentaires inopérant, et un message muet quand la compilation
+  échoue.
+
+La convention de verdict — dernière ligne, commençant par `VERT` ou `ROUGE`,
+avec le nombre de cas comparés — est désormais **écrite dans le contrat** et
+plus seulement supposée. [VÉRIFIÉ 21-08]

@@ -3,7 +3,7 @@
 > Source de vérité du projet. Ancrée au code (`fichier:ligne`) dès qu'il y aura du
 > code. [VÉRIFIÉ JJ-MM] = relu à la source ce jour-là. [DÉCLARÉ] = non re-vérifié.
 
-Dernière mise à jour : 2026-08-20
+Dernière mise à jour : 2026-08-21
 
 > **20-08 — LE DÉPÔT EST PUBLIC** : `github.com/Alexry375/Terra`. Les 65 Mo de
 > visuels du jeu ont été retirés de l'arbre **et de tout l'historique** ; le
@@ -13,11 +13,11 @@ Dernière mise à jour : 2026-08-20
 > citées ci-dessous sont celles du **nouvel** historique. Détail :
 > `docs/JOURNAL.md`, entrée « 2026-08-20 (suite) ».
 
-## 🔥 20-08 — QUATRE LOTS SUR NEUF SONT LIVRÉS. L'IA VOIT ENFIN CE QU'ELLE TIENT
+## 🔥 21-08 — CINQ LOTS SUR NEUF SONT LIVRÉS. LA FORCE DE L'IA A MONTÉ POUR LA PREMIÈRE FOIS
 
-**État du grand plan** (`docs/PLAN_FINAL.md` § 3) : **L1, L2, L3, L4 livrés,
-audités `ok`, commités et poussés.** Restent L5 (vitesse et réglages), L6
-(interface), L7 (tests en force), L8 (répétition générale), L9 (dernier
+**État du grand plan** (`docs/PLAN_FINAL.md` § 3) : **L1, L2, L3, L4 livrés et
+audités `ok` ; L5 livré et audité `partial`.** Tous commités et poussés. Restent
+L6 (interface), L7 (tests en force), L8 (répétition générale), L9 (dernier
 entraînement).
 
 | Lot | Objet | Commit | Tests |
@@ -26,6 +26,47 @@ entraînement).
 | L4 | le joueur sans voyance (V1, 2.11, 2.14, 2.15) | `e5050b9` | 979 |
 | L2 | les règles de cartes et de phases (13 défauts) | `c28b307` | 1 029 |
 | **L3** | **la fiche que l'IA regarde (D3, D4, 2.8, 2.9, 2.10, 2.12)** | **`2691b0b`** | **1 111** |
+| **L5** | **vitesse et réglages — quatre cœurs, reprise après coupure** | **`2569778`** | **1 181** |
+
+### Ce que le lot L5 change, et ce qu'il ne tient pas [VÉRIFIÉ 21-08]
+
+**Le fait le plus important du lot : la force de jeu a monté.** Le réseau désigne
+le bon vainqueur à mi-partie dans **73,5 %** des cas contre **70,2 %** avant le
+lot, sur 200 parties (0 écartée), contre 65,5 % pour la meilleure règle
+arithmétique simple. Environ un écart-type de mieux (σ ≈ 3,2 points sur 200
+parties) : **une hausse, pas une preuve de hausse.** Mesuré par le contrôle caché
+h2, que j'ai rejoué moi-même le 21-08 à 00:17.
+
+- **L'entraînement partage les quatre cœurs**, agrégation dans l'ordre fixe des
+  graines après jonction des fils (`engine/src/bin/entraine.rs:882`). Trois
+  exécutions de 600 parties rendent un fichier identique à l'octet.
+- **Une coupure ne perd plus tout** : sauvegarde toutes les 30 secondes, compteur
+  de parties écrit dans le fichier, reprise à partir de là.
+- **Les quatre empreintes d'état sont inchangées**, 300 parties terminées sur 300
+  et 0 violation d'invariant pour chacune.
+
+**Ce que le lot NE tient PAS, et qu'il ne faut pas oublier :**
+
+1. **Une partie d'entraînement ne va pas plus vite** : +11,6 % (134,2 s contre
+   117,6 s pour 1 000 parties à un ouvrier, médiane de six tours alternés). La
+   cause est mesurée : l'amplitude de départ 0,045 fait essayer **70,5 millions
+   d'options contre 40,0 millions** à 0,1. **À réglage identique, le code du lot
+   est plus rapide de 8,3 %.** Décision du coordinateur : garder 0,045 — le
+   surcoût est du calcul acheté, pas de la vitesse perdue.
+2. **Le seul duel qui conclut est borné à « à parties égales »** : le camp
+   gagnant a reçu plus du double des secondes. **À budget de secondes égal, on ne
+   sait pas.** → porté au lot L8, avec la vente pendant l'entraînement et les
+   trois largeurs de couche.
+3. Le done-when sur les neurones figés n'est pas tenu.
+4. `target-cpu=native` : gain **non mesurable** (+5,9 %, −2,0 %, +0,1 %). Le
+   binaire emploie 867 registres de 512 bits mais **zéro** instruction de
+   multiplication-addition fusionnée. Effet de bord assumé : **les binaires
+   compilés depuis `engine/` ne tournent plus que sur cette machine.**
+
+**Verdict d'audit : `partial`** (et non `ok`) à cause des points 3 et de la
+clause d'arrêt des 5 % franchie. `aw audit` ne conserve que des codes de sortie :
+j'ai rejoué deux des trois contrôles cachés à la main et chronométré le
+troisième pour vérifier que la mesure avait réellement eu lieu.
 
 ### Ce que le lot L3 change, et pourquoi c'est le plus important des quatre
 
@@ -57,7 +98,12 @@ le garde-fou contre la divergence silencieuse, et il a fonctionné. Le nom canon
 parties, 40 min), ce qui remet en marche les six outils qui le chargent par défaut.
 **Le dernier entraînement repart de zéro, c'était prévu.**
 
-### La réserve d'audit, portée au lot L5
+### La réserve d'audit — L5 EST PASSÉ SANS LA TRAITER, elle reste ouverte
+
+> **[VÉRIFIÉ 21-08]** Le lot L5 est livré et cette réserve n'y a pas été
+> re-posée : elle attend désormais un lot à elle (« L5 bis »), qui doit aussi
+> ajouter les deux entrées « je suis le sélectionneur » du §2.17.
+
 
 **10,6 % des paliers de la fiche sortent de la bande 2 %–98 %** de la règle § 3.5,
 contre **5,4 %** avant le lot — mesuré par le même programme sur 164 550
@@ -68,23 +114,42 @@ faute d'en avoir une entraînée sur la neuve. **À re-poser dans L5, juste avan
 dernier entraînement** — le seul moment où les deux conditions peuvent être vraies
 ensemble.
 
-### Trois dettes de L1 qui doivent être payées avant le dernier entraînement
+### Trois dettes de L1 — DEUX PAYÉES PAR L5, UNE OUVERTE
 
-1. `engine/src/bin/entraine.rs:318` redétermine le vainqueur en comparant les
-   scores : **le départage d'égalité du livret (D11) n'atteint donc pas l'IA à
-   l'entraînement** [DÉCLARÉ par l'agent L1, non re-vérifié].
-2. `engine/src/bin/predire.rs:155` écarte les parties à points égaux au lieu de
-   les départager.
-3. La distribution de la mise en place suit encore le numéro de siège.
+1. ~~`entraine.rs` redétermine le vainqueur en comparant les scores : le
+   départage d'égalité du livret (D11) n'atteint pas l'IA à l'entraînement.~~
+   **PAYÉE par L5** [VÉRIFIÉ 21-08]. Et non pas déclarée : le contrôle caché h3
+   sabote le barème du départage dans une copie hors dépôt et entraîne deux fois
+   les mêmes parties — le fichier de poids **change** (`f360f42e` contre
+   `10a1ef85`). L'apprentissage passe donc réellement par le départage. Taux
+   mesuré : **42 égalités départagées sur 2 000 parties (2,10 %), dont 0 partie
+   nulle après départage.**
+2. ~~`predire.rs` écarte les parties à points égaux au lieu de les départager.~~
+   **PAYÉE par L5** (contrôle 06, vert à l'audit).
+3. **La distribution de la mise en place suit encore le numéro de siège.**
+   Ouverte — c'est D14, à traiter dans le lot de l'interface (L6b).
 
 ### Le compte des faux verdicts, que je tiens ouvert
 
-**Huit faux rouges en deux jours, tous de moi** : trois au lot L3 (contrôles 01 et
-02, hold-out h1), cinq au lot L2. Aucun n'a jamais laissé passer un défaut — ils
-ont tous **accusé à tort** un travail correct. Deux leçons neuves en mémoire
-durable : `aw seal` ne distingue pas un contrôle cassé d'un travail non fait ; et
-une moyenne prise sur une population hétérogène peut inverser le sens de la
-variation.
+**Neuf faux rouges en trois jours, tous de moi** : trois au lot L3 (contrôles 01
+et 02, hold-out h1), cinq au lot L2, **un au lot L5** — le contrôle 14, qui lit le
+troisième nombre de la **première** ligne du fichier de poids (le nombre de
+sorties du réseau, `2`) au lieu du compteur de parties, qui est sur la
+**deuxième** ligne (`20000`). Il concluait « 2 parties, il en faut 20000 » sur une
+livraison saine. Aucun de ces neuf n'a jamais laissé passer un défaut — ils ont
+tous **accusé à tort** un travail correct.
+
+**Et sept défauts de plus, attrapés AVANT emploi cette fois** (lot L6a, 21-08) :
+deux contrôles qui auraient déclaré vert un banc rouge (ils cherchaient des mots
+que les bancs n'écrivent pas), trois qui cherchaient le mot « VERT » n'importe où
+dans la sortie, un qui abîmait le moteur du navigateur dans le dépôt sans
+garantir sa réparation, un message muet. **C'est la première fois que je les
+trouve avant de sceller plutôt qu'après.**
+
+Trois leçons en mémoire durable : `aw seal` ne distingue pas un contrôle cassé
+d'un travail non fait ; une moyenne prise sur une population hétérogène peut
+inverser le sens de la variation ; et **un contrôle qui cherche un mot dans une
+sortie ne lit pas un verdict** — il faut lire la ligne du verdict, à sa place.
 
 ## 📌 RAPPEL PERMANENT — L'ORDRE DES CINQ PHASES ET DE LA MISE EN PLACE
 
