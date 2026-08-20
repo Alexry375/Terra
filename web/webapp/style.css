@@ -135,7 +135,8 @@ body[data-siege="1"] #equipage-1 { grid-column: 2; grid-row: 7; }
 }
 
 /* LE VOILE — il sépare la photographie des cartes. La formule du dégradé est
-   celle de la page de comparaison (`web/demo-decor/`, règle `#scene::before`),
+   celle de la page de comparaison (`web/demo-decor/`, règle `#scene::before` —
+   ce dossier de travail n'est pas distribué dans le dépôt public),
    reprise telle quelle ; Alexis a tranché pour « léger », c'est-à-dire 30 % de
    son intensité. Sans voile, aucune carte ne se lit sur le sable ; à pleine
    intensité, le décor disparaît. */
