@@ -115,7 +115,23 @@ pub const RYTHME: u64 = 8;
 /// Amorçage (§2.7) : cinq mille fins de partie fabriquées, taux ×10.
 pub const AMORCAGE_PARTIES: usize = 5000;
 pub const AMORCAGE_FACTEUR: f64 = 10.0;
-pub const AMORCAGE_SCORE_MAX: i64 = 49;
+/// **(L5, §2.5) LA PLAGE DES SCORES FABRIQUÉS PENDANT L'AMORÇAGE — 160, et
+/// c'est une mesure, pas une reprise de l'audit.**
+///
+/// Elle valait 49. L'audit recommandait 120 ; ce chiffre avait été calculé sur
+/// l'ANCIENNE échelle de score, qui s'arrêtait à 51, et il est périmé. La
+/// mesure du 20-08, sur 400 scores de fin de partie relevés dans 200 parties
+/// jouées par `data/poids/apprenti-L3-amorce.txt` (graines 6600001 et
+/// suivantes, boîtes `base,decouverte`) donne : minimum 15, médiane 65,
+/// quatre-vingt-dix-neuvième centile 138, **maximum 159**.
+///
+/// 160 borne donc au-dessus du maximum observé, et surtout **franchit le plus
+/// haut palier de la fiche** — `moi_score_acquis>147`. À 49, ce palier et les
+/// treize qui le précèdent n'étaient JAMAIS allumés pendant l'amorçage : le
+/// réseau abordait sa première vraie partie sans avoir jamais vu qu'un score
+/// puisse dépasser 49, c'est-à-dire sans rien savoir des trois quarts de
+/// l'échelle qu'il doit prédire.
+pub const AMORCAGE_SCORE_MAX: i64 = 160;
 /// Répartition douce de la cible de fin de partie (§2.3).
 pub const DOUCEUR: f64 = 0.3;
 /// Graine du tirage des poids de départ. Fixe : « deux entraînements lancés avec
@@ -123,6 +139,25 @@ pub const DOUCEUR: f64 = 0.3;
 pub const GRAINE_POIDS: u64 = 20260815;
 /// Hauteur de la pile des situations passées (§2.1).
 pub const PILE_MAX: usize = 120;
+/// **(L5, livrable 5) LE SEUIL DE SATURATION D'UN NEURONE CACHÉ : `1 − h² < 0,1`.**
+/// C'est le seuil de l'audit §2.1 (« la tangente hyperbolique est déjà quasiment
+/// plate, sa dérivée vaut moins d'un dixième ») : sous cette pente, la correction
+/// qui remonte vers les poids d'entrée est divisée par plus de dix, et le neurone
+/// n'apprend plus qu'au dixième de la vitesse prévue.
+pub const SEUIL_SATURATION: f64 = 0.1;
+/// **(L5, livrable 5) LE SEUIL AU-DESSOUS DUQUEL UN NEURONE EST DIT FIGÉ : son
+/// amplitude de sortie (max − min de `h`) reste sous 0,1 sur toute la tranche.**
+///
+/// L'audit §2.1 dit « six neurones sur cinquante rendent une valeur constante
+/// dans tous les états testés ». Mesuré le 20-08, aucun neurone n'est constant au
+/// sens strict — sur 9 746 situations, l'amplitude médiane vaut 2,0, l'étendue
+/// entière de la tangente hyperbolique. Ce que l'audit décrit est un
+/// EFFONDREMENT de cette amplitude, qui apparaît à l'entraînement : sur
+/// `data/poids/apprenti-L3-amorce.txt` (30 000 parties, amplitude de départ 0,1)
+/// les deux plus petites amplitudes valent 4,3e−2 et 1,2e−1 quand la médiane est
+/// à 1,9. Un vingtième de l'étendue disponible : le neurone « ne distingue plus
+/// deux situations ».
+pub const AMPLITUDE_FIGEE: f64 = 0.1;
 
 // ---------------------------------------------------------------------------
 // La pile des situations passées
@@ -205,8 +240,9 @@ pub struct ReseauMulti<const S: usize> {
     /// Poids de sortie : `w_sortie[k * (CACHES + 1) + j]`, `j == CACHES` portant
     /// le biais de couche cachée (valeur fixe 1).
     pub w_sortie: Vec<f64>,
-    /// Corrections accumulées, appliquées à la fin de la passe (§2.5).
-    acc_cache: Vec<f64>,
+    /// Corrections de SORTIE accumulées, appliquées à la fin de la passe
+    /// (§2.5). La couche cachée, elle, n'accumule plus : voir
+    /// [`ReseauMulti::produit_externe`] (§2.17.2).
     acc_sortie: Vec<f64>,
     /// Nombre de parties d'entraînement déjà vues (écrit dans le fichier, §7).
     pub parties: u64,
@@ -236,11 +272,47 @@ pub struct ReseauMulti<const S: usize> {
     // ---- statistiques
     pub somme_erreur2: f64,
     pub compte_erreur: u64,
+
+    // ---- (L5, livrable 5) LA MESURE DE LA COUCHE CACHÉE
+    /// Relever la pente `1 − h²` à chaque évaluation. **Éteint par défaut**, et
+    /// il doit l'être : `evaluer` est la boucle la plus chaude du dépôt.
+    /// `entraine` ne l'allume que sur la DERNIÈRE tranche, celle qu'il publie.
+    pub mesurer_couche: bool,
+    pente_somme: f64,
+    pente_compte: u64,
+    pente_satures: u64,
+    h_min: Vec<f64>,
+    h_max: Vec<f64>,
 }
 
-/// **L'amplitude des poids de départ (§1) : ±0,1.** C'est la valeur spécifiée, et
-/// c'est celle que `Reseau::neuf` emploie.
-pub const AMPLITUDE_DEPART: f64 = 0.1;
+/// **(L5, §2.1) L'AMPLITUDE DES POIDS DE DÉPART : ±0,045.** Elle valait ±0,1.
+///
+/// Les 1 630 entrées de la description valent toutes +1 ou −1, jamais 0. Chaque
+/// neurone caché additionne 1 630 nombres multipliés par des poids tirés entre
+/// −a et +a : la somme a un écart-type de √(1630/3) × a, soit **2,33 pour
+/// a = 0,1**. La tangente hyperbolique est déjà couchée à cette valeur, sa
+/// dérivée `1 − h²` vaut moins d'un dixième, et le neurone ne distingue plus
+/// deux situations. `a = 0,045` ramène cet écart-type à **1,05**.
+///
+/// Mesuré le 20-08 sur 9 746 situations relevées dans douze parties (politique
+/// au hasard, boîtes `base,decouverte`), réseau neuf :
+///
+/// | amplitude | pente moyenne `1 − h²` | part de neurones saturés |
+/// |-----------|------------------------|--------------------------|
+/// | 0,1       | 0,3048                 | 45,8 %                   |
+/// | 0,06      | 0,4669                 | 21,1 %                   |
+/// | **0,045** | **0,5720**             | **9,0 %**                |
+/// | 0,03      | 0,7171                 | 1,0 %                    |
+///
+/// 0,03 dépasse la cible : l'écart-type y tombe à 0,70 et la couche cachée
+/// devient quasi linéaire. 0,045 est la valeur qui rend l'écart-type voisin de
+/// 1 — le régime où la tangente hyperbolique travaille.
+///
+/// **Un seul point de vérité.** `--amplitude-depart` reste offert (c'est par lui
+/// que l'ancien réglage se remesure : `--amplitude-depart 0.1`), et aucun outil
+/// du dépôt ne code d'amplitude en dur : `entraine.rs` lit cette constante,
+/// `chrono.rs` passe par `Reseau::neuf`. Vérifié par `grep`.
+pub const AMPLITUDE_DEPART: f64 = 0.045;
 
 /// **LE RÉSEAU QUI JUGE UNE SITUATION** : deux sorties, une par joueur. C'est le
 /// réseau de tout le dépôt, et il continue de s'appeler `Reseau` — un alias sur le
@@ -265,18 +337,19 @@ impl<const S: usize> ReseauMulti<S> {
     /// le préambule de la spécification autorise (« tu peux proposer mieux, mais
     /// tu livres d'abord la version spécifiée, tu mesures les deux »).**
     ///
-    /// Ce qui la motive, et c'est arithmétique : la description compte 1472
-    /// entrées valant toutes ±1. Avec des poids tirés dans ±0,1, la somme
-    /// pondérée d'un neurone caché a un écart-type de √(1472/3) × 0,1 ≈ **2,2** —
-    /// la tangente hyperbolique y est déjà couchée, et sa dérivée (1 − h²) vaut
-    /// moins d'un dixième. Les mille trois cents drapeaux de cartes, qui ne
-    /// bougent presque jamais, écrasent ainsi le signal des thermomètres, qui,
-    /// eux, portent tout ce qui distingue deux options. La référence, elle, n'a
-    /// que 704 entrées : le même 0,1 y donne un écart-type de 1,5.
+    /// Ce qui la motive, et c'est arithmétique : la description compte 1 630
+    /// entrées valant toutes ±1. Avec des poids tirés dans ±a, la somme pondérée
+    /// d'un neurone caché a un écart-type de √(1630/3) × a — la tangente
+    /// hyperbolique y est déjà couchée dès que ce nombre dépasse 2, et sa
+    /// dérivée (1 − h²) vaut alors moins d'un dixième. Les mille trois cents
+    /// drapeaux de cartes, qui ne bougent presque jamais, écrasent ainsi le
+    /// signal des thermomètres, qui, eux, portent tout ce qui distingue deux
+    /// options. La référence, elle, n'a que 704 entrées : le même 0,1 y donne un
+    /// écart-type de 1,5.
     ///
-    /// `--amplitude-depart 0.045` ramène cet écart-type à 1,0 pour 1472 entrées.
-    /// La valeur par défaut reste 0,1, et `Reseau::neuf` est inchangée : sans
-    /// l'argument, l'entraînement est celui du §1 au bit près.
+    /// **Depuis le lot L5, la valeur par défaut est 0,045** ([`AMPLITUDE_DEPART`],
+    /// où la mesure est écrite). `--amplitude-depart 0.1` reste le chemin par
+    /// lequel l'ancien réglage se remesure, par la MÊME commande.
     pub fn neuf_amplitude(n_entrees: usize, amplitude: f64) -> ReseauMulti<S> {
         let mut rng = StdRng::seed_from_u64(GRAINE_POIDS);
         let mut w_cache = vec![0.0; (n_entrees + 1) * CACHES];
@@ -289,7 +362,6 @@ impl<const S: usize> ReseauMulti<S> {
         }
         ReseauMulti {
             n_entrees,
-            acc_cache: vec![0.0; w_cache.len()],
             acc_sortie: vec![0.0; w_sortie.len()],
             w_cache,
             w_sortie,
@@ -308,6 +380,12 @@ impl<const S: usize> ReseauMulti<S> {
             sans_optimisation: false,
             somme_erreur2: 0.0,
             compte_erreur: 0,
+            mesurer_couche: false,
+            pente_somme: 0.0,
+            pente_compte: 0,
+            pente_satures: 0,
+            h_min: vec![f64::INFINITY; CACHES],
+            h_max: vec![f64::NEG_INFINITY; CACHES],
         }
     }
 
@@ -356,6 +434,24 @@ impl<const S: usize> ReseauMulti<S> {
         }
         for j in 0..CACHES {
             self.h[j] = self.sommes[j].tanh();
+        }
+        // (L5, livrable 5) Le relevé de la couche cachée, quand il est demandé.
+        // Éteint, il ne coûte qu'un branchement prévisible par évaluation.
+        if self.mesurer_couche {
+            for j in 0..CACHES {
+                let pente = 1.0 - self.h[j] * self.h[j];
+                self.pente_somme += pente;
+                if pente < SEUIL_SATURATION {
+                    self.pente_satures += 1;
+                }
+                if self.h[j] < self.h_min[j] {
+                    self.h_min[j] = self.h[j];
+                }
+                if self.h[j] > self.h_max[j] {
+                    self.h_max[j] = self.h[j];
+                }
+            }
+            self.pente_compte += 1;
         }
         // Sortie : exponentielle normalisée, mise à l'échelle par un pivot qui ne
         // change pas le résultat en arithmétique réelle et qui évite les
@@ -426,9 +522,34 @@ impl<const S: usize> ReseauMulti<S> {
         }
         self.compte_erreur += 1;
 
-        for k in 0..S {
-            let base = k * (CACHES + 1);
-            let g = taux * erreur[k] * derivee[k];
+        // **(L5, §2.17.1) LA FORMULE COMPLÈTE, DES DEUX CÔTÉS.**
+        //
+        // Cette boucle n'appliquait que `erreur[m] · p_m(1 − p_m)`, c'est-à-dire
+        // le seul terme diagonal de la jacobienne de l'exponentielle
+        // normalisée, là où la couche cachée juste en dessous applique la somme
+        // complète `Σ_k erreur[k] · ∂p_k/∂s_m`. Ce n'était pas une direction
+        // fausse : pour deux sorties, où `erreur[1] = −erreur[0]` et
+        // `p_0 p_1 = p_0(1 − p_0)`, la somme complète vaut exactement le double
+        // du terme diagonal — un taux d'apprentissage deux fois trop petit sur
+        // les 255 poids de sortie, et rien d'autre. Pour cinq sorties, en
+        // revanche, ce n'est plus un simple facteur.
+        //
+        // `∂p_k/∂s_m = p_k(δ_km − p_m)`, écrit ici avec les exponentielles
+        // (`e_k · e_m / total²`) parce que c'est déjà la forme qu'emploie la
+        // remontée vers la couche cachée : une seule formule, deux emplois.
+        let t2 = self.total_e * self.total_e;
+        for m in 0..S {
+            let base = m * (CACHES + 1);
+            let mut somme = 0.0;
+            for k in 0..S {
+                somme += erreur[k]
+                    * if k == m {
+                        derivee[k]
+                    } else {
+                        -(self.e[k] * self.e[m] / t2)
+                    };
+            }
+            let g = taux * somme;
             for j in 0..CACHES {
                 self.acc_sortie[base + j] -= g * self.h[j];
             }
@@ -438,7 +559,6 @@ impl<const S: usize> ReseauMulti<S> {
         // Erreur remontée vers chaque neurone caché. Le second terme est le
         // couplage propre à l'exponentielle normalisée : sans lui, on
         // entraînerait deux sorties indépendantes (§2.6).
-        let t2 = self.total_e * self.total_e;
         let mut d = [0.0f64; CACHES];
         for j in 0..CACHES {
             let mut eh = 0.0;
@@ -460,7 +580,29 @@ impl<const S: usize> ReseauMulti<S> {
         d
     }
 
-    /// Le produit externe d'une seule situation : `acc[i][j] -= d[j] · x[i]`.
+    /// Le produit externe d'une seule situation : `w[i][j] -= d[j] · x[i]`.
+    ///
+    /// **(L5, §2.17.2) IL ÉCRIT DANS LES POIDS, PLUS DANS UN ACCUMULATEUR.**
+    ///
+    /// La couche cachée passait par `acc_cache`, un tableau de la taille des
+    /// poids (81 550 nombres), que `appliquer` reversait ensuite dans `w_cache`
+    /// en le remettant à zéro. Cela coûtait, à CHAQUE correction, un parcours
+    /// complet de plus : `acc` écrit, puis `acc` relu, `w` relu, `w` écrit,
+    /// `acc` remis à zéro. Or l'accumulateur n'avait aucune raison d'être ici :
+    /// il existe pour que corriger une situation ne change pas le réseau avec
+    /// lequel on évalue la suivante (§2.5) — et **aucune évaluation ne
+    /// s'intercale** entre les produits externes et `appliquer`. Dans
+    /// `corriger`, toutes les évaluations de la pile sont faites AVANT ; dans
+    /// `entrainer_une`, il n'y a qu'une situation.
+    ///
+    /// L'accumulateur reste indispensable pour les poids de SORTIE
+    /// (`acc_sortie`), eux : `accumuler_sortie` relit `w_sortie` à chaque
+    /// situation de la pile pour remonter l'erreur vers la couche cachée. Les
+    /// deux moitiés ne sont donc pas symétriques, et c'est exprès.
+    ///
+    /// Le résultat n'est pas identique au dernier bit : `w += (a₁ + a₂)` et
+    /// `(w += a₁) += a₂` ne donnent pas le même arrondi. Il l'est à la douzième
+    /// décimale, c'est-à-dire au format d'écriture du §7.
     fn produit_externe(&mut self, x: &[f64], d: &[f64; CACHES]) {
         let n = self.n_entrees;
         for i in 0..n {
@@ -471,14 +613,14 @@ impl<const S: usize> ReseauMulti<S> {
                 // jamais : le raccourci est écrit, il ne mord pas.
                 continue;
             }
-            let acc = &mut self.acc_cache[i * CACHES..(i + 1) * CACHES];
+            let w = &mut self.w_cache[i * CACHES..(i + 1) * CACHES];
             for j in 0..CACHES {
-                acc[j] -= d[j] * xi;
+                w[j] -= d[j] * xi;
             }
         }
-        let acc = &mut self.acc_cache[n * CACHES..(n + 1) * CACHES];
+        let w = &mut self.w_cache[n * CACHES..(n + 1) * CACHES];
         for j in 0..CACHES {
-            acc[j] -= d[j]; // biais d'entrée : valeur fixe 1
+            w[j] -= d[j]; // biais d'entrée : valeur fixe 1
         }
     }
 
@@ -541,9 +683,11 @@ impl<const S: usize> ReseauMulti<S> {
             for i in 0..n {
                 let d = x[i] - precedent[i];
                 if d != 0.0 {
-                    let acc = &mut self.acc_cache[i * CACHES..(i + 1) * CACHES];
+                    // (§2.17.2) Directement dans les poids, comme le produit
+                    // externe ci-dessus : aucune évaluation ne s'intercale.
+                    let w = &mut self.w_cache[i * CACHES..(i + 1) * CACHES];
                     for j in 0..CACHES {
-                        acc[j] -= sm[j] * d;
+                        w[j] -= sm[j] * d;
                     }
                 }
             }
@@ -553,14 +697,14 @@ impl<const S: usize> ReseauMulti<S> {
         self.appliquer();
     }
 
-    /// Verse les corrections accumulées dans les poids, et remet l'accumulateur
-    /// à zéro. Les sommes cachées mémorisées ne valent plus rien après cela : on
-    /// oublie.
+    /// Verse les corrections de SORTIE accumulées dans les poids, et remet
+    /// l'accumulateur à zéro. Les sommes cachées mémorisées ne valent plus rien
+    /// après cela : on oublie.
+    ///
+    /// **(§2.17.2)** La couche cachée n'a plus d'accumulateur : `produit_externe`
+    /// écrit dans `w_cache` sur-le-champ. Il ne reste ici que les 102 poids de
+    /// sortie, contre 81 652 auparavant.
     pub fn appliquer(&mut self) {
-        for (w, a) in self.w_cache.iter_mut().zip(self.acc_cache.iter_mut()) {
-            *w += *a;
-            *a = 0.0;
-        }
         for (w, a) in self.w_sortie.iter_mut().zip(self.acc_sortie.iter_mut()) {
             *w += *a;
             *a = 0.0;
@@ -581,6 +725,131 @@ impl<const S: usize> ReseauMulti<S> {
     pub fn raz_stats(&mut self) {
         self.somme_erreur2 = 0.0;
         self.compte_erreur = 0;
+    }
+
+    // -----------------------------------------------------------------------
+    // (L5, livrable 5) LA MESURE DE LA COUCHE CACHÉE
+    //
+    // « Une correction qu'on ne peut pas voir de l'extérieur ne se contrôle
+    // pas. » Ces trois chiffres disent si le réglage de l'amplitude de départ a
+    // servi, et ils sont publiés en fin de journal d'entraînement.
+    // -----------------------------------------------------------------------
+
+    /// Oublie le relevé de couche et repart à zéro (nouvelle tranche).
+    pub fn raz_couche(&mut self) {
+        self.pente_somme = 0.0;
+        self.pente_compte = 0;
+        self.pente_satures = 0;
+        for j in 0..CACHES {
+            self.h_min[j] = f64::INFINITY;
+            self.h_max[j] = f64::NEG_INFINITY;
+        }
+    }
+
+    /// Combien de situations ont été relevées depuis le dernier [`raz_couche`].
+    pub fn situations_vues(&self) -> u64 {
+        self.pente_compte
+    }
+
+    /// **La pente moyenne de la couche cachée** : la moyenne de `1 − h²` sur
+    /// tous les neurones et toutes les situations relevées. C'est la fraction de
+    /// la vitesse d'apprentissage prévue que la couche cachée laisse passer.
+    pub fn pente_moyenne(&self) -> f64 {
+        if self.pente_compte == 0 {
+            0.0
+        } else {
+            self.pente_somme / (self.pente_compte * CACHES as u64) as f64
+        }
+    }
+
+    /// **La part de neurones saturés**, en pourcentage : la proportion des
+    /// couples (neurone, situation) dont la pente est sous [`SEUIL_SATURATION`].
+    pub fn part_saturee(&self) -> f64 {
+        if self.pente_compte == 0 {
+            0.0
+        } else {
+            100.0 * self.pente_satures as f64 / (self.pente_compte * CACHES as u64) as f64
+        }
+    }
+
+    /// **Le nombre de neurones figés** : ceux dont l'amplitude de sortie sur la
+    /// tranche reste sous [`AMPLITUDE_FIGEE`] — ils rendent la même valeur, quelle
+    /// que soit la situation (audit §2.1).
+    pub fn neurones_figes(&self) -> usize {
+        if self.pente_compte == 0 {
+            return 0;
+        }
+        (0..CACHES)
+            .filter(|j| self.h_max[*j] - self.h_min[*j] < AMPLITUDE_FIGEE)
+            .count()
+    }
+
+    /// La plus petite amplitude de sortie relevée sur la tranche — le neurone le
+    /// plus près d'être figé. Sert aux tests et au journal.
+    pub fn amplitude_minimale(&self) -> f64 {
+        if self.pente_compte == 0 {
+            return 0.0;
+        }
+        (0..CACHES)
+            .map(|j| self.h_max[j] - self.h_min[j])
+            .fold(f64::INFINITY, f64::min)
+    }
+
+    // -----------------------------------------------------------------------
+    // (L5, §2.7) LES TROIS SERVICES DU PARTAGE SUR PLUSIEURS CŒURS
+    //
+    // Un ouvrier RECOPIE les poids courants, joue sa partie sur sa copie, et
+    // rend sa différence ; à la fin du groupe on additionne les différences
+    // DANS L'ORDRE DES GRAINES. C'est cet ordre fixe, et lui seul, qui rend le
+    // partage déterministe octet pour octet — une mise à jour concurrente sans
+    // verrou ne le serait pas, et elle est refusée d'avance par le contrat.
+    // -----------------------------------------------------------------------
+
+    /// L'ouvrier repart des poids du maître. Ses accumulateurs sont vides (ils
+    /// le sont toujours entre deux corrections) et sa mémoire de calcul est
+    /// effacée : rien de la partie précédente ne franchit ce point.
+    pub fn copier_les_poids_de(&mut self, maitre: &ReseauMulti<S>) {
+        debug_assert_eq!(self.w_cache.len(), maitre.w_cache.len());
+        self.w_cache.copy_from_slice(&maitre.w_cache);
+        self.w_sortie.copy_from_slice(&maitre.w_sortie);
+        self.parties = maitre.parties;
+        self.lambda = maitre.lambda;
+        self.sans_optimisation = maitre.sans_optimisation;
+        for a in self.acc_sortie.iter_mut() {
+            *a = 0.0;
+        }
+        self.oublier();
+    }
+
+    /// Verse dans le maître la différence qu'un ouvrier a produite depuis
+    /// `base`. Appelée une fois par ouvrier, **dans l'ordre des graines**.
+    pub fn ajouter_la_difference(&mut self, base: &ReseauMulti<S>, ouvrier: &ReseauMulti<S>) {
+        debug_assert_eq!(self.w_cache.len(), base.w_cache.len());
+        for i in 0..self.w_cache.len() {
+            self.w_cache[i] += ouvrier.w_cache[i] - base.w_cache[i];
+        }
+        for i in 0..self.w_sortie.len() {
+            self.w_sortie[i] += ouvrier.w_sortie[i] - base.w_sortie[i];
+        }
+        self.oublier();
+    }
+
+    /// Verse dans le maître les compteurs d'un ouvrier — erreur de prédiction et
+    /// relevé de couche cachée. Même ordre fixe, mêmes raisons.
+    pub fn absorber_les_statistiques(&mut self, ouvrier: &ReseauMulti<S>) {
+        self.somme_erreur2 += ouvrier.somme_erreur2;
+        self.compte_erreur += ouvrier.compte_erreur;
+        self.pente_somme += ouvrier.pente_somme;
+        self.pente_compte += ouvrier.pente_compte;
+        self.pente_satures += ouvrier.pente_satures;
+        for j in 0..CACHES {
+            if ouvrier.h_min[j] < self.h_min[j] {
+                self.h_min[j] = ouvrier.h_min[j];
+            }
+            if ouvrier.h_max[j] > self.h_max[j] {
+                self.h_max[j] = ouvrier.h_max[j];
+            }
+        }
     }
 
     /// **Relecture d'un fichier de poids**, avec le MÊME verrou que côté
@@ -681,6 +950,51 @@ impl ReseauMulti<SORTIES> {
         let b = (DOUCEUR * (score_autre as f64 - meilleur)).exp();
         let t = a + b;
         [a / t, b / t]
+    }
+
+    /// **(L5, famille B) LA CIBLE DE FIN DE PARTIE QUAND LE LIVRET A DÉPARTAGÉ.**
+    ///
+    /// [`cible_finale`](Self::cible_finale) est une fonction des deux SCORES, et
+    /// à scores égaux elle rend `[0,5 ; 0,5]` : « match nul ». Or le livret
+    /// (`docs/regles/livret-base.md:461`) ne déclare presque jamais de match nul
+    /// — à points de victoire égaux, « le joueur ayant le plus grand total cumulé
+    /// de chaleur, de MC et de plantes est déclaré vainqueur, cartes Projet en
+    /// main converties ». Mesuré le 20-08 sur 2 000 parties (graines 6600001 et
+    /// suivantes, politique au hasard, boîtes `base,decouverte`) : **44 parties à
+    /// égalité de points de victoire, dont 0 nulle après départage**. L'IA
+    /// apprenait donc un résultat faux sur 2,2 % de ses parties — quarante-quatre
+    /// mille signaux faux sur deux millions de parties.
+    ///
+    /// **La correction est la plus petite possible, et c'est délibéré.** La forme
+    /// continue de `cible_finale` n'est pas un défaut : apprendre « gagné de 40
+    /// points » et « gagné de 1 point » différemment est voulu, et l'aplatir en
+    /// `[1 ; 0]` détruirait cette nuance. Le seul cas faux est l'ÉGALITÉ STRICTE.
+    /// On lui donne donc la cible de la victoire la plus étroite qui existe, celle
+    /// d'un point d'écart : `[0,574 ; 0,426]` pour le vainqueur désigné par le
+    /// départage. Aucun autre score ne change de cible, d'un bit.
+    ///
+    /// `je_gagne` **vient de `flow::winner`**, jamais d'une comparaison refaite
+    /// ici : le départage du livret regarde aussi la chaleur, l'argent, les
+    /// plantes et les cartes en main, et un second point de vérité divergerait.
+    /// `None` — les deux joueurs égaux jusque sur le total de départage — est le
+    /// seul vrai match nul, et il garde `[0,5 ; 0,5]`.
+    pub fn cible_finale_departagee(
+        score_moi: i64,
+        score_autre: i64,
+        je_gagne: Option<bool>,
+    ) -> [f64; SORTIES] {
+        if score_moi != score_autre {
+            // Le départage ne s'applique pas : `flow::winner` a forcément désigné
+            // celui qui a le plus de points, et la cible continue de dire de
+            // combien.
+            debug_assert!(je_gagne == Some(score_moi > score_autre));
+            return Self::cible_finale(score_moi, score_autre);
+        }
+        match je_gagne {
+            Some(true) => Self::cible_finale(score_moi + 1, score_autre),
+            Some(false) => Self::cible_finale(score_moi, score_autre + 1),
+            None => Self::cible_finale(score_moi, score_autre),
+        }
     }
 }
 

@@ -6037,6 +6037,19 @@ pub fn play_round(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
     // L'ordre du tour est repris tel quel pour le versement, afin que deux
     // joueurs qui gagneraient tous deux sur la même réserve soient servis dans
     // le même ordre qu'avant.
+    // **(L5, §2.17.3) LA SORTIE ANTICIPÉE, PREMIER POINT.**
+    //
+    // Quand la politique a posé son point d'attente, plus rien de cette manche
+    // n'est enregistré : `joueur::etat_atteint` rend l'état cloné à la décision
+    // attendue, et tout ce qui suit est répondu par défaut puis jeté. On
+    // s'arrête donc là où l'on est. `Policy::interrompu` vaut `false` par
+    // défaut : le simulateur, les politiques scriptées et le joueur lui-même
+    // déroulent la manche entière, et les quatre empreintes d'état ne bougent
+    // pas.
+    if policy.interrompu() {
+        return;
+    }
+
     for p in game.players_in_turn_order() {
         game.players[p].phase_revelee = Some(game.players[p].chosen_phase);
     }
@@ -6048,6 +6061,10 @@ pub fn play_round(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
     for phase in 1u8..=5 {
         if !picked[phase as usize] {
             continue;
+        }
+        // (L5, §2.17.3) La sortie anticipée, à chaque frontière de phase.
+        if policy.interrompu() {
+            return;
         }
         // (regles-de-la-vente) La phase que le moteur résout à partir d'ici.
         // Écrite au SEUL endroit qui la connaisse, avant le premier point de
@@ -6088,6 +6105,12 @@ pub fn play_round(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
     // retour à zéro, l'écran garderait allumée la dernière phase résolue et
     // offrirait un bouton de vente que le moteur refuserait.
     game.phase_en_cours = 0;
+
+    // (L5, §2.17.3) La sortie anticipée, avant l'étape de fin de manche : c'est
+    // la dernière chose que la manche exécute pour rien.
+    if policy.interrompu() {
+        return;
+    }
 
     // C. Étape de fin : limite de main 10, 3 MC par carte défaussée
     // (livret « avslutningssteget » p.16).

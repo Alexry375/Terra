@@ -14,7 +14,19 @@
 //!   probabilité que le réseau accorde au siège 0, de l'autre les trois règles
 //!   triviales du §3.0 (score seul ; score + 2 × production ; score + 2 ×
 //!   production + cartes posées) ;
-//! - on compare chacun au vainqueur réel, parties nulles écartées.
+//! - on compare chacun au vainqueur réel, **départagé au sens du livret**.
+//!
+//! **(L5) LES PARTIES À POINTS ÉGAUX NE SE JETTENT PLUS.** Ce banc écartait les
+//! parties dont les deux joueurs finissaient au même nombre de points de
+//! victoire (`if scores[0] == scores[1] { continue }`). Il mesurait donc la
+//! justesse de l'IA sur une population dont il avait retiré les cas les plus
+//! serrés — précisément ceux où elle se trompe le plus, et où un banc de
+//! jugement a le plus à dire. Le livret départage ces parties
+//! (`docs/regles/livret-base.md:461`) et le dépôt a un point de calcul unique
+//! pour cela depuis le lot L1 : `flow::winner`. C'est lui qu'on appelle — pas
+//! une comparaison refaite sur place, qui deviendrait un second point de vérité
+//! et divergerait. `parties_ecartees` compte ce qui reste : les vraies parties
+//! nulles, égales jusque sur le total de départage.
 //!
 //! Ce n'est pas une mesure de force — c'est une mesure de la QUALITÉ DU JUGEMENT,
 //! et elle dit lequel des deux étages du joueur est en cause quand la force
@@ -22,7 +34,7 @@
 
 use engine::boites::BoiteSet;
 use engine::cards::CardsDb;
-use engine::flow::{play_round, score_parts, setup_game};
+use engine::flow::{play_round, score_parts, setup_game, winner};
 use engine::sim::MAX_GENERATIONS;
 use engine::state::GameState;
 
@@ -100,6 +112,17 @@ fn main() {
     let mut vecteur: Vec<f64> = Vec::new();
 
     let mut decisives = 0u64;
+    // (L5) Les parties qu'on jette vraiment : celles que le livret lui-même ne
+    // départage pas, et celles qui n'ont pas atteint leur mi-partie.
+    // **DEUX CAUSES, DEUX COMPTEURS.** Le contrat exige `parties_ecartees: 0`,
+    // et il vise UNE chose : une partie à points égaux ne se jette plus, elle se
+    // départage. Verser dans le même compteur les parties trop courtes pour
+    // avoir une mi-partie rendrait le contrôle rouge en accusant le départage,
+    // qui n'y serait pour rien — et un compteur qui mélange deux causes ne dit
+    // plus laquelle a bougé. `parties_ecartees` ne publie donc que les vraies
+    // nulles ; les parties sans mi-partie ont leur propre ligne.
+    let mut ecartees = 0u64;
+    let mut sans_mi_partie = 0u64;
     let (mut j_reseau, mut j_score, mut j_sp, mut j_spc) = (0u64, 0u64, 0u64, 0u64);
     let mut somme_p = 0.0f64;
     let mut somme_ecart_p = 0.0f64;
@@ -141,15 +164,22 @@ fn main() {
             j.debut_manche(&g);
             play_round(&mut g, &db, &mut j);
         }
-        let (scores, _, _) = score_parts(&g, &db);
         let Some((p0, d_score, d_sp, d_spc)) = releve else {
+            // La partie n'a pas atteint sa mi-partie : il n'y a aucune
+            // prédiction à noter. Ce n'est pas un match nul.
+            sans_mi_partie += 1;
             continue;
         };
-        if scores[0] == scores[1] {
+        // (L5) LE VAINQUEUR AU SENS DU LIVRET, PAR LE POINT DE CALCUL UNIQUE.
+        // `None` n'arrive que si les deux joueurs sont égaux en points de
+        // victoire ET sur le total cumulé chaleur + argent + plantes, cartes en
+        // main converties : la seule partie vraiment nulle.
+        let Some(vainqueur) = winner(&g, &db) else {
+            ecartees += 1;
             continue;
-        }
+        };
         decisives += 1;
-        let gagne0 = scores[0] > scores[1];
+        let gagne0 = vainqueur == 0;
         somme_p += p0;
         somme_ecart_p += (p0 - 0.5).abs();
         if (p0 > 0.5) == gagne0 {
@@ -172,7 +202,13 @@ fn main() {
     let pc = |x: u64| 100.0 * x as f64 / decisives as f64;
     println!("poids : {poids}");
     println!("{decisives} parties décisives sur {parties}, vainqueur désigné à mi-partie :");
-    println!("  le RÉSEAU (1472 entrées)                    : {:.1} %", pc(j_reseau));
+    // (L5) Le nombre d'entrées était écrit en dur — « 1472 » — alors que la
+    // fiche en compte 1 630 depuis le lot L3. On le LIT, désormais.
+    println!(
+        "  le RÉSEAU ({} entrées)                    : {:.1} %",
+        noms.len(),
+        pc(j_reseau)
+    );
     println!("  le score acquis seul                        : {:.1} %", pc(j_score));
     println!("  score + 2 × production                      : {:.1} %", pc(j_sp));
     println!("  score + 2 × production + cartes posées      : {:.1} %", pc(j_spc));
@@ -181,4 +217,8 @@ fn main() {
         somme_p / decisives as f64,
         somme_ecart_p / decisives as f64
     );
+    // (L5) « Une correction qu'on ne peut pas voir de l'extérieur ne se contrôle
+    // pas. » Une partie à points égaux se départage ; elle ne se jette plus.
+    println!("parties_ecartees: {ecartees} sur {parties}");
+    println!("parties_sans_mi_partie: {sans_mi_partie} sur {parties}");
 }

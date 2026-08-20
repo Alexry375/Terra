@@ -425,6 +425,25 @@ impl Policy for Rejeu<'_> {
         }
     }
 
+    /// **(L5, §2.17.3) Le point d'attente est posé : la manche n'a plus rien à
+    /// nous dire.**
+    ///
+    /// À partir de là, `prendre` rend `None` sans plus rien enregistrer, `observe`
+    /// n'écrit plus `vue`, aucun compteur d'avance ne bouge et aucune faute ne
+    /// peut plus naître : tout ce que `play_round` continuait de dérouler était
+    /// répondu par `Premiere` et jeté. `joueur::etat_atteint` rend l'état cloné à
+    /// cette décision-là, pas l'état final de la manche.
+    ///
+    /// **La condition sur `vue` n'est pas décorative** : c'est elle qui rend la
+    /// sortie anticipée sûre. `etat_atteint` retombe sur l'état vivant quand
+    /// `vue` est absente (`unwrap_or(g)`) — cas qu'aucune décision observée ne
+    /// produit, puisque `flow.rs` appelle `avant_decision` juste avant, mais on
+    /// ne coupe pas sur une supposition. Sans `vue`, on déroule la manche comme
+    /// avant.
+    fn interrompu(&self) -> bool {
+        self.attente.is_some() && self.vue.is_some()
+    }
+
     fn corp_mulligan(&mut self, rng: &mut StdRng, player: usize, corps: &[u16]) -> bool {
         match self.prendre(player) {
             Some(r) => self.indice(&r, 2).map(|i| i == 1).unwrap_or(false),

@@ -1,0 +1,41 @@
+# **(L5, §2.4) COMPILER POUR LE PROCESSEUR RÉEL DE CETTE MACHINE.**
+#
+# Le processeur de cette machine (Intel i5-11300H, Tiger Lake) traite huit
+# nombres à virgule flottante à la fois (AVX-512 / AVX2) et sait fusionner une
+# multiplication et une addition en une seule instruction (FMA). Sans ce fichier,
+# le compilateur vise le plus petit dénominateur commun x86-64 : ni l'un ni
+# l'autre. Or la boucle la plus chaude du dépôt — `reseau::evaluer` et
+# `reseau::produit_externe` — ne fait que cela, multiplier et additionner des
+# tableaux de nombres à virgule flottante contigus.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# CE QUE CE FICHIER IMPOSE, ET QU'IL FAUT SAVOIR AVANT DE LE GARDER :
+#
+# 1. Il vaut pour TOUTES les compilations lancées depuis `engine/` — les
+#    binaires, les tests, les contrôles, et une éventuelle intégration continue.
+#    Ce n'est pas une option de la commande d'entraînement, c'est un réglage du
+#    dépôt.
+#
+# 2. **Les binaires produits ne tournent plus que sur cette machine**, ou sur un
+#    processeur au moins aussi récent. Ailleurs, ils s'arrêtent sur une
+#    instruction illégale. Rien ne le signale à la compilation.
+#
+# 3. Le déterminisme a été VÉRIFIÉ APRÈS ce changement, et non supposé : deux
+#    entraînements identiques rendent le même `md5sum`, octet pour octet. Le
+#    compilateur ne réordonne pas les additions à virgule flottante de lui-même
+#    (Rust ne demande jamais `fast-math`), mais c'était à prouver.
+#
+# 4. CE QUI EST PROUVÉ ET CE QUI NE L'EST PAS, relevé sur le binaire livré le
+#    20-08 à 23:34 (`objdump -d engine/target/release/entraine`) : **867
+#    références aux registres `zmm` de 512 bits et 124 `kmov`** — des
+#    instructions qui n'existent pas dans la cible x86-64 de base, et que le
+#    dépôt n'écrit nulle part à la main (aucun `target_feature`, aucun
+#    `core::arch`). La compilation emploie donc réellement ce fichier, ce n'est
+#    pas déduit de sa seule présence. **En revanche `vfmadd` est absent (0
+#    occurrence)** : la fusion multiplication-addition décrite plus haut n'est
+#    PAS employée par ce binaire, et elle n'est revendiquée nulle part.
+#    Détail : `outputs/work/config-cargo-vraiment-employe.txt`.
+#
+# Voir `workspaces/la-vitesse-et-les-reglages/outputs/interface.md`.
+[build]
+rustflags = ["-C", "target-cpu=native"]

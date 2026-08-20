@@ -80,6 +80,28 @@ pub trait Policy {
     /// l'état ainsi reçu.
     fn observe(&mut self, _game: &GameState, _player: usize) {}
 
+    /// **(L5, §2.17.3) LA POLITIQUE A-T-ELLE FINI D'AVOIR BESOIN DE CETTE MANCHE ?**
+    ///
+    /// `flow::play_round` l'interroge à chaque frontière de phase et avant
+    /// l'étape de fin de manche. Une politique qui répond `true` fait sortir la
+    /// manche par le haut : le moteur cesse de dérouler des phases dont plus rien
+    /// ne sera lu.
+    ///
+    /// **Corps par défaut `false`, et c'est le point** : `RandomPolicy`,
+    /// `ProbePolicy`, `Joueur` et toutes les politiques scriptées des tests
+    /// l'héritent sans une ligne de changement et déroulent la manche entière,
+    /// exactement comme avant. Les quatre empreintes d'état ne bougent pas.
+    ///
+    /// Le seul cas où elle vaut `true` est `rejeu::Rejeu` **après** qu'il a posé
+    /// son point d'attente : le joueur qui essaie ses coups (`joueur.rs`,
+    /// `etat_atteint`) ne lit alors plus que l'état cloné à cette décision-là, et
+    /// tout ce que la manche continuait de dérouler était jeté — décisions
+    /// répondues par défaut, production encaissée, cartes piochées, rien de quoi
+    /// personne n'a plus l'usage.
+    fn interrompu(&self) -> bool {
+        false
+    }
+
     /// Mulligan corporations (règle maison n°1) : remplacer SES 2 corporations
     /// par 2 nouvelles — les 2 ou aucune. Avant la donne des cartes projets.
     fn corp_mulligan(&mut self, rng: &mut StdRng, player: usize, corps: &[u16]) -> bool;
