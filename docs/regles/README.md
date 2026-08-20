@@ -12,14 +12,22 @@ des sources est :
 En cas de conflit entre sources, **le texte imprimé gagne**, et le cas est
 consigné dans `notes/cas-tranches.md`.
 
+> **⚠️ Ce dépôt est public et ne distribue AUCUN extrait du livret de règles.**
+> Les quatre premières lignes du tableau ci-dessous décrivent des fichiers qui
+> existent sur la machine du propriétaire du jeu et qui sont exclus du suivi de
+> version. Partout dans le code, les commentaires citent une source sous la
+> forme `livret-base.md:461` ou `photo-14.jpg` : ce sont des références de
+> traçabilité, pas des fichiers que vous trouverez ici. Pour les reconstituer,
+> il faut le livret — c'est-à-dire le jeu.
+
 ## Organisation
 
 | Emplacement | Contenu |
 |---|---|
-| `photos/` | Les 23 photos du livret (réduites à 1600 px, lisibles). 01–19 : jeu de base ; 20–23 : Découverte. Originaux pleine taille hors git : `data/regles/photos-originales/`. |
-| `transcription-brute/` | Un fichier markdown par photo, transcription mot à mot (produit par sous-agents, audité par échantillon). |
-| `livret-base.md` | Le livret de base assemblé en un document markdown relisible. |
-| `livret-decouverte.md` | Le livret Découverte assemblé. |
+| `photos/` | **NON DISTRIBUÉ.** Les 23 photos du livret. Elles appartiennent à l'éditeur du jeu ; elles vivent sur la machine de celui qui possède le livret, jamais dans le dépôt. |
+| `transcription-brute/` | **NON DISTRIBUÉ.** Un fichier par photo, transcription mot à mot. Même raison. |
+| `livret-base.md` | **NON DISTRIBUÉ.** Le livret de base assemblé. Même raison. |
+| `livret-decouverte.md` | **NON DISTRIBUÉ.** Le livret Découverte assemblé. Même raison. |
 | `notes/cas-tranches.md` | Registre des points de règle ambigus et de la façon dont ils ont été tranchés (avec la source qui a tranché). |
 | `notes/regles-condensees.md` | Les règles réécrites en version ultra-condensée (aide-mémoire ; dérivée, jamais source). |
 

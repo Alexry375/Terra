@@ -32,3 +32,27 @@ data/mesures/**/*.err
 # (data/mesures/entrainement-A-2M-suite.log).
 data/poids/apprenti-2M.txt.*
 data/poids/apprenti-1200k.txt
+
+# ─────────────────────────────────────────────────────────────────────────────
+# RESSOURCES SOUS DROITS D'AUTEUR — JAMAIS VERSIONNEES, JAMAIS PUBLIEES.
+#
+# Ce depot est public. Il ne distribue aucun visuel du jeu, aucune photo du
+# livret de regles, aucune page numerisee. Ces fichiers vivent sur la machine de
+# celui qui possede le jeu, et nulle part ailleurs. Voir README.md.
+#
+# Pour remplir ces dossiers : numerisez vos propres cartes et suivez les noms de
+# fichiers donnes par `web/webapp/assets/manifeste.json`.
+web/webapp/assets/cartes/*
+!web/webapp/assets/cartes/LISEZ-MOI.md
+web/webapp/assets/plateau/*
+!web/webapp/assets/plateau/sol-martien-granicus-valles-nasa.jpg
+!web/webapp/assets/plateau/CREDITS-sol-martien.md
+!web/webapp/assets/plateau/LISEZ-MOI.md
+web/webapp/assets/menu/*
+!web/webapp/assets/menu/LISEZ-MOI.md
+docs/regles/photos/
+docs/regles/transcription-brute/
+docs/regles/livret-base.md
+docs/regles/livret-decouverte.md
+data/cartes-imprimees/
+web/demo-decor/
