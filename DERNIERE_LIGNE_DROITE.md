@@ -89,7 +89,7 @@ tout ce qui suit. **Ces travaux se font donc en un seul lot, hors partie**, avec
 une seule campagne de contrôles.
 
 ### MOT-1 (ancien K8) — Une question sautée quand rien n'est payable — FAIT
-**[FAIT 05-08, fusionné dans `main` (`ff40503`), audité.]** La question est
+**[FAIT 05-08, fusionné dans `main` (`e8edf8a`), audité.]** La question est
 désormais posée même sans carte payable, avec « passer » pour seule issue et
 l'occasion de vendre ouverte. Mesuré : 4 232 questions de ce type sur douze
 graines — le cas était fréquent, pas rare.
@@ -108,7 +108,7 @@ réponse « passer ». Règle du même coup MOT-4.
 
 ### MOT-2 (ancien K5) — Une action de carte impossible reste proposée — ✅ RÉPARÉ 05-08
 **[VÉRIFIÉ 05-08 · réparé, fusionné, rejoué par moi]** Correctif dans le lot
-« les choix se posent au bon moment » (`c071409`). `action_peut_produire` est
+« les choix se posent au bon moment » (`9f56aad`). `action_peut_produire` est
 le miroir exact des sorties par refus d'`apply_action_spec`, écrit une seule
 fois et lu par `action_options`. **Mesure d'après, rejouée par moi : 1419
 options d'action essayées sur 5 parties entières, 0 stérile** (avant : 2133
@@ -191,7 +191,7 @@ avant de poser ? ») ; puis, la première carte posée, la vraie question entre
 « piocher » et « poser une seconde ».
 
 ### MOT-4 (ancien K3, seconde moitié) — La phase s'arrête sans un mot — FAIT CÔTÉ MOTEUR
-**[FAIT 05-08 dans le moteur (`ff40503`) — PAS ENCORE À L'ÉCRAN.]** La phrase
+**[FAIT 05-08 dans le moteur (`e8edf8a`) — PAS ENCORE À L'ÉCRAN.]** La phrase
 publiée est « No card can be built this phase. You may still sell cards from
 your hand. », lue à la graine 4242, rang 17. Mais `web/webapp/vue/mots.js:268`
 rédige la question de `choose_build` **en dur** et ne lit jamais `d.question` :
@@ -216,7 +216,7 @@ joueur** (`engine/src/flow.rs:4051-4058`). La vente a cessé d'être une action
 **1 003 ventes, dont environ 270 en phase Construction, zéro passage de main**.
 
 Ce que Corentin a vu décrivait très probablement l'état d'avant le lot moteur
-(`ff40503`, la vente quitte la phase Action).
+(`e8edf8a`, la vente quitte la phase Action).
 
 ### MOT-13 (trouvé par l'enquête du 05-08, personne ne l'avait signalé) — Vendre sa dernière carte fait disparaître une défausse imposée
 [VÉRIFIÉ 05-08 · mesuré] Quand un effet de carte **impose** une défausse
@@ -264,7 +264,7 @@ recompte les cartes **après** la vente, et `flow.rs:2405-2415` sort sans poser
 la question quand il n'en reste aucune.
 
 ### MOT-6 (Corentin, ligne 19 · recoupe MOT-1) — Vendre quand on ne peut rien payer — FAIT
-**[FAIT 05-08 (`ff40503`), audité.]** L'occasion de vendre est ouverte à chaque
+**[FAIT 05-08 (`e8edf8a`), audité.]** L'occasion de vendre est ouverte à chaque
 point de décision des phases où l'on dépense, y compris quand rien n'est
 payable.
 
@@ -274,7 +274,7 @@ toujours une issue possible à ces moments-là. C'est le même correctif que MOT
 étendu à la phase Action.
 
 ### MOT-7 (Corentin, ligne 23) — Vendre ne doit pas coûter un échange de la phase Action — FAIT
-**[FAIT 05-08 (`ff40503`), audité — le plus vérifié des quatre.]** L'action
+**[FAIT 05-08 (`e8edf8a`), audité — le plus vérifié des quatre.]** L'action
 « Défausser 1 carte pour du MC » n'existe plus dans le moteur. Mesures : zéro
 occurrence sur trois parties entières (466, 390 et 485 décisions) là où il y en
 avait 281 ; un contrôle caché, écrit sur un chemin totalement disjoint (une
@@ -383,7 +383,7 @@ même lot que MOT-3, qui a le même effet, pour ne refixer les empreintes qu'une
 seule fois.
 
 ### MOT-9 (Corentin, ligne 14) — Les deux joueurs doivent choisir leur phase en même temps — ✅ FAIT 05-08, fiche périmée
-**[VÉRIFIÉ 05-08 · relecture générale]** La question suivante n'est posée que si elle est la même quelle que soit la réponse de l'autre : un second moteur de lecture rejoue le point et essaie chacune des réponses possibles (`web/webapp/distant.js:614-710`, branché l. 801 et 831). Aucune information sur le choix de l'autre ne transite. Banc : `verif/rendez-vous.py`. Livré par `9ea9b82`.
+**[VÉRIFIÉ 05-08 · relecture générale]** La question suivante n'est posée que si elle est la même quelle que soit la réponse de l'autre : un second moteur de lecture rejoue le point et essaie chacune des réponses possibles (`web/webapp/distant.js:614-710`, branché l. 801 et 831). Aucune information sur le choix de l'autre ne transite. Banc : `verif/rendez-vous.py`. Livré par `51aaef2`.
 
 Ce qui suit est le constat d'origine.
 
@@ -601,7 +601,7 @@ pas ce que fait l'adversaire, ni ce qu'on fait soi-même.** Les nombres changent
 rien ne bouge. C'est le plus gros manque de confort restant.
 
 ### ANI-1 — Les actions doivent se voir, les siennes comme celles de l'autre — ✅ FAIT 05-08
-**[VÉRIFIÉ 05-08 · rejoué par moi]** Lot « les cartes qui bougent » (`cfec28a`).
+**[VÉRIFIÉ 05-08 · rejoué par moi]** Lot « les cartes qui bougent » (`f126dc6`).
 Les six entrées de la liste sont traitées. **Mesure d'après, rejouée par moi sur
 une partie entière jouée à l'écran : 199 événements observés, 0 sans que rien ne
 bouge** — au scellement, 95 sur 199 étaient muets, dont l'oxygène (14 sur 14) et
@@ -678,7 +678,7 @@ Ces deux animations et la fenêtre de défausse se tiennent : à faire ensemble.
 
 ### ANI-5 (Corentin, ligne 9 · anciens E1, E3, J2) — Les océans — ✅ EN GRANDE PARTIE FAIT, LA FICHE ÉTAIT PÉRIMÉE
 **[VÉRIFIÉ 05-08 · relu à la source et mesuré par moi]** Cette fiche disait
-« TOUJOURS PAS RÉGLÉ ». **C'était faux depuis le 04-08** : le commit `4f7ebdb`
+« TOUJOURS PAS RÉGLÉ ». **C'était faux depuis le 04-08** : le commit `2c22aa3`
 (« le retournement se voit en grand, et le joueur choisit quelle tuile ouvrir »)
 avait déjà traité les points 2 et 3, et le côté écran de MOT-11 avec.
 
@@ -723,7 +723,7 @@ chargement et déclenche les animations du passé au lieu de partir de l'état f
 ## 3. LISIBILITÉ — comprendre ce qu'on voit
 
 ### LIS-1 (Corentin, ligne 5) — Retirer le nombre porté par les deux jauges — ✅ FAIT 05-08, fiche périmée
-**[VÉRIFIÉ 05-08 · relecture générale]** L'élément qui portait le nombre (`arc__n`) n'est plus créé nulle part dans la page — il n'en reste qu'un commentaire, `web/webapp/vue/arcs.js:242`. Second volet tenu aussi : les légendes sont « Temperature » et « Oxygen », sans unité (`web/webapp/vue/mots.js:140-141`). Livré par `61004a1`.
+**[VÉRIFIÉ 05-08 · relecture générale]** L'élément qui portait le nombre (`arc__n`) n'est plus créé nulle part dans la page — il n'en reste qu'un commentaire, `web/webapp/vue/arcs.js:242`. Second volet tenu aussi : les légendes sont « Temperature » et « Oxygen », sans unité (`web/webapp/vue/mots.js:140-141`). Livré par `ff9e531`.
 
 Ce qui suit est le constat d'origine.
 
@@ -759,7 +759,7 @@ Rappel de ce qui est acquis [VÉRIFIÉ 04-08] : le moteur est juste. Températur
 tout se joue à l'affichage.
 
 ### LIS-2 (Corentin, ligne 21) — Le marqueur des jauges est blanc sur blanc — ✅ FAIT 05-08, fiche périmée
-**[VÉRIFIÉ 05-08 · relecture générale]** Le repère est noir avec un liseré clair (`web/webapp/style-monde.css:144-149`), et le halo qui le cerclait a été retiré : c'est le simple point que Corentin préférait (`web/webapp/vue/arcs.js:233-235`). Les deux demandes sont tenues. Livré par `61004a1`.
+**[VÉRIFIÉ 05-08 · relecture générale]** Le repère est noir avec un liseré clair (`web/webapp/style-monde.css:144-149`), et le halo qui le cerclait a été retiré : c'est le simple point que Corentin préférait (`web/webapp/vue/arcs.js:233-235`). Les deux demandes sont tenues. Livré par `ff9e531`.
 
 Ce qui suit est le constat d'origine.
 
@@ -829,7 +829,7 @@ qu'aucun barème soit recopié à l'écran.
 
 ### LIS-4 (Corentin, ligne 15) — Les objectifs et récompenses sont flous — FAIT
 
-**[FAIT 05-08, fusionné dans `main` (`8572933`), audité et rejoué par moi.]**
+**[FAIT 05-08, fusionné dans `main` (`af8bfc0`), audité et rejoué par moi.]**
 La pastille agrandie était un **carré**, et l'image d'un objectif — trois fois
 plus large que haute — n'y occupait que **151 × 49 points** sur 900 × 293
 disponibles dans le fichier. L'agrandissement reçoit désormais **le rapport de
@@ -918,7 +918,7 @@ lui-même.
 
 ### LIS-5 (Corentin, ligne 13) — La disposition des tuiles océan change toute seule — FAIT
 
-**[FAIT 05-08, fusionné dans `main` (`8572933`), audité et rejoué par moi.]**
+**[FAIT 05-08, fusionné dans `main` (`af8bfc0`), audité et rejoué par moi.]**
 La disposition à deux colonnes — celle que Corentin préfère — est devenue la
 règle à tout instant de la partie. Mesure rejouée : **2 556 relevés, 307 en mode
 « choix », 0 bascule**, une seule disposition. Avant : 30 bascules. Le mode
@@ -1093,7 +1093,7 @@ détourage a été fait le 04-08 dans la journée. Deuxième fiche périmée tro
 deux jours — c'est pourquoi je remesure au lieu de recopier.
 
 ### LIS-11 (ancien I3) — Le prix d'origine n'est pas barré — ✅ FAIT 05-08
-**[VÉRIFIÉ 05-08]** Quand une remise s'applique, l'option porte le prix plein barré et le prix payé (`web/webapp/vue/scene.js:979-998`). Les deux nombres viennent du moteur, aucun barème recopié. Livré par `920bc5a` ; le banc `verif/prix-barre.py` a été complété le 05-08 pour le cas d'une carte gratuite, qui n'a rien à barrer.
+**[VÉRIFIÉ 05-08]** Quand une remise s'applique, l'option porte le prix plein barré et le prix payé (`web/webapp/vue/scene.js:979-998`). Les deux nombres viennent du moteur, aucun barème recopié. Livré par `aae39f0` ; le banc `verif/prix-barre.py` a été complété le 05-08 pour le cas d'une carte gratuite, qui n'a rien à barrer.
 
 Ce qui suit est le constat d'origine.
 
@@ -1102,7 +1102,7 @@ du prix réellement payé.
 
 ### LIS-12 (ancien G2) — Le remélange de la défausse ne se voit pas — FAIT
 
-**[FAIT 05-08, fusionné dans `main` (`8572933`), audité et rejoué par moi.]**
+**[FAIT 05-08, fusionné dans `main` (`af8bfc0`), audité et rejoué par moi.]**
 Le moteur ne publie aucun signal de remélange, et il n'en publie toujours pas :
 l'écran reconnaît l'évènement aux deux nombres déjà publiés — la pioche remonte
 pendant que la défausse s'effondre, ce qui ne peut arriver autrement. Il le
@@ -1129,7 +1129,7 @@ règles.**
 ## 4. CONFORT DE JEU
 
 ### CNF-1 (Corentin, ligne 6) — Trier sa main en déplaçant les cartes — ✅ FAIT 05-08, fiche périmée
-**[VÉRIFIÉ 05-08 · relu par moi]** Le geste s'arme sur toute carte de la main, jouable ou non, et bascule en tri au premier déplacement (`web/webapp/vue/geste.js:188-201`) ; au relâchement la carte est rangée à sa nouvelle place (`geste.js:270-284`). L'ordre choisi est mémorisé et relu à chaque redessin (`web/webapp/vue/mains.js:280`, appelé l. 295). Banc dédié : `verif/tri-de-la-main.py`. Livré par `1590484`.
+**[VÉRIFIÉ 05-08 · relu par moi]** Le geste s'arme sur toute carte de la main, jouable ou non, et bascule en tri au premier déplacement (`web/webapp/vue/geste.js:188-201`) ; au relâchement la carte est rangée à sa nouvelle place (`geste.js:270-284`). L'ordre choisi est mémorisé et relu à chaque redessin (`web/webapp/vue/mains.js:280`, appelé l. 295). Banc dédié : `verif/tri-de-la-main.py`. Livré par `05d1470`.
 
 Ce qui suit est le constat d'origine.
 
@@ -1179,13 +1179,13 @@ Ce qui suit est la spécification d'origine.
 Conséquence à ne pas oublier quand viendra l'intelligence artificielle : cette
 option lui profite bien plus qu'à un humain. Voir GRO-1.
 
-### CNF-3 (Corentin, ligne 34 · optionnel) — Un bouton « passer définitivement » — ✅ FAIT 06-08 (`12401cb`)
+### CNF-3 (Corentin, ligne 34 · optionnel) — Un bouton « passer définitivement » — ✅ FAIT 06-08 (`babed3a`)
 [DEMANDÉ] En plus du bouton qui passe une fois pendant la phase Action, un
 bouton qui passe en boucle, pour accélérer quand on est sûr de ne plus rien
 faire.
 
 ### CNF-4 (Corentin, ligne 35 · optionnel) — Des messages d'attente précis — ✅ FAIT 05-08, fiche périmée
-**[VÉRIFIÉ 05-08 · relecture générale]** Vingt-sept messages d'attente, un par sorte de question du moteur (`web/webapp/distant.js:144-177`). Le message général ne sert plus que de repli pour une sorte inconnue. Livré par `9ea9b82`.
+**[VÉRIFIÉ 05-08 · relecture générale]** Vingt-sept messages d'attente, un par sorte de question du moteur (`web/webapp/distant.js:144-177`). Le message général ne sert plus que de repli pour une sorte inconnue. Livré par `51aaef2`.
 
 Ce qui suit est le constat d'origine.
 
@@ -1199,13 +1199,13 @@ Ce qui suit est le constat d'origine.
 
 [DEMANDÉ] Aujourd'hui il faut recliquer sur la tuile elle-même.
 
-### CNF-6 (ancien I5) — Reprendre une partie interrompue — ✅ FAIT 06-08 (`12401cb`), sauf la partie à deux chacun chez soi
+### CNF-6 (ancien I5) — Reprendre une partie interrompue — ✅ FAIT 06-08 (`babed3a`), sauf la partie à deux chacun chez soi
 [DEMANDÉ] Aucune sauvegarde n'existe. Une partie coupée est perdue — sauf à
 recopier à la main la liste des décisions, ce qu'on a dû faire une fois le 04-08.
 
 ## 5. GROS CHANTIERS
 
-### GRO-1 (ancien I9) — L'intelligence artificielle — 🚧 COMMENCÉ 05-08, PREMIER ÉCHELON FUSIONNÉ (`97e2cdf`)
+### GRO-1 (ancien I9) — L'intelligence artificielle — 🚧 COMMENCÉ 05-08, PREMIER ÉCHELON FUSIONNÉ (`aac4233`)
 
 **C'est l'objectif du projet.** Le premier échelon est livré, audité et rejoué
 par moi : **une balance** qui pèse deux joueurs l'un contre l'autre, et **un
@@ -1262,7 +1262,7 @@ Deux conséquences pratiques :
 
 ### GRO-2 (ancien I4) — Les effets sonores — FAIT
 
-**[FAIT 05-08, fusionné dans `main` (`8572933`), audité et rejoué par moi.]**
+**[FAIT 05-08, fusionné dans `main` (`af8bfc0`), audité et rejoué par moi.]**
 Les deux bruits qui manquaient sont branchés — poser une carte, gagner un cran de
 terraformation — chacun là où l'évènement se produit et **une seule fois par
 instant**. Mesure rejouée : **4,03 bruits par décision quand il se passe quelque
@@ -1278,7 +1278,7 @@ contre 489 qui survivaient auparavant.
 Ce qui suit est le constat d'origine.
 **[VÉRIFIÉ 05-08 · relecture générale]** Les sons existent déjà et sont
 **fabriqués dans la page**, sans aucun fichier ni téléchargement
-(`web/webapp/vue/son.js`, livré par `6f6f2c9`). Cinq bruits y sont écrits.
+(`web/webapp/vue/son.js`, livré par `f32d17d`). Cinq bruits y sont écrits.
 
 **Trois sur cinq sont branchés** : le début de manche, le choix, la fin de
 partie (`web/webapp/interface.js:222`, `:301`, `:496`).
@@ -1322,7 +1322,7 @@ Ces trois-là ont une seule racine : mes bancs vérifient **qu'une chose vole, d
 elle part et où elle arrive**, jamais **à quoi elle ressemble ni où exactement
 elle se pose**.
 
-### MES-1 — Les cartes quittaient la pioche en forme d'œuf — ✅ CORRIGÉ 06-08 (`6a0bf5e`)
+### MES-1 — Les cartes quittaient la pioche en forme d'œuf — ✅ CORRIGÉ 06-08 (`73d2072`)
 
 Tout ce qui traverse l'écran passe par `volerMatiere` (`web/webapp/vue/anim.js:258`),
 qui servait la même étiquette d'apparence aux objets **ronds** (une pièce, un jeton

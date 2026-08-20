@@ -62,7 +62,7 @@ il demande d'être conçu exprès.
 ## 20-ter — LE DÉCOR EST CHOISI (01-08)
 
 Six propositions ont été comparées côte à côte, cartes réelles posées dessus
-(page de démonstration `web/demo-decor/`, `312861b`).
+(page de démonstration `web/demo-decor/`, `0000000`).
 
 **Retenu par Alexis : « Mars · plaine », voile sombre LÉGER.**
 
@@ -119,7 +119,7 @@ Gravité : ce n'est pas cosmétique. Un joueur peut gâcher son unique activatio
 la manche, et surtout l'intelligence artificielle à venir devra apprendre à
 éviter des coups qui ne devraient pas exister.
 
-**CORRIGÉ le 01-08** (`4eb57fe`) : nouveau contrôle `flow::activable_blue`, qui
+**CORRIGÉ le 01-08** (`7a51511`) : nouveau contrôle `flow::activable_blue`, qui
 exige que la carte porte réellement une action. Trois tests, dont le contrôle
 inverse — vérifié qu'en revenant au filtre par couleur seule, le test redevient
 rouge. 821 tests verts, 0 rouge. Les trois empreintes de référence changent, ce
@@ -251,5 +251,5 @@ rappelant notamment la liste des cartes Phase améliorées.
 
 - Point 3 (remplacer entre 0 et 8 cartes projet) — **fait et vérifié à l'écran**.
 - Point 3-bis (zoom au survol des corporations) — **fait et vérifié**
-  (`9a95718`) : plus de loupe dès qu'une carte est déjà affichée à 80 % ou plus
+  (`4f92aa8`) : plus de loupe dès qu'une carte est déjà affichée à 80 % ou plus
   de la taille de la loupe.

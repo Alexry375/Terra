@@ -870,26 +870,26 @@ d'enregistrement, non re-vérifiés un par un.]*
   livrés, audités, promus. Tout le contenu imprimé est encodé — 246 projets,
   16 corporations, 793 tests. Deux erreurs de mes propres contrôles cachés et
   une erreur de mon contrat relevées à cette occasion. [DÉCLARÉ — messages
-  `6ce5b26`, `42d7c65`, `09bd20f`]
+  `b3b7c6b`, `46ad13e`, `3b2617f`]
 - `moteur-observe` : le moteur est enfin observable de l'extérieur — 33 sites sur
   33, 810 tests, trois empreintes de référence inchangées. C'est ce qui a rendu
-  l'écran possible. [DÉCLARÉ — `0f0e0f1`]
+  l'écran possible. [DÉCLARÉ — `95ab27d`]
 - `harnais-images` : les 262 cartes ont leur image, et les 262 badges ont été
   confrontés aux images imprimées, sans une seule erreur dans `data/cards.json`.
-  [DÉCLARÉ — `c0699c1`, `a2f33e4`]
-- Le moteur tourne dans le navigateur (`5446886`), puis une partie à deux sur le
+  [DÉCLARÉ — `dfb9ce7`, `7e9c631`]
+- Le moteur tourne dans le navigateur (`c4ab711`), puis une partie à deux sur le
   même écran devient jouable, avec 3115 valeurs affichées confrontées à l'état du
-  moteur (`6f6f2c9`).
+  moteur (`f32d17d`).
 - Le remplacement des cartes de départ devient partiel — de 0 à 8, au lieu de
-  tout ou rien (`973a656`, `fccef86`), et chaque alternative proposée dit enfin
-  de quoi elle parle (`73cb9cf`).
+  tout ou rien (`a8c033b`, `6caa5e4`), et chaque alternative proposée dit enfin
+  de quoi elle parle (`4e8cd01`).
 
 ## 2026-08-01 — Deuxième série de retours d'Alexis, une vraie erreur de règle, et le décor choisi
 
 ### Ce qui a été corrigé et enregistré
 
 - **Une carte bleue sans action n'est plus proposée à l'activation**
-  (`4eb57fe`). C'est une vraie erreur de règle, relevée par Alexis à l'écran sur
+  (`7a51511`). C'est une vraie erreur de règle, relevée par Alexis à l'écran sur
   *United Planetary Alliance*. Le moteur filtrait sur la COULEUR ; il filtre
   désormais sur l'existence d'une action (`flow::activable_blue`). Le joueur
   perdait son unique activation de la manche, et l'intelligence artificielle à
@@ -897,14 +897,14 @@ d'enregistrement, non re-vérifiés un par un.]*
   **Les trois empreintes de référence ont bougé** — recalculées et réécrites :
   `--seed 2024 --boites base` vaut maintenant `c1c52fcbe4e057b0`.
   [VÉRIFIÉ 01-08]
-- **La loupe ne se pose plus sur une carte déjà lisible** (`9a95718`) : en
+- **La loupe ne se pose plus sur une carte déjà lisible** (`4f92aa8`) : en
   dessous de 80 % de la largeur de la loupe, agrandir apporte quelque chose ;
   au-dessus, on posait un doublon par-dessus le jeu. Mesuré dans les deux sens :
   corporation à 300 px, pas de loupe ; carte de main à 159 px, loupe.
   [VÉRIFIÉ 01-08]
 - **Le décor du plateau est choisi.** Six propositions montrées avec de vraies
-  cartes (`312861b`) ; Alexis a tranché : sol martien de Granicus Valles, voile
-  sombre léger (`f0a710d`). Domaine public NASA/JPL/University of Arizona, avec
+  cartes (`0000000`) ; Alexis a tranché : sol martien de Granicus Valles, voile
+  sombre léger (`0cc952d`). Domaine public NASA/JPL/University of Arizona, avec
   mention obligatoire à l'écran.
 
 ### Mes erreurs de la journée
@@ -1073,7 +1073,7 @@ ne peut donc pas viser — et le contrat est intact. Une vérification indépend
 fichiers qu'elles se partagent : **zéro ligne de code absente**, seuls des
 commentaires ont été remplacés par des commentaires de couture. [VÉRIFIÉ 03-08]
 
-Promue dans le dépôt (`4de3b6d`), puis rejouée **depuis la racine du dépôt** et non
+Promue dans le dépôt (`fe9c98b`), puis rejouée **depuis la racine du dépôt** et non
 depuis le répertoire de travail de l'agent — c'est la leçon coûteuse de la veille :
 graines 2024 et 4242, **191 et 234 décisions**, 36 crans d'arc affichés,
 **0 corporation dans la main**, 0 erreur de console. [VÉRIFIÉ 03-08]
@@ -1092,11 +1092,11 @@ douter que ce fût réglé.
    empêche certains navigateurs de signaler la fin de l'animation, et une attente
    qui n'aboutit jamais fige la partie. Conséquence mesurée : avec `?animations=non`,
    la question « quelle carte vends-tu ? » ne recevait plus **aucun clic**, alors que
-   les boutons étaient visibles, opaques et cliquables. Remis à `1ms` (`5996c45`).
+   les boutons étaient visibles, opaques et cliquables. Remis à `1ms` (`ca7101f`).
    Après correction : **191 décisions en 1600×1000 et en 1280×720**. [VÉRIFIÉ 03-08]
 2. **Jauges illisibles quand elles sont éteintes, et mot « PROVISIONAL » coupé.
    CORRIGÉS.** Opacité `.38` et luminosité `.62` portées à `.68` et `.88` ; boîte du
-   mot élargie de 56 à 74 points, pour un besoin mesuré d'environ 62 (`5996c45`).
+   mot élargie de 56 à 74 points, pour un besoin mesuré d'environ 62 (`ca7101f`).
 3. **Les boutons de choix se recouvrent en 1440×810. NON CORRIGÉ.** Cause mesurée :
    sur la décision « choisir le badge », la bande réservée aux choix ne fait que
    **1137 × 32 points**. Aucune disposition ne tient ; le cas extrême de `planPlaques`
@@ -1282,7 +1282,7 @@ rectangles, pas de la lisibilité.
 
 ### Jouer à deux, chacun chez soi : promu
 
-Commit `f993116`, prêt pour la partie de 9 h 30. Deux personnes, deux ordinateurs, une
+Commit `8663c2c`, prêt pour la partie de 9 h 30. Deux personnes, deux ordinateurs, une
 partie ; l'autre joueur n'installe rien et ouvre un simple lien. Un point de rendez-vous
 (`web/webapp/relais/serveur.js`) sert la page et tient la liste ordonnée des décisions,
 **sans aucune dépendance extérieure** ; une seule ligne a été ajoutée dans
@@ -1310,7 +1310,7 @@ entier et que les cartes de l'adversaire y sont techniquement lisibles.
 
 ### La vente choisie, second tour : promu
 
-Commit `66e64fc`. **5 contrôles visibles sur 6, 3 cachés sur 3** — dont celui qui
+Commit `94cfa29`. **5 contrôles visibles sur 6, 3 cachés sur 3** — dont celui qui
 mesure le recouvrement des zones sur six tailles de fenêtre jamais nommées au contrat,
 et qui était rouge avant ce tour. [VÉRIFIÉ 04-08]
 
@@ -1363,7 +1363,7 @@ même partie, chiffre pour chiffre. [VÉRIFIÉ 04-08, 08 h 30]
 
 ### La nuit du 04 au 05 : le lot moteur fusionné, et cinq de mes contrôles faux
 
-Le premier lot de corrections du moteur est entré dans le dépôt (`ff40503`, `2a87274`) :
+Le premier lot de corrections du moteur est entré dans le dépôt (`e8edf8a`, `9949dcd`) :
 la question de pose se pose désormais **même quand aucune carte n'est payable**, avec sa
 propre phrase au lieu d'un écran muet, ce qui rend la vente possible dans ce cas ;
 vendre ne consomme plus une activation de la phase Action ; la phrase qui explique
@@ -1375,8 +1375,8 @@ involontaire — ont été refixées à `bf70799ff3fee1d8`, ce qui est légitime
 de décision ont bougé, les parties enregistrées avant ne sont plus rejouables.
 
 Deux chantiers d'écran ont été fusionnés dans la foulée : dix points d'affichage
-(`9be9902`, dont 9 points sur 11 livrés) et le choix de phase simultané et face cachée
-en mode à distance (`853a85b`, garde-fou vert sur 311 réponses avec deux navigateurs).
+(`ef96873`, dont 9 points sur 11 livrés) et le choix de phase simultané et face cachée
+en mode à distance (`2af1ef2`, garde-fou vert sur 311 réponses avec deux navigateurs).
 En écrivant les contrôles de ce dernier, une fuite d'information a été découverte : le
 point de rendez-vous publie la réponse d'un joueur dès qu'elle arrive, sans conséquence
 tant que les choix sont l'un après l'autre — mais **dès que les deux choisiront en même
@@ -1440,7 +1440,7 @@ lisibilité, et qu'un œil humain reste indispensable.
 
 ### Le lot « les choix se posent au bon moment »
 
-Fusionné dans `main` (`c071409`) après vérification complète par moi. Trois défauts qui
+Fusionné dans `main` (`9f56aad`) après vérification complète par moi. Trois défauts qui
 déplacent tous des points de décision, partis ensemble pour ne refixer les empreintes
 des parties de référence qu'**une seule fois** — c'est vérifié enregistrement par
 enregistrement : seul le dernier change une empreinte, et il ne fait que cela.
@@ -1493,7 +1493,7 @@ n'a qu'une seule branche et ne pose aucune question ; seule II-B était concern�
 
 ### Le lot « les cartes qui bougent et la défausse »
 
-Fusionné dans `main` (`cfec28a`). C'était le plus gros manque de confort restant : les
+Fusionné dans `main` (`f126dc6`). C'était le plus gros manque de confort restant : les
 nombres changeaient à l'écran, et rien ne bougeait.
 
 | Ce qui manquait | Au scellement | Après, rejoué par moi |
@@ -1559,7 +1559,7 @@ siens ni ceux qui existaient : le code est symétrique, mais la mesure n'existe 
 
 ### Le lot « ce que le moteur ne dit pas »
 
-Trois nombres que le moteur connaissait et ne disait à personne (`ef07d3a`) : le revenu
+Trois nombres que le moteur connaissait et ne disait à personne (`7103759`) : le revenu
 réel de la prochaine phase Production, le badge choisi pour une carte à badge « ? » —
 visible par les deux joueurs sur la carte posée — et ce que les ressources déjà posées
 rapportent en points. Aucune règle ne change et aucune partie enregistrée ne cesse d'être
@@ -1721,7 +1721,7 @@ volontairement abîmée.
 
 ## 2026-08-06 (nuit) — Deux lots fusionnés, l'écran mis entre les mains d'Alexis, et trois défauts d'affichage que pas un banc ne voyait
 
-### Le lot « le moteur dit quand on peut vendre » (`bb38510`)
+### Le lot « le moteur dit quand on peut vendre » (`82b99c3`)
 
 Deux choses partaient ensemble parce qu'elles touchent le même endroit du moteur : le
 défaut trouvé la veille — après une première vente, l'état republiait « tu peux vendre »
@@ -1749,7 +1749,7 @@ référence ne se déroule autrement. [VÉRIFIÉ 06-08]
 de vente reste offert là où l'occasion est dépensée. L'affichage était hors du territoire
 de ce chantier.
 
-### Le lot « l'écran se souvient, et il sait passer pour de bon » (`12401cb`)
+### Le lot « l'écran se souvient, et il sait passer pour de bon » (`babed3a`)
 
 CNF-3 et CNF-6, les deux derniers points de confort. Le bouton qui passe en boucle ne
 calcule rien : il clique le « passer » que le moteur vient d'offrir. La sauvegarde d'une
@@ -1798,7 +1798,7 @@ tous invisibles pour l'ensemble de mes vérifications automatiques :
    par une seule fonction (`web/webapp/vue/anim.js:258`), qui servait la même étiquette
    d'apparence aux objets ronds — une pièce, un jeton de chaleur — et aux cartes. La
    feuille de style y arrondit les coins de **moitié** : sur un carré cela fait un disque,
-   sur un rectangle de 52 sur 72 points cela fait un **ovale**. **Corrigé** (`6a0bf5e`) :
+   sur un rectangle de 52 sur 72 points cela fait un **ovale**. **Corrigé** (`73d2072`) :
    la forme suit désormais les **proportions** et non le motif. Banc neuf
    `verif/forme-de-ce-qui-vole.py`, éprouvé dans les deux sens — 123 objets en vol relevés,
    vert sur la page réparée, **88 des 107 objets allongés pris en défaut** sur une copie
@@ -1963,12 +1963,12 @@ demande explicite pour en lancer un neuf.
 ## 2026-08-16 au 18 — Deux défauts d'architecture trouvés par une question d'Alexis, puis deux audits de cinquante et un agents
 
 Rattrapage : les journées des 16 et 17 août n'avaient pas d'entrée. Elles ont produit le
-classement mesuré des seize corporations sur 799 parties chacune (`258d705`), le verdict du
+classement mesuré des seize corporations sur 799 parties chacune (`2c4c3d5`), le verdict du
 million de parties — la devinette de phase adverse n'apporte rien, c'est l'entraînement A
-qu'il faut prolonger (`5ae33b3`) — puis trois mesures de comportement les 17 et 18 : ce que
-l'IA fait vraiment en mise en place (`a1c6774`), les améliorations de carte Phase
-(`9440708`), et l'absence d'accord entre la corporation choisie et la main tenue
-(`2094d9a`).
+qu'il faut prolonger (`41d3cc0`) — puis trois mesures de comportement les 17 et 18 : ce que
+l'IA fait vraiment en mise en place (`f5c3354`), les améliorations de carte Phase
+(`d1596ad`), et l'absence d'accord entre la corporation choisie et la main tenue
+(`52b5502`).
 
 ### La question d'Alexis qui a tout déclenché
 
@@ -2002,7 +2002,7 @@ vérifier, et c'est cette vérification qui a trouvé le défaut. La leçon vaut
 ### Le témoin, gelé avant de tout casser
 
 Sur demande d'Alexis — « garder bien au chaud toutes les stats auxquelles on était arrivées
-avec l'IA qui lit l'avenir » — `docs/TEMOIN_AVANT_AUDIT.md` (`7754ebc`) fige l'intégralité
+avec l'IA qui lit l'avenir » — `docs/TEMOIN_AVANT_AUDIT.md` (`8b4776f`) fige l'intégralité
 des mesures de l'IA voyante, chaque tableau avec ses réserves, et `data/temoin/` conserve
 les deux fichiers de poids. Sans cela, aucune comparaison « avant / après » n'aurait été
 possible après le dernier entraînement.
@@ -2018,7 +2018,7 @@ audit final du moteur du jeu », en deux processus séparés. Lancés tous les d
 - **Moteur de règles** : 18 agents, 2 h 35, 2,80 millions de jetons. **25 défauts confirmés**
   (13 majeurs ou moyens, 12 mineurs), 4 réfutés. `docs/AUDIT_MOTEUR.md`.
 
-Les deux rapports commis en `e4ec6fe`.
+Les deux rapports commis en `3245bb3`.
 
 ### Le désaccord entre les deux audits, et qui avait raison
 
@@ -2102,7 +2102,7 @@ puis audité. Six défauts corrigés d'un coup, plus un arbitrage d'Alexis :
 chacun citant la ligne de livret qu'il fait respecter, et **chacun vu rouge** sur le code
 d'avant par retrait du correctif un par un. Suite complète : **941 tests verts**.
 `terra.wasm` reconstruit, banc de concordance Rust/JavaScript vert (201 situations,
-1 472 cases). Commit `3d14d25`. [VÉRIFIÉ 19-08 — `cargo test --release`, `aw audit`]
+1 472 cases). Commit `46109dc`. [VÉRIFIÉ 19-08 — `cargo test --release`, `aw audit`]
 
 ### Mon audit, par un chemin indépendant
 
@@ -2155,7 +2155,7 @@ lancé dans la foulée.
 
 ### Le même jour, plus tard — le lot L4 est livré, et mon second contrôle de forme était faux
 
-Le chantier **L4 « le joueur sans voyance »** a rendu, commit `701a875`. Quatre défauts de
+Le chantier **L4 « le joueur sans voyance »** a rendu, commit `e5050b9`. Quatre défauts de
 l'intelligence artificielle :
 
 - **V1, la voyance.** L'essai d'un coup rejouait la partie avec la graine réelle : le paquet
@@ -2224,7 +2224,7 @@ contenterait d'incrémenter des compteurs tomberait là.
 ## 2026-08-19 (suite 2) — Le lot L2 est livré : treize règles de cartes corrigées, et deux de mes hold-outs étaient faux
 
 - **Le lot L2 « les règles des cartes et des phases » est livré, audité `ok` et
-  commité** (`e0310a8`). Les treize défauts du contrat sont corrigés :
+  commité** (`c28b307`). Les treize défauts du contrat sont corrigés :
   D2 (*Mining Guild*), D5 (badge joker reposé à la pose), D6 et D7 (activation
   supplémentaire choisie, deux répétitions à deux cartes distinctes), D8
   (variantes d'amélioration toujours proposées), D9 (branches impossibles
@@ -2232,7 +2232,7 @@ contenterait d'incrémenter des compteurs tomberait là.
   après une première), D19 et D20 (une fois par badge, et les badges comptés),
   D21 (deux cartes fantômes), D22 et D24 (commentaires menteurs).
   [VÉRIFIÉ 19-08 — 11/11 contrôles visibles rejoués par moi, 3/3 hold-outs après
-  correction, 1 029 tests verts, `git log e0310a8`]
+  correction, 1 029 tests verts, `git log c28b307`]
 - **L'agent a trouvé et corrigé un bloquant chez lui-même.** Sa sentinelle de D9
   était une **tautologie** : elle relisait la liste déjà filtrée par le prédicat
   qu'elle prétendait éprouver, et valait donc zéro par construction, correctif
@@ -2269,7 +2269,7 @@ contenterait d'incrémenter des compteurs tomberait là.
     commit d'avant : **445,8**, contre 437,8 après — 15 parties montent, 15
     descendent, 2 égales, sur 32 graines. Aucune tendance : sept défauts ajoutent
     des questions, D9 et D18 en retirent, les effets se compensent.
-    [VÉRIFIÉ 19-08 — arbre `git worktree` sur `b1d5dfc`, mesure appariée]
+    [VÉRIFIÉ 19-08 — arbre `git worktree` sur `10e80c6`, mesure appariée]
   - Les deux corrigés, éprouvés **dans les deux sens** : rouges sur le code
     d'avant, verts sur la livraison. Leçon consignée en mémoire durable.
 - **Ce que j'ai fait moi-même après la livraison** : reconstruit
@@ -2285,7 +2285,7 @@ contenterait d'incrémenter des compteurs tomberait là.
 ## 2026-08-20 — Le lot L3 est livré : l'IA voit enfin ce qu'elle tient, et trois de mes contrôles accusaient encore à tort
 
 - **Le lot L3 « la fiche que l'IA regarde » est livré, audité `ok` et commité**
-  (`ada92b6`). La fiche de situation passe de **1 472 à 1 630 cases**, et les six
+  (`2691b0b`). La fiche de situation passe de **1 472 à 1 630 cases**, et les six
   défauts du contrat sont corrigés : D3 (les corporations tenues en main entrent
   dans l'état), 2.8 (la main est résumée), 2.9 (les six écarts publiés, l'échelle
   de score déplafonnée), 2.10 (ressources posées et classement des Récompenses),
@@ -2302,7 +2302,7 @@ contenterait d'incrémenter des compteurs tomberait là.
   situations ; avec l'échelle qui monte à 147, c'est **zéro sur 31 944**.
   [VÉRIFIÉ 20-08 — contrôle 04]
 - **Aucun point de décision n'a bougé** : les quatre empreintes d'état sont
-  identiques à celles de `e0310a8` sur 1 200 parties, 0 violation d'invariant.
+  identiques à celles de `c28b307` sur 1 200 parties, 0 violation d'invariant.
   [VÉRIFIÉ 20-08 — `simulate --games 300` sur les quatre combinaisons, relevé par moi]
 - **Ce que la relecture adversariale de l'agent a trouvé après sa campagne de
   sabotage, et qui vaut pour tous les lots suivants.** Tous ses sabotages avaient
@@ -2344,7 +2344,7 @@ contenterait d'incrémenter des compteurs tomberait là.
   palier ne soit retenu que si entre 2 % et 98 % des situations le franchissent.
   Mesuré sur **164 550 situations** (200 parties, les deux sièges, poids livrés) :
   **10,6 % des paliers sortent de la bande, contre 5,4 % avant le lot** — mesure
-  refaite par le même programme sur un arbre détaché de `367a73c` avec les poids
+  refaite par le même programme sur un arbre détaché de `c361420` avec les poids
   de l'époque. Sur les 35 paliers fautifs supplémentaires, 20 sont le haut de
   l'échelle de score et 2 le prix total de la main : **assumés et démontrés** par
   l'agent (fermer la case ouverte du haut oblige à poser des paliers dans la queue
@@ -2360,3 +2360,67 @@ contenterait d'incrémenter des compteurs tomberait là.
   s'inverse. **Une moyenne prise sur une population hétérogène dit le contraire de
   la vérité** — il faut compter dans la famille où la règle s'applique.
   [VÉRIFIÉ 20-08]
+
+## 2026-08-20 (suite) — Le dépôt devient public, et un `push --force` ne purge rien
+
+**Décision d'Alexis** : rendre `github.com/Alexry375/Terra` public, pour que son
+compte montre du travail ouvert. Contrainte évidente : le dépôt contenait 65 Mo
+de matière appartenant à l'éditeur du jeu.
+
+### Ce qui a été retiré, de l'arbre et de tout le passé [VÉRIFIÉ 20-08]
+
+262 visuels de cartes (`web/webapp/assets/cartes/`), 116 pièces de matériel
+(`assets/plateau/`), la couverture de la boîte (`assets/menu/`), 23 photos du
+livret (`docs/regles/photos/`), 5 scans de cartes imprimées
+(`data/cartes-imprimees/`), la transcription mot à mot du livret
+(`transcription-brute/`, `livret-base.md`, `livret-decouverte.md`), et 5 fonds
+d'écran d'origine non documentée (`web/demo-decor/`).
+
+`git filter-repo` sur un clone neuf : 308 commits parcourus, 301 conservés (sept
+ne contenaient que des images et sont devenus vides), historique de 91 Mo à
+26 Mo. Vérifié : `git rev-list --objects --all` ne rend plus **aucun** objet
+d'extension image, sauf `sol-martien-granicus-valles-nasa.jpg` — NASA / JPL,
+domaine public, gardé avec ses crédits.
+
+La même passe a remplacé partout l'adresse réseau personnelle de la machine de
+développement (`alexis-asus-tuf-…`, écrite en clair dans
+`web/webapp/relais/MODE-EMPLOI.md`) par un exemple.
+
+### Le piège, et c'est le vrai enseignement du jour
+
+Après l'envoi en force, j'ai testé une ancienne empreinte citée dans ce journal :
+
+    gh api repos/Alexry375/Terra/commits/ada92b6 --jq .sha
+    ada92b68c9ac6f9614e1e19f90c44326ba0805cc
+
+**GitHub servait toujours l'ancien commit, avec son arbre complet et les 262
+cartes dedans.** Un `push --force` déplace une branche ; il n'efface rien côté
+serveur. Et ce document — qui devenait public — citait des dizaines de ces
+empreintes : il donnait lui-même la liste des adresses où retrouver ce que je
+venais d'effacer.
+
+Seule purge fiable : **supprimer le dépôt distant et le recréer**. Fait, après
+avoir vérifié qu'il n'y avait ni étoile, ni copie, ni ticket à perdre, et après
+sauvegarde complète dans `~/Sauvegardes-Terra-avant-public/` (paquet `--all` de
+91 Mo + archive de 67 Mo des ressources). Vérifié ensuite sans authentification :
+la page du dépôt rend 200, l'ancien commit rend 404, un visuel de carte rend 404.
+
+### Effet de bord assumé
+
+Les empreintes de commit ont toutes changé. Les **106 citations** présentes dans
+les documents ont été réécrites automatiquement à partir de la table
+`old→new` produite par `filter-repo` (copiée dans
+`~/Sauvegardes-Terra-avant-public/table-empreintes-avant-apres.txt`), sans une
+seule ambiguïté, et les empreintes d'état à 16 chiffres n'ont pas bougé.
+
+### Ajouté pour la publication
+
+`README.md` (avertissement de non-affiliation en français et en anglais, mode
+d'emploi, crédits — dont `nikitinalexx/ares-expedition` sous GPLv3, d'où viennent
+les données de cartes), `LICENSE` (GPLv3), une notice dans chaque dossier vidé,
+et un `.gitignore` qui interdit désormais le retour des ressources.
+
+**Zone grise laissée en connaissance de cause** : les 388 textes d'effet de
+`data/cards.json` et les citations de texte imprimé de `docs/cartes/`. Le grand
+projet libre `terraforming-mars/terraforming-mars` les publie depuis des années
+sans incident, et sans eux une carte sans image n'affiche plus rien.

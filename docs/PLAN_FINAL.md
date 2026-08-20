@@ -13,9 +13,9 @@
 
 | Document | Contenu | État |
 |---|---|---|
-| `docs/AUDIT_ENTRAINEMENT.md` | Audit de l'architecture d'entraînement : 17 changements, 9 constats réfutés, 9 incertitudes déclarées | figé, commit `e4ec6fe` |
-| `docs/AUDIT_MOTEUR.md` | Audit du moteur de règles : 25 défauts confirmés, 4 réfutés, ce qui n'a pas pu être vérifié | figé, commit `e4ec6fe` |
-| `docs/TEMOIN_AVANT_AUDIT.md` | **Toutes** les mesures de l'IA « voyante » avant correction, chaque tableau avec ses réserves | figé, commit `7754ebc` |
+| `docs/AUDIT_ENTRAINEMENT.md` | Audit de l'architecture d'entraînement : 17 changements, 9 constats réfutés, 9 incertitudes déclarées | figé, commit `3245bb3` |
+| `docs/AUDIT_MOTEUR.md` | Audit du moteur de règles : 25 défauts confirmés, 4 réfutés, ce qui n'a pas pu être vérifié | figé, commit `3245bb3` |
+| `docs/TEMOIN_AVANT_AUDIT.md` | **Toutes** les mesures de l'IA « voyante » avant correction, chaque tableau avec ses réserves | figé, commit `8b4776f` |
 | `data/temoin/temoin-voyant-1M.txt`, `…-1200k.txt` | Les poids figés de cette IA, pour rejouer les duels après correction | figé |
 | `docs/regles/README.md` | Les règles maison d'Alexis **et** les arbitrages du 19-08. **Fait autorité.** | vivant |
 | `docs/REGISTRE_MOTEUR_INTERFACE.md` | Chaque changement du moteur et sa répercussion sur l'interface | vivant |

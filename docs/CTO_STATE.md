@@ -5,6 +5,14 @@
 
 Dernière mise à jour : 2026-08-20
 
+> **20-08 — LE DÉPÔT EST PUBLIC** : `github.com/Alexry375/Terra`. Les 65 Mo de
+> visuels du jeu ont été retirés de l'arbre **et de tout l'historique** ; le
+> dépôt distant a été supprimé et recréé, car un `push --force` laisse GitHub
+> servir les anciens commits par leur empreinte. Les fichiers sont toujours sur
+> le disque d'Alexis, hors suivi de version. Toutes les empreintes de commit
+> citées ci-dessous sont celles du **nouvel** historique. Détail :
+> `docs/JOURNAL.md`, entrée « 2026-08-20 (suite) ».
+
 ## 🔥 20-08 — QUATRE LOTS SUR NEUF SONT LIVRÉS. L'IA VOIT ENFIN CE QU'ELLE TIENT
 
 **État du grand plan** (`docs/PLAN_FINAL.md` § 3) : **L1, L2, L3, L4 livrés,
@@ -14,10 +22,10 @@ entraînement).
 
 | Lot | Objet | Commit | Tests |
 |---|---|---|---|
-| L1 | le secret et l'ordre (D1, D10, D11, D14, D15, D16) | `3d14d25` | 941 |
-| L4 | le joueur sans voyance (V1, 2.11, 2.14, 2.15) | `701a875` | 979 |
-| L2 | les règles de cartes et de phases (13 défauts) | `e0310a8` | 1 029 |
-| **L3** | **la fiche que l'IA regarde (D3, D4, 2.8, 2.9, 2.10, 2.12)** | **`ada92b6`** | **1 111** |
+| L1 | le secret et l'ordre (D1, D10, D11, D14, D15, D16) | `46109dc` | 941 |
+| L4 | le joueur sans voyance (V1, 2.11, 2.14, 2.15) | `e5050b9` | 979 |
+| L2 | les règles de cartes et de phases (13 défauts) | `c28b307` | 1 029 |
+| **L3** | **la fiche que l'IA regarde (D3, D4, 2.8, 2.9, 2.10, 2.12)** | **`2691b0b`** | **1 111** |
 
 ### Ce que le lot L3 change, et pourquoi c'est le plus important des quatre
 
@@ -37,7 +45,7 @@ signés entre les deux joueurs (46), corporations tenues (16), ressources posée
 classement des Récompenses (27), moins 44 cases de cartes jamais distribuées.
 
 **Aucun point de décision n'a bougé** : les quatre empreintes d'état sont
-identiques à celles de `e0310a8` sur 1 200 parties, 0 violation d'invariant
+identiques à celles de `c28b307` sur 1 200 parties, 0 violation d'invariant
 [VÉRIFIÉ 20-08, relevé par moi].
 
 ### La conséquence qu'il faut avoir en tête
@@ -95,7 +103,7 @@ corporation, cartes projets déjà en main** (`flow.rs:227`).
 
 L'entraînement C (avec devinette) a fini son million à 5 h 02 : **85 547 s,
 85,5 ms par partie**, 4,49 milliards d'options essayées, plafond des 60 pas
-d'avance atteint 80 461 fois. Poids et paliers enregistrés (`30f16eb`).
+d'avance atteint 80 461 fois. Poids et paliers enregistrés (`e86b34f`).
 À comparer à A : 60 530 s pour le même million, soit **41 % moins cher**.
 [VÉRIFIÉ 17-08]
 
@@ -212,7 +220,7 @@ faible — mais c'est une lacune de rédaction de ma part.
 
 `entraine` a fini à 13 h 59 : **1 000 000 de parties, 60 530 s, 60,5 ms par
 partie, 4,75 milliards d'options essayées**, 79,05 % de prédictions justes.
-Poids et paliers enregistrés (`8779961`). [VÉRIFIÉ 16-08]
+Poids et paliers enregistrés (`1a9d63c`). [VÉRIFIÉ 16-08]
 
 ### La courbe complète, TOUTES sur les mêmes 80 donnes × 2 sièges
 
@@ -354,7 +362,7 @@ départagées : soit les parties deviennent plus serrées entre deux joueurs for
 corrections tardives défont les précédentes. **Un taux décroissant est le premier
 essai à tenter** si le palier à 800 000 confirme le ralentissement.
 
-## ✅ 16-08 — L'IA EXISTE ET ELLE GAGNE : 82 % CONTRE `reflechi` (`60aaece`)
+## ✅ 16-08 — L'IA EXISTE ET ELLE GAGNE : 82 % CONTRE `reflechi` (`69eb3f9`)
 
 Le lot `le-juge-apprend` est **fusionné**. Le joueur `apprenti` apprend à estimer
 sa probabilité de victoire et choisit l'option qui la maximise.
@@ -755,7 +763,7 @@ est un décor et les décisions viennent de règles écrites à la main.
 
 ## ✅ 06-08 — DEUX LOTS FUSIONNÉS, ET L'ÉCRAN MIS ENTRE LES MAINS D'ALEXIS
 
-### Le moteur dit quand on peut vendre (`bb38510`)
+### Le moteur dit quand on peut vendre (`82b99c3`)
 
 | Ce que j'ai rejoué | Mesure |
 |---|---|
@@ -770,7 +778,7 @@ MOT-13 était réel : 11 cartes échappaient à une défausse imposée sur 10 74
 **Réserve vraie** : pour un joueur humain, l'écran garde le défaut — le bouton de vente
 reste offert là où l'occasion est dépensée (`vue/**` était hors territoire). [VÉRIFIÉ 06-08]
 
-### L'écran se souvient, et il sait passer pour de bon (`12401cb`) — CNF-3 et CNF-6
+### L'écran se souvient, et il sait passer pour de bon (`babed3a`) — CNF-3 et CNF-6
 
 | Ce que j'ai rejoué | Mesure |
 |---|---|
@@ -789,7 +797,7 @@ jamais **à quoi elle ressemble ni où exactement elle se pose**.
 
 | Défaut | État |
 |---|---|
-| les cartes quittaient la pioche **en forme d'œuf** (`vue/anim.js:258` + arrondi de moitié) | **✅ CORRIGÉ 06-08** (`6a0bf5e`), banc neuf `verif/forme-de-ce-qui-vole.py` éprouvé dans les deux sens : vert sur 123 objets en vol, **88 / 107 pris en défaut** sur une copie sabotée |
+| les cartes quittaient la pioche **en forme d'œuf** (`vue/anim.js:258` + arrondi de moitié) | **✅ CORRIGÉ 06-08** (`73d2072`), banc neuf `verif/forme-de-ce-qui-vole.py` éprouvé dans les deux sens : vert sur 123 objets en vol, **88 / 107 pris en défaut** sur une copie sabotée |
 | un **gros point jaune** traverse l'écran : c'est `zone-de-stockage-mc-jaune.webp`, le **bac de rangement** du plateau (grand rectangle jaune uni), arrondi en disque. Même défaut en rouge (chaleur) et vert (plantes) | ❌ **OUVERT** |
 | à la distribution, **8 cartes piochées, 6 vols seulement** (plafond de 3 par événement, `vue/anim.js:526`), et toutes arrivent au **centre de la bande de main** (`vue/anim.js:584`), l'une sur l'autre et par-dessus les cartes déjà là | ❌ **OUVERT** |
 
@@ -806,7 +814,7 @@ vérifier — tous mesuraient une forme au lieu d'une propriété, ou mesuraient
 ne pouvait pas avoir lieu.
 
 
-## ✅ 05-08 — LE PREMIER ADVERSAIRE EST FUSIONNÉ (`97e2cdf`) — GRO-1 COMMENCÉ
+## ✅ 05-08 — LE PREMIER ADVERSAIRE EST FUSIONNÉ (`aac4233`) — GRO-1 COMMENCÉ
 
 **C'est le premier lot qui vise l'objectif du projet lui-même.** Livré, audité et
 **entièrement rejoué par moi**, jamais cru sur parole. Quatre fichiers, tous dans
@@ -855,7 +863,7 @@ rien à l'extérieur ne distingue **le droit de vendre** d'**une occasion ouvert
 ici**. Un joueur sans mémoire ne peut pas faire la différence, revend, et le
 moteur arrête la partie. **Chantier suivant**, avec MOT-13.
 
-## ✅ 05-08 — LES QUATRE BANCS « CASSÉS » : DEUX ÉTAIENT SAINS (`2b545ae`)
+## ✅ 05-08 — LES QUATRE BANCS « CASSÉS » : DEUX ÉTAIENT SAINS (`cca237a`)
 
 La carte d'état portait depuis des jours une dette : « quatre bancs cassés du
 dépôt — `arcs.py`, `score.py`, `corporation.py`, `oceans.py` ». **La moitié de
@@ -873,7 +881,7 @@ lui-même. Huit autres fichiers portaient ce chemin en dur.
 |---|---|
 | `oceans.py` | **VERT** — 129 planches lues, 609 identités vérifiées, jusqu'à 9 tuiles révélées |
 | `corporation.py` | **VERT** — 16 choix éprouvés sur 8 parties, 0 faute |
-| `score.py` | tourne enfin, et trouve un désaccord : **4 mentions « provisoire »** là où il en attend 2. Probablement périmé depuis que le mot est écrit en entier (`5996c45`) — **à trancher** |
+| `score.py` | tourne enfin, et trouve un désaccord : **4 mentions « provisoire »** là où il en attend 2. Probablement périmé depuis que le mot est écrit en entier (`ca7101f`) — **à trancher** |
 | `arcs.py` | tourne enfin, et se casse sur **son propre défaut** : il lit la température **à l'écran**, où la page affiche les **degrés**, et la traite comme un nombre de crans. Refaire ce banc demande de lui trouver une autre source : **consigné, pas bricolé** |
 
 **La leçon est la même que pour le contrôle de langue, le même jour** : un banc
@@ -923,7 +931,7 @@ honnête (18 144 occasions de le prendre en défaut), **rouge sur un tricheur
 réglé à la main sur les cent parties du contrat les gagnerait sans avoir rien
 compris. Il vérifie aussi le territoire.
 
-## ✅ 05-08 — LE LOT « LE PLATEAU SE LIT ET S'ENTEND » EST MONTÉ (`8572933`)
+## ✅ 05-08 — LE LOT « LE PLATEAU SE LIT ET S'ENTEND » EST MONTÉ (`af8bfc0`)
 
 Quatre travaux livrés, **audités et rejoués par moi**, jamais crus sur parole.
 
@@ -953,7 +961,7 @@ qui bouge) au lieu de la **propriété** (une annonce apparaît). Corrigé, la r
 écrite dans le fichier, et ré-éprouvé dans les deux sens : vert sur la livraison,
 **1 127 fautes** sur la copie sabotée.
 
-**Une dette du dépôt réparée au passage** (`f81131b`) : le contrôle qui vérifie
+**Une dette du dépôt réparée au passage** (`af96d3a`) : le contrôle qui vérifie
 qu'aucun français ne reste à l'écran **ne tournait plus** — cinq chemins de
 fichier faux — et, une fois relancé, il criait **3 404 fautes dont pas une
 vraie** : sa liste de mots français contenait douze mots qui s'écrivent pareil en
@@ -1101,7 +1109,7 @@ Toutes trois vérifiées et corrigées le 05-08 :
 
 | Fiche | Ce qu'elle disait | Ce que dit le code |
 |---|---|---|
-| **ANI-5** | « toujours pas réglé » | deux points sur trois livrés le 04-08 (`4f7ebdb`) |
+| **ANI-5** | « toujours pas réglé » | deux points sur trois livrés le 04-08 (`2c22aa3`) |
 | **LIS-10** | les jetons Océan et Forêt sont sur un carré blanc | détourés le 04-08 : **24 % de pixels transparents, quatre coins transparents**, contre 0 % pour les découpes d'origine ; affichés par `vue/scene.js:1030-1031` |
 | **LIS-8** | le compteur de forêts est affiché deux fois | la part « Forests » retirée de `vue/joueurs.js:69-75`, l'hexagone passé au jeton détouré (`joueurs.js:145`), `imageForet()` supprimée |
 
@@ -1240,7 +1248,7 @@ sabotée exprès** (23 sur 157).
 
 ## ✅ 05-08 — LE LOT « LES CARTES QUI BOUGENT ET LA DÉFAUSSE » EST FUSIONNÉ
 
-Chantier D du plan, fusionné dans `main` (`cfec28a`) après audit complet par moi.
+Chantier D du plan, fusionné dans `main` (`f126dc6`) après audit complet par moi.
 C'était **le plus gros manque de confort restant** : les nombres changeaient, et
 rien ne bougeait.
 
@@ -1298,10 +1306,10 @@ pendant le rattrapage qui suit un rechargement.
 
 ## ✅ 05-08 — LE LOT « LES CHOIX SE POSENT AU BON MOMENT » EST FUSIONNÉ
 
-Fusionné dans `main` (`c071409`) après audit complet par moi. **MOT-2, MOT-3,
+Fusionné dans `main` (`9f56aad`) après audit complet par moi. **MOT-2, MOT-3,
 MOT-8** — trois défauts qui déplacent tous des points de décision. Ils sont
 partis ensemble pour ne refixer les repères qu'**une seule fois**, et c'est
-vérifié commit par commit : seul le dernier (`9554fc2`) change une valeur
+vérifié commit par commit : seul le dernier (`54d7a39`) change une valeur
 d'empreinte, et il ne fait que cela.
 
 | Point | Avant | Après, rejoué par moi |
@@ -1370,7 +1378,7 @@ plutôt qu'une **propriété** :
 
 ### Ce qui est entré dans le dépôt
 
-**Le lot moteur A1 est fusionné** (`ff40503` + `2a87274`) — quatre points de la
+**Le lot moteur A1 est fusionné** (`e8edf8a` + `9949dcd`) — quatre points de la
 liste de Corentin, tous mesurés :
 
 - **MOT-1 / MOT-6** : la question de pose se pose désormais **même quand aucune
@@ -1426,7 +1434,7 @@ Les deux ont été retirés des garde-fous des chantiers en cours, avec la raiso
 entoure de vert et celles que le moteur accepte réellement. Il relève **cinq
 désaccords par partie**, tous dans le même sens : des cartes entourées de vert que
 le moteur refuse. [VÉRIFIÉ 05-08] **Ce n'est pas une régression du lot moteur** —
-mesuré identique sur `14f2501`, avant la fusion, dans une copie de travail
+mesuré identique sur `7d06370`, avant la fusion, dans une copie de travail
 temporaire. Le contour trompeur ne se remarque qu'en essayant de jouer la carte,
 ce qui explique que ni Alexis ni Corentin ne l'aient vu. À traiter dans un lot
 d'affichage ultérieur.
@@ -1636,7 +1644,7 @@ il n'a pas rencontré de main de 11 cartes —, pas sur ce qu'il mesure.)
 
 ## ✅ JOUER À DEUX, CHACUN CHEZ SOI — LIVRÉ, AUDITÉ, PROMU (04-08) — `jouer-a-deux-en-ligne`
 
-**Prêt pour la partie de 9h30.** Commit `f993116`. Deux humains, deux ordinateurs,
+**Prêt pour la partie de 9h30.** Commit `8663c2c`. Deux humains, deux ordinateurs,
 une partie ; l'autre joueur n'installe rien et ouvre un simple lien.
 
 **Ce qui a été construit** : un point de rendez-vous (`web/webapp/relais/serveur.js`)
@@ -1674,7 +1682,7 @@ pas, sept pannes courantes, et comment tout refermer).
 
 ## ✅ LA VENTE CHOISIE — ROUND 2 AUDITÉ ET PROMU (04-08) — `regles-de-la-vente`
 
-Commit `66e64fc`. **5/6 contrôles visibles, 3/3 cachés** — dont celui qui mesure
+Commit `94cfa29`. **5/6 contrôles visibles, 3/3 cachés** — dont celui qui mesure
 le chevauchement des zones sur six tailles de fenêtre jamais nommées au contrat,
 et qui était rouge avant ce round. [VÉRIFIÉ 04-08]
 
@@ -1843,7 +1851,7 @@ des hold-outs de sa propre initiative, déclaré spontanément) : sur les cinq
 fichiers partagés, **zéro ligne de code absente** de la fusion — seuls des
 commentaires, remplacés par des commentaires de couture. [VÉRIFIÉ 03-08]
 
-Promue dans le dépôt (`4de3b6d`), puis vérifiée **depuis la racine du dépôt** et
+Promue dans le dépôt (`fe9c98b`), puis vérifiée **depuis la racine du dépôt** et
 non depuis le workspace : graines 2024 et 4242, 191 et 234 décisions, 36 crans
 d'arc, **0 corporation dans la main**, 0 erreur de console. [VÉRIFIÉ 03-08]
 
@@ -1860,12 +1868,12 @@ avait écrit noir sur blanc (« une durée nulle empêche certains navigateurs d
 déclencher l'événement de fin, et un `await` qui n'aboutit pas bloque la
 partie »). Conséquence mesurée : avec `?animations=non`, la question « quelle
 carte vends-tu ? » ne recevait plus aucun clic, boutons pourtant visibles,
-opaques et cliquables. Remis à `1ms` (`5996c45`). Après correction : 191
+opaques et cliquables. Remis à `1ms` (`ca7101f`). Après correction : 191
 décisions en 1600×1000 ET en 1280×720. [VÉRIFIÉ 03-08]
 
 **2. Jauges illisibles éteintes + mot « PROVISIONAL » tronqué. CORRIGÉS.**
 `opacity .38` / `brightness .62` → `.68` / `.88` ; boîte de 56px → 74px
-(besoin mesuré ≈ 62px). (`5996c45`)
+(besoin mesuré ≈ 62px). (`ca7101f`)
 
 **3. Les boutons de choix se recouvrent en 1440×810. NON CORRIGÉ.**
 Cause racine mesurée : sur la décision « choisir le badge », la zone des choix

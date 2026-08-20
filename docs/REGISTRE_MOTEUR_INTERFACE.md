@@ -40,7 +40,7 @@
 
 Colonnes : le changement moteur, ce que l'interface doit faire, l'ampleur, l'état.
 
-### Lot L1 — Le secret et l'ordre  *(LIVRÉ le 19-08, commit `3d14d25`, audité `ok`)*
+### Lot L1 — Le secret et l'ordre  *(LIVRÉ le 19-08, commit `46109dc`, audité `ok`)*
 
 Le détail complet, écrit par l'agent du chantier, est dans
 `workspaces/le-secret-et-l-ordre/outputs/interface.md`. Résumé ici.
@@ -63,7 +63,7 @@ resté périmé un moment, pendant que la recopie JavaScript lisait déjà
 concordaient. Seul le banc de concordance `web/webapp/verif/juge-descriptions.mjs`
 voit ce genre de divergence, et il n'est vert qu'après `bash web/construire.sh`.
 
-### Lot L2 — Les règles de cartes et de phases  *(LIVRÉ le 19-08, commit `e0310a8`, audité `ok`)*
+### Lot L2 — Les règles de cartes et de phases  *(LIVRÉ le 19-08, commit `c28b307`, audité `ok`)*
 
 **Le détail complet, ligne par ligne, est dans
 `workspaces/les-regles-des-cartes/outputs/interface.md`.** Ce qui suit est le
@@ -110,7 +110,7 @@ recopier. (Le lot L3, lui, la changera de fond en comble.)
 > Ce garde-fou existe (`reseau.rs:588-620`) ; il doit rester actif après chaque
 > changement de description.
 
-### Lot L4 — Le joueur  *(LIVRÉ le 19-08, commit `701a875`, audité `ok`)*
+### Lot L4 — Le joueur  *(LIVRÉ le 19-08, commit `e5050b9`, audité `ok`)*
 
 Détail complet : `workspaces/le-joueur-sans-voyance/outputs/interface.md`.
 
@@ -128,7 +128,7 @@ le joueur Rust essaie ses coups sur un paquet rebattu, le joueur JavaScript sur
 la vraie partie. Il redeviendra vert quand le pont acceptera une graine d'essais.
 Ne pas le « réparer » autrement.
 
-### Lot L3 — La fiche que l'intelligence artificielle regarde  *(LIVRÉ le 20-08, commit `ada92b6`, audité `ok`)*
+### Lot L3 — La fiche que l'intelligence artificielle regarde  *(LIVRÉ le 20-08, commit `2691b0b`, audité `ok`)*
 
 Détail complet : `workspaces/la-fiche-que-l-ia-regarde/outputs/interface.md`.
 
