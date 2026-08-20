@@ -1,0 +1,28 @@
+reprise : data/poids/apprenti-1200k.txt — 1200000 parties déjà vues
+amorçage sauté : on reprend des poids déjà entraînés
+{"parties": 40000, "erreur": 0.066781, "justes": 0.7975}
+{"parties": 80000, "erreur": 0.070841, "justes": 0.7818}
+instantané : data/poids/apprenti-2M.txt.100000 (100000 parties, 11330.9 s)
+{"parties": 120000, "erreur": 0.065681, "justes": 0.8121}
+{"parties": 160000, "erreur": 0.068571, "justes": 0.7951}
+{"parties": 200000, "erreur": 0.066964, "justes": 0.7916}
+instantané : data/poids/apprenti-2M.txt.200000 (200000 parties, 18061.3 s)
+{"parties": 240000, "erreur": 0.066469, "justes": 0.7895}
+{"parties": 280000, "erreur": 0.066019, "justes": 0.7934}
+instantané : data/poids/apprenti-2M.txt.300000 (300000 parties, 24224.6 s)
+{"parties": 320000, "erreur": 0.068009, "justes": 0.8025}
+{"parties": 360000, "erreur": 0.066377, "justes": 0.8091}
+{"parties": 400000, "erreur": 0.067121, "justes": 0.8056}
+instantané : data/poids/apprenti-2M.txt.400000 (400000 parties, 30309.4 s)
+{"parties": 440000, "erreur": 0.067703, "justes": 0.8099}
+{"parties": 480000, "erreur": 0.066677, "justes": 0.8022}
+instantané : data/poids/apprenti-2M.txt.500000 (500000 parties, 36155.1 s)
+{"parties": 520000, "erreur": 0.066504, "justes": 0.8020}
+{"parties": 560000, "erreur": 0.068694, "justes": 0.7973}
+{"parties": 600000, "erreur": 0.067690, "justes": 0.8037}
+instantané : data/poids/apprenti-2M.txt.600000 (600000 parties, 41816.1 s)
+{"parties": 640000, "erreur": 0.069437, "justes": 0.8088}
+{"parties": 680000, "erreur": 0.069997, "justes": 0.8165}
+instantané : data/poids/apprenti-2M.txt.700000 (700000 parties, 47657.1 s)
+{"parties": 720000, "erreur": 0.068373, "justes": 0.8126}
+{"parties": 760000, "erreur": 0.067942, "justes": 0.7972}

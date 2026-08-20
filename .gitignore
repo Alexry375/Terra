@@ -20,3 +20,15 @@ __pycache__/
 # .git/info/exclude, pose par l'outil `aw`. Les livrables y sont promus
 # manuellement dans engine/ ou data/ apres audit.
 .claude/worktrees/
+
+# Flux d'erreur vides des campagnes de mesure (aucun contenu)
+data/mesures/**/*.err
+
+# Instantanes de l'entrainement "A 2M", arrete a 760 000 parties : ils portent
+# l'ancienne fiche de situation a 1472 cases. Depuis le lot L3 la fiche en
+# compte 1630, et `Reseau::lire` refuse tout fichier dont la table de noms
+# differe : ces poids ne sont plus lisibles par le moteur. Conserves sur le
+# disque, hors du depot. La trace de l'entrainement, elle, est versionnee
+# (data/mesures/entrainement-A-2M-suite.log).
+data/poids/apprenti-2M.txt.*
+data/poids/apprenti-1200k.txt
