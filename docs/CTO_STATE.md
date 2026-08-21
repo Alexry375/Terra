@@ -195,6 +195,19 @@ dans la sortie, un qui abîmait le moteur du navigateur dans le dépôt sans
 garantir sa réparation, un message muet, et le tube rompu ci-dessus. **C'est la
 première fois que je les trouve avant de sceller plutôt qu'après.**
 
+**Et un dixième, le plus grave de tous** (lot L6b, 21-08) : mon contrôle 09
+« une vente de l'adversaire se voit » était **VERT alors que rien n'est fait**.
+Il compare ce que montre l'écran pendant une vente à des relevés témoins, et
+cherche ce qui n'apparaît qu'aux ventes. Je prenais les témoins **pendant que le
+joueur regardé jouait lui-même** ; pendant une vente, il est au contraire en
+attente, et son écran affiche « the other player is… » (`distant.js:145-165`).
+Les deux mots de ce message, communs à **toutes** les attentes, sont passés pour
+l'annonce d'une vente. Corrigé en prenant les témoins pendant que l'adversaire
+répond à une question ordinaire : 17 témoins, 54 marques communes aux trois
+ventes, toutes présentes hors vente → **ROUGE**, pour la bonne raison. Un faux
+VERT est pire qu'un faux rouge : il scelle un critère qui ne sera jamais fait, et
+l'audit ne le rattrape pas. Leçon écrite en mémoire.
+
 **Et trois critères que mon contrat donnait à faire alors qu'ils étaient déjà
 faits** (G, I, M) — plus un quatrième (L) qui l'est par nature. Mesurés verts le
 21-08 avant scellement, ils sont désormais marqués `[x]` dans le contrat et
