@@ -20,6 +20,26 @@ audités `ok` ; L5 livré et audité `partial` ; L6a livré et audité `ok`.** T
 commités et poussés. Restent **L6b** (les écrans manquants), L7 (tests en force),
 L8 (répétition générale), L9 (dernier entraînement).
 
+**L6b est SCELLÉ et l'agent y travaille depuis le 22-08** [VÉRIFIÉ 22-08] :
+`aw seal les-ecrans-manquants` → « 12 check(s) de progrès, tous rouges », plus
+quatre garde-fous verts (L, M, N, O) qui ne mesurent que l'absence de casse. Les
+douze rouges ont tous été éprouvés **pour la bonne raison** avant scellement,
+c'est-à-dire en lisant leur dernière ligne, pas seulement leur code de sortie.
+Trois contrôles cachés vivent hors dépôt dans
+`~/.agentic-workspace/holdout/les-ecrans-manquants/` ; leurs graines sont dans la
+plage `88xxxxx`, absente du dépôt (`grep -rE "88[0-9]{5}"` → 0 occurrence dans
+`workspaces/les-ecrans-manquants/` et `web/webapp/verif/`). Les trois ont été
+mesurés rouges avant le lot :
+- **H1 — à égalité, l'écran désigne le bon joueur** (22-08) : 46 parties jouées
+  hors écran, 3 égalités retenues (gagnants 1, 1 et 0 — donc « à égalité le
+  siège 0 gagne » ne passe pas), 5 parties rejouées à l'écran avec des scores
+  identiques à ceux du moteur, « marque(s) qui suivent le vainqueur sur les 2
+  parties decidees : AUCUNE ».
+- **H2 — le rideau tient tard, et sur le flux** (21-08) : 4 occasions après le
+  rang 60, 71 réponses vues sur le flux d'évènements, deux fautes attrapées sur
+  `research_keep` au rang 64 dont **une que le contrôle visible 03 ne voit pas**.
+- **H3 — le départage ne fuit pas en cours de partie** (21-08).
+
 | Lot | Objet | Commit | Tests |
 |---|---|---|---|
 | L1 | le secret et l'ordre (D1, D10, D11, D14, D15, D16) | `46109dc` | 941 |
