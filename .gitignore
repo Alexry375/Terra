@@ -56,3 +56,10 @@ docs/regles/livret-base.md
 docs/regles/livret-decouverte.md
 data/cartes-imprimees/
 web/demo-decor/
+
+# Sorties des bancs d'ecran (`web/webapp/verif/*.py`) : ce sont des CAPTURES DE
+# LA PAGE EN TRAIN DE JOUER, donc des visuels de cartes sous droits d'auteur.
+# Elles sont reconstructibles a la commande et n'ont rien a faire dans un depot
+# public. Trouvees non ignorees le 21-08 : 4,1 Mo de PNG a un `git add -A` de la
+# publication.
+web/webapp/verif/outputs/
