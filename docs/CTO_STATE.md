@@ -13,12 +13,12 @@ Dernière mise à jour : 2026-08-21
 > citées ci-dessous sont celles du **nouvel** historique. Détail :
 > `docs/JOURNAL.md`, entrée « 2026-08-20 (suite) ».
 
-## 🔥 21-08 — CINQ LOTS SUR NEUF SONT LIVRÉS. LA FORCE DE L'IA A MONTÉ POUR LA PREMIÈRE FOIS
+## 🔥 21-08 — CINQ LOTS SUR NEUF SONT LIVRÉS, ET LA PREMIÈRE MOITIÉ DU SIXIÈME
 
 **État du grand plan** (`docs/PLAN_FINAL.md` § 3) : **L1, L2, L3, L4 livrés et
-audités `ok` ; L5 livré et audité `partial`.** Tous commités et poussés. Restent
-L6 (interface), L7 (tests en force), L8 (répétition générale), L9 (dernier
-entraînement).
+audités `ok` ; L5 livré et audité `partial` ; L6a livré et audité `ok`.** Tous
+commités et poussés. Restent **L6b** (les écrans manquants), L7 (tests en force),
+L8 (répétition générale), L9 (dernier entraînement).
 
 | Lot | Objet | Commit | Tests |
 |---|---|---|---|
@@ -27,6 +27,39 @@ entraînement).
 | L2 | les règles de cartes et de phases (13 défauts) | `c28b307` | 1 029 |
 | **L3** | **la fiche que l'IA regarde (D3, D4, 2.8, 2.9, 2.10, 2.12)** | **`2691b0b`** | **1 111** |
 | **L5** | **vitesse et réglages — quatre cœurs, reprise après coupure** | **`2569778`** | **1 181** |
+| **L6a** | **le pont ne triche plus — l'avenir caché au navigateur, la vente à son occasion** | **`7c831a2`** | **1 181** |
+
+### Ce que le lot L6a change [VÉRIFIÉ 21-08]
+
+**Le navigateur ne lit plus l'avenir.** Chaque essai de coup (`pont.pas`)
+rejouait la partie depuis la graine réelle : l'IA qui réfléchit dans la page
+voyait les cartes qu'elle allait recevoir. Le moteur natif avait été corrigé au
+lot L4 ; le pont vers le navigateur, non. Le module compilé du navigateur
+(`web/webapp/wasm/src/lib.rs`) **appelle** désormais le rebattage écrit en Rust
+(`joueur::rebattre_le_reste`, `rebattre_l_avenir`, `ecarter_les_cartes_du_futur`)
+au lieu de le recopier en JavaScript.
+
+**Une vente tombe à son occasion.** Chaque entrée de vente porte le numéro de
+l'occasion à laquelle elle a été décidée, et le moteur refuse de la consommer
+avant ce numéro — sans quoi une vente décidée tard s'appliquait à une main que
+le joueur n'avait pas encore.
+
+- **Une seule ligne du moteur touchée** : `fn brasser` → `pub fn brasser`
+  (`engine/src/joueur.rs`). Le reste est dans le navigateur.
+- **Le juge du critère central** (`verif/juge-meme-option.mjs`, non modifié par
+  le lot) : **accord complet sur 20 318 décisions de 40 parties entières**. Avant
+  le lot : 31 289 désaccords sur 33 142.
+- **Le module compilé du navigateur est reproductible à l'octet** : reconstruit
+  par `web/construire.sh`, md5 `448bd20120c6ae29e01b8b0517adc3b1`, identique au
+  fichier livré.
+- **Audit** : contrat et quatorze contrôles intacts, 14/14 visibles, **3/3
+  hold-outs cachés rejoués à la main**. Verdict `ok`.
+- **Reste déclaré, pas corrigé** : les trois échecs préexistants de
+  `verif/tests.mjs` (52 passés), avec leur cause écrite.
+- **Dette nouvelle** : la graine dérivée est **recopiée terme pour terme** entre
+  `web/webapp/wasm/src/lib.rs` et `engine/src/joueur.rs:610` (méthode privée).
+  Deux endroits à garder synchronisés : au premier changement de l'un sans
+  l'autre, le navigateur et le natif cessent de jouer la même partie.
 
 ### Ce que le lot L5 change, et ce qu'il ne tient pas [VÉRIFIÉ 21-08]
 
@@ -131,7 +164,7 @@ ensemble.
 
 ### Le compte des faux verdicts, que je tiens ouvert
 
-**Neuf faux rouges en trois jours, tous de moi** : trois au lot L3 (contrôles 01
+**Onze faux verdicts en trois jours, tous de moi** : trois au lot L3 (contrôles 01
 et 02, hold-out h1), cinq au lot L2, **un au lot L5** — le contrôle 14, qui lit le
 troisième nombre de la **première** ligne du fichier de poids (le nombre de
 sorties du réseau, `2`) au lieu du compteur de parties, qui est sur la
@@ -139,12 +172,48 @@ sorties du réseau, `2`) au lieu du compteur de parties, qui est sur la
 livraison saine. Aucun de ces neuf n'a jamais laissé passer un défaut — ils ont
 tous **accusé à tort** un travail correct.
 
-**Et sept défauts de plus, attrapés AVANT emploi cette fois** (lot L6a, 21-08) :
+**Les deux de plus, trouvés le 21-08 en éprouvant les contrôles du lot L6a :**
+
+- **Un faux VERT, et c'est le premier.** Mon contrôle caché h2 cherchait le mot
+  « desaccord » **sans accent** dans la sortie du juge des mêmes options, qui
+  écrit « désaccord(s) » **accentué**. Il a donc annoncé « vert sur la
+  livraison » alors que le juge est rouge de très loin : **31 289 désaccords sur
+  33 142 décisions** [VÉRIFIÉ 21-08, 40 graines, 37 minutes de mesure]. Le
+  hold-out a été entièrement réécrit : il lit désormais le **code de sortie**.
+- **Un faux rouge par tube rompu.** `12-aucune-regression.sh` écrivait
+  « Rust : 1181 verts, 0 rouges » puis, deux lignes plus bas,
+  « KO: aucun resultat de test ». La cause : `... | grep -q` referme le tube dès
+  la première correspondance, celui qui écrit meurt d'un tube rompu, et
+  `set -o pipefail` remonte cette mort comme un échec — **alors que le motif
+  avait été trouvé**. Le piège ne se voit que sur une grosse sortie. Les **onze**
+  tubes vers `grep -q` des quatorze contrôles sont corrigés en `<<<`.
+
+**Et huit défauts de plus, attrapés AVANT emploi cette fois** (lot L6a, 21-08) :
 deux contrôles qui auraient déclaré vert un banc rouge (ils cherchaient des mots
 que les bancs n'écrivent pas), trois qui cherchaient le mot « VERT » n'importe où
 dans la sortie, un qui abîmait le moteur du navigateur dans le dépôt sans
-garantir sa réparation, un message muet. **C'est la première fois que je les
-trouve avant de sceller plutôt qu'après.**
+garantir sa réparation, un message muet, et le tube rompu ci-dessus. **C'est la
+première fois que je les trouve avant de sceller plutôt qu'après.**
+
+**Et trois critères que mon contrat donnait à faire alors qu'ils étaient déjà
+faits** (G, I, M) — plus un quatrième (L) qui l'est par nature. Mesurés verts le
+21-08 avant scellement, ils sont désormais marqués `[x]` dans le contrat et
+renommés `garde-fou-*.sh` : ils ne demandent aucun travail, ils constatent que
+l'agent ne casse rien. Sans cette relecture, l'agent aurait reconstruit ce qui
+existe.
+
+**Et un neuvième, celui-là attrapé À L'EMPLOI** (audit de L6a, 21-08) : mon
+hold-out h2 sabote une copie du code pour vérifier que le banc rougit quand on
+lui ment. Son sabotage remplaçait le quatrième argument de `pont.pas` par un
+nombre — or le code livré **refuse un nombre** (il exige un objet, c'est
+précisément l'un des correctifs du lot). La copie sabotée **plantait** au lieu de
+diverger. Mon garde-fou « rouge, mais pour une AUTRE raison qu'un désaccord » a
+refusé de conclure, et j'avais écrit avant scellement quoi faire dans ce cas :
+réécrire le sabotage sur le code réellement livré. Fait — le hold-out rend
+maintenant « vert sur la livraison, rouge sur la copie sabotée, 1 703 désaccords
+sur 1 851 décisions ». **Un hold-out qui éprouve dans les deux sens ne peut pas
+être éprouvé entièrement avant le lot : son second sens ne s'exécute que sur du
+code qui n'existe pas encore.** À prévoir dans chaque scellement futur.
 
 Trois leçons en mémoire durable : `aw seal` ne distingue pas un contrôle cassé
 d'un travail non fait ; une moyenne prise sur une population hétérogène peut
