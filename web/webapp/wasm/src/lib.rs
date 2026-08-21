@@ -36,6 +36,7 @@ use engine::choice::{
     action_res_label, action_res_quantity, describe_branch, describe_selector_grant,
     spend_amount_quantity, tag_label, ChoiceContext,
 };
+use engine::joueur;
 use engine::flow::{
     play_round, score_parts, setup_game, ActionSource, SelectorBonus, UpgradeSource,
 };
@@ -270,7 +271,7 @@ fn repondre_op_verif(db: &'static CardsDb, v: &Value, op: &str) -> Result<Value,
                 Some(Value::Array(a)) => a.clone(),
                 Some(x) => return Err(format!("decisions invalide: {x} (liste attendue)")),
             };
-            pas(db, seed, decisions)
+            pas(db, seed, decisions, essais(v)?)
         }
         autre => return Err(format!("op inconnue: {autre}")),
     })
@@ -798,6 +799,50 @@ struct Harnais<'a> {
     mains: [Vec<u16>; 2],
     erreur: Option<String>,
     defaut: RandomPolicy,
+
+    // ------------------------------------------------- (le-pont-ne-triche-plus)
+    /// **Le compteur d'occasions de vente**, jumeau de `Joueur::occasions_partie`
+    /// et de `Rejeu::occasions`. Il compte un rang dans la partie, pas un nombre
+    /// de ventes : toute occasion ouverte l'incrémente, honorée ou non. C'est ce
+    /// numéro qui permet de refuser une vente décidée à une occasion PLUS TARD
+    /// que celle où le rejeu la rencontre.
+    occasions: u64,
+    /// **Le compte d'occasions AU POINT D'ARRÊT**, et c'est le seul que la page
+    /// puisse interpréter. Passé le point d'attente, le moteur continue de
+    /// tourner jusqu'à la fin de sa manche avec des réponses par défaut qui
+    /// seront jetées — et il ouvre des occasions au passage, que personne ne
+    /// verra jamais. Publier `occasions` brut ferait donc RECULER le compteur
+    /// d'un coup à l'autre, selon la longueur de cette queue jetée.
+    occasions_a_l_arret: u64,
+    /// Les occasions ouvertes que personne n'a encore saisies, à l'instant de la
+    /// décision en attente. La page les reçoit dans la réponse et peut y glisser
+    /// une entrée `vendre` — le moteur, lui, ne pose aucune question.
+    occasions_ouvertes: Vec<Value>,
+
+    /// Passe 1 d'un rejeu d'essai : on cherche le MOMENT de l'essai (le point de
+    /// la vraie partie où la décision essayée se prend). Faux en jeu normal.
+    cherche_moment: bool,
+    /// Rang de la décision essayée (= `Joueur::journal.len()` au moment du choix).
+    essai_rang: usize,
+    /// Numéro de l'occasion de vente à laquelle l'essai a lieu, s'il y a lieu.
+    essai_occasion: Option<u64>,
+    /// Vrai dès que le moment est atteint : plus rien n'est relevé après lui.
+    moment: bool,
+    /// Ce que le joueur avait sous les yeux à ce moment-là (voir `joueur.rs`).
+    occasions_moment: u64,
+    deck_vu: usize,
+    oceans_vus: usize,
+    corpos_vues: usize,
+    main_connue: Vec<u16>,
+    main_connue_siege: usize,
+    siege_moment: usize,
+    /// Vrai tant que la mise en place n'est pas finie (passe 1 seulement).
+    en_mise_en_place: bool,
+    /// Passe 2 depuis la mise en place : `ecarter_les_cartes_du_futur` a besoin
+    /// de l'état lui-même, pas de sa sérialisation. Un clone par observation,
+    /// et seulement là.
+    cloner_etat: bool,
+    etat_vu: Option<GameState>,
 }
 
 impl<'a> Harnais<'a> {
@@ -811,6 +856,37 @@ impl<'a> Harnais<'a> {
             mains: [Vec::new(), Vec::new()],
             erreur: None,
             defaut: RandomPolicy,
+            occasions: 0,
+            occasions_a_l_arret: 0,
+            occasions_ouvertes: Vec::new(),
+            cherche_moment: false,
+            essai_rang: 0,
+            essai_occasion: None,
+            moment: false,
+            occasions_moment: 0,
+            deck_vu: 0,
+            oceans_vus: 0,
+            corpos_vues: 0,
+            main_connue: Vec::new(),
+            main_connue_siege: 0,
+            siege_moment: 0,
+            en_mise_en_place: false,
+            cloner_etat: false,
+            etat_vu: None,
+        }
+    }
+
+    /// **Le moment de l'essai est atteint.** On gèle ce qu'on a relevé et l'on
+    /// arrête la passe 1 : la suite sera rejouée depuis le point de reprise, avec
+    /// l'avenir rebattu. `attente` sert d'interrupteur — `play_round` ne sait pas
+    /// s'interrompre, mais une politique qui n'attend plus rien répond par défaut
+    /// et la manche se termine à vide.
+    fn atteindre_le_moment(&mut self, siege: usize) {
+        self.moment = true;
+        self.occasions_moment = self.occasions;
+        self.siege_moment = siege;
+        if self.attente.is_none() {
+            self.attente = Some(Value::Null);
         }
     }
 
@@ -836,12 +912,30 @@ impl<'a> Harnais<'a> {
                 return None;
             }
             let r = self.reponses[self.curseur].clone();
+            let siege = self.siege_moment;
             self.curseur += 1;
+            // (le-pont-ne-triche-plus) La décision essayée vient d'être prise :
+            // c'est ici le moment de l'essai, quand il ne s'agit pas d'une vente.
+            if self.cherche_moment
+                && !self.moment
+                && self.essai_occasion.is_none()
+                && self.curseur == self.essai_rang + 1
+            {
+                self.atteindre_le_moment(siege);
+            }
             return Some(r);
         }
         let mut d = desc;
         d["rang"] = json!(self.curseur);
+        let siege = self.siege_moment;
         self.attente = Some(d);
+        if self.cherche_moment
+            && !self.moment
+            && self.essai_occasion.is_none()
+            && self.curseur == self.essai_rang
+        {
+            self.atteindre_le_moment(siege);
+        }
         None
     }
 
@@ -1183,10 +1277,29 @@ fn nom_origine_amelioration(src: UpgradeSource) -> &'static str {
 }
 
 impl Policy for Harnais<'_> {
-    fn observe(&mut self, game: &GameState, _player: usize) {
+    fn observe(&mut self, game: &GameState, player: usize) {
         if self.attente.is_none() && self.curseur == self.reponses.len() {
             self.vue = Some(state_view(game, self.db));
             self.mains = [game.players[0].hand.clone(), game.players[1].hand.clone()];
+            if self.cloner_etat {
+                self.etat_vu = Some(game.clone());
+            }
+        }
+        // **(le-pont-ne-triche-plus) CE QUE LE JOUEUR A DÉJÀ VU.** Recopié de
+        // `Joueur::observe` : à chaque observation, l'état des trois tas cachés et
+        // — pendant la seule mise en place — la main qu'il a sous les yeux. La
+        // dernière valeur retenue avant le moment de l'essai est celle qui borne
+        // le rebattage : on ne rebat jamais ce que le joueur a déjà vu sortir.
+        if self.cherche_moment && !self.moment {
+            self.deck_vu = game.deck.len();
+            self.oceans_vus = game.oceans_revealed as usize;
+            self.corpos_vues = game.corp_deck.len();
+            self.siege_moment = player;
+            if self.en_mise_en_place {
+                self.main_connue.clear();
+                self.main_connue.extend_from_slice(&game.players[player].hand);
+                self.main_connue_siege = player;
+            }
         }
     }
 
@@ -1465,9 +1578,35 @@ impl Policy for Harnais<'_> {
     /// Une entrée qui n'est pas une vente n'est PAS consommée : c'est la réponse
     /// à la décision qui vient, et elle sera lue par `prendre`.
     fn vendre_librement(&mut self, _rng: &mut StdRng, joueur: usize, main: &[u16]) -> Vec<usize> {
+        // **LE NUMÉRO DE CETTE OCCASION.** Compté avant tout le reste et quoi
+        // qu'il arrive : c'est un rang dans la partie, pas un compteur de ventes.
+        // Jumeau exact de `Joueur::vendre_librement` et de `Rejeu::vendre_librement`.
+        let numero = self.occasions;
+        self.occasions += 1;
+        if self.attente.is_none() {
+            self.occasions_a_l_arret = self.occasions;
+        }
+        // (le-pont-ne-triche-plus) Le moment de l'essai, quand l'essai porte sur
+        // une occasion de vente : il précède l'observation de la décision qui
+        // suit, exactement comme dans `flow::avant_decision`.
+        if self.cherche_moment && !self.moment && self.essai_occasion == Some(numero) {
+            self.atteindre_le_moment(joueur);
+            return Vec::new();
+        }
         // Passé le point d'attente, plus rien n'est décidé : les décisions
         // suivantes prennent leur réponse par défaut et sont jetées.
-        if self.attente.is_some() || self.curseur >= self.reponses.len() {
+        if self.attente.is_some() {
+            return Vec::new();
+        }
+        if self.curseur >= self.reponses.len() {
+            // **UNE OCCASION OUVERTE QUE PERSONNE N'A SAISIE.** Le moteur ne pose
+            // pas la question ; c'est la réponse du pont qui la porte, et la page
+            // y glisse — ou non — une entrée `vendre` numérotée.
+            self.occasions_ouvertes.push(json!({
+                "numero": numero,
+                "joueur": joueur,
+                "main": self.cartes(main),
+            }));
             return Vec::new();
         }
         let Some(vente) = self.reponses[self.curseur].get("vendre").cloned() else {
@@ -1476,6 +1615,38 @@ impl Policy for Harnais<'_> {
         // Une vente adressée à l'AUTRE joueur attend son occasion à lui.
         if vente.get("joueur").and_then(Value::as_u64) != Some(joueur as u64) {
             return Vec::new();
+        }
+        // **(le-pont-ne-triche-plus, critère E) JAMAIS AVANT SON HEURE.** Une
+        // vente décidée à l'occasion n ne se consomme pas à l'occasion n-1 : sans
+        // ce refus, une vente décidée après coup remonterait le temps et
+        // s'appliquerait à une main que le joueur n'avait pas encore. La règle est
+        // donc « jamais avant son numéro, au plus tard à la première occasion
+        // suivante du même siège ». Une entrée SANS numéro reste acceptée telle
+        // quelle : c'est le format d'avant, et l'écran de jeu l'écrit encore.
+        //
+        // **UN NUMÉRO MAL FORMÉ EST REFUSÉ, PAS IGNORÉ.** `as_u64` rend « rien »
+        // sur `"3"`, `1.5`, `-1`, `true`, `null`, une liste ou un objet. Se
+        // contenter de `and_then(as_u64)` sauterait alors la garde, et la vente
+        // retomberait à la première occasion du siège — c'est-à-dire très
+        // exactement le défaut V2 que ce lot ferme, rouvert par une valeur qui a
+        // transité par un relais ou une concaténation. On distingue donc « clef
+        // absente » (le format d'avant, accepté) de « clef présente et illisible »
+        // (une faute déclarée).
+        match vente.get("occasion") {
+            None | Some(Value::Null) => {}
+            Some(v) => match v.as_u64() {
+                Some(n) => {
+                    if numero < n {
+                        return Vec::new();
+                    }
+                }
+                None => {
+                    self.faute_vente(format!(
+                        "« occasion » doit être un entier positif, reçu {v}"
+                    ));
+                    return Vec::new();
+                }
+            },
         }
         // L'entrée est VALIDÉE avant d'avancer le curseur : une entrée
         // malformée qui aurait quand même consommé sa place décalerait toutes
@@ -1776,6 +1947,68 @@ impl Policy for Harnais<'_> {
 
 // ---------------------------------------------------------------------- op pas
 
+/// **(le-pont-ne-triche-plus, critère A) LA GRAINE DES REJEUX D'ESSAI, ET LE
+/// MOMENT AUQUEL L'ESSAI A LIEU.**
+///
+/// Trois nombres, et il en faut trois. `joueur.rs` ne dérive pas la graine d'un
+/// essai de la seule graine d'essais : il y mêle le RANG de la décision et le
+/// COMPTE DES OCCASIONS DE VENTE déjà ouvertes, pour que deux décisions
+/// successives — et deux occasions déclinées de suite — n'explorent pas le même
+/// avenir imaginaire. Et le rebattage lui-même ne peut pas toucher ce que le
+/// joueur a déjà vu sortir : il faut donc savoir à quel INSTANT de la partie
+/// l'essai se place. Un nombre seul ne le dirait pas.
+///
+/// - `graine` : `--graine-essais` du natif. **Zéro est une valeur**, pas une
+///   absence : c'est `joueur::GRAINE_ESSAIS_DEFAUT`. C'est la PRÉSENCE de la clef
+///   `graine_essais` qui allume le rebattage, jamais sa valeur.
+/// - `rang` : le nombre de décisions déjà inscrites au journal, c'est-à-dire
+///   l'indice de l'entrée essayée.
+/// - `occasion` : le numéro de l'occasion de vente essayée, quand l'essai porte
+///   sur une vente. Absent pour une décision ordinaire.
+struct Essais {
+    graine: u64,
+    rang: usize,
+    occasion: Option<u64>,
+}
+
+/// Lit le descripteur d'essai de la requête. Absent = jeu normal, et le pont se
+/// comporte alors **exactement** comme avant ce lot : aucun rebattage.
+fn essais(v: &Value) -> Result<Option<Essais>, String> {
+    match v.get("graine_essais") {
+        None | Some(Value::Null) => Ok(None),
+        _ => {
+            let graine = nombre_u64(v, "graine_essais", 0)?;
+            // Le rang n'est pas devinable : une valeur par défaut ferait juger
+            // toutes les décisions sur le même avenir imaginaire, en silence.
+            if v.get("rang_essais").is_none() {
+                return Err(
+                    "rang_essais manquant : une graine d'essais sans rang ne dit pas \
+                     À QUELLE décision l'essai se place"
+                        .to_string(),
+                );
+            }
+            let rang = nombre_usize(v, "rang_essais", 0)?;
+            let occasion = match v.get("occasion_essais") {
+                None | Some(Value::Null) => None,
+                _ => Some(nombre_u64(v, "occasion_essais", 0)?),
+            };
+            Ok(Some(Essais {
+                graine,
+                rang,
+                occasion,
+            }))
+        }
+    }
+}
+
+/// Le point où un rejeu d'essai reprend la partie : le clone de l'état au début
+/// de la manche en cours, ou bien la mise en place. Jumeau de `joueur::Reprise`.
+struct Reprise {
+    base: Option<GameState>,
+    curseur: usize,
+    occasions: u64,
+}
+
 /// Rejoue la partie `seed` avec les décisions déjà prises et s'arrête à la
 /// première décision non prise. Le moteur fait tout : `setup_game` puis
 /// `play_round`, exactement comme `engine::sim::play_game`.
@@ -1784,24 +2017,190 @@ impl Policy for Harnais<'_> {
 /// WebAssembly (une panique y devient un déroutement irrattrapable), le pont ne
 /// peut donc pas s'arrêter au milieu d'une manche. C'est le chemin que le
 /// contrat recommande — le moteur joue 2000 parties en 274 ms.
-fn pas(db: &CardsDb, seed: u64, decisions: Vec<Value>) -> Value {
+///
+/// **(le-pont-ne-triche-plus) AVEC UNE GRAINE D'ESSAIS, LE PONT NE MONTRE PLUS
+/// L'AVENIR.** Sans elle, rien ne change. Avec elle, l'appel se fait en DEUX
+/// PASSES :
+///
+/// 1. la première rejoue la vraie partie jusqu'au *moment de l'essai* — la
+///    décision de rang `rang`, ou l'occasion de vente numéro `occasion`. Elle en
+///    rapporte le point de reprise (le début de la manche en cours), le compte
+///    des occasions à ce point, et ce que le joueur avait déjà vu sortir des
+///    trois tas cachés ;
+/// 2. la seconde repart de ce point, **rebat ce qui reste caché** par
+///    `joueur::rebattre_le_reste` — le même code que l'entraînement, appelé, pas
+///    recopié — et rejoue la liste des décisions.
+///
+/// Pourquoi deux passes et non un rebattage unique juste après `setup_game` : le
+/// rebattage ré-ensemence aussi le générateur de la partie. Le faire à la mise en
+/// place changerait les manches déjà jouées (recharge du paquet, tirage des
+/// jalons et des récompenses) et le pont ne rendrait plus ce que rend le natif.
+fn pas(db: &CardsDb, seed: u64, decisions: Vec<Value>, essais: Option<Essais>) -> Value {
     let donnees = decisions.len();
-    let mut pol = Harnais::new(db, decisions);
-    let mut game = setup_game(db, seed, &mut pol);
-    while pol.attente.is_none() && !game.game_over && game.generation <= MAX_GENERATIONS {
-        play_round(&mut game, db, &mut pol);
+    let Some(e) = essais else {
+        let mut pol = Harnais::new(db, decisions);
+        let mut game = setup_game(db, seed, &mut pol);
+        while pol.attente.is_none() && !game.game_over && game.generation <= MAX_GENERATIONS {
+            play_round(&mut game, db, &mut pol);
+        }
+        return rendre(db, seed, donnees, pol, game, None);
+    };
+
+    // ---- passe 1 : où l'essai se place, et ce que le joueur a déjà vu
+    let mut p1 = Harnais::new(db, decisions.clone());
+    p1.cherche_moment = true;
+    p1.essai_rang = e.rang;
+    p1.essai_occasion = e.occasion;
+    p1.en_mise_en_place = true;
+    let mut g1 = setup_game(db, seed, &mut p1);
+    let mut reprise = Reprise {
+        base: None,
+        curseur: 0,
+        occasions: 0,
+    };
+    if !p1.moment {
+        p1.en_mise_en_place = false;
+        while !p1.moment && !g1.game_over && g1.generation <= MAX_GENERATIONS {
+            // Le clone du DÉBUT de manche, comme `Joueur::debut_manche`.
+            reprise = Reprise {
+                base: Some(g1.clone()),
+                curseur: p1.curseur,
+                occasions: p1.occasions,
+            };
+            play_round(&mut g1, db, &mut p1);
+        }
     }
+    if let Some(err) = p1.erreur.clone() {
+        return erreur(err);
+    }
+    // **UN MOMENT D'ESSAI INATTEIGNABLE EST UNE FAUTE, PAS UN SILENCE.** Si la
+    // passe 1 n'a jamais atteint le moment demandé — rang au-delà des décisions
+    // que la partie pose, rang qui tombe sur une entrée `vendre` (elle se
+    // consomme à une occasion, pas à une question), ou numéro d'occasion jamais
+    // ouvert — alors `reprise` porte la DERNIÈRE manche jouée et rien d'autre.
+    // Rebattre là rendrait un écran sans rapport avec l'essai demandé, et
+    // personne ne le saurait : c'est très exactement la classe de défaut que ce
+    // lot ferme. On le déclare.
+    if !p1.moment {
+        return erreur(match e.occasion {
+            Some(n) => format!(
+                "essai impossible : l'occasion de vente n°{n} ne s'ouvre jamais \
+                 dans cette partie"
+            ),
+            None => format!(
+                "essai impossible : la décision de rang {} n'est jamais prise \
+                 dans cette partie (rang au-delà de la partie, ou entrée « vendre » \
+                 à ce rang)",
+                e.rang
+            ),
+        });
+    }
+
+    // ---- la graine dérivée : `joueur::graine_du_rejeu`, terme pour terme
+    let compte_occasions = if p1.moment {
+        p1.occasions_moment
+    } else {
+        p1.occasions
+    };
+    let graine = joueur::brasser(e.graine)
+        ^ joueur::brasser(seed ^ 0xA5A5_A5A5_A5A5_A5A5)
+        ^ joueur::brasser(e.rang as u64)
+        ^ joueur::brasser(compte_occasions.wrapping_mul(0x1000_0001));
+
+    // ---- passe 2 : depuis le point de reprise, l'avenir rebattu
+    let mise_en_place = reprise.base.is_none();
+    let mut p2 = Harnais::new(db, decisions);
+    p2.curseur = reprise.curseur;
+    p2.occasions = reprise.occasions;
+    // **LE COMPTE PUBLIÉ REPART LUI AUSSI DU POINT DE REPRISE.** `occasions` est
+    // le rang courant, `occasions_a_l_arret` est ce que la page lira ; les deux
+    // sont repris ensemble. Ne recaler que le premier laisserait le second à
+    // zéro quand la passe 2 s'arrête sans avoir ouvert la moindre occasion — la
+    // page verrait le compteur retomber à 0 au milieu d'une partie.
+    p2.occasions_a_l_arret = reprise.occasions;
+    p2.cloner_etat = mise_en_place;
+    let mut g2 = match reprise.base {
+        None => {
+            // La mise en place repasse par la VRAIE graine : c'est là que sont la
+            // main et les corporations que le joueur a sous les yeux. Le paquet
+            // n'est rebattu qu'ensuite, pour les manches qui suivent ; la voyance
+            // du mulligan, elle, est retirée plus bas par
+            // `joueur::ecarter_les_cartes_du_futur`.
+            let mut g = setup_game(db, seed, &mut p2);
+            joueur::rebattre_l_avenir(&mut g, graine);
+            g
+        }
+        Some(base) => {
+            let mut g = base.clone();
+            // Pioche rechargée depuis la défausse : le paquet du début de manche
+            // est plus court que ce que le joueur a vu, on ne rebat alors rien.
+            let recharge = p1.deck_vu > base.deck.len();
+            let vu = joueur::DejaVu {
+                cartes: if recharge {
+                    base.deck.len()
+                } else {
+                    base.deck.len() - p1.deck_vu
+                },
+                oceans: p1.oceans_vus,
+                corpos: base.corp_deck.len().saturating_sub(p1.corpos_vues),
+            };
+            joueur::rebattre_le_reste(&mut g, graine, vu);
+            g
+        }
+    };
+    while p2.attente.is_none() && !g2.game_over && g2.generation <= MAX_GENERATIONS {
+        play_round(&mut g2, db, &mut p2);
+    }
+    // Et l'on retire de l'état atteint les cartes que le mulligan a fait
+    // repiocher dans le paquet de la VRAIE partie (défaut V1, `joueur.rs`).
+    let amender = if mise_en_place && p1.main_connue_siege == p1.siege_moment {
+        Some((p1.main_connue.clone(), p1.siege_moment, graine))
+    } else {
+        None
+    };
+    rendre(db, seed, donnees, p2, g2, amender)
+}
+
+/// La réponse de l'op `pas`, une fois le rejeu fini. Séparée pour que le jeu
+/// normal et le rejeu d'essai la construisent par le même chemin.
+fn rendre(
+    db: &CardsDb,
+    seed: u64,
+    donnees: usize,
+    mut pol: Harnais,
+    game: GameState,
+    amender: Option<(Vec<u16>, usize, u64)>,
+) -> Value {
     if let Some(e) = pol.erreur {
         return erreur(e);
     }
     let termine = pol.attente.is_none();
+    let fin = if termine {
+        let (scores, _, _) = score_parts(&game, db);
+        Some((scores[0], scores[1], game.turn_order.len(), game.game_over))
+    } else {
+        None
+    };
     // L'état rendu : celui que `Policy::observe` a reçu juste avant la décision
     // en attente (le point de vue du moteur, à l'instant du choix), ou l'état
-    // final si la partie est finie.
-    let etat = if termine {
-        state_view(&game, db)
-    } else {
-        pol.vue.clone().unwrap_or_else(|| state_view(&game, db))
+    // final si la partie est finie. Jumeau de `joueur::etat_atteint`.
+    let etat = match amender {
+        Some((main_connue, siege, graine)) => {
+            let mut g = if termine {
+                game
+            } else {
+                pol.etat_vu.take().unwrap_or(game)
+            };
+            joueur::ecarter_les_cartes_du_futur(&main_connue, &mut g, siege, graine);
+            state_view(&g, db)
+        }
+        None => {
+            if termine {
+                state_view(&game, db)
+            } else {
+                pol.vue.clone().unwrap_or_else(|| state_view(&game, db))
+            }
+        }
     };
     let mut out = json!({
         "ok": true,
@@ -1810,14 +2209,18 @@ fn pas(db: &CardsDb, seed: u64, decisions: Vec<Value>) -> Value {
         "termine": termine,
         "etat": etat,
         "decision": pol.attente,
+        // (le-pont-ne-triche-plus) Le compte des occasions de vente ouvertes
+        // depuis le début de la partie, et celles que personne n'a saisies à
+        // l'instant de la décision en attente.
+        "occasions": pol.occasions_a_l_arret,
+        "occasions_ouvertes": pol.occasions_ouvertes,
     });
-    if termine {
-        let (scores, _, _) = score_parts(&game, db);
+    if let Some((a, b, manches, complete)) = fin {
         // `generation` est incrémentée en fin de manche : le nombre de manches
         // JOUÉES est la longueur de l'ordre du tour relevé par le moteur.
-        out["scores"] = json!([scores[0], scores[1]]);
-        out["manches"] = json!(game.turn_order.len());
-        out["partie_complete"] = json!(game.game_over);
+        out["scores"] = json!([a, b]);
+        out["manches"] = json!(manches);
+        out["partie_complete"] = json!(complete);
     }
     out
 }

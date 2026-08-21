@@ -355,11 +355,11 @@ function espionner(pont) {
   if (pont.__espionApprenti) return pont.__espionApprenti;
   const origine = pont.pas.bind(pont);
   const espion = { graine: null, boites: null, decisions: null, origine };
-  pont.pas = (graine, boites, decisions) => {
+  pont.pas = (graine, boites, decisions, essais) => {
     espion.graine = graine;
     espion.boites = boites;
     espion.decisions = decisions;
-    return origine(graine, boites, decisions);
+    return origine(graine, boites, decisions, essais);
   };
   Object.defineProperty(pont, "__espionApprenti", { value: espion, enumerable: false });
   return espion;
@@ -405,7 +405,15 @@ function poidsEnCache(chemin, sorties) {
  *   devinette d'un seul côté, ce dont la balance a besoin pour n'allumer qu'un
  *   siège.
  */
-export function fournisseurApprenti(graine, nom = "apprenti", poids, pont, boites, adversaire) {
+export function fournisseurApprenti(
+  graine,
+  nom = "apprenti",
+  poids,
+  pont,
+  boites,
+  adversaire,
+  graineEssais,
+) {
   let p = poids;
   if (p === undefined || typeof p === "string") {
     // **Le défaut du contrat est `data/poids/apprenti.txt`, et il le reste.**
@@ -436,6 +444,32 @@ export function fournisseurApprenti(graine, nom = "apprenti", poids, pont, boite
 
   const espion = pont ? espionner(pont) : null;
   let degradeDit = false;
+
+  // **(le-pont-ne-triche-plus) LA GRAINE DES REJEUX D'ESSAI.**
+  //
+  // Zéro par défaut, comme `joueur::GRAINE_ESSAIS_DEFAUT` : c'est une VALEUR, pas
+  // une absence, et le pont rebat aussi bien avec elle qu'avec une autre. Deux
+  // valeurs différentes donnent deux parties différentes à graine de partie
+  // fixée ; une même valeur redonne toujours la même. La variable
+  // `APPRENTI_GRAINE_ESSAIS` n'existe que pour les bancs qui ont besoin de la
+  // faire varier — le défaut du contrat reste zéro, comme celui du binaire natif.
+  const gEssais = Number(
+    graineEssais !== undefined && graineEssais !== null
+      ? graineEssais
+      : (globalThis.process?.env?.APPRENTI_GRAINE_ESSAIS || 0),
+  );
+
+  /**
+   * Le descripteur d'essai passé au pont : il dit AVEC QUELLE graine imaginer
+   * l'avenir, et À QUEL INSTANT de la partie l'essai se place. Le rang est le
+   * nombre de décisions déjà inscrites — l'exact jumeau de `journal.len()` côté
+   * Rust — et `occasion` n'est renseigné que pour l'essai d'une vente.
+   */
+  function essaiDe(rang, occasion) {
+    return occasion === undefined
+      ? { graine: gEssais, rang }
+      : { graine: gEssais, rang, occasion };
+  }
 
   /**
    * **L'état atteint si l'on répondait `reponse`, AU REPÈRE DU §4.1.**
@@ -485,9 +519,20 @@ export function fournisseurApprenti(graine, nom = "apprenti", poids, pont, boite
   }
 
   function etatApres(reponse, siege) {
-    let decisions = [...(espion.decisions || []), reponse];
+    const base = espion.decisions || [];
+    return etatDe([...base, reponse], siege, essaiDe(base.length));
+  }
+
+  /**
+   * L'état atteint au repère du §4.1 en rejouant `decisions`, l'avenir rebattu
+   * selon `essais`. Toute l'avance vers le repère se fait avec LE MÊME
+   * descripteur d'essai : sans cela, chaque pas de l'avance imaginerait un autre
+   * avenir et les options ne seraient plus comparées sur le même tirage.
+   */
+  function etatDe(depart, siege, essais) {
+    let decisions = depart;
     try {
-      let r = espion.origine(espion.graine, espion.boites ?? boites, decisions);
+      let r = espion.origine(espion.graine, espion.boites ?? boites, decisions, essais);
       let pas = 0;
       while (r && r.termine !== true && r.decision && r.decision.joueur !== siege) {
         if (pas >= PLAFOND_AVANCE) {
@@ -507,7 +552,7 @@ export function fournisseurApprenti(graine, nom = "apprenti", poids, pont, boite
           reponseDeLAutre = reponseParDefaut(r.decision);
         }
         decisions = [...decisions, reponseDeLAutre];
-        r = espion.origine(espion.graine, espion.boites ?? boites, decisions);
+        r = espion.origine(espion.graine, espion.boites ?? boites, decisions, essais);
       }
       return r && r.etat ? r.etat : null;
     } catch {
@@ -561,15 +606,11 @@ export function fournisseurApprenti(graine, nom = "apprenti", poids, pont, boite
    * (`engine/src/joueur.rs`) — masques croissants, donc « ne rien rendre » en
    * premier et gagnant à égalité.
    *
-   * **ATTENTION : `verif/juge-meme-option.mjs` ne peut plus être vert.** Le lot
-   * « le joueur sans voyance » a corrigé trois autres points côté Rust que ce
-   * fichier ne peut pas suivre seul : les essais y explorent un paquet rebattu
-   * (V1) et l'IA y vend des cartes (2.15). Le premier exige que le pont accepte
-   * une graine d'essais — `pont.pas(graine, boîtes, décisions, graineEssais)` —
-   * et le second que le fournisseur reçoive les occasions de vente. Les deux sont
-   * décrits dans `workspaces/le-joueur-sans-voyance/outputs/interface.md`. Tant
-   * qu'ils ne sont pas faits, le banc mesure un écart attendu, pas une faute de
-   * recopie.
+   * **(le-pont-ne-triche-plus) Les deux écarts que le lot « le joueur sans
+   * voyance » avait laissés ouverts sont refermés** : le pont accepte une graine
+   * d'essais — `pont.pas(graine, boîtes, décisions, essais)` — et le fournisseur
+   * reçoit les occasions de vente (méthode `vendre`, plus bas). `juge-meme-option.mjs`
+   * peut donc redevenir vert, et c'est lui qui prouve la recopie.
    */
   function meilleureListe(d, siege) {
     const n = d.options ? d.options.length : 0;
@@ -664,6 +705,45 @@ export function fournisseurApprenti(graine, nom = "apprenti", poids, pont, boite
       const rs = [];
       for (let i = 0; i < n; i++) rs.push(i);
       return meilleure(rs, siege);
+    },
+    /**
+     * **(le-pont-ne-triche-plus, 2.15) VENDRE, OU LAISSER PASSER L'OCCASION.**
+     *
+     * Le moteur ne pose pas de question ici : il ouvre une occasion, et l'occasion
+     * s'évalue comme tout le reste, par des essais. On compare l'état atteint si
+     * l'on ne vend rien à l'état atteint si l'on vend chaque carte de la main, une
+     * par une, et l'on ne vend que si une carte fait STRICTEMENT mieux que ne rien
+     * vendre — à égalité, on garde la carte. Même ordre de parcours, même marge et
+     * même arbitrage que `Joueur::vendre_librement` (`engine/src/joueur.rs`).
+     *
+     * Tous ces essais portent le numéro de l'occasion : c'est lui qui entre dans
+     * la graine du rejeu, pour que deux occasions déclinées de suite n'imaginent
+     * pas le même avenir, et c'est lui que porte l'entrée si la vente est faite.
+     *
+     * @param {{numero: number, joueur: number, main: object[]}} occ
+     * @returns {number[]} les indices vendus — liste vide si l'on ne vend rien.
+     */
+    vendre(occ) {
+      if (!espion || espion.decisions === null) return [];
+      const siege = occ.joueur;
+      const base = espion.decisions;
+      const essais = essaiDe(base.length, occ.numero);
+      const notePour = (entree) => {
+        const etat = etatDe(entree === null ? [...base] : [...base, entree], siege, essais);
+        if (!etat) return -Infinity;
+        return evaluer(p, decrire(etat, siege))[0];
+      };
+      let note = notePour(null);
+      let choix = null;
+      const n = (occ.main || []).length;
+      for (let i = 0; i < n; i++) {
+        const x = notePour({ vendre: { cartes: [i], joueur: siege, occasion: occ.numero } });
+        if (x > note + MARGE) {
+          note = x;
+          choix = i;
+        }
+      }
+      return choix === null ? [] : [choix];
     },
   };
 }

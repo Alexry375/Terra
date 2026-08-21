@@ -2544,3 +2544,109 @@ défaut. Sept trouvés, sept corrigés, aucun n'était encore scellé :
 La convention de verdict — dernière ligne, commençant par `VERT` ou `ROUGE`,
 avec le nombre de cas comparés — est désormais **écrite dans le contrat** et
 plus seulement supposée. [VÉRIFIÉ 21-08]
+
+## 2026-08-21 — Le lot L6a est livré et audité : le navigateur ne lit plus l'avenir, et mon hold-out ne prouvait rien tant que le lot n'était pas fait
+
+### Ce que le lot corrige
+
+Côté navigateur, chaque essai de coup (`pont.pas`) rejouait la partie **depuis la
+graine réelle**. L'IA qui réfléchit dans la page voyait donc les cartes qu'elle
+allait recevoir. Le moteur natif avait été corrigé au lot L4 (rebattage de
+l'avenir au point de reprise, `engine/src/joueur.rs`) ; le pont vers le
+navigateur, non. Le lot porte ce rebattage dans le module compilé du navigateur
+**en appelant le code Rust déjà écrit**, sans le recopier en JavaScript.
+
+Deuxième trou du même lot : une vente de carte décidée à un instant donné
+pouvait être consommée par le moteur **plus tôt** dans la partie, sur une main
+que le joueur n'avait pas encore. Chaque entrée de vente porte désormais le
+**numéro de l'occasion** à laquelle elle a été décidée, et le moteur refuse de la
+consommer avant ce numéro.
+
+### La livraison
+
+Une seule ligne du moteur touchée : `fn brasser` devient `pub fn brasser`
+(`engine/src/joueur.rs`) — rendre public ce qui existait déjà, la seule
+modification que le contrat autorisait. Tout le reste est dans le module compilé
+du navigateur (`web/webapp/wasm/src/lib.rs`, +439 lignes), le pont (`pont.js`,
+quatrième argument `{ graine, rang, occasion }`), la conduite de partie
+(`partie.js`) et le joueur du navigateur (`joueurs/apprenti.js`, qui sait
+maintenant vendre). Quatre bancs neufs : `juge-l-avenir-cache.mjs`,
+`cartes-identiques.mjs`, `le-binaire-est-a-jour.mjs`, `lot-du-pont.mjs`
+(54 vérifications). [VÉRIFIÉ 21-08 — diff relu ligne à ligne]
+
+L'agent a fait relire sa livraison par un sous-agent adversarial : **sept défauts
+trouvés, sept corrigés**, dont trois graves — un numéro d'occasion mal formé
+(`"3"`, `1.5`, `-1`) était ignoré en silence et rouvrait le défaut d'origine ; un
+moment d'essai inatteignable rendait un écran sans rapport avec ce qui était
+demandé ; et `if (essais)` désactivait le rebattage quand la graine d'essais
+valait **zéro**, qui est une graine parfaitement valable — la voyance revenait
+par la porte de service. Il a aussi constaté que **sept de ses propres
+« invariants » ne pouvaient pas tomber** : ils comparaient des nombres en un
+point choisi pour être révélateur, et y étaient vrais par accident. Remplacés par
+un balayage de la vraie propriété sur 864 essais. [DÉCLARÉ — journal de l'agent,
+recoupé par les sabotages qu'il documente]
+
+### L'audit
+
+`aw audit --mode code` : **contrat et quatorze contrôles intacts** (empreinte du
+dossier scellé conforme), **quatorze contrôles visibles sur quatorze**,
+**hold-outs cachés : deux sur trois**. Le troisième a demandé du travail.
+
+**Mon hold-out h2 ne pouvait pas être éprouvé avant le lot, et je l'avais écrit.**
+Il vérifie dans les deux sens : le juge des mêmes options doit être vert sur la
+livraison, et **rouge** sur une copie hors dépôt où la graine d'essais est figée
+à une constante. Or son second sens ne s'exécute jamais tant que le premier est
+rouge — c'est-à-dire tant que le lot n'est pas fait. Je l'avais écrit dans mes
+notes de scellement : « si le sens 2 annonce *inopérant*, ne pas conclure ».
+C'est exactement ce qui est arrivé : mon sabotage remplaçait le quatrième
+argument par un nombre, et le code livré **refuse un nombre** (il exige un objet,
+c'est le correctif du défaut ci-dessus). La copie sabotée plantait au lieu de
+diverger. Mon garde-fou « rouge, mais pour une autre raison qu'un désaccord » a
+refusé de conclure — il a fait son travail. Sabotage réécrit pour figer la
+**seule graine à l'intérieur de l'objet**, et le hold-out rend :
+`vert sur la livraison, rouge sur la copie sabotée — 1 703 désaccords sur 1 851
+décisions`. [VÉRIFIÉ 21-08]
+
+Les trois hold-outs rejoués **à la main** — le fichier d'audit ne conserve que
+des codes de sortie, « 2/3 » n'est pas une mesure :
+
+- **h1** (juge indépendant, graines qui lui sont propres) : 4 772 décisions,
+  aucun désaccord, et le juge discrimine 4 fois sur 4.
+- **h2** : voir ci-dessus, vert dans les deux sens.
+- **h3** (compatibilité descendante) : les 5 parties enregistrées avant le lot se
+  rejouent à l'identique, et le quatrième argument existe bien.
+
+### Mes propres vérifications, en plus des contrôles
+
+- Le module compilé du navigateur (`terra.wasm`) **reconstruit par
+  `web/construire.sh` est identique à l'octet** au fichier livré (md5
+  `448bd20120c6ae29e01b8b0517adc3b1`). Les trois empreintes déclarées par l'agent
+  concordent toutes. [VÉRIFIÉ 21-08]
+- `juge-meme-option.mjs`, le juge du critère central, **n'a pas été modifié** :
+  aucune tolérance élargie. [VÉRIFIÉ 21-08]
+- `verif/tests.mjs` rend exactement les **trois échecs préexistants déclarés**,
+  52 passés — aucun masqué, aucun supprimé. [VÉRIFIÉ 21-08]
+- **Le compte de décisions comparées tombe de 33 142 à 20 318 sur 40 parties**, ce
+  qui pouvait ressembler à un banc devenu moins exigeant. Il n'en est rien : le
+  juge compte `max(longueur JavaScript, longueur Rust)`, et un accord **total**
+  impose deux listes de même longueur. 20 318 est donc la somme des décisions du
+  joueur natif, qui n'a pas changé. Les 33 142 d'avant venaient de parties
+  JavaScript **allongées par la divergence** — 31 289 désaccords sur 33 142.
+  [VÉRIFIÉ 21-08 — raisonnement sur le code du juge, plus mesure des longueurs
+  natives sur cinq graines : 588, 405, 380, 460, 355]
+
+**Verdict rendu : `ok`.**
+
+### Ce qui reste déclaré et non corrigé
+
+Les trois échecs de `verif/tests.mjs` sont **déclarés avec leur cause**, comme le
+contrôle 10 l'autorisait : deux exigent de toucher le moteur ou de changer la
+partie témoin d'un fichier hors du lot, le troisième est une liste blanche du
+test elle-même trop étroite, violée par dix-neuf lignes dont dix-sept sont
+antérieures au lot.
+
+**Dette nouvelle** : la graine dérivée (le mélange qui décide du rebattage) est
+maintenant **recopiée terme pour terme** entre `web/webapp/wasm/src/lib.rs` et
+`engine/src/joueur.rs:610`, parce que la méthode d'origine est privée. Deux
+endroits à garder synchronisés : au premier changement de l'un sans l'autre, le
+navigateur et le natif cessent de jouer la même partie.

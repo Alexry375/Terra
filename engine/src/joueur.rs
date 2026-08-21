@@ -88,7 +88,7 @@ pub const LARGEUR_ENUMERATION: usize = 8;
 /// nombres — la graine des essais, celle de la partie, le rang de la décision —
 /// et pour tirer le décalage d'apprentissage du §2.14. Déterministe, donc
 /// rejouable au dernier bit : c'est la contrainte qui prime sur tout le reste.
-fn brasser(mut x: u64) -> u64 {
+pub fn brasser(mut x: u64) -> u64 {
     x = x.wrapping_add(0x9E37_79B9_7F4A_7C15);
     let mut z = x;
     z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);

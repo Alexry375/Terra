@@ -68,9 +68,59 @@ export async function ouvrirPont({ wasm, cards, ecrire }) {
      * Un coup de la partie pas-à-pas : rejoue depuis la graine avec les
      * décisions déjà prises et rend la prochaine décision + l'état vivant que
      * le moteur avait sous les yeux au moment de ce choix (`state_view`).
+     *
+     * **(le-pont-ne-triche-plus) LE QUATRIÈME ARGUMENT : L'ESSAI.**
+     *
+     * Sans lui, cet appel fait exactement ce qu'il faisait avant ce lot : il
+     * rejoue LA VRAIE PARTIE, avec les vraies cartes. C'est le seul mode qu'un
+     * écran de jeu emploie.
+     *
+     * Avec lui, l'appel est un ESSAI DE COUP : le moteur rebat tout ce que le
+     * joueur n'a pas encore vu — le paquet projets, les tuiles Océan face
+     * cachée, le paquet des corporations — avant de rejouer. Sans ce rebattage,
+     * essayer un coup revient à rejouer la partie depuis sa vraie graine, donc à
+     * lire d'avance les cartes que l'on recevra : c'est la voyance du défaut V1.
+     *
+     * @param {number|string} seed      graine de la partie
+     * @param {string} boites           composition des boîtes
+     * @param {Array} decisions         les décisions déjà prises
+     * @param {object} [essais]         `{ graine, rang, occasion }` — voir plus bas.
+     *   - `graine` : la graine des essais (`--graine-essais` du binaire natif).
+     *     **Zéro est une valeur**, et c'est la valeur par défaut du natif : c'est
+     *     la PRÉSENCE de l'objet qui allume le rebattage, jamais sa valeur.
+     *   - `rang` : l'indice de la décision essayée dans la liste (= sa place au
+     *     journal). Obligatoire dès qu'on essaie.
+     *   - `occasion` : le numéro de l'occasion de vente essayée, quand l'essai
+     *     porte sur une vente. Absent pour une décision ordinaire.
      */
-    pas(seed, boites, decisions) {
-      return verifier(appeler({ op: "pas", seed, boites, decisions }));
+    pas(seed, boites, decisions, essais) {
+      const requete = { op: "pas", seed, boites, decisions };
+      // **ABSENT, OU UN OBJET. RIEN D'AUTRE.** Un simple `if (essais)` ferait
+      // taire l'essai sur toute valeur fausse — et `0` est une graine d'essais
+      // parfaitement valable, celle du natif par défaut. Un appelant qui passe
+      // le nombre au lieu de l'objet rejouerait alors depuis la vraie graine,
+      // donc lirait l'avenir, en croyant l'avoir rebattu. C'est le défaut V1
+      // qui rentre par la porte de service : on refuse.
+      if (essais !== undefined && essais !== null) {
+        if (typeof essais !== "object" || Array.isArray(essais)) {
+          throw new Error(
+            `essais doit etre un objet { graine, rang, occasion }, recu ${typeof essais}` +
+              ` (${JSON.stringify(essais)}) : passer la graine seule desactiverait le rebattage`,
+          );
+        }
+        if (essais.rang === undefined || essais.rang === null) {
+          throw new Error(
+            "essais.rang est obligatoire : une graine d'essais sans rang ne dit pas" +
+              " A QUELLE decision l'essai se place",
+          );
+        }
+        requete.graine_essais = essais.graine ?? 0;
+        requete.rang_essais = essais.rang;
+        if (essais.occasion !== undefined && essais.occasion !== null) {
+          requete.occasion_essais = essais.occasion;
+        }
+      }
+      return verifier(appeler(requete));
     },
     appeler,
   };
