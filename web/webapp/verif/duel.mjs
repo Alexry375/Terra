@@ -54,6 +54,16 @@ const JOUEURS = {
   // — `APPRENTI_POIDS_B` et `APPRENTI_ADVERSAIRE_B` — pour n'allumer la
   // devinette que d'un côté : le même code des deux côtés, et l'écart imputable
   // à elle seule. « apprenti » lit `APPRENTI_ADVERSAIRE`, dans `apprenti.js`.
+  // **(le-pont-ne-triche-plus) LE MÊME JOUEUR, PRIVÉ DE LA SEULE VENTE.** Même
+  // réseau, mêmes poids, mêmes essais : on ne lui retire que la faculté de
+  // saisir une occasion de vente. `partie.js:offrirLesOccasions` n'interroge
+  // qu'un fournisseur qui expose `vendre` ; sans la méthode, toutes ses
+  // occasions passent, déclinées. C'est le seul moyen de mesurer ce que la
+  // vente rapporte VRAIMENT, sans changer une ligne de jugement.
+  "apprenti-sans-vente": (graine, nom) => {
+    const f = fournisseurApprenti(graine, nom, undefined, pont, boites);
+    return { nom: f.nom, decider: (d, etat) => f.decider(d, etat) };
+  },
   "apprenti-b": (graine, nom) =>
     fournisseurApprenti(graine, nom, process.env.APPRENTI_POIDS_B || undefined, pont, boites, process.env.APPRENTI_ADVERSAIRE_B ?? ""),
 };

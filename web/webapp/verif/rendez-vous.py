@@ -292,7 +292,12 @@ def main():
                                       f"temps que l'autre mais annonce data-attente="
                                       f"{attentes[i]!r} au lieu de 'moi' : ce joueur "
                                       f"croit encore qu'il attend")
-                    elif attentes.count("moi") > 1:
+                    # `stable` vaut aussi ici : sans lui, une lecture prise
+                    # pendant que la partie avance — une page a repondu, son
+                    # `data-attente` n'est pas encore retombe — passait pour une
+                    # faute. Mesure du 21-08 : rouge 2 fois sur 3 sans ce mot,
+                    # vert 3 fois sur 3 avec.
+                    elif stable and attentes.count("moi") > 1:
                         types = [d["type"] if d else None for d in posees]
                         faute(f"les DEUX pages annoncent data-attente='moi' "
                               f"(decision {donnees}, types {types}) alors que seule "
