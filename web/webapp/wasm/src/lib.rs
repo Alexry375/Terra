@@ -1923,6 +1923,17 @@ impl Policy for Harnais<'_> {
         hand: &[u16],
         n: usize,
     ) -> Vec<usize> {
+        // **UNE QUESTION SANS RÉPONSE POSSIBLE N'EST PAS UNE QUESTION.** Publier
+        // `a_choisir: n` avec une liste d'options vide met la partie dans une
+        // impasse : le joueur ne peut répondre que le vide, et `liste` refuse le
+        // vide. C'est arrivé le 28-08 (graine 3, décision 184) parce qu'une
+        // occasion de vente vidait la main entre le moment où le moteur décidait
+        // de poser la question et celui où il l'énumérait. Les deux sites de
+        // `flow.rs` en cause ont été corrigés le même jour ; cette garde-ci est
+        // le filet, pour qu'un site futur ne puisse plus arrêter une partie.
+        if hand.is_empty() || n == 0 {
+            return Vec::new();
+        }
         let desc = json!({
             "type": "discard_down",
             "joueur": player,

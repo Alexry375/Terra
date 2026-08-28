@@ -3641,6 +3641,18 @@ fn apply_trig_gain(
                 // (regles-de-la-vente) Hoistée au-dessus de l'instantané de main.
                 occasion_de_vendre(game, db, policy);
                 let hand = game.players[p].hand.clone();
+                // ET LA MAIN PEUT AVOIR ÉTÉ VIDÉE PAR CETTE VENTE-LÀ. Le test
+                // `hand.is_empty()` en tête de boucle ne suffit pas : entre lui
+                // et ici, deux occasions de vendre ont été offertes. Mesuré le
+                // 28-08, graine 3, décision 184 : le joueur vend ses deux
+                // dernières cartes aux occasions 119 et 121, puis le moteur
+                // publie `discard_down` avec `a_choisir: 1` et `options: []`.
+                // Le joueur ne peut répondre que le vide, et le pont refuse le
+                // vide : la partie s'arrête sur une erreur. Il n'y a plus rien à
+                // défausser, donc plus de question à poser.
+                if hand.is_empty() {
+                    continue;
+                }
                 observer(game, p, policy);
                 let idx = policy.discard_down(&mut game.rng, p, &hand, 1);
                 let Some(&i) = idx.first() else { continue };
@@ -6115,10 +6127,27 @@ pub fn play_round(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
     // C. Étape de fin : limite de main 10, 3 MC par carte défaussée
     // (livret « avslutningssteget » p.16).
     for p in 0..NUM_PLAYERS {
-        let over = game.players[p].hand.len().saturating_sub(HAND_LIMIT);
-        if over > 0 {
+        if game.players[p].hand.len() > HAND_LIMIT {
+            // (regles-de-la-vente) HOISTÉE AU-DESSUS DE L'INSTANTANÉ DE MAIN,
+            // comme aux trois autres points de `discard_down`. Ce point-ci était
+            // le seul à appeler `avant_decision` APRÈS avoir cloné la main et
+            // calculé le dépassement : la vente que le joueur décidait à cette
+            // occasion vidait sa main, mais le nombre de cartes à défausser et
+            // les indices proposés restaient ceux d'avant. Mesuré le 28-08,
+            // graine 3, décision 184 : `discard_down` publié avec
+            // `a_choisir: 1` et `options: []` — le joueur ne pouvait répondre
+            // que le vide, et le moteur refusait le vide. Côté Rust, la même
+            // situation faisait défausser sur des indices qui ne désignaient
+            // plus les mêmes cartes.
+            occasion_de_vendre(game, db, policy);
             let hand_snapshot = game.players[p].hand.clone();
-            avant_decision(game, db, p, policy);
+            let over = hand_snapshot.len().saturating_sub(HAND_LIMIT);
+            // La vente peut avoir ramené la main sous la limite : il n'y a alors
+            // plus rien à défausser, et surtout plus de question à poser.
+            if over == 0 {
+                continue;
+            }
+            observer(game, p, policy);
             let mut idx = policy.discard_down(&mut game.rng, p, &hand_snapshot, over);
             assert_eq!(idx.len(), over, "défausse de fin de ronde: mauvais nombre");
             idx.sort_unstable();
