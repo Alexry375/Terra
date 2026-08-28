@@ -2650,3 +2650,101 @@ maintenant **recopiée terme pour terme** entre `web/webapp/wasm/src/lib.rs` et
 `engine/src/joueur.rs:610`, parce que la méthode d'origine est privée. Deux
 endroits à garder synchronisés : au premier changement de l'un sans l'autre, le
 navigateur et le natif cessent de jouer la même partie.
+
+## 2026-08-21 (suite) — Le lot L6b est livré et audité : l'écran dit enfin qui a gagné, et mon troisième contrôle caché accusait à tort
+
+**Sept lots sur neuf sont livrés.** Le lot L6b « les écrans manquants » est
+scellé, livré, audité et commité (`800428e`). C'est le second et dernier volet de
+l'interface : le premier avait fermé la voyance de l'IA du navigateur, celui-ci
+ferme ce que l'écran ne montrait pas.
+
+### Ce qui a été fait [VÉRIFIÉ 21-08]
+
+Douze critères, tous rouges au scellement, tous verts à l'audit ; quatre
+garde-fous verts au départ et restés verts. Le contrôle scellé a été passé
+**trois fois** — par l'agent, par la porte de livraison, puis par l'audit — et
+rend `16/16` les trois fois. Empreinte du contrat intacte (`tamper=false`).
+
+- `engine/src/observe.rs` publie `winner` et `tiebreak_total`, **sous garde
+  `game_over`**. Ce n'était pas demandé sous cette forme et c'est mieux : le
+  total de départage compte les cartes en main à trois mégacrédits pièce, donc
+  le publier en cours de partie livrerait la taille de la main d'en face.
+- `web/webapp/vue/annonce.js` nomme le vainqueur en **lisant** `etat.winner`.
+  Aucun barème n'est rejoué dans la page — c'était l'interdit dur nº 1.
+- `web/webapp/questions-simultanees.js` (nouveau) **mesure** les questions que le
+  moteur pose aux deux joueurs à la fois : six parties entières jouées hors
+  écran, un type retenu si **chacune** de ses occurrences est appariée au siège
+  opposé. La page en connaissait une (`pick_phase`), le moteur en pose cinq.
+  Plus aucune liste écrite à la main, ni dans la page, ni dans le banc.
+- `web/webapp/distant.js` prouve l'invariance de la question suivante par rejeu
+  exhaustif (plafond de 320 essais) avant d'anticiper quoi que ce soit. Le doute
+  se paie par une attente, jamais par une fuite.
+- `web/webapp/verif/rendez-vous.py` devient **plus sévère** : il mesure lui aussi
+  la liste, et punit désormais le groupement d'un type qui n'y est pas.
+
+### Mon erreur de la nuit : un contrôle caché qui accusait à tort [VÉRIFIÉ 21-08]
+
+Le hold-out H3 « le départage ne fuit pas en cours de partie » a rendu ROUGE :
+« chosen_phase (12 fois sur 2044), forests (12), heat (12), mc (12), plants (12),
+steel_capacity (12), titanium_capacity (12) ». Sept clefs, exactement douze fois
+chacune : trop régulier pour une vraie fuite.
+
+**Diagnostic mesuré, et non supposé.** Aux rangs 0 et 1 de chaque partie
+(`corp_mulligan`), les deux joueurs n'ont ni carte ni ressource : le barème du
+départage vaut zéro pour tous les deux, et ces sept clefs valent zéro elles
+aussi. 12 = six parties × deux rangs. **Je cherchais une coïncidence de valeur au
+lieu de contrôler une propriété** — une clef qui vaut la même chose que le total
+ne publie pas le total.
+
+Corrigé par deux gardes : ne compter que les points où le total est non nul **et**
+diffère entre les deux joueurs (1 988 points sur 2 044 le restent) ; ne condamner
+une clef que si elle suit le barème sur **la moitié au moins** de ces points. Une
+publication réelle en fait cent pour cent.
+
+**Éprouvé dans les deux sens.** VERT sur la livraison (aucune coïncidence, même
+sous le seuil) ; ROUGE sur une copie sabotée — garde `game_over` retirée
+d'`observe.rs`, moteur du navigateur reconstruit — avec `tiebreak_total` à
+1 988 fois sur 1 988. Zéro contre cent pour cent. Restauration vérifiée à
+l'octet (`md5sum` du source et du binaire identiques à ceux d'avant), source
+touchée et binaire natif recompilé.
+
+C'est le troisième lot d'affilée où **mon propre contrôle** est le défaut trouvé
+à l'audit, et non le travail de l'agent. La leçon se répète : un contrôle qui
+n'a jamais été vu dire « non » ne prouve rien quand il dit « oui ».
+
+### Ce que l'agent a bien fait, et ce que je lui reproche
+
+**Bien fait.** Il a écrit son propre banc (`web/webapp/verif/lot-des-ecrans.mjs`,
+55 vérifications) puis l'a éprouvé contre lui-même : neuf sabotages de page plus
+un du moteur, dix sur dix attrapés — et cette campagne lui a révélé trois
+faiblesses de ses propres tests, corrigées avant qu'il n'y croie. Il a modifié un
+banc du dépôt, geste toujours suspect ; relu ligne à ligne, il l'a rendu plus
+sévère, pas plus indulgent, et mon correctif du 21-08 y survit intact.
+
+**Réserve du CTO, non bloquante.** `interface.js` retombe sur un ensemble **vide**
+si la mesure des questions simultanées échoue, et son commentaire affirme que
+c'est « muet, jamais faux, et jamais une fuite ». La dernière affirmation est
+inexacte : ensemble vide veut dire aucun groupe déclaré au relais, donc exactement
+la fuite que le lot vient de fermer, en silence. Le risque est faible — la mesure
+tourne sur le moteur local, hors réseau — mais un repli qui rouvre un trou sans le
+dire est le genre de détail qui se paie plus tard. À traiter au lot suivant.
+
+**Cinq défauts mineurs livrés sciemment**, déclarés en §Not done : une faute de
+frappe (`relevrOccasion`), un commentaire périmé annonçant trois types mesurés au
+lieu de cinq, une heuristique d'accolade fragile dans son banc, `partieEnCours`
+jamais remis à `null`, et une valeur par défaut permissive dans `vue/boites.js`.
+Son arbitrage — ne pas toucher un fichier livré pour ne pas invalider une heure de
+mesures — est raisonnable.
+
+### Un incident de conduite
+
+L'agent est tombé une première fois sur une panne du service (surcharge, code
+529) après dix minutes, sans avoir écrit une ligne de journal. Relancé, il a
+tenu son journal au fil de l'eau (509 lignes, D0 à D24). En fin de course il a
+bouclé : il redonnait le même rapport à chaque réveil en attendant `aw end` ;
+je l'ai arrêté proprement, sans perte.
+
+### Reste à faire
+
+L7 (tests en force), L8 (répétition générale), L9 (dernier entraînement). Dettes
+inchangées, plus les six points ci-dessus.

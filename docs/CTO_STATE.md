@@ -17,8 +17,10 @@ Dernière mise à jour : 2026-08-21
 
 **État du grand plan** (`docs/PLAN_FINAL.md` § 3) : **L1, L2, L3, L4 livrés et
 audités `ok` ; L5 livré et audité `partial` ; L6a livré et audité `ok`.** Tous
-commités et poussés. Restent **L6b** (les écrans manquants), L7 (tests en force),
-L8 (répétition générale), L9 (dernier entraînement).
+commités et poussés. **L6b est livré, audité `ok` et commité (`800428e`)**
+[VÉRIFIÉ 21-08] : visible 16/16 mesuré trois fois, hold-out 3/3, `tamper=false`.
+Restent **L7** (tests en force), **L8** (répétition générale), **L9** (dernier
+entraînement) — **sept lots sur neuf**.
 
 **L6b est SCELLÉ et l'agent y travaille depuis le 22-08** [VÉRIFIÉ 22-08] :
 `aw seal les-ecrans-manquants` → « 12 check(s) de progrès, tous rouges », plus
