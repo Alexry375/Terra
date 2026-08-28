@@ -3,7 +3,7 @@
 > Source de vérité du projet. Ancrée au code (`fichier:ligne`) dès qu'il y aura du
 > code. [VÉRIFIÉ JJ-MM] = relu à la source ce jour-là. [DÉCLARÉ] = non re-vérifié.
 
-Dernière mise à jour : 2026-08-21
+Dernière mise à jour : 2026-08-28
 
 > **20-08 — LE DÉPÔT EST PUBLIC** : `github.com/Alexry375/Terra`. Les 65 Mo de
 > visuels du jeu ont été retirés de l'arbre **et de tout l'historique** ; le
@@ -13,7 +13,52 @@ Dernière mise à jour : 2026-08-21
 > citées ci-dessous sont celles du **nouvel** historique. Détail :
 > `docs/JOURNAL.md`, entrée « 2026-08-20 (suite) ».
 
-## 🔥 21-08 — CINQ LOTS SUR NEUF SONT LIVRÉS, ET LA PREMIÈRE MOITIÉ DU SIXIÈME
+## 🔥 28-08 — SIX LOTS SUR NEUF SONT LIVRÉS, LE SEPTIÈME EST SCELLÉ ET EN COURS
+
+**État du grand plan** (`docs/PLAN_FINAL.md` § 3) : **L1, L2, L3, L4, L6a, L6b
+livrés et audités `ok` ; L5 livré et audité `partial`.** Le lot **L7 a été
+redéfini et scindé** après cadrage, parce que quatre de ses cinq fiches
+décrivaient des défauts déjà corrigés :
+
+- **L7a « les sept bancs rouges »** — SCELLÉ le 28-08, agent lancé
+  [VÉRIFIÉ 28-08]. `aw seal les-sept-bancs-rouges` → « 9 check(s) de progrès,
+  tous rouges », plus quatre garde-fous verts (J, K, L, M). Sept bancs de
+  vérification rendent un verdict qui ne veut plus rien dire ; six ont tort.
+  Les neuf rouges ont été éprouvés **pour la bonne raison**, en lisant leur
+  dernière ligne. Trois contrôles cachés hors dépôt, dans
+  `~/.agentic-workspace/holdout/les-sept-bancs-rouges/`, tous fondés sur le même
+  principe : saboter ce que le banc surveille et vérifier qu'il attrape encore.
+  Sabotages mesurés avant scellement — `score.py` 69 → 358 défauts, `cadre.py`
+  12 % → 100 % d'écrans, `actions-visibles.py` 2 → 229 événements ; les trois
+  restaurations vérifiées à l'octet.
+- **L7b « les tests en force »** — workspace créé, contrat à écrire : campagne
+  de sabotage systématique de tous les bancs et tests.
+
+Restent ensuite **L8** (largeur du réseau) et **L9** (dernier entraînement).
+
+### 28-08 — Un défaut du moteur arrêtait des parties [VÉRIFIÉ 28-08]
+
+Commit `da5c84b`. À deux endroits de `engine/src/flow.rs`, une occasion de
+vendre était offerte **après** que le moteur ait cloné la main et compté les
+cartes à défausser : une vente pouvait vider la main, et la question
+`discard_down` restait publiée avec `a_choisir: 1` et `options: []`. Le joueur ne
+peut répondre que le vide, le pont refuse le vide, **la partie s'arrête sur une
+erreur** (mesuré : graine 3, boîtes `base,decouverte`, décision 184). Côté natif,
+la même situation faisait défausser sur des indices qui ne désignaient plus les
+mêmes cartes.
+
+Après correction : les quatre empreintes d'état **inchangées** sur 1 200 parties,
+**1 181 tests Rust verts**, `le-binaire-est-a-jour.mjs` vert,
+`juge-meme-option.mjs` vert sur 2 049 décisions — il plantait.
+
+Le couple de poids du réseau a été remplacé le même jour par un couple cohérent
+à **1 630 cases** (12 000 parties, devinette allumée) : l'ancien
+`apprenti-adversaire.txt` datait de la description à 1 472 cases et le joueur
+natif refusait de démarrer. C'est ce couple qui a révélé le défaut ci-dessus. Un
+entraînement de 120 000 parties tourne depuis le 28-08 au soir sur le moteur
+corrigé.
+
+## 🕘 21-08 — CINQ LOTS SUR NEUF SONT LIVRÉS, ET LA PREMIÈRE MOITIÉ DU SIXIÈME
 
 **État du grand plan** (`docs/PLAN_FINAL.md` § 3) : **L1, L2, L3, L4 livrés et
 audités `ok` ; L5 livré et audité `partial` ; L6a livré et audité `ok`.** Tous
@@ -50,6 +95,8 @@ mesurés rouges avant le lot :
 | **L3** | **la fiche que l'IA regarde (D3, D4, 2.8, 2.9, 2.10, 2.12)** | **`2691b0b`** | **1 111** |
 | **L5** | **vitesse et réglages — quatre cœurs, reprise après coupure** | **`2569778`** | **1 181** |
 | **L6a** | **le pont ne triche plus — l'avenir caché au navigateur, la vente à son occasion** | **`7c831a2`** | **1 181** |
+| **L6b** | **les écrans manquants — l'écran dit enfin qui a gagné** | **`800428e`** | **1 181** |
+| — | **moteur : une vente de fin de tour n'arrête plus la partie** | **`da5c84b`** | **1 181** |
 
 ### Ce que le lot L6a change [VÉRIFIÉ 21-08]
 
