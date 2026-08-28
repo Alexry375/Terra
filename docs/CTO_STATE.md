@@ -13,6 +13,43 @@ Dernière mise à jour : 2026-08-28
 > citées ci-dessous sont celles du **nouvel** historique. Détail :
 > `docs/JOURNAL.md`, entrée « 2026-08-20 (suite) ».
 
+## ⏸ 28-08 18 h 45 — TRAVAIL MIS EN PAUSE, MACHINE ÉTEINTE PAR ALEXIS
+
+Rien n'est perdu, mais **deux chantiers étaient en cours et doivent être repris**.
+Tout ce qui suit a été relevé avant l'extinction [VÉRIFIÉ 28-08].
+
+**1. L'agent du lot L7a a été arrêté à mi-parcours — cinq critères sur neuf faits.**
+Son carnet, `workspaces/les-sept-bancs-rouges/outputs/journal.md`, contient l'état
+critère par critère, les durées mesurées de chaque banc, six pièges d'exploitation
+et la prochaine commande à taper. **Le lire avant toute chose.**
+
+| Fait (banc vert à la main) | Reste à faire |
+|---|---|
+| D `score.py`, E `tri-de-la-main.py`, F `tests.mjs`, G `juge-…-devinette.mjs`, I les six points | A `actions-visibles.py`, B `cadre.py`, C `ce-que-le-moteur-ne-dit-pas.py`, H la campagne de sabotages |
+
+Neuf fichiers modifiés **sont restés dans l'arbre de travail, non commités** — c'est
+voulu : le lot n'est ni fini ni audité. Copie de secours hors dépôt dans
+`~/.agentic-workspace/reprise-28-08/travail-L7a-en-cours/` (les neuf fichiers, le
+`diff` complet, le carnet et les outils de mesure de l'agent). Le banc du lot
+précédent a été relancé après ces modifications : **`lot-des-ecrans.mjs` VERT,
+55 vérifications sur 55** — aucune régression sur L6b.
+
+**2. L'entraînement de 120 000 parties a été interrompu à 54 000 et devra être
+relancé depuis le début.** Il écrivait bien `data/poids/apprenti-L7.txt` au fil de
+l'eau (dernier point de mesure : erreur 0,0697, 76,2 % de décisions justes), **mais
+le fichier de l'adversaire n'avait pas encore été écrit** : sans le couple complet,
+ces poids sont inutilisables. Le fichier partiel est laissé hors suivi de version,
+copie dans `~/.agentic-workspace/reprise-28-08/`. Commande à relancer :
+
+```
+nohup ./engine/target/release/entraine --parties 120000 --graine-debut 120000 \
+  --ouvriers 4 --devinette on --sortie data/poids/apprenti-L7.txt \
+  --sortie-adversaire data/poids/apprenti-L7-adversaire.txt > <journal> 2>&1 &
+```
+
+**Vérifié avant extinction** : aucun tunnel public ouvert (`tailscale funnel status`
+→ `No serve config`), aucun navigateur résiduel, aucun processus de calcul en cours.
+
 ## 🔥 28-08 — SIX LOTS SUR NEUF SONT LIVRÉS, LE SEPTIÈME EST SCELLÉ ET EN COURS
 
 **État du grand plan** (`docs/PLAN_FINAL.md` § 3) : **L1, L2, L3, L4, L6a, L6b
