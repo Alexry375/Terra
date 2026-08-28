@@ -2748,3 +2748,98 @@ je l'ai arrêté proprement, sans perte.
 
 L7 (tests en force), L8 (répétition générale), L9 (dernier entraînement). Dettes
 inchangées, plus les six points ci-dessus.
+
+## 2026-08-28 — L'autonomie est cadrée, un moteur qui arrêtait des parties est réparé, et le lot L7a part avec neuf contrôles rouges
+
+### Ce qu'Alexis a décidé, et ce que j'ai mal fait
+
+Séance de cadrage : Alexis veut que j'aille au bout des chantiers **sans
+l'attendre**. Quatre réponses, écrites dans `docs/CTO_AUTONOMIE.md` (commit
+`46aada7`) : l'entraînement reste **sur processeur** (`--ouvriers 4`, aucun
+calcul sur carte graphique) ; le critère de réussite est **au moins 98 % de
+victoires contre `reflechi`** sur au moins 80 donnes et deux sièges ; aucune
+limite de bruit ni de chaleur ; et **des rapports uniquement quand un problème
+exige son intervention**.
+
+Il a dû me le redire deux fois : « t'aurais pas dû m'attendre », puis « si je ne
+t'avais pas relancé, tu ne serais jamais reparti ». Il avait raison les deux
+fois. Ma faute n'était pas de demander : c'était de m'arrêter après avoir
+demandé, alors que rien ne dépendait de la réponse. [VÉRIFIÉ 28-08]
+
+### Un vrai défaut de moteur, trouvé par accident
+
+En réparant une dette d'entraînement, j'ai remplacé le couple de poids du réseau
+par un couple cohérent à 1 630 cases — l'ancien fichier adversaire datait de la
+description à 1 472 cases et le joueur natif refusait de démarrer. Le nouveau
+couple a fait apparaître, à la graine 3, une partie qui **s'arrête sur une
+erreur** : le moteur publiait
+
+    {"type":"discard_down","a_choisir":1,"options":[],
+     "question":"Limite de main : défaussez 1 carte(s)"}
+
+Le joueur ne peut répondre que le vide, et le pont refuse le vide. Cause
+mesurée : à deux endroits de `engine/src/flow.rs`, une occasion de vendre était
+offerte **après** que le moteur ait cloné la main et compté les cartes à
+défausser. Le joueur vendait ses deux dernières cartes (occasions 119 et 121),
+et la question restait posée sur une main devenue vide. Côté natif, la même
+situation faisait défausser sur des indices qui ne désignaient plus les mêmes
+cartes — un défaut silencieux, donc pire.
+
+Les deux sites hissent désormais la vente au-dessus de l'instantané de main, et
+renoncent à poser la question si la main est vide ; `web/webapp/wasm/src/lib.rs`
+porte le filet. Commit `da5c84b`. Mesure après correction : **les quatre
+empreintes d'état sont inchangées** sur 1 200 parties, **1 181 tests Rust
+verts**, `le-binaire-est-a-jour.mjs` vert, et `juge-meme-option.mjs` — qui
+plantait — vert sur 2 049 décisions. [VÉRIFIÉ 28-08]
+
+Ce défaut n'était dans aucune fiche. Il a été trouvé parce qu'un garde-fou que
+je venais d'écrire relançait seize bancs hors périmètre, et que l'un d'eux est
+passé au rouge après mon changement de poids. C'est l'argument le plus net que
+j'aie pour les garde-fous : ils ne servent pas à surveiller l'agent, ils servent
+à voir ce que personne ne cherchait.
+
+### Le lot L7a : préparation, et deux contrôles à moi pris en faute
+
+Le lot **L7a « les sept bancs rouges »** est scellé (contrat de 340 lignes, neuf
+contrôles de progrès **tous rouges**, quatre garde-fous verts, trois contrôles
+cachés). Sept bancs de vérification rendent un verdict qui ne veut plus rien
+dire ; six d'entre eux ont tort.
+
+**Deux de mes propres contrôles étaient faux, et l'épreuve les a pris.**
+
+1. Le contrôle du banc `ce-que-le-moteur-ne-dit-pas.py` exigeait « le banc sort
+   en 0 ». Il était **vert au scellement** : le rouge relevé le matin ne s'est
+   pas reproduit une seule fois sur six lancements consécutifs (281 s à 361 s,
+   même dernière ligne mot pour mot). Un contrôle vert ne demande rien à
+   personne. Réécrit : ce qui manque vraiment, c'est que le banc ne voit qu'une
+   moitié de table — sur ses cinq graines, aucune ne pose de jeton de badge
+   joker des deux côtés, et il le dit lui-même honnêtement.
+2. Sa version corrigée cherchait la phrase « des deux côtés » dans la sortie. Or
+   la phrase d'échec du banc la contient aussi : « aucune des parties jouées
+   n'en a posé **des deux côtés** ». Le contrôle rendait vert exactement le cas
+   qu'il devait refuser. **Un motif cherché dans une phrase attrape aussi sa
+   négation ; un nombre, non.** Il lit maintenant les deux compteurs que le banc
+   publie.
+
+Un troisième contrôle, celui du banc de la devinette, était rouge pour une
+raison qui ne regardait pas l'agent (les poids périmés). Payée par moi, elle est
+remplacée par le vrai défaut du banc : il annonce accepter une **liste** de
+graines et la lit comme un **nombre**, si bien qu'il ne sait jouer que les trois
+mêmes parties depuis toujours.
+
+### Les contrôles cachés
+
+Trois, hors dépôt. Le produit de ce lot étant lui-même des bancs, le seul
+jugement qui vaille est : **saboter ce que le banc surveille et vérifier qu'il
+attrape encore**. Sabotages éprouvés avant scellement, tous trois mordent
+franchement — `score.py` passe de 69 à 358 défauts quand l'écran ment d'un point
+sur la part « cartes » ; `cadre.py` de 12 % à 100 % quand aucune carte Phase ne
+s'allume ; `actions-visibles.py` de 2 à 229 événements quand tous les vols
+portent le mauvais motif. Les trois restaurations vérifiées à l'octet.
+[VÉRIFIÉ 28-08]
+
+### Ce qui reste
+
+L7b (campagne de sabotage systématique), L8 (largeur du réseau), L9 (dernier
+entraînement puis mesure des 98 %). Un entraînement de 120 000 parties avec
+devinette tourne en fond depuis 17 h 30, sur le moteur corrigé.
