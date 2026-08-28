@@ -228,6 +228,26 @@ fn player_view(game: &GameState, db: &CardsDb, p: usize, parts: &ScoreBreakdown)
             "milestones": parts.milestones,
             "awards": parts.awards,
         },
+        // (les-ecrans-manquants) **LE TOTAL DE DEPARTAGE DU LIVRET**, pour ce
+        // joueur, tel que `flow::tiebreak_total` le compte — chaleur + MC +
+        // plantes, cartes en main converties a 3 MC piece (livret p. 16). C'est
+        // le point de calcul UNIQUE de ce barème, celui-là même que
+        // `flow::winner` emploie pour departager : la vue le RECOPIE, elle ne
+        // le refait pas, et l'ecran encore moins.
+        //
+        // **IL NE PARAIT QU'UNE FOIS LA PARTIE FINIE, et c'est la raison d'etre
+        // de la garde.** Ce total compte les CARTES EN MAIN. Les cartes en main
+        // de l'adversaire sont secretes tant que la partie se joue : publier ce
+        // nombre en cours de partie livrerait la taille de sa main a qui sait
+        // soustraire, et la valeur de ses ressources avec. `game_over` est la
+        // meme source que `score_acquis` et l'ecran lisent deja pour savoir que
+        // plus rien n'est cache — c'est le moment, et le seul, ou le departage
+        // a un sens : celui ou l'on doit l'annoncer.
+        "tiebreak_total": if game.game_over {
+            json!(crate::flow::tiebreak_total(pl))
+        } else {
+            Value::Null
+        },
     })
 }
 
@@ -244,6 +264,29 @@ pub fn state_view(game: &GameState, db: &CardsDb) -> Value {
         "generation": game.generation,
         "first_player": game.first_player,
         "game_over": game.game_over,
+        // (les-ecrans-manquants) **LE VAINQUEUR**, tel que `flow::winner` le
+        // designe : `0`, `1`, ou `null` quand l'egalite est parfaite jusque sur
+        // le total de departage lui-meme. C'est le service que le SIMULATEUR
+        // emploie deja (`sim.rs`) ; la vue le recopie mot pour mot.
+        //
+        // AUCUN DEPARTAGE N'EST REFAIT ICI, et surtout pas dans la page : « le
+        // plus grand score l'emporte, et a score egal le total de chaleur, de
+        // MC et de plantes, cartes en main a 3 MC » est une REGLE DU JEU, donc
+        // elle n'a qu'un seul point de calcul, dans `flow.rs`.
+        //
+        // **NULL TANT QUE LA PARTIE N'EST PAS FINIE**, pour la meme raison que
+        // `tiebreak_total` ci-dessous : a points egaux, designer un vainqueur en
+        // cours de partie reviendrait a publier la comparaison de deux mains
+        // secretes. Une partie en cours n'a d'ailleurs pas de vainqueur — elle a
+        // des scores, qui sont publies a cote.
+        "winner": if game.game_over {
+            match crate::flow::winner(game, db) {
+                Some(p) => json!(p),
+                None => Value::Null,
+            }
+        } else {
+            Value::Null
+        },
         // (regles-de-la-vente) La phase que le moteur résout à cet instant (1 à
         // 5), ou 0 hors phase : mise en place, planification, étape de fin de
         // manche. Écrite par `flow::play_round`, lue telle quelle. L'écran en

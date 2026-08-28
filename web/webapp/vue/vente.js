@@ -208,6 +208,46 @@ function majDit() {
  * CONCLURE : la vente a lieu à ce moment-là, pas avant. On écrit l'entrée et on
  * la garde jusqu'à ce que le moteur la reprenne (`venteAEcrire`).
  */
+/**
+ * **LE NUMÉRO DE L'OCCASION À LAQUELLE MA PROCHAINE VENTE SERA CONSOMMÉE.**
+ *
+ * (les-ecrans-manquants) Relevé à chaque rendu, jamais calculé. `null` tant que
+ * rien n'a été relevé — et alors aucune vente n'est fabriquée, plutôt qu'une
+ * vente sans numéro qui retomberait à la première occasion du siège.
+ */
+let occasionDeMonSiege = null;
+
+/**
+ * Relève le numéro que portera ma prochaine vente. Deux cas, et le second n'est
+ * pas anodin :
+ *
+ *   1. **une occasion de mon siège est ouverte à l'instant** — c'est le cas
+ *      ordinaire, quand le moteur m'interroge : on prend SON numéro, exact ;
+ *   2. **aucune ne l'est** — l'adversaire joue, et l'écran autorise pourtant à
+ *      valider une vente : elle attendra ma question suivante (`soumise`). On
+ *      prend alors le COMPTE d'occasions déjà ouvertes, qui est très exactement
+ *      le numéro que recevra la prochaine (`Harnais::vendre_librement` :
+ *      `let numero = self.occasions; self.occasions += 1;`).
+ *
+ * Dans les deux cas le numéro est inférieur ou égal à celui de ma prochaine
+ * occasion, et la règle du moteur est « jamais AVANT son numéro, au plus tard à
+ * la première occasion suivante du même siège » : la vente n'est donc jamais
+ * consommée avant son heure, et jamais refusée non plus.
+ *
+ * @param {number} monSiege
+ * @param {?{ouvertes: Array, compte: number}} occasions ce que la partie sait
+ */
+function relevrOccasion(monSiege, occasions) {
+  if (!occasions) return;
+  const ouvertes = Array.isArray(occasions.ouvertes) ? occasions.ouvertes : [];
+  const mienne = ouvertes.find((o) => o && o.joueur === monSiege);
+  if (mienne && Number.isInteger(mienne.numero)) {
+    occasionDeMonSiege = mienne.numero;
+    return;
+  }
+  if (Number.isInteger(occasions.compte)) occasionDeMonSiege = occasions.compte;
+}
+
 function conclure(livrer) {
   if (!designees.size || soumise || attendLeRendu || venduIci) return;
   // Les indices, dans la main du MOTEUR, triés : le moteur les nettoie de son
@@ -218,7 +258,23 @@ function conclure(livrer) {
     .filter((i) => i >= 0)
     .sort((a, b) => a - b);
   if (!cartes.length) return;
-  const entree = { vendre: { joueur: siege, cartes } };
+  // SANS NUMÉRO, ON NE VEND PAS. Une entrée muette serait acceptée par le
+  // moteur et tomberait à la première occasion du siège : mieux vaut ne rien
+  // rendre que rendre une vente à la mauvaise heure.
+  if (!Number.isInteger(occasionDeMonSiege)) return;
+  // (les-ecrans-manquants) **LA VENTE PORTE LE NUMÉRO DE SON OCCASION.**
+  //
+  // Le lot précédent a appris au moteur à numéroter les occasions de vente,
+  // précisément pour qu'une vente décidée à une occasion ne s'applique pas à une
+  // occasion antérieure. Cet écran-ci écrivait encore le format d'AVANT, sans
+  // numéro — et le moteur l'accepte tel quel (`wasm/src/lib.rs`,
+  // « clef absente : le format d'avant, accepté ») : la vente retombait alors
+  // sur la PREMIÈRE occasion du siège, c'est-à-dire sur une main que le joueur
+  // n'avait pas encore, plus tôt dans la partie. En silence.
+  //
+  // Le numéro est celui que `occasionDeMonSiege` a relevé au dernier rendu.
+  // Il n'est jamais deviné ici : c'est le moteur qui le donne.
+  const entree = { vendre: { joueur: siege, occasion: occasionDeMonSiege, cartes } };
   // (K1) LE VERROU SE POSE ICI, avant même de savoir par quel chemin la vente
   // partira : dans les deux cas l'occasion en cours est dépensée.
   venduIci = true;
@@ -283,8 +339,9 @@ export function apresMaReponse() {
  * @param {object} etat   l'état rendu par le moteur
  * @param {number} monSiege  le joueur assis en bas de l'écran
  */
-export function majVente(etat, monSiege) {
+export function majVente(etat, monSiege, occasions = null) {
   siege = monSiege;
+  relevrOccasion(monSiege, occasions);
   const z = panneau;
   if (!z) return;
   const moi = etat.players && etat.players[monSiege];
@@ -362,6 +419,8 @@ export function majVente(etat, monSiege) {
 /** Remet la mémoire à zéro (nouvelle partie). */
 export function oublierVente() {
   soumise = null;
+  // Le numéro d'occasion d'une partie n'a aucun sens dans la suivante.
+  occasionDeMonSiege = null;
   attendLeRendu = false;
   venduIci = false;
   mainDuMoteur = [];

@@ -29,6 +29,7 @@ import {
 import { carte } from "./cartes.js";
 import { survolable } from "./loupe.js";
 import { ref, poser, poserValeur } from "./ecrire.js";
+import { honneursComptent } from "./boites.js";
 import { estPlanification } from "./phases.js";
 // (cartes-qui-bougent) Le rattrapage rejoue une partie déjà jouée : les gains
 // d'alors ont déjà été touchés, et les annoncer serait annoncer du vieux.
@@ -81,6 +82,18 @@ const PARTS_SCORE = [
 ];
 
 /**
+ * LES DEUX PARTS QUI N'EXISTENT QUE DANS L'EXTENSION.
+ *
+ * (les-ecrans-manquants) Les Objectifs et les Récompenses viennent de la boîte
+ * « Découverte ». Sans elle, ces deux cases valent zéro et ne peuvent RIEN
+ * valoir : les laisser à l'écran, c'est désigner des points qui n'existent pas
+ * dans cette boîte. Elles sont donc construites toujours — la composition n'est
+ * pas encore connue quand le décor se bâtit, elle arrive du rendez-vous en mode
+ * en ligne — mais retirées de la mise en page tant que l'extension n'est pas là.
+ */
+const PARTS_HONNEUR = new Set(["milestones", "awards"]);
+
+/**
  * La ventilation affichée sous le score d'un joueur. Aucun de ces nombres n'est
  * calculé ici : chacun porte son chemin dans l'état, et leur somme est le score
  * que le moteur publie juste à côté — il n'existe qu'un point de calcul du
@@ -88,7 +101,8 @@ const PARTS_SCORE = [
  */
 function ventilation(j) {
   const cases = PARTS_SCORE.map(([cle, mot, provisoire]) =>
-    `<span class="ventil__part${provisoire ? " ventil__part--provisoire" : ""}">` +
+    `<span class="ventil__part${provisoire ? " ventil__part--provisoire" : ""}` +
+    `${PARTS_HONNEUR.has(cle) ? " ventil__part--honneur" : ""}">` +
     `<i>${mot}</i><b data-valeur="players.${j}.score_parts.${cle}">0</b></span>`).join("");
   return cases +
     `<span class="ventil__dit" id="provisoire-${j}" data-provisoire ` +
@@ -362,6 +376,13 @@ export function majJoueurs(etat, decision, siege) {
       // récompenses sont alors attribuées, et plus rien ne peut basculer.
       if (provisoire && !etat.game_over) e.dataset.provisoire = "";
       else delete e.dataset.provisoire;
+      // EN BOÎTE DE BASE, LA CASE S'EN VA. `display` est posé sur l'élément
+      // plutôt qu'un attribut `hidden` : la feuille de style donne un `display`
+      // à `.ventil__part`, et il l'emporterait sur celui du navigateur.
+      if (PARTS_HONNEUR.has(cle)) {
+        const part = e.closest(".ventil__part");
+        if (part) part.style.display = honneursComptent() ? "" : "none";
+      }
     }
     // « Provisoire » ne se dit que tant que ça peut encore basculer. Une
     // étiquette collée en permanence ne dirait plus rien : à la fin de la

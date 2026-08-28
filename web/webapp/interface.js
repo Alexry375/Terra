@@ -65,13 +65,15 @@ import {
 
 import { chargerMateriel } from "./vue/materiel.js";
 import { construireMonde, majMonde, oublier } from "./vue/monde.js";
+import { reglerBoites } from "./vue/boites.js";
 import { construireJoueurs, majJoueurs, replacerBarres } from "./vue/joueurs.js";
 import {
   construireMains, majMains, adversaireAgit, replacerMains, oublierMains,
+  venteAdverse,
 } from "./vue/mains.js";
 import { majPhases, enPlanification, oublierPhases } from "./vue/phases.js";
 import { construireTable, majTable, oublierTable } from "./vue/table.js";
-import { reglerAnimations, pause } from "./vue/anim.js";
+import { reglerAnimations, pause, rattrapageEnCours } from "./vue/anim.js";
 import {
   construirePlateaux, majPlateaux, replacerPlateaux, oublierPlateaux,
 } from "./vue/plateau.js";
@@ -98,7 +100,13 @@ import {
 } from "./vue/options.js";
 import { construireAnnonce, annonceManche, annoncePhases, ecranFinal } from "./vue/annonce.js";
 import * as son from "./vue/son.js";
-import { MOT, SIMULTANEES, actionAdverse } from "./vue/mots.js";
+import { MOT, actionAdverse } from "./vue/mots.js";
+// (les-ecrans-manquants) LA LISTE DES QUESTIONS POSÉES AUX DEUX JOUEURS N'EST
+// PLUS ÉCRITE : elle est mesurée sur le moteur au démarrage de la partie, et les
+// deux lecteurs — l'écran et le mode en ligne — lisent le même ensemble.
+import {
+  mesurerQuestionsSimultanees, reglerQuestionsSimultanees, estSimultanee,
+} from "./questions-simultanees.js";
 
 // Le temps qu'un geste de l'adversaire reste sous les yeux. Sans lui, un
 // programme répondrait entre deux images et l'on ne verrait JAMAIS qu'il joue :
@@ -174,6 +182,15 @@ const CADRE_DE_L_ADRESSE = { siege: cadre.siege, decide: cadre.decide };
 // Le point de rendez-vous, quand l'adresse porte un code de partie ; `null`
 // sinon — et alors absolument rien ne change.
 let rendezVous = null;
+
+// (les-ecrans-manquants) LA PARTIE EN COURS, vue depuis le module.
+//
+// `rendre` et `siegeHumain` sont des fonctions de module ; la partie, elle, vit
+// dans `lancer`. Le bouton de vente a besoin d'une chose que l'ÉTAT ne porte pas
+// — le numéro de l'occasion de vente en cours, qui est une clef du résultat de
+// pas et non de la vue d'état (`wasm/src/lib.rs`, `occasions_ouvertes`). C'est
+// la seule raison de cette référence, et elle ne sert qu'à LIRE.
+let partieEnCours = null;
 
 // ------------------------------------------------------------------ le décor
 
@@ -290,7 +307,13 @@ function rendre(etat, decision) {
   // ci-dessus — les deux ne peuvent donc pas se contredire — et c'est ici que
   // le mode de vente se referme, une fois l'écran refait sur l'état d'APRÈS la
   // vente.
-  majVente(etat, cadre.siege);
+  // (les-ecrans-manquants) Le bouton reçoit AUSSI de quoi numéroter la vente
+  // qu'il fabriquera : les occasions ouvertes à cet instant et le compte de
+  // celles déjà ouvertes. Sans numéro, une vente retombe sur la première
+  // occasion du siège — sur une main que le joueur n'avait pas encore.
+  majVente(etat, cadre.siege, partieEnCours
+    ? { ouvertes: partieEnCours.occasions, compte: partieEnCours.occasionsOuvertes }
+    : null);
   theatre(etat);
 }
 
@@ -313,7 +336,7 @@ function siegeHumain() {
     // rendu suivant qui allumera les cartes devenues payables.
     const vente = venteAEcrire();
     if (vente) return vente;
-    adversaireAgit(SIMULTANEES.has(d.type) ? actionAdverse(d) : null);
+    adversaireAgit(estSimultanee(d.type) ? actionAdverse(d) : null);
     const reponse = await poserDecision(d, etat);
     // (K1, 04-08) MA RÉPONSE ROUVRE LE DROIT DE VENDRE, et elle seule : le
     // moteur n'ouvrira une nouvelle occasion qu'au point de décision suivant.
@@ -338,7 +361,7 @@ function siegeProgramme(cerveau, arret) {
     nom: cerveau.nom,
     async decider(d, etat) {
       rendre(etat, d);
-      adversaireAgit(SIMULTANEES.has(d.type) ? actionAdverse(d) : null);
+      adversaireAgit(estSimultanee(d.type) ? actionAdverse(d) : null);
       const attente = poserDecision(d, etat);
       const reponse = cerveau.decider(d, etat);
       await pause(PAS_PROGRAMME);
@@ -371,7 +394,7 @@ function adversaire(cerveau) {
       // on le montre en train d'y répondre, et l'écran PREND LE TEMPS de le
       // montrer. C'est le seul moment où l'attente a un sens — et aucun de ces
       // trois moments n'est jamais le dernier de la partie.
-      if (SIMULTANEES.has(d.type)) {
+      if (estSimultanee(d.type)) {
         adversaireAgit(actionAdverse(d));
         // COUTURE — LE SEUL ENDROIT OÙ DEUX LIVRAISONS SE CONTREDISENT.
         //
@@ -412,6 +435,63 @@ function adversaire(cerveau) {
       return cerveau.decider(d, etat);
     },
   };
+}
+
+// ------------------------------------------------- la vente de l'autre se voit
+
+/**
+ * Cette réponse est-elle une vente faite par ce siège-là ?
+ *
+ * (les-ecrans-manquants) Vendre n'est pas répondre à une question : le moteur ne
+ * demande jamais « voulez-vous vendre ? ». Une vente voyage comme une réponse
+ * ordinaire, `{ vendre: { joueur, occasion, cartes } }`, rendue par le
+ * fournisseur du siège qui vend (`vue/vente.js`, `venteAEcrire`). C'est donc là
+ * qu'on la reconnaît, et nulle part ailleurs.
+ *
+ * POURQUOI PAS LE COMPTEUR DU MOTEUR. `ventes_volontaires` est un compteur
+ * GLOBAL : il dit qu'une vente a eu lieu, jamais QUI l'a faite. Deux ventes de
+ * sièges différents s'y confondent.
+ */
+function venteDuSiege(reponse, siege) {
+  const v = reponse && typeof reponse === "object" ? reponse.vendre : null;
+  return !!v && v.joueur === siege
+    && Array.isArray(v.cartes) && v.cartes.length > 0;
+}
+
+/**
+ * **ENVELOPPE LE SIÈGE D'EN FACE POUR VOIR SES VENTES PASSER.**
+ *
+ * Un seul point, et il couvre les deux vendeurs possibles : l'humain distant,
+ * qui rend sa vente comme réponse, et un programme vendeur — il n'en existe pas
+ * aujourd'hui à l'écran, les deux sièges tenus par un programme étant branchés
+ * sur le joueur au hasard, mais le jour où il en existera un, sa vente passera
+ * par `vendre()` et sera annoncée sans qu'une ligne d'ici ne bouge.
+ *
+ * PENDANT UN RATTRAPAGE, ON SE TAIT. Au rechargement d'une partie en ligne, la
+ * page rejoue tout l'historique : annoncer chaque vente passée comme neuve
+ * ferait clignoter des nouvelles vieilles d'une demi-heure.
+ */
+function guetterSesVentes(f, sonSiege) {
+  const suivi = {
+    nom: f.nom,
+    async decider(d, etat) {
+      const reponse = await f.decider(d, etat);
+      if (venteDuSiege(reponse, sonSiege) && !rattrapageEnCours()) venteAdverse();
+      return reponse;
+    },
+  };
+  // Un fournisseur qui SAISIT les occasions de vente en expose une (`partie.js`,
+  // `offrirLesOccasions`). On la garde, et on l'écoute aussi.
+  if (typeof f.vendre === "function") {
+    suivi.vendre = async (occ, etat) => {
+      const cartes = await f.vendre(occ, etat);
+      if (Array.isArray(cartes) && cartes.length > 0 && !rattrapageEnCours()) {
+        venteAdverse();
+      }
+      return cartes;
+    };
+  }
+  return suivi;
 }
 
 // ------------------------------------------------------- interrompre la partie
@@ -552,10 +632,50 @@ function rejouerLesDecisions(partie, enregistree, cerveaux) {
  * @param {object} [reprise]  un enregistrement à rejouer d'abord (CNF-6)
  */
 async function lancer({ graine, boites }, reprise = null) {
+  // (les-ecrans-manquants) **QUELLE BOÎTE EST SUR LA TABLE**, dit à l'écran.
+  //
+  // Les Objectifs et les Récompenses viennent de l'extension « Découverte » ;
+  // sans elle ils ne rapportent rien. Le moteur les tient pourtant en mémoire
+  // dans les deux boîtes, et la page les recopiait donc telles quelles : un
+  // joueur de la boîte de base voyait un Objectif s'allumer comme PRIS et deux
+  // cases de points qui ne comptent pour personne.
+  //
+  // C'est le SEUL endroit de la page qui connaisse la composition — elle vient
+  // de l'adresse ou du rendez-vous, jamais d'une déduction — et c'est ici, et
+  // non dans `batir`, parce que le décor est bâti AVANT que le rendez-vous n'ait
+  // rendu la sienne.
+  reglerBoites(boites);
   document.body.dataset.phase = "chargement";
   etatDuChargement(MOT.waking);
 
   const pont = await ouvrirPontDepuis(".");
+
+  // (les-ecrans-manquants) **QUELLES QUESTIONS LE MOTEUR POSE-T-IL AUX DEUX
+  // JOUEURS EN MÊME TEMPS ?** On ne l'écrit pas, on le MESURE — six parties
+  // entières jouées hors écran par le moteur du navigateur, et l'on retient les
+  // types dont chaque occurrence est appariée au siège opposé
+  // (`questions-simultanees.js`). Deux endroits de la page en dépendent, et ils
+  // en dépendaient chacun de son côté avec une liste différente : l'annonce
+  // « l'adversaire répond en même temps » et, en ligne, les groupes de décisions
+  // face cachée déclarés au rendez-vous.
+  //
+  // C'EST FAIT AVANT LA PREMIÈRE QUESTION, et il le faut : le tout premier rang
+  // de la partie est déjà l'une de ces questions (le remplacement des
+  // corporations). Mesuré : 3,0 s avec l'extension, 2,9 s en boîte de base, une
+  // seule fois par page et par composition de boîtes.
+  //
+  // UN ÉCHEC N'ARRÊTE PAS LA PARTIE : l'ensemble reste vide, l'écran n'annonce
+  // alors aucune simultanéité et le mode en ligne n'anticipe rien. C'est muet,
+  // ce n'est jamais faux — et surtout ce n'est jamais une fuite.
+  etatDuChargement(MOT.measuring);
+  try {
+    reglerQuestionsSimultanees(await mesurerQuestionsSimultanees(pont, boites));
+  } catch (e) {
+    console.warn("terra : la mesure des questions simultanées a échoué —",
+      e && e.message);
+    reglerQuestionsSimultanees(new Set());
+  }
+
   document.getElementById("chargement")?.remove();
   document.body.dataset.phase = "partie";
   oublier();
@@ -571,6 +691,7 @@ async function lancer({ graine, boites }, reprise = null) {
   dejaVu = { manche: null, phases: null };
 
   let partie = creerPartie(pont, { graine, boites });
+  partieEnCours = partie;
 
   // LES DEUX TIRAGES DE LA PARTIE, créés ICI et une seule fois. Ils l'étaient
   // dans `siegeProgramme` et `adversaire` ; ils en sortent parce qu'une partie
@@ -605,6 +726,7 @@ async function lancer({ graine, boites }, reprise = null) {
       document.body.dataset.siege = String(cadre.siege);
       document.body.dataset.decide = cadre.decide;
       partie = creerPartie(pont, { graine, boites });
+      partieEnCours = partie;
       cerveaux[cadre.siege] = cadre.decide === "programme"
         ? fournisseurAleatoire(graine * 2 + 1, "programme au siège")
         : null;
@@ -635,6 +757,12 @@ async function lancer({ graine, boites }, reprise = null) {
   if (rendezVous) {
     brancherEnLigne(rendezVous, fournisseurs, cadre.siege, (d, etat) => rendre(etat, d));
   }
+  // (les-ecrans-manquants) EN DERNIER, et par-dessus tout le reste : ce que le
+  // siège d'en face finit par rendre. Posé APRÈS `brancherEnLigne` pour voir la
+  // réponse telle qu'elle arrive du rendez-vous, et non celle qu'un fournisseur
+  // local aurait fabriquée.
+  fournisseurs[1 - cadre.siege] =
+    guetterSesVentes(fournisseurs[1 - cadre.siege], 1 - cadre.siege);
 
   try {
     // (CNF-6) LA PARTIE S'ENREGISTRE AU FIL DE L'EAU. `jouerJusquAuBout` appelle

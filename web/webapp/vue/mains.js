@@ -89,6 +89,10 @@ export function construireMains() {
     `<div class="main__tete">` +
     `<span class="main__mot" id="adverse-mot"></span>` +
     `<span class="main__agit" id="adverse-agit"></span>` +
+    // (les-ecrans-manquants) L'annonce d'une vente d'en face. Vide au repos, et
+    // vide veut dire SANS BOÎTE : un mot laissé transparent serait un mot qu'un
+    // banc trouve et qu'une main ne voit pas.
+    `<span class="main__vendu" id="adverse-vente"></span>` +
     `</div>` +
     `<div class="main__rang" id="adverse-rang"></div>`;
   document.body.appendChild(adverse);
@@ -522,8 +526,53 @@ export function adversaireAgit(quoi) {
   }
 }
 
+/**
+ * **L'ADVERSAIRE VIENT DE VENDRE UNE CARTE, ET MON ÉCRAN LE DIT.**
+ *
+ * (les-ecrans-manquants) Le compte de cartes tenues en face est déjà affiché et
+ * il BAISSE à chaque vente — mais il baisse aussi quand l'adversaire joue une
+ * carte, et il monte à chaque pioche. Un compteur qui bouge ne dit pas POURQUOI
+ * il bouge : ce n'est pas une annonce. Il fallait donc une marque qui ne paraît
+ * QUE là, et c'est celle-ci : le mot, et `data-vente` sur la zone d'en face.
+ *
+ * **ELLE PASSE, ET C'EST VOULU.** Une marque qui resterait deviendrait un décor,
+ * puis un mensonge à la vente suivante — on ne saurait plus si elle annonce
+ * celle-ci ou la précédente. Elle vit une seconde et demie, le temps de la lire.
+ *
+ * **ELLE NE PASSE PAS PAR `duree()`**, contrairement aux animations de
+ * `vue/anim.js`. `?animations=non` met toute durée à zéro : l'annonce
+ * disparaîtrait avant d'être née, exactement comme la respiration de
+ * l'adversaire que `interface.js` a dû sortir de `duree` pour la même raison.
+ * Ce n'est pas une animation, c'est une nouvelle qui reste lisible un instant.
+ */
+const VENTE_ADVERSE_MS = 1500;
+let effacerVenteAdverse = null;
+
+export function venteAdverse() {
+  const zone = ref("#main-adverse");
+  const mot = ref("#adverse-vente");
+  if (!zone || !mot) return;
+  zone.dataset.vente = "oui";
+  mot.textContent = MOT.opponentSold;
+  if (effacerVenteAdverse) clearTimeout(effacerVenteAdverse);
+  effacerVenteAdverse = setTimeout(() => {
+    effacerVenteAdverse = null;
+    delete zone.dataset.vente;
+    mot.textContent = "";
+  }, VENTE_ADVERSE_MS);
+}
+
 /** Remet la mémoire à zéro (nouvelle partie). */
 export function oublierMains() {
+  // Une annonce de vente de la partie précédente n'a rien à dire dans celle-ci.
+  if (effacerVenteAdverse) {
+    clearTimeout(effacerVenteAdverse);
+    effacerVenteAdverse = null;
+  }
+  const zv = ref("#main-adverse");
+  if (zv) delete zv.dataset.vente;
+  const mv = ref("#adverse-vente");
+  if (mv) mv.textContent = "";
   plan = null;
   // Le rangement de la main appartient à la partie qui s'achève : la suivante
   // repart de l'ordre du moteur.

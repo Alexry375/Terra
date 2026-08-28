@@ -16,14 +16,29 @@ deux parties differentes soient couvertes.
      porte la question annonce « moi », que l'autre annonce « lui », et que les
      deux ne disent JAMAIS « moi » en meme temps.
 
-     UNE SEULE EXCEPTION, ET ELLE EST EXIGEE, PAS TOLEREE (MOT-9, 04-08). Le
-     livret veut que les deux joueurs choisissent leur carte Phase EN MEME
-     TEMPS : sur cette question-la — « pick_phase », et sur aucune autre — les
-     deux pages DOIVENT dire « moi » ensemble. On ne se contente donc pas de
-     lever l'interdit : on verifie que les deux portent bien une question de
-     phase, que toutes deux annoncent « moi », et que leurs rangs se suivent
-     (chacune la sienne, pas deux fois la meme). Partout ailleurs, deux « moi »
-     simultanes restent une faute.
+     LES EXCEPTIONS SONT EXIGEES, PAS TOLEREES (MOT-9, 04-08 ; elargi le 22-08
+     par le lot « les-ecrans-manquants »). Le livret veut que les deux joueurs
+     choisissent leur carte Phase EN MEME TEMPS ; il veut aussi que les trois
+     etapes de la mise en place et la garde des cartes de Recherche se jouent
+     ainsi. Sur ces questions-la — et sur aucune autre — les deux pages DOIVENT
+     dire « moi » ensemble.
+
+     LA LISTE N'EST PAS ECRITE ICI, ELLE EST MESUREE, par le meme protocole que
+     la page emploie (`webapp/questions-simultanees.js`) : six parties entieres
+     jouees hors ecran, et l'on retient les types dont CHAQUE occurrence est
+     appariee au siege oppose. Un banc qui porterait la liste en dur mentirait
+     le jour ou le moteur en changerait, dans un sens comme dans l'autre.
+
+     On ne se contente donc pas de lever l'interdit : pour chacune de ces
+     questions on verifie que les DEUX pages en portent une du MEME type, que
+     toutes deux annoncent « moi », et que leurs rangs se suivent (chacune la
+     sienne, pas deux fois la meme). Partout ailleurs, deux « moi » simultanes
+     restent une faute — et deux pages qui porteraient ensemble un type ABSENT
+     de l'ensemble mesure en sont une aussi.
+
+     ENFIN LE COMPTE EST TENU PAR TYPE. Un compteur unique laisserait
+     « pick_phase », qui revient a chaque manche, remplir le plancher a lui seul
+     et masquer que les quatre autres n'ont jamais ete vues.
 
   B. « personne ne repond a la place de l'autre » PENDANT UNE VRAIE PARTIE. Le
      controle 02 parle au serveur sans navigateur : le tour n'y est jamais
@@ -58,7 +73,58 @@ RACINE = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 SERVEUR = os.path.join(RACINE, "webapp", "relais", "serveur.js")
 CODE = "banc-rendez-vous"
 GRAINE = 31337
+
+# L'ensemble MESURE des questions posees aux deux joueurs a la fois. Rempli par
+# `questions_simultanees()` au demarrage de `main` : ce banc n'ecrit aucun nom de
+# question a la main, pas plus que la page qu'il eprouve.
+SIMULTANEES = set()
+
+# COMBIEN DE TYPES DIFFERENTS il faut avoir vus portes par les deux pages a la
+# fois pour que le verdict porte sur quelque chose. Un compteur unique laisserait
+# « pick_phase », qui revient a chaque manche, remplir le plancher a lui seul.
+# Le chiffre est MESURE, pas souhaite. Mesure du 22-08 sur une partie entiere
+# menee par le relais : les CINQ types mesures ont ete vus portes par les deux
+# pages a la fois — {corp_mulligan: 1, pick_corporation: 1, pick_phase: 4,
+# project_mulligan: 1, research_keep: 4}. Les trois premiers arrivent une seule
+# fois, a la mise en place ; les deux autres reviennent a chaque manche. Le
+# plancher est pose UN cran sous la mesure : sur une machine chargee la fenetre
+# de cinq minutes peut s'arreter plus tot, et l'on ne veut pas d'un rouge qui ne
+# dise rien d'autre que « la machine etait lente ». Quatre types suffisent a
+# prouver que le groupement ne s'est pas retreci a une question unique.
+PLANCHER_TYPES = 4
 DECISIONS_A_VOIR = 45
+
+
+def questions_simultanees():
+    """L'ensemble MESURE des questions que le moteur pose aux DEUX joueurs.
+
+    On appelle le meme code que la page (`webapp/questions-simultanees.js`), avec
+    le meme moteur : six parties entieres jouees hors ecran, un type retenu si
+    CHAQUE occurrence est appariee au siege oppose. Rien n'est ecrit a la main —
+    ni ici, ni dans la page.
+
+    Une mesure qui echoue ARRETE le banc : juger la simultaneite sans savoir
+    quelles questions sont simultanees, ce serait juger au hasard.
+    """
+    source = (
+        'import { ouvrirPontDepuis } from "./webapp/pont.js";\n'
+        'import { mesurerQuestionsSimultanees }'
+        ' from "./webapp/questions-simultanees.js";\n'
+        'const pont = await ouvrirPontDepuis("./webapp");\n'
+        'const s = await mesurerQuestionsSimultanees(pont, "base,decouverte");\n'
+        'console.log(JSON.stringify([...s].sort()));\n'
+    )
+    r = subprocess.run(["node", "--input-type=module"], input=source, cwd=RACINE,
+                       capture_output=True, text=True, timeout=300)
+    if r.returncode != 0:
+        echec("la mesure des questions simultanees a echoue : "
+              + (r.stderr or "")[-400:])
+    derniere = [l for l in r.stdout.splitlines() if l.strip()][-1]
+    types = set(json.loads(derniere))
+    if not types:
+        echec("la mesure ne rend aucune question simultanee : le banc ne peut "
+              "rien juger")
+    return types
 
 fautes = []
 LIRE = "(n) => document.documentElement.getAttribute(n)"
@@ -206,12 +272,18 @@ def attendre_attribut(pg, nom, valeur, secondes=25):
 # ------------------------------------------------------------------- le banc
 
 def main():
+    global SIMULTANEES
+    SIMULTANEES = questions_simultanees()
+    print(f"   questions simultanees mesurees : {sorted(SIMULTANEES)}")
     from playwright.sync_api import sync_playwright
 
     port = port_libre()
     proc, journal = lancer_serveur(port)
     base = f"http://127.0.0.1:{port}"
     vus = {"attente": 0, "triche": 0, "simultane": 0}
+    # Un compteur PAR TYPE : sans lui, « pick_phase » remplirait le plancher a
+    # lui seul et masquerait l'absence des autres.
+    vus_par_type = {t: 0 for t in SIMULTANEES}
     try:
         with sync_playwright() as p:
             nav = p.chromium.launch(executable_path="/usr/bin/google-chrome")
@@ -273,25 +345,40 @@ def main():
                     # instants differents et l'on invente une faute.
                     stable = porteuses == [i for i, pg in enumerate(pages)
                                            if decision_posee(pg) is not None]
-                    # LE CHOIX DE PHASE SE FAIT EN MEME TEMPS, et lui seul. Les
-                    # deux pages portent alors chacune SA question — deux rangs
-                    # qui se suivent — et toutes deux disent « moi ».
-                    phases = [d for d in posees
-                              if d is not None and d["type"] == "pick_phase"]
-                    simultane = len(porteuses) == 2 and len(phases) == 2
+                    # CERTAINES QUESTIONS SE POSENT AUX DEUX JOUEURS EN MEME
+                    # TEMPS — celles que la mesure a retenues, et elles seules.
+                    # Les deux pages portent alors chacune SA question, du MEME
+                    # type, sur deux rangs qui se suivent, et toutes deux disent
+                    # « moi ».
+                    paire = [d for d in posees if d is not None]
+                    ensemble = (len(porteuses) == 2 and len(paire) == 2
+                                and paire[0]["type"] == paire[1]["type"])
+                    type_commun = paire[0]["type"] if ensemble else None
+                    simultane = ensemble and type_commun in SIMULTANEES
+                    if ensemble and not simultane:
+                        # Les deux pages portent ensemble un type que la mesure
+                        # ne dit PAS simultane : c'est une question que la table
+                        # donne a voir, et la cacher ferait decider le second
+                        # joueur sur un etat perime.
+                        faute(f"les deux pages portent ensemble une question "
+                              f"« {type_commun} », que la mesure ne compte pas parmi "
+                              f"les questions posees aux deux joueurs "
+                              f"({sorted(SIMULTANEES)})")
                     if simultane:
                         vus["simultane"] += 1
-                        rangs = sorted(d["rang"] for d in phases)
+                        vus_par_type[type_commun] += 1
+                        rangs = sorted(d["rang"] for d in paire)
                         if rangs[1] - rangs[0] != 1:
-                            faute(f"les deux pages portent une question de phase mais "
-                                  f"leurs rangs ne se suivent pas : {rangs} — chacune "
-                                  f"doit porter la sienne")
+                            faute(f"les deux pages portent une question "
+                                  f"« {type_commun} » mais leurs rangs ne se suivent "
+                                  f"pas : {rangs} — chacune doit porter la sienne")
                         for i in (0, 1):
                             if attentes[i] != "moi":
-                                faute(f"la page {i} porte sa question de phase en meme "
-                                      f"temps que l'autre mais annonce data-attente="
-                                      f"{attentes[i]!r} au lieu de 'moi' : ce joueur "
-                                      f"croit encore qu'il attend")
+                                faute(f"la page {i} porte sa question "
+                                      f"« {type_commun} » en meme temps que l'autre "
+                                      f"mais annonce data-attente={attentes[i]!r} au "
+                                      f"lieu de 'moi' : ce joueur croit encore qu'il "
+                                      f"attend")
                     # `stable` vaut aussi ici : sans lui, une lecture prise
                     # pendant que la partie avance — une page a repondu, son
                     # `data-attente` n'est pas encore retombe — passait pour une
@@ -300,8 +387,9 @@ def main():
                     elif stable and attentes.count("moi") > 1:
                         types = [d["type"] if d else None for d in posees]
                         faute(f"les DEUX pages annoncent data-attente='moi' "
-                              f"(decision {donnees}, types {types}) alors que seule "
-                              f"la question de phase se joue en meme temps")
+                              f"(decision {donnees}, types {types}) alors que seules "
+                              f"les questions {sorted(SIMULTANEES)} se jouent en meme "
+                              f"temps")
                     if stable and not simultane:
                         vus["attente"] += 1
                         for i in porteuses:
@@ -378,10 +466,22 @@ def main():
                 # L'exception accordee au choix de phase ne prouve rien si elle
                 # n'a jamais servi : une partie de 45 decisions en traverse
                 # plusieurs manches, donc plusieurs choix de phase.
+                print("   questions simultanees vues sur les DEUX pages a la fois : "
+                      + json.dumps(vus_par_type, sort_keys=True))
                 if vus["simultane"] == 0:
-                    faute("aucun choix de phase vu sur les DEUX pages a la fois en "
-                          f"{donnees} decisions : soit les deux joueurs ne choisissent "
-                          "pas en meme temps, soit la mesure n'a pas eu lieu")
+                    faute("aucune question simultanee vue sur les DEUX pages a la fois "
+                          f"en {donnees} decisions : soit les deux joueurs ne "
+                          "choisissent pas en meme temps, soit la mesure n'a pas eu "
+                          "lieu")
+                # LE PLANCHER PAR TYPE. Zero faute sur zero occasion ne prouve
+                # rien, et un seul type qui revient a chaque manche remplirait un
+                # compteur unique a lui tout seul.
+                jamais = sorted(t for t, n in vus_par_type.items() if n == 0)
+                if len(jamais) > len(SIMULTANEES) - PLANCHER_TYPES:
+                    faute(f"seulement {len(SIMULTANEES) - len(jamais)} type(s) de "
+                          f"question simultanee vus sur les DEUX pages en {donnees} "
+                          f"decisions, il en faut {PLANCHER_TYPES} : jamais vus "
+                          f"{jamais} sur {sorted(SIMULTANEES)}")
                 if triche_faite < 3:
                     faute(f"seulement {triche_faite} tentative(s) de triche sur 3 : "
                           f"la partie n'a pas assez avance pour les placer")
@@ -463,7 +563,7 @@ def main():
         arreter_serveur(proc)
 
     print(f"   {vus['attente']} occasions ou l'attente a ete lue sur les deux pages")
-    print(f"   {vus['simultane']} choix de phase portes par les DEUX pages en meme "
+    print(f"   {vus['simultane']} question(s) simultanee(s) portees par les DEUX pages en meme "
           f"temps")
     print(f"   {vus['triche']} tentatives de reponse a la place de l'autre, "
           f"en pleine partie")

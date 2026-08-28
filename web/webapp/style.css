@@ -1347,6 +1347,25 @@ body[data-siege="1"][data-actif="0"] #scene[data-composition="contexte"] .scene_
 .final__mot {
   font-size: 10px; letter-spacing: .3em; text-transform: uppercase; color: var(--os-faible);
 }
+/* (les-ecrans-manquants) LA COLONNE DU VAINQUEUR. Elle ne se distingue pas par
+   une couleur — les deux équipages ont déjà la leur — mais par un liseré et par
+   un mot écrit en toutes lettres : un lecteur doit pouvoir dire qui a gagné sans
+   comparer deux nombres. */
+.final__colonne--vainqueur {
+  border: 1px solid var(--or);
+  border-top-width: 3px;
+  box-shadow: 0 0 46px rgba(199, 161, 92, .18);
+}
+.final__couronne {
+  font-size: 10px; letter-spacing: .34em; text-transform: uppercase;
+  color: var(--or); text-indent: .34em; margin-bottom: 2px;
+}
+.final__verdict {
+  max-width: 620px; text-align: center; font-size: 12px; line-height: 1.6;
+  color: var(--os-faible);
+}
+.final__departage i { font-size: 13px; }
+
 .final__detail { font-size: 11px; color: var(--os-faible); margin-top: 8px; }
 .final__detail i {
   font-style: normal; font-family: "TerraChiffre", monospace; color: var(--os);
@@ -1402,3 +1421,42 @@ body[data-siege="1"][data-actif="0"] #scene[data-composition="contexte"] .scene_
   background: radial-gradient(80% 60% at 50% 45%, #0d1220, #05070c);
 }
 #panne { color: #ff9b7a; font-size: 15px; padding: 40px; background: rgba(20, 4, 2, .95); }
+
+/* (les-ecrans-manquants) QUI COMMENCE LA MANCHE, dans le bloc de la manche.
+   La teinte est celle de l'équipage désigné (`--teinte`, posée par
+   `vue/monde.js`) : on reconnaît le siège à la couleur avant de lire le nom. */
+.manche__premier {
+  display: inline-flex; align-items: baseline; gap: 5px;
+  padding-left: 10px; margin-left: 2px;
+  border-left: 1px solid var(--trait);
+}
+.manche__premier-mot {
+  font-size: 9px; letter-spacing: .22em; text-transform: uppercase;
+  color: var(--os-faible); font-style: normal;
+}
+.manche__premier-qui {
+  font-size: 12px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--teinte, var(--os));
+  text-shadow: 0 0 18px color-mix(in srgb, var(--teinte, #fff) 45%, transparent);
+}
+
+/* (les-ecrans-manquants) LE CLASSEMENT DES RÉCOMPENSES, sous chaque tuile.
+   Deux nombres recopiés du moteur, chacun dans la teinte de son équipage. La
+   page ne les compare pas : elle les met côte à côte. */
+.recompense { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.recompense__duel { display: flex; align-items: baseline; gap: 4px; line-height: 1; }
+.recompense__n {
+  font-family: "TerraChiffre", monospace; font-size: 11px;
+  color: var(--teinte, var(--os));
+}
+
+/* (les-ecrans-manquants) L'ADVERSAIRE VIENT DE VENDRE. Le mot passe en une
+   seconde et demie : une marque qui resterait deviendrait un décor, puis un
+   mensonge à la vente suivante. Vide, la boîte n'existe pas. */
+.main__vendu:empty { display: none; }
+.main__vendu {
+  font-size: 10px; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--or); padding: 1px 7px; border: 1px solid var(--or);
+  border-radius: 999px; white-space: nowrap;
+}
+#main-adverse[data-vente="oui"] { border-color: var(--or); }

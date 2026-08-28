@@ -148,26 +148,57 @@ export function annonceRemelange() {
 /**
  * L'écran final. Les deux scores viennent du moteur (`partie.scores`), et
  * l'élément qui les porte ne contient qu'eux — rien d'autre à lire dedans.
+ *
+ * (les-ecrans-manquants) **IL DIT MAINTENANT QUI A GAGNÉ.** Il ne le disait pas,
+ * et son commentaire d'alors en donnait la raison : « le moteur n'en rend pas ».
+ * Le moteur en rend un depuis ce lot — `etat.winner`, écrit par `flow::winner`,
+ * qui applique le départage du livret (chaleur + MC + plantes, cartes en main à
+ * 3 MC pièce) quand les points de victoire sont à égalité.
+ *
+ * **AUCUNE RÈGLE N'EST REJOUÉE ICI.** La page ne compare pas deux scores, ne
+ * compare pas deux totaux, ne connaît pas le barème : elle lit `etat.winner`,
+ * qui vaut `0`, `1`, ou `null` quand l'égalité est parfaite jusque sur le total
+ * de départage. Trois lectures, aucun calcul — c'est l'interdit dur nº 1 du lot,
+ * et c'est la règle qui tient tout le projet : un seul point de calcul des
+ * règles, et ce n'est jamais le navigateur.
+ *
+ * **LES DEUX TOTAUX DE DÉPARTAGE SONT MONTRÉS DANS TOUS LES CAS**, chacun sous
+ * son chemin d'état (`players.j.tiebreak_total`), et un mot dit ce qu'ils
+ * tranchent quand les points sont à égalité. Les montrer toujours n'apprend rien
+ * à personne — la partie est finie, plus rien n'est caché — et c'est ce qui
+ * permet aux joueurs de vérifier eux-mêmes le verdict au lieu de le croire.
  */
 export function ecranFinal(etat) {
   const f = document.createElement("section");
   f.id = "final";
   f.dataset.partieTerminee = "";
 
+  // LE VAINQUEUR, LU ET NON DÉDUIT. `undefined` (un moteur plus ancien) et
+  // `null` (égalité parfaite) ne veulent pas dire la même chose : le premier
+  // n'autorise à désigner personne, le second désigne une partie nulle. On ne
+  // les confond pas.
+  const vainqueur = etat.winner === 0 || etat.winner === 1 ? etat.winner : null;
+  const nulle = etat.winner === null;
+  // « Les points sont à égalité » est un FAIT publié, pas un départage : les deux
+  // scores sont sur la table, côte à côte, et personne n'a besoin de la page
+  // pour voir qu'ils sont égaux. Ce n'est pas ce fait qui désigne le vainqueur —
+  // c'est `etat.winner`, et lui seul.
+  const pointsEgaux = etat.players.length === 2
+    && etat.players[0].score === etat.players[1].score;
+
   // Les scores affichés sont ceux de l'état rendu par le moteur — exactement ce
   // que `data-valeur="players.j.score"` désigne. `partie.scores` dit la même
   // chose ; on n'affiche qu'une seule de ces deux sources, pour qu'aucun nombre
   // à l'écran ne puisse s'écarter du chemin qu'il déclare.
-  //
-  // La page ne DÉSIGNE AUCUN VAINQUEUR : le moteur n'en rend pas, et « le plus
-  // grand score l'emporte » (avec son départage) est une règle du jeu. Les deux
-  // totaux sont posés côte à côte, en grand ; les joueurs lisent eux-mêmes.
   const colonnes = etat.players
     .map((p) => {
       const j = p.player;
       const im = p.corporation ? imageCarte(p.corporation) : null;
+      const gagne = vainqueur === j;
       return `
-      <div class="final__colonne" style="--teinte:${EQUIPAGES[j].teinte}">
+      <div class="final__colonne${gagne ? " final__colonne--vainqueur" : ""}"
+           style="--teinte:${EQUIPAGES[j].teinte}"${gagne ? ` data-vainqueur="oui"` : ""}>
+        ${gagne ? `<span class="final__couronne">${MOT.winnerMark}</span>` : ""}
         ${im ? `<img class="final__corpo" src="${im}" alt="${p.corporation}">` : ""}
         <span class="final__qui">${nomJoueur(j)} · ${EQUIPAGES[j].nom}</span>
         <b class="final__score" data-score-final="${j}" data-valeur="players.${j}.score"
@@ -176,9 +207,18 @@ export function ecranFinal(etat) {
         <span class="final__detail">${MOT.tr}
           <i data-valeur="players.${j}.tr">${p.tr}</i> ·
           ${MOT.forests} <i data-valeur="players.${j}.forests">${p.forests}</i></span>
+        <span class="final__detail final__departage">${MOT.tiebreak}
+          <i data-valeur="players.${j}.tiebreak_total">${p.tiebreak_total}</i></span>
       </div>`;
     })
     .join("");
+
+  // LE MOT QUI DIT POURQUOI. Il vit HORS des deux colonnes : il parle de la
+  // partie, pas d'un joueur, et rien de ce qui distingue le gagnant du perdant
+  // ne doit dépendre de lui.
+  const verdict = nulle
+    ? `<div class="final__verdict">${MOT.drawn}</div>`
+    : (pointsEgaux ? `<div class="final__verdict">${MOT.tiebreakWhy}</div>` : "");
 
   f.innerHTML = `
     <div class="final__titre">
@@ -186,6 +226,7 @@ export function ecranFinal(etat) {
       <b>${MOT.endSub}</b>
     </div>
     <div class="final__colonnes">${colonnes}</div>
+    ${verdict}
     <div class="final__planete">
       <span>${MOT.temp} <i data-valeur="planet.temperature">${etat.planet.temperature}</i>
         /<i data-valeur="planet.temperature_max">${etat.planet.temperature_max}</i></span>

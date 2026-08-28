@@ -26,6 +26,9 @@
 // La seule dépendance de ce fichier à la couche d'affichage, et elle ne porte
 // que sur le TEMPS : pendant le rattrapage, les durées tombent à zéro.
 import { reglerRattrapage } from "./vue/anim.js";
+// (les-ecrans-manquants) L'ensemble MESURÉ des questions que le moteur pose aux
+// deux joueurs en même temps. Ce fichier ne la connaît pas, il la lit.
+import { estSimultanee } from "./questions-simultanees.js";
 
 // ------------------------------------------------------- ce que dit l'adresse
 
@@ -339,6 +342,12 @@ function creerCanal(reglage) {
     rendezVousDeRang: new Map(),
     /** Les réponses gardées de côté : rang -> { decision, promesse }. */
     gardees: new Map(),
+    /**
+     * (les-ecrans-manquants) **LE RANG QU'ON EST EN TRAIN DE ME DEMANDER**, ou
+     * `null`. Armé seulement quand le rendez-vous n'avait pas encore dépassé ce
+     * rang au moment où la question s'est posée. Voir `noterRangAttendu`.
+     */
+    monRangEnCours: null,
   };
 
   /** Une réponse déjà connue pour ce rang, ou `undefined`. */
@@ -370,6 +379,39 @@ function creerCanal(reglage) {
    */
   canal.noterRangAttendu = (n) => {
     if (!Number.isInteger(n) || n <= canal.rangAttendu) return;
+    // (les-ecrans-manquants) **QUELQU'UN VIENT DE RÉPONDRE À MA PLACE.**
+    //
+    // Le rendez-vous annonce qu'il attend désormais un rang PLUS LOIN que celui
+    // qu'on est en train de me demander, alors que je n'ai pas encore répondu.
+    // Or ce rang-là ne revient qu'à mon siège : le serveur refuse l'autre
+    // (`recevoirDecision`, « Personne ne répond à la place de l'autre »). Donc
+    // c'est une seconde page ouverte sur MON siège, et mon clic va être remplacé
+    // en silence.
+    //
+    // POURQUOI IL A FALLU L'ÉCRIRE ICI. Avant ce lot, le serveur refusait la
+    // seconde réponse et `publier` le disait. Depuis que les questions de mise
+    // en place se jouent FACE CACHÉE, ce rang appartient à un groupe, et le
+    // serveur autorise alors délibérément une réponse REDONNÉE par son propre
+    // siège — c'est ce qui permet à une page fermée entre son envoi et la
+    // révélation de reprendre la partie, puisqu'elle ne peut ni relire sa
+    // réponse (le rideau est tiré) ni la redonner autrement. Cette permission
+    // est juste, et on n'y touche pas : le relais ne change pas d'une ligne.
+    // C'est la PAGE qui sait ce que le serveur ne peut pas savoir — qu'elle
+    // n'a, elle, rien envoyé à ce rang.
+    //
+    // ET CE N'EST PAS UNE FUITE : savoir QUE le rendez-vous a avancé est déjà
+    // publié (`rang_attendu`), et n'apprend rien de CE qui a été répondu.
+    //
+    // LA REPRISE LÉGITIME NE DÉCLENCHE RIEN, parce que `monRangEnCours` n'est
+    // armé que si le rendez-vous n'avait pas DÉJÀ dépassé ce rang quand la
+    // question s'est posée : une page qui reprend voit `rangAttendu` en avance
+    // dès le premier instant, et ne s'arme pas.
+    if (canal.monRangEnCours !== null && n > canal.monRangEnCours) {
+      canal.monRangEnCours = null;
+      canal.alerte = BANDEAU.double;
+      rafraichirBandeau(canal);
+      console.warn("rendez-vous : une autre page a répondu pour ce siège.");
+    }
     canal.rangAttendu = n;
     for (const [rang, resoudre] of [...canal.rendezVousDeRang]) {
       if (canal.rangAttendu >= rang) {
@@ -613,8 +655,124 @@ export async function ouvrirRendezVous() {
 // fuite qu'on doit interdire. La question anticipée est donc posée sur l'état
 // que les deux pages ont déjà sous les yeux.
 
-/** Le seul type de décision que le livret veut simultané et face cachée. */
-const CHOIX_SIMULTANE = "pick_phase";
+// (les-ecrans-manquants) **IL N'Y A PLUS DE TYPE ÉCRIT ICI.** Il y en avait un
+// — `pick_phase` — et le moteur en pose CINQ : les trois étapes de la mise en
+// place (cartes de départ rendues, projets rendus, corporation retenue) et la
+// garde des cartes piochées en phase Recherche passaient toutes au fil de
+// l'eau. Le second à répondre pouvait donc lire ce que le premier avait rendu,
+// quelle corporation il avait prise et combien de cartes il venait de payer,
+// AVANT de choisir.
+//
+// La liste vient désormais d'une MESURE faite sur le moteur lui-même
+// (`questions-simultanees.js`, posée par `interface.js` avant la première
+// question). Un lot qui rendrait une sixième question simultanée serait protégé
+// sans qu'une ligne de ce fichier ne bouge.
+//
+// **DEUX CONDITIONS, ET IL FAUT LES DEUX.** La mesure dit QUELLES questions se
+// posent aux deux joueurs à la fois ; elle ne dit pas qu'on a le droit d'en
+// afficher une d'avance. Ce droit-là se prouve question par question, en
+// démontrant que la question suivante est la MÊME quelle que soit la réponse à
+// celle-ci (`questionSuivanteInvariante`). Sans la mesure, on grouperait des
+// questions que la table donne à voir — mesuré le 22-08 : la seule invariance
+// retient aussi `action_choice` (125 occurrences sur 486) et `choose_build`
+// (86 sur 437), où le second joueur DOIT voir ce que le premier vient de faire.
+// Sans la preuve, on afficherait d'avance une question dont la forme dépend de
+// la réponse de l'autre, c'est-à-dire une fuite.
+
+/**
+ * COMBIEN DE RÉPONSES ON ACCEPTE D'ESSAYER. Prouver l'invariance, c'est essayer
+ * TOUTES les réponses possibles : le prix en est le nombre de rejeux. Mesuré sur
+ * cette machine le 22-08 : 0,21 ms par rejeu au rang 2, 0,37 ms au rang 33,
+ * 2,4 ms au rang 400. Le plafond couvre les deux questions multiples du moteur
+ * — le mulligan des projets (huit cartes, quantité libre : 2^8 = 256 réponses,
+ * au rang 2, soit 54 ms) et la garde des cartes de Recherche (au plus 70
+ * réponses, soit 170 ms au pire rang). Au-delà, on n'anticipe pas et le tour
+ * reste séquentiel : le doute se paie par une attente, jamais par une fuite.
+ */
+const ESSAIS_MAX = 320;
+
+/** Le nombre de sous-ensembles de `k` éléments parmi `n`. */
+function combienDeSousEnsembles(n, k) {
+  if (k < 0 || k > n) return 0;
+  let r = 1;
+  for (let i = 0; i < k; i++) r = (r * (n - i)) / (i + 1);
+  return Math.round(r);
+}
+
+/** Tous les sous-ensembles d'indices de `n` options dont la taille est permise. */
+function sousEnsembles(n, tailles) {
+  const out = [];
+  const maxi = Math.max(...tailles);
+  const permise = new Set(tailles);
+  const rec = (debut, acc) => {
+    if (permise.has(acc.length)) out.push([...acc]);
+    if (acc.length >= maxi) return;
+    for (let i = debut; i < n; i++) {
+      acc.push(i);
+      rec(i + 1, acc);
+      acc.pop();
+    }
+  };
+  rec(0, []);
+  return out;
+}
+
+/**
+ * **TOUTES LES RÉPONSES QUE LE MOTEUR ACCEPTERAIT À CETTE QUESTION**, ou `null`
+ * quand on ne sait pas les énumérer, ou qu'il y en a plus que le plafond.
+ *
+ * C'est la SECONDE VOIE que ce lot ajoute. L'ancienne fonction refusait d'agir
+ * dès que la décision n'était pas un choix simple (`if (d.passer || d.montant ||
+ * d.multiple) return null`) — or deux des cinq questions simultanées sont des
+ * choix MULTIPLES : on rend un sous-ensemble de cartes. Elles restaient donc
+ * séquentielles, c'est-à-dire à découvert.
+ *
+ * La forme des réponses n'est pas devinée : c'est celle qu'`adversaire.md` et
+ * `fournisseurs.js` décrivent, la seule que le moteur reçoive — l'indice d'une
+ * option (plus « passer » s'il est offert), un entier entre deux bornes, ou un
+ * tableau d'indices distincts. Rien ici ne connaît une règle du jeu.
+ *
+ * L'ORDRE DES INDICES N'EST PAS ÉNUMÉRÉ, et c'est mesuré : sur douze réponses
+ * multiples de parties réelles, le descripteur de la question suivante est
+ * identique que les indices soient rendus croissants ou décroissants. On
+ * énumère donc les sous-ensembles une fois chacun, triés.
+ */
+export function reponsesPossibles(d) {
+  const options = d.options || [];
+  const n = options.length;
+
+  if (d.montant) {
+    const mini = d.minimum;
+    const maxi = d.maximum;
+    if (!Number.isInteger(mini) || !Number.isInteger(maxi) || maxi < mini) return null;
+    if (maxi - mini + 1 > ESSAIS_MAX) return null;
+    const out = [];
+    for (let v = mini; v <= maxi; v++) out.push(v);
+    return out;
+  }
+
+  if (d.multiple) {
+    if (!n) return null;
+    // `a_choisir` absent = quantité LIBRE, de zéro à tout (le mulligan des
+    // projets). Le nombre de réponses est alors 2^n, qu'on compte AVANT de les
+    // construire : on ne fabrique jamais une liste qu'on va jeter.
+    const k = d.a_choisir;
+    const tailles = Number.isInteger(k)
+      ? [k]
+      : Array.from({ length: n + 1 }, (_, i) => i);
+    let total = 0;
+    for (const t of tailles) {
+      total += combienDeSousEnsembles(n, t);
+      if (total > ESSAIS_MAX) return null;
+    }
+    if (!total) return null;
+    return sousEnsembles(n, tailles);
+  }
+
+  const total = n + (d.passer ? 1 : 0);
+  if (!total || total > ESSAIS_MAX) return null;
+  return Array.from({ length: total }, (_, i) => i);
+}
 
 /**
  * Un moteur À NOUS, pour REGARDER et rien d'autre : on ne lui fait jamais
@@ -642,24 +800,26 @@ function moteurDeLecture() {
  * LA QUESTION SUIVANTE, SI ELLE NE DIT RIEN DE LA RÉPONSE À CELLE-CI.
  *
  * Rend le descripteur de la décision de rang `d.rang + 1` si — et seulement si —
- * il est le MÊME pour toutes les réponses possibles à `d`, qu'il est lui aussi
- * un choix de phase, et qu'il revient à l'autre joueur. `null` dans tous les
+ * `d` est d'un type que le moteur pose aux DEUX joueurs (ensemble mesuré), que
+ * le descripteur suivant est le MÊME pour toutes les réponses possibles à `d`,
+ * qu'il est du même type, et qu'il revient à l'autre joueur. `null` dans tous les
  * autres cas : on ne montre jamais une question dont la forme dépendrait de ce
  * que l'autre vient de choisir.
  */
 async function questionSuivanteInvariante(canal, d) {
-  if (!d || d.type !== CHOIX_SIMULTANE) return null;
-  // Un choix simple, sans « passer », sans montant et sans sélection multiple :
-  // les réponses possibles sont alors exactement les indices des options, et on
-  // peut donc toutes les essayer. Ailleurs, on ne saurait pas les énumérer.
-  if (d.passer || d.montant || d.multiple) return null;
-  const options = d.options || [];
-  if (!options.length) return null;
+  // PREMIÈRE CONDITION : le moteur pose-t-il cette question aux deux joueurs en
+  // même temps ? La réponse vient de la mesure, pas d'une liste.
+  if (!d || !estSimultanee(d.type)) return null;
   if (!Number.isInteger(d.rang) || !Number.isInteger(canal.graine)) return null;
   const avant = canal.decisions.slice(0, d.rang);
   // La liste doit être complète jusqu'ici, sans trou : sinon le moteur ne
   // rejouerait pas la même partie que celle qu'on est en train de jouer.
   if (avant.length !== d.rang || avant.some((r) => r === undefined)) return null;
+
+  // SECONDE CONDITION : toutes les réponses possibles, et on doit savoir les
+  // énumérer. Ce qu'on ne peut pas énumérer, on ne peut pas le prouver.
+  const reponses = reponsesPossibles(d);
+  if (!reponses || !reponses.length) return null;
 
   let pont;
   try {
@@ -670,10 +830,10 @@ async function questionSuivanteInvariante(canal, d) {
 
   let empreinte = null;
   let suivante = null;
-  for (let choix = 0; choix < options.length; choix++) {
+  for (const reponse of reponses) {
     let pas;
     try {
-      pas = pont.pas(canal.graine, canal.boites, [...avant, choix]);
+      pas = pont.pas(canal.graine, canal.boites, [...avant, reponse]);
     } catch {
       // Le moteur refuse cette réponse : on ne peut plus prouver l'invariance,
       // donc on n'anticipe pas.
@@ -683,6 +843,14 @@ async function questionSuivanteInvariante(canal, d) {
     if (!dd) return null;
     const vue = JSON.stringify(dd);
     if (empreinte === null) {
+      // LE PREMIER ESSAI SERT AUSSI DE FILTRE. Si la question suivante n'est pas
+      // la jumelle de celle-ci — même type, siège d'en face, rang qui suit — il
+      // n'y a pas de paire à protéger, et payer les 255 essais restants ne
+      // changerait rien. Ce raccourci ne peut qu'écarter : il ne fait jamais
+      // conclure à l'invariance, seule la boucle entière le fait.
+      if (dd.type !== d.type) return null;
+      if (dd.rang !== d.rang + 1) return null;
+      if (dd.joueur === d.joueur) return null;
       empreinte = vue;
       suivante = dd;
     } else if (vue !== empreinte) {
@@ -691,10 +859,6 @@ async function questionSuivanteInvariante(canal, d) {
       return null;
     }
   }
-  if (!suivante) return null;
-  if (suivante.type !== CHOIX_SIMULTANE) return null;
-  if (suivante.rang !== d.rang + 1) return null;
-  if (suivante.joueur === d.joueur) return null;
   return suivante;
 }
 
@@ -801,7 +965,18 @@ export function brancherEnLigne(canal, fournisseurs, siege, regarder) {
       const suivante = await questionSuivanteInvariante(canal, d);
       const groupe = suivante ? { debut: d.rang, taille: 2 } : null;
       await canal.annoncerTour(d.rang, d.joueur, groupe);
-      const reponse = await local.decider(d, etat);
+      // (les-ecrans-manquants) ON ARME LA GARDE : à partir d'ici et jusqu'à mon
+      // clic, toute avancée du rendez-vous au-delà de ce rang veut dire qu'une
+      // autre page a répondu pour moi. On ne l'arme QUE si le rendez-vous n'a
+      // pas déjà dépassé ce rang — sans quoi une page qui reprend après une
+      // coupure s'accuserait elle-même.
+      if (canal.rangAttendu <= d.rang) canal.monRangEnCours = d.rang;
+      let reponse;
+      try {
+        reponse = await local.decider(d, etat);
+      } finally {
+        if (canal.monRangEnCours === d.rang) canal.monRangEnCours = null;
+      }
       const retenue = await canal.publier(d.rang, reponse);
       canal.attendre("aucune");
       return retenue;

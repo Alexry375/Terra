@@ -1,3 +1,4 @@
+import { estSimultanee } from "../questions-simultanees.js";
 // LES MOTS DE L'ÉCRAN — tout ce que le joueur lit est en anglais.
 //
 // Le moteur pose ses questions en français et il est HORS du périmètre de ce
@@ -24,6 +25,11 @@
 /** Les mots fixes du décor. Un seul endroit pour les relire tous. */
 export const MOT = {
   round: "Round",
+  // (les-ecrans-manquants) QUI COMMENCE LA MANCHE. Le moteur publie
+  // `first_player` a chaque instant et, avant ce lot, aucune ligne de la page ne
+  // le lisait : celui qui joue le premier prend la tuile, le repere ou la carte
+  // que l'autre voulait, et le joueur devait le deviner.
+  firstPlayer: "Starts",
   temp: "Temperature",
   oxygen: "Oxygen",
   ocean: "Oceans",
@@ -118,6 +124,14 @@ export const MOT = {
   // re\u00e7oit qu'une par point de d\u00e9cision. Le dire, plut\u00f4t que de laisser envoyer
   // une seconde vente qui arr\u00eate la partie des deux c\u00f4t\u00e9s.
   sellDone: "Sale sent \u2014 play or pass first",
+  // (les-ecrans-manquants) **L'ADVERSAIRE VIENT DE VENDRE.** Vendre est un
+  // évènement de la partie : à la table on le VOIT faire. À l'écran, si rien ne
+  // le dit, on découvre plus tard un adversaire plus riche sans savoir d'où
+  // vient l'argent. Le mot « sold » n'apparaît nulle part ailleurs dans cette
+  // page : c'est ce qui le rend reconnaissable, pour un joueur comme pour un
+  // banc. Aucun NOMBRE ici — combien de cartes, combien de MC : un compteur qui
+  // bouge ne dit pas pourquoi il bouge, et la page ne calcule rien.
+  opponentSold: "Sold a card",
   // (K3, 04-08) L'avertissement qui manquait : la carte d\u00e9sign\u00e9e est de celles
   // que la question en cours propose de POSER. La vendre, c'est la perdre.
   sellWarn: (n) => (n === 1
@@ -165,6 +179,10 @@ export const MOT = {
   yourHand: "Your hand",
   faceDown: "face-down card",
   waking: "waking the engine…",
+  // (les-ecrans-manquants) La page mesure, avant la première question, quelles
+  // questions le moteur pose aux deux joueurs à la fois. Trois secondes pendant
+  // lesquelles l'écran doit dire ce qu'il fait, et non rester muet.
+  measuring: "Reading the engine…",
   broken: "The engine could not go on: ",
   start: "Start",
   seed: "Seed",
@@ -172,6 +190,16 @@ export const MOT = {
   subtitle: "Terraforming Mars · Ares Expedition — two players, one screen",
   endTitle: "Mars is terraformed",
   endSub: "Final count",
+  // (les-ecrans-manquants) L'ÉCRAN FINAL DIT QUI A GAGNÉ. Le moteur désigne le
+  // vainqueur (`winner`) et publie le total de départage du livret par joueur
+  // (`players[].tiebreak_total`) : ces mots-ci ne font que les nommer. Aucun
+  // barème n'est écrit ici — « Tiebreak » est une étiquette, pas un calcul.
+  winnerMark: "Winner",
+  tiebreak: "Tiebreak",
+  tiebreakWhy:
+    "Victory points are level: the higher tiebreak total wins " +
+    "(heat + MC + plants, each card in hand counted as 3 MC).",
+  drawn: "Perfect draw — level on victory points and on the tiebreak total.",
   players: ["P0", "P1"],
 
   // ------------------------------------------------ le menu, les options, l'aide
@@ -737,26 +765,63 @@ export function sorteAction(brut) {
 // ------------------------------------------------- ce que fait l'adversaire
 
 /**
- * LES TROIS QUESTIONS QUE LE MOTEUR POSE AUX DEUX JOUEURS pour la même phase.
- * Il les pose l'une après l'autre ; à l'écran elles doivent se voir ensemble.
+ * LES QUESTIONS QUE LE MOTEUR POSE AUX DEUX JOUEURS pour la même phase. Il les
+ * pose l'une après l'autre ; à l'écran elles doivent se voir ensemble.
+ *
+ * (les-ecrans-manquants) **CETTE LISTE N'EST PLUS ÉCRITE ICI.** Elle l'était —
+ * trois types — et il en manquait deux : le choix de la corporation et la garde
+ * des cartes de la phase Recherche. Le joueur voyait donc son adversaire
+ * réfléchir à certaines questions et pas aux autres, sans qu'aucune raison ne
+ * distingue les unes des autres.
+ *
+ * Elle est désormais MESURÉE sur le moteur lui-même
+ * (`questions-simultanees.js`) et posée ici au démarrage de la partie par
+ * `interface.js`. Le jour où un lot rendra une sixième question simultanée,
+ * l'écran la montrera sans qu'une ligne de ce fichier ne bouge — c'est tout
+ * l'objet du changement.
  */
-export const SIMULTANEES = new Set(["corp_mulligan", "project_mulligan", "pick_phase"]);
 
-// CE QU'ON DIT DE SON GESTE. Pour les trois questions posées aux DEUX joueurs,
-// on peut le nommer sans rien lui prendre : la question est la mienne aussi, je
-// la lis en grand au même instant. Partout ailleurs on ne dit QUE le fait qu'il
-// joue — « on voit qu'il agit, jamais quoi ». Nommer « il paie », « il se
-// défausse », « il améliore une carte Phase » serait un fil d'actualité de son
-// tour, et personne ne l'a demandé.
+// CE QU'ON DIT DE SON GESTE. Pour les questions posées aux DEUX joueurs, on peut
+// le nommer sans rien lui prendre : la question est la mienne aussi, je la lis
+// en grand au même instant. Partout ailleurs on ne dit QUE le fait qu'il joue —
+// « on voit qu'il agit, jamais quoi ». Nommer « il paie », « il se défausse »,
+// « il améliore une carte Phase » serait un fil d'actualité de son tour, et
+// personne ne l'a demandé.
+//
+// CHAQUE QUESTION A SON PROPRE MOT : « il choisit sa corporation » n'est pas
+// « il choisit sa phase ». Un mot unique pour tout dirait « il joue », c'est-à-
+// dire rien de plus que la zone allumée.
 const AGIT_ENSEMBLE = {
   corp_mulligan: "choosing Corporation cards",
   project_mulligan: "choosing project cards",
+  pick_corporation: "picking a Corporation",
   pick_phase: "choosing a Phase card",
+  research_keep: "keeping research cards",
 };
 
 const AGIT = "playing";
 
+/**
+ * LE MOT DE SECOURS, pour une question simultanée que ce fichier ne connaît pas
+ * encore. Il est tiré du NOM DE LA QUESTION, donc il est toujours là et il est
+ * toujours distinct d'un type à l'autre : une liste de mots écrite à la main ne
+ * peut plus laisser une question muette, ce qui serait exactement le défaut
+ * qu'on vient de corriger, déplacé d'un cran.
+ */
+function motDeSecours(type) {
+  return "answering " + String(type).replace(/_/g, " ");
+}
+
 /** L'action de l'adversaire, en anglais, sans rien dire de son contenu. */
 export function actionAdverse(d) {
-  return (d && AGIT_ENSEMBLE[d.type]) || AGIT;
+  if (!d || !d.type) return AGIT;
+  // L'ENSEMBLE MESURÉ DÉCIDE, LA TABLE CI-DESSUS NE FAIT QUE NOMMER. L'ordre
+  // compte : si l'on lisait `AGIT_ENSEMBLE` d'abord, les cinq noms qui y sont
+  // écrits continueraient d'annoncer « il répond en même temps » le jour où le
+  // moteur cesserait de poser l'un d'eux aux deux joueurs — la page dirait alors
+  // quelque chose de faux sur le siège d'en face, ce qui est précisément le
+  // défaut que ce lot ôte. Une mesure absente rend l'ensemble vide : on retombe
+  // sur le mot général, muet mais jamais faux.
+  if (!estSimultanee(d.type)) return AGIT;
+  return AGIT_ENSEMBLE[d.type] || motDeSecours(d.type);
 }

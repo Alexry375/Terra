@@ -10,11 +10,12 @@
 // Chaque valeur affichée porte son chemin exact dans l'état rendu par le moteur
 // (`data-valeur`). Aucun nombre n'est calculé ici : tout est lu.
 
-import { imageJalon, imageRecompense, titre } from "./materiel.js";
+import { imageJalon, imageRecompense, titre, EQUIPAGES, nomJoueur } from "./materiel.js";
 import { ref, poser, poserValeur } from "./ecrire.js";
 import { construireMasqueVP } from "./plateau.js";
 import { construireArcs, majArcs, oublierArcs } from "./arcs.js";
 import { MOT } from "./mots.js";
+import { honneursComptent } from "./boites.js";
 // (GRO-2, 05-08) Le cran de terraformation s'entend. Le bruit est branché sur
 // `ressentir`, plus bas — l'endroit qui REMARQUE le cran, et le seul de la page
 // qui les remarque tous les trois (température, oxygène, océans).
@@ -73,6 +74,25 @@ export function construireMonde() {
     <div class="manche">
       <span class="manche__mot">${MOT.round}</span>
       <b class="manche__n" data-valeur="generation">—</b>
+
+      <!-- (les-ecrans-manquants) QUI COMMENCE CETTE MANCHE. Ce n'est pas un
+           ornement : le premier joueur agit le premier a chaque phase, donc il
+           prend la tuile, le repere ou la carte que l'autre visait, et il tranche
+           les egalites de placement. Le moteur le publie («first_player» dans la
+           vue d'etat) et la page ne le DEDUIT pas : elle le lit, comme tout autre
+           nombre de cette bande, en declarant son chemin.
+
+           Le siege brut (0 ou 1) reste sur «data-premier», parce que c'est LA
+           valeur du moteur, verifiable telle quelle ; le texte, lui, dit le nom
+           de l'equipage, qui est ce qu'un joueur reconnait sur son ecran.
+
+           Il tient dans le bloc de la manche plutot qu'en huitieme colonne de la
+           bande : «style-monde.css» fixe SEPT colonnes a «#horizon», et une
+           huitieme casserait la mise en page sous 870 px de haut. -->
+      <span class="manche__premier" data-valeur="first_player" data-premier="0">
+        <i class="manche__premier-mot">${MOT.firstPlayer}</i><b
+           class="manche__premier-qui">—</b>
+      </span>
     </div>
 
     <!-- LE BANDEAU DIT CE QUE DIT LE PLATEAU, en degrés. Le moteur, lui, compte
@@ -159,6 +179,26 @@ function degre(cran) {
   return d > 0 ? "+" + d : String(d);
 }
 
+/**
+ * QUI COMMENCE LA MANCHE, tel que le moteur le dit.
+ *
+ * Rien n'est deduit ici : `etat.first_player` est recopie sur `data-premier`, et
+ * le nom d'equipage n'est qu'une traduction de ce meme siege. Une valeur qui ne
+ * designerait ni le siege 0 ni le siege 1 ne touche pas l'ecran — mieux vaut
+ * garder la derniere valeur vraie qu'en afficher une fausse.
+ */
+function premierJoueur(etat) {
+  const j = etat.first_player;
+  if (j !== 0 && j !== 1) return;
+  const e = ref('[data-valeur="first_player"]');
+  if (!e) return;
+  if (e.dataset.premier !== String(j)) {
+    e.dataset.premier = String(j);
+    e.style.setProperty("--teinte", EQUIPAGES[j].teinte);
+  }
+  poser(ref(".manche__premier-qui"), nomJoueur(j));
+}
+
 /** Réécrit le monde à partir de l'état rendu par le moteur. */
 export function majMonde(etat) {
   const p = etat.planet;
@@ -175,6 +215,7 @@ export function majMonde(etat) {
   variable("--niveau-mer", (7 + mer * 13).toFixed(2) + "%");
 
   poserValeur("generation", etat.generation);
+  premierJoueur(etat);
   // Le CRAN devient le DEGRÉ — la seule échelle imprimée sur le carton, et celle
   // que l'arc du bord gauche affiche déjà (`vue/arcs.js`, `lecture`). Le signe
   // est écrit même quand il est positif : « +8 » se lit comme une température,
@@ -261,6 +302,23 @@ function mesurerHonneur(d, im) {
 
 /** Objectifs et récompenses : les tuiles imprimées, éteintes tant qu'à prendre. */
 function honneurs(etat) {
+  // (les-ecrans-manquants) EN BOÎTE DE BASE, CES TUILES N'EXISTENT PAS.
+  //
+  // Le moteur les tient quand même en mémoire dans les deux boîtes — `milestones`
+  // et `awards` sont remplis en boîte de base aussi, seul le barème diffère — et
+  // la page les recopiait donc telles quelles. Un joueur de la boîte de base
+  // voyait un Objectif s'allumer comme PRIS alors que le prendre ne lui rapporte
+  // rien : l'écran lui annonçait un avantage qui n'existe pas.
+  //
+  // On ne les éteint pas, on ne les grise pas : on ne les montre pas du tout. Une
+  // tuile éteinte reste une tuile à prendre, et c'est encore une promesse.
+  const bande = ref(".tuiles-honneur");
+  if (!honneursComptent()) {
+    if (bande) bande.style.display = "none";
+    return;
+  }
+  if (bande) bande.style.display = "";
+
   const zj = ref("#jalons");
   if (zj.childElementCount !== etat.milestones.length) {
     zj.textContent = "";
@@ -286,10 +344,32 @@ function honneurs(etat) {
       .join("");
   });
 
+  // (les-ecrans-manquants) LES RÉCOMPENSES SE LISENT À DEUX, ET ELLES SE
+  // CHIFFRENT.
+  //
+  // Une Récompense rapporte 5 points à celui qui mène, 2 à l'autre, 4 à chacun
+  // en cas d'égalité : c'est un des plus gros paquets de points de la partie, et
+  // savoir s'il vaut la peine de courir après demande de voir OÙ EN SONT LES
+  // DEUX JOUEURS. Le moteur publie exactement cela — `valeurs_recompenses`, une
+  // valeur par récompense et par siège, calculée par `flow::award_value`, le
+  // point de calcul UNIQUE du barème. Avant ce lot, seule l'intelligence
+  // artificielle la lisait (`joueurs/description.js`) : l'humain jouait à
+  // l'aveugle contre une machine qui, elle, voyait le classement.
+  //
+  // Les deux nombres sont RECOPIÉS. La page ne les compare pas, ne les classe
+  // pas et n'en déduit aucun point : elle les met côte à côte, dans la teinte de
+  // chaque équipage, et le joueur lit lui-même qui mène. Comparer ici, ce serait
+  // un second jeu de règles.
+  //
+  // Ils sont posés À CÔTÉ de la tuile et non dedans : `.honneur` est un carré de
+  // la hauteur de la bande (`--pastille`, 11 à 30 px), un chiffre à l'intérieur
+  // serait illisible et déborderait sous 870 px de haut.
   const zr = ref("#recompenses");
   if (zr.childElementCount !== etat.awards.length) {
     zr.textContent = "";
     for (const a of etat.awards) {
+      const bloc = document.createElement("div");
+      bloc.className = "recompense";
       const d = document.createElement("div");
       d.className = "honneur honneur--recompense";
       d.title = MOT.award + " " + titre(a);
@@ -298,7 +378,28 @@ function honneurs(etat) {
       im.alt = MOT.award + " " + titre(a);
       mesurerHonneur(d, im);
       d.appendChild(im);
-      zr.appendChild(d);
+      bloc.appendChild(d);
+
+      const duel = document.createElement("span");
+      duel.className = "recompense__duel";
+      duel.title = MOT.award + " " + titre(a);
+      for (const j of [0, 1]) {
+        const n = document.createElement("b");
+        n.className = "recompense__n";
+        n.dataset.valeur = `players.${j}.valeurs_recompenses.${a}`;
+        n.style.setProperty("--teinte", EQUIPAGES[j].teinte);
+        n.textContent = "0";
+        duel.appendChild(n);
+      }
+      bloc.appendChild(duel);
+      zr.appendChild(bloc);
+    }
+  }
+  for (const a of etat.awards) {
+    for (const j of [0, 1]) {
+      const v = etat.players[j]?.valeurs_recompenses?.[a];
+      if (v === undefined || v === null) continue;
+      poserValeur(`players.${j}.valeurs_recompenses.${a}`, v);
     }
   }
 }
