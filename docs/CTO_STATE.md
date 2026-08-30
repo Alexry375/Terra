@@ -13,42 +13,48 @@ Dernière mise à jour : 2026-08-28
 > citées ci-dessous sont celles du **nouvel** historique. Détail :
 > `docs/JOURNAL.md`, entrée « 2026-08-20 (suite) ».
 
-## ⏸ 28-08 18 h 45 — TRAVAIL MIS EN PAUSE, MACHINE ÉTEINTE PAR ALEXIS
+## ▶ 30-08 — LE TRAVAIL A REPRIS, ET LE HUITIÈME LOT EST SCELLÉ
 
-Rien n'est perdu, mais **deux chantiers étaient en cours et doivent être repris**.
-Tout ce qui suit a été relevé avant l'extinction [VÉRIFIÉ 28-08].
+**L7a est repris et presque fini.** Un agent successeur a été lancé le 30-08 à
+17 h 30 ; il a lu le carnet de son prédécesseur avant de toucher au code, comme le
+briefing l'exigeait. À 19 h 30, **huit critères sur neuf sont traités** [DÉCLARÉ par
+son carnet, à auditer] : restent la campagne de sabotage des sept bancs et le
+contrôle final. Le lot n'est ni commité ni audité — c'est voulu.
 
-**1. L'agent du lot L7a a été arrêté à mi-parcours — cinq critères sur neuf faits.**
-Son carnet, `workspaces/les-sept-bancs-rouges/outputs/journal.md`, contient l'état
-critère par critère, les durées mesurées de chaque banc, six pièges d'exploitation
-et la prochaine commande à taper. **Le lire avant toute chose.**
+**L'entraînement a été relancé de zéro**, cette fois sur **deux fils de calcul au
+lieu de quatre** : le 28-08, à quatre ouvriers, les bancs de l'agent mettaient trois
+fois plus de temps que la normale, et c'est le lot qui est sur le chemin critique,
+pas l'entraînement.
 
-| Fait (banc vert à la main) | Reste à faire |
-|---|---|
-| D `score.py`, E `tri-de-la-main.py`, F `tests.mjs`, G `juge-…-devinette.mjs`, I les six points | A `actions-visibles.py`, B `cadre.py`, C `ce-que-le-moteur-ne-dit-pas.py`, H la campagne de sabotages |
+### L8 « la largeur réglable » — SCELLÉ le 30-08, pas encore lancé
 
-Neuf fichiers modifiés **sont restés dans l'arbre de travail, non commités** — c'est
-voulu : le lot n'est ni fini ni audité. Copie de secours hors dépôt dans
-`~/.agentic-workspace/reprise-28-08/travail-L7a-en-cours/` (les neuf fichiers, le
-`diff` complet, le carnet et les outils de mesure de l'agent). Le banc du lot
-précédent a été relancé après ces modifications : **`lot-des-ecrans.mjs` VERT,
-55 vérifications sur 55** — aucune régression sur L6b.
+`aw seal la-largeur-reglable` → « 6 check(s) de progrès, tous rouges », plus deux
+garde-fous (tests du moteur, empreintes d'état).
 
-**2. L'entraînement de 120 000 parties a été interrompu à 54 000 et devra être
-relancé depuis le début.** Il écrivait bien `data/poids/apprenti-L7.txt` au fil de
-l'eau (dernier point de mesure : erreur 0,0697, 76,2 % de décisions justes), **mais
-le fichier de l'adversaire n'avait pas encore été écrit** : sans le couple complet,
-ces poids sont inutilisables. Le fichier partiel est laissé hors suivi de version,
-copie dans `~/.agentic-workspace/reprise-28-08/`. Commande à relancer :
+**Ce que le lot demande** : le réseau de neurones qui juge les positions a
+cinquante neurones cachés **écrits en dur** (`engine/src/reseau.rs:56`). Il faut
+rendre ce nombre réglable **sans changer d'un octet ce que le programme produit à
+cinquante**. Le lot ne mesure pas si un réseau plus large joue mieux : il rend la
+mesure possible. La campagne de mesure viendra après, et c'est du calcul, pas du
+code — je la lancerai moi-même.
 
-```
-nohup ./engine/target/release/entraine --parties 120000 --graine-debut 120000 \
-  --ouvriers 4 --devinette on --sortie data/poids/apprenti-L7.txt \
-  --sortie-adversaire data/poids/apprenti-L7-adversaire.txt > <journal> 2>&1 &
-```
+**Cadrage vérifié dans le code le 30-08** : la structure est déjà presque
+paramétrique (les poids vivent dans des tableaux dimensionnés à la construction) ;
+trois endroits seulement utilisent une taille figée à la compilation
+(`reseau.rs:259`, `:515`, `:606`). Le format de fichier porte déjà la largeur en
+première ligne, et le juge JavaScript (`web/webapp/joueurs/apprenti.js`) est **déjà
+entièrement paramétrique** — seule une constante de garde, `apprenti.js:90`, refuse
+autre chose que cinquante.
 
-**Vérifié avant extinction** : aucun tunnel public ouvert (`tailscale funnel status`
-→ `No serve config`), aucun navigateur résiduel, aucun processus de calcul en cours.
+**Deux contrôles cachés, hors dépôt** : un couple de poids de référence produit le
+30-08 par le binaire du commit `6d53b84` sur une graine que le contrat ne nomme
+nulle part, à reproduire **à l'octet** ; et une mesure de vitesse prise **les deux
+binaires dans la même minute** — le binaire d'avant le lot a été mis de côté pour
+cela. Le sens vert du premier a été éprouvé avant le scellement : le témoin rejoue
+sa propre référence à l'octet.
+
+**Ce lot ne démarre qu'après L7a** : il touche `web/webapp/joueurs/apprenti.js`, et
+deux chantiers ne partagent jamais un fichier.
 
 ## 🔥 28-08 — SIX LOTS SUR NEUF SONT LIVRÉS, LE SEPTIÈME EST SCELLÉ ET EN COURS
 
