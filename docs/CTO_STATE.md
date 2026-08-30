@@ -13,6 +13,54 @@ Dernière mise à jour : 2026-08-28
 > citées ci-dessous sont celles du **nouvel** historique. Détail :
 > `docs/JOURNAL.md`, entrée « 2026-08-20 (suite) ».
 
+## 🔴 30-08 — LE JOUEUR EN SERVICE EST TRÈS FAIBLE, ET JE NE L'AVAIS PAS ÉCRIT
+
+**Fait mesuré ce soir, en relisant tous les fichiers de poids du dépôt**
+[VÉRIFIÉ 30-08] : le joueur livré aujourd'hui a vu **12 000 parties
+d'entraînement**. D'après la progression mesurée le 16-08, un joueur de ce niveau
+gagne de l'ordre de **2 %** de ses parties contre `reflechi`, le joueur de
+référence. L'objectif du projet est **98 %**.
+
+**Pourquoi ce recul, alors que le 16-08 mesurait 91,3 %** : l'ajout de l'extension
+« Découverte » a changé la **fiche de situation** — la liste des cases par
+lesquelles l'IA voit une position est passée de 1 472 à 1 630. Tous les
+apprentissages d'août, jusqu'à 1 200 000 parties, ont été faits sur l'ancienne
+fiche : le moteur les refuse, et à juste titre. Ils sont conservés mais inutilisables.
+
+| fichier | fiche | parties vues | utilisable aujourd'hui |
+|---|---|---|---|
+| `apprenti-1200k.txt` | 1472 | 1 200 000 | **non** |
+| `apprenti-devinette-1M.txt` | 1472 | 1 000 000 | **non** |
+| `apprenti.txt` — **en service** | 1630 | **12 000** | oui |
+| `apprenti-L7.txt` — fini ce soir | 1630 | 120 000 | oui |
+
+### Ce que ça change au plan
+
+Les lots L7 et L8 construisent l'outillage de vérification et la possibilité de
+régler la taille du réseau. **Aucun des deux ne rend le joueur plus fort.** Ce qui
+le rend plus fort est du calcul, pas du code, et ce calcul avait été perdu de vue.
+
+**Relancé ce soir à 20 h 45** : l'entraînement reprend les 120 000 parties de
+`apprenti-L7.txt` et les porte à **400 000** (`data/poids/apprenti-400k.txt`,
+280 000 parties de plus, trois fils de calcul, environ cinq heures). C'est le
+niveau qui avait donné **91,3 %** contre `reflechi` sur l'ancienne fiche.
+
+**Repère de progression, mesuré le 16-08 sur l'ancienne fiche** — il dit combien de
+calcul coûte chaque point de force :
+
+| parties vues | victoires contre `reflechi` |
+|---|---|
+| 10 000 | 2 % |
+| 150 000 | 60 % |
+| 200 000 | 82 % |
+| 400 000 | 91,3 % |
+
+Pour atteindre 98 %, il faudra donc **davantage que 400 000 parties**, et
+probablement un réseau plus large — ce que le lot L8 rend justement mesurable. La
+mesure se fait par duel direct, sur au moins 80 donnes et deux sièges ; la courbe
+imprimée pendant l'entraînement ne prédit pas la force au jeu (les deux se sont
+décorrélées le 16-08, c'est écrit plus bas).
+
 ## ▶ 30-08 — LE TRAVAIL A REPRIS, ET LE HUITIÈME LOT EST SCELLÉ
 
 **L7a est repris et presque fini.** Un agent successeur a été lancé le 30-08 à
