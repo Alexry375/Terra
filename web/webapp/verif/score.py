@@ -52,6 +52,45 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, "inputs/checks")
 from pilote import serveur, page, jouer, echec  # noqa: E402
 
+# LES CARTES A POINTS DE VICTOIRE NEGATIFS, LUES DANS LE RECENSEMENT.
+#
+# ⚠️ C'EST LA SUPPOSITION QUI ETAIT FAUSSE, PAS LA PAGE (corrige le 28-08 par
+# `les-sept-bancs-rouges`). Ce banc tenait « une carte ne peut pas rapporter de
+# points negatifs » et refusait toute part `cards` sous zero : 69 fautes
+# annoncees, toutes la meme, reemise a chaque decision qui suivait — une carte
+# posee au rang 204 reste sur le plateau jusqu'a la fin. Or `data/cards.json`
+# porte sept cartes a PV negatifs (Invasive Irrigation -2, Landfill -1,
+# LowAtmosphere Planes -1, Nuclear Plants -1, Slash and Burn Agriculture -1,
+# Bribed Comittee -2, Conscription -1) et le moteur les additionne sans plancher
+# (`engine/src/flow.rs`). Le remede n'est pas de cesser de verifier le signe :
+# c'est de verifier LA BONNE CHOSE, et il y a plus a verifier qu'avant.
+#
+# Deux bornes, et la seconde est celle qui mesure vraiment :
+#
+#   1. un PLANCHER ABSOLU — la somme de tous les PV negatifs imprimes du jeu.
+#      Aucune main, aucune boite, aucun ordre de pose ne peut descendre plus bas.
+#      Il ne depend d'aucune regle, seulement du recensement des cartes.
+#   2. UN PLANCHER PAR JOUEUR, RELEVE SUR SON PLATEAU : une part negative doit
+#      s'expliquer par des cartes a PV negatifs REELLEMENT posees devant lui, et
+#      ne peut pas descendre sous leur somme. C'est un oracle disjoint — les noms
+#      viennent de l'ecran (`#piles-J`), les points viennent du recensement — et
+#      il attrape ce que le plancher absolu laisse passer : une part de -3 chez
+#      un joueur qui n'a pose qu'un Landfill.
+def _pv_negatifs():
+    import json
+    chemin = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                          "..", "..", "..", "data", "cards.json")
+    table = {}
+    for c in json.load(open(chemin, encoding="utf-8")):
+        pv = c.get("vp")
+        if isinstance(pv, int) and pv < 0:
+            table[(c.get("name") or "").strip()] = pv
+    return table
+
+
+PV_NEGATIFS = _pv_negatifs()
+PLANCHER_CARTES = sum(PV_NEGATIFS.values())
+
 PARTS = ("tr", "forests", "cards", "milestones", "awards")
 # Les totaux d'awards possibles pour UN joueur sur trois recompenses.
 AWARDS_POSSIBLES = {sum(c) for c in itertools.product((2, 4, 5), repeat=3)}
@@ -82,6 +121,12 @@ LECTURE = """() => {
       tr: nb(`[data-valeur="players.${j}.tr"]`),
       forests: nb(`[data-valeur="players.${j}.forests"]`),
       parts,
+      // LES CARTES POSEES DEVANT CE JOUEUR, PAR LEUR NOM. C'est l'`alt` de leur
+      // scan — le seul lien entre une carte de l'ecran et une ligne du
+      // recensement (`vue/geste.js` s'en sert deja pour retrouver une carte
+      // posee). Il sert ici d'oracle a la part `cards`, qui n'en avait aucun.
+      posees: [...document.querySelectorAll(`#piles-${j} [data-carte-en-jeu] img`)]
+        .map((im) => (im.alt || '').trim()).filter(Boolean),
     });
   }
   // Ou vit chaque mention « provisoire », et quelles parts sont dans la meme
@@ -143,7 +188,7 @@ FINAL = """() => ({
 })"""
 
 fautes = []
-vu = {"mesures": 0, "provisoires": 0}
+vu = {"mesures": 0, "provisoires": 0, "negatives": 0}
 
 
 def controle(pg, rang):
@@ -189,8 +234,26 @@ def controle(pg, rang):
         if parts["awards"] not in AWARDS_POSSIBLES:
             fautes.append(f"decision {rang}, joueur {j} : recompenses = {parts['awards']}, "
                           f"hors du bareme (5 / 2 / 4-4 sur trois recompenses)")
-        if parts["cards"] < 0:
-            fautes.append(f"decision {rang}, joueur {j} : cartes = {parts['cards']}")
+        if parts["cards"] < PLANCHER_CARTES:
+            fautes.append(f"decision {rang}, joueur {j} : cartes = {parts['cards']}, "
+                          f"sous le plancher absolu {PLANCHER_CARTES} — la somme de "
+                          f"TOUS les points negatifs imprimes du jeu "
+                          f"({len(PV_NEGATIFS)} cartes) ne descend pas si bas")
+        elif parts["cards"] < 0:
+            vu["negatives"] += 1
+            posees = [n for n in p["posees"] if n in PV_NEGATIFS]
+            if not posees:
+                fautes.append(f"decision {rang}, joueur {j} : cartes = {parts['cards']}, "
+                              f"mais aucune des {len(p['posees'])} carte(s) posees devant "
+                              f"lui ne rapporte de points negatifs — cette part ne vient "
+                              f"pas du moteur")
+            else:
+                plancher = sum(PV_NEGATIFS[n] for n in posees)
+                if parts["cards"] < plancher:
+                    fautes.append(f"decision {rang}, joueur {j} : cartes = "
+                                  f"{parts['cards']}, sous la somme {plancher} des cartes "
+                                  f"a points negatifs qu'il a posees ({posees}) — les "
+                                  f"autres cartes ne peuvent qu'ajouter")
     paire = (d["joueurs"][0]["parts"]["awards"], d["joueurs"][1]["parts"]["awards"])
     if None not in paire and paire not in PAIRES_POSSIBLES:
         fautes.append(f"decision {rang} : recompenses {paire} — aucun tirage du bareme "
@@ -250,6 +313,9 @@ with serveur() as base:
 print(f"{vu['mesures']} ventilations verifiees part par part ; "
       f"{vu['provisoires']} mention(s) « provisoire » en cours de partie ; "
       f"scores finaux {f['finaux']} contre {[sum(p) for p in f['parts']]}")
+print(f"part « cartes » negative rencontree {vu['negatives']} fois, chacune confrontee "
+      f"aux cartes a points negatifs posees sur le plateau du joueur "
+      f"(plancher absolu {PLANCHER_CARTES}, {len(PV_NEGATIFS)} cartes recensees)")
 if vu["mesures"] < 200:
     echec(f"seulement {vu['mesures']} ventilation(s) lue(s)")
 if vu["provisoires"] != 2:

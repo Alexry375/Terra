@@ -241,6 +241,29 @@ function etatDuChargement(texte) {
   return e;
 }
 
+/**
+ * (les-sept-bancs-rouges) **LE REPLI SE MONTRE.** Quand la mesure des questions
+ * simultanées échoue, l'ensemble reste vide — et un ensemble vide ne veut pas
+ * dire « prudent » : il veut dire AUCUN groupe de décisions déclaré au
+ * rendez-vous, donc les questions de mise en place y repassent une par une, au
+ * fil de l'eau. C'est la fuite que la mesure ferme. Elle se dit donc à l'écran,
+ * et pas seulement à la console : un repli qu'on ne voit pas est un repli que
+ * personne ne répare.
+ */
+function direSansMesure() {
+  let e = document.getElementById("sans-mesure");
+  if (!e) {
+    e = document.createElement("p");
+    e.id = "sans-mesure";
+    e.setAttribute("role", "status");
+    e.style.cssText = "position:fixed;left:0;right:0;bottom:0;z-index:9999;margin:0;"
+      + "padding:.5rem 1rem;background:#7a2018;color:#fff;font:14px/1.4 system-ui";
+    document.body.appendChild(e);
+  }
+  e.textContent = MOT.unmeasured;
+  return e;
+}
+
 function panne(e) {
   // Un échec se montre, il ne se jette pas : une exception non rattrapée est une
   // erreur de console, et une erreur de console est un écran cassé.
@@ -320,9 +343,11 @@ function rendre(etat, decision) {
 /**
  * MON SIÈGE, TENU PAR UNE MAIN. La scène se pose et attend le clic.
  *
- * Les trois questions que le moteur pose aux DEUX joueurs (remplacement des
- * corporations, des cartes projet, choix de la phase) se jouent en même temps à
- * la table : dès qu'elle m'est posée, on voit l'adversaire y répondre lui aussi,
+ * Les CINQ questions que le moteur pose aux DEUX joueurs — et c'est la mesure
+ * qui les compte, pas ce commentaire (`questions-simultanees.js`) : le
+ * remplacement des corporations, celui des cartes projet, le choix de la
+ * corporation, le choix de la phase et les cartes gardées à la recherche — se
+ * jouent en même temps à la table : dès qu'elle m'est posée, on voit l'adversaire y répondre lui aussi,
  * dans son coin, en petit et retourné. Le reste du temps il attend, et la zone
  * du haut se tait.
  */
@@ -417,10 +442,18 @@ function adversaire(cerveau) {
         // pose des phases et la respiration du siège tenu par un programme
         // (`PAS_PROGRAMME`, ligne plus haut) restent zérotables.
         //
-        // Ce que ça coûte : `SIMULTANEES` ne compte que trois types de décision,
-        // soit une quinzaine de moments par partie — environ 2,5 s ajoutées à
-        // une partie complète, mesurées sans effet sur les contrôles `01`, `02`
-        // et `24`, qui jouent des parties entières.
+        // Ce que ça coûte, RECOMPTÉ le 28-08 : l'ensemble mesuré ne contient
+        // CINQ types de décision, et non les 3 d'alors
+        // (`questions-simultanees.js` en mesure cinq : corp_mulligan,
+        // project_mulligan, pick_corporation, pick_phase et research_keep) ;
+        // la respiration, elle, ne se prend que sur les décisions
+        // du siège d'en face. Mesure du 28-08 sur une partie entière (graine
+        // 424242, base + Découverte, 349 décisions) : 82 `pick_phase`,
+        // 40 `research_keep`, 2 de chacune des trois autres, dont 64 au siège
+        // d'en face — soit 64 x 180 ms, environ 11,5 s ajoutées à une partie
+        // complète, et non les 2,5 s écrites ici quand on n'en comptait que
+        // trois. Sans effet sur les contrôles `01`, `02` et `24`, qui jouent
+        // des parties entières et qui sont verts.
         return attendreAdversaire(PAS_ADVERSE).then(() => cerveau.decider(d, etat));
       }
 
@@ -664,16 +697,30 @@ async function lancer({ graine, boites }, reprise = null) {
   // corporations). Mesuré : 3,0 s avec l'extension, 2,9 s en boîte de base, une
   // seule fois par page et par composition de boîtes.
   //
-  // UN ÉCHEC N'ARRÊTE PAS LA PARTIE : l'ensemble reste vide, l'écran n'annonce
-  // alors aucune simultanéité et le mode en ligne n'anticipe rien. C'est muet,
-  // ce n'est jamais faux — et surtout ce n'est jamais une fuite.
+  // UN ÉCHEC N'ARRÊTE PAS LA PARTIE, MAIS IL NE PASSE PLUS EN SILENCE.
+  //
+  // (les-sept-bancs-rouges) Le commentaire d'ici jurait qu'un ensemble vide ne
+  // laissait rien échapper. C'est l'inverse : un ensemble vide veut dire AUCUN
+  // groupe de décisions déclaré au rendez-vous, donc les questions de mise en
+  // place y repassent une par une, au fil de l'eau — précisément la brèche que
+  // la mesure ferme. Ce qui est vrai, c'est que la page n'ANNONCE alors rien de
+  // faux ; ce qui est faux, c'est de croire que rien ne s'échappe.
+  //
+  // Le repli le DIT donc, à la console et sur la page : mieux vaut un joueur
+  // averti qu'une fuite silencieuse.
   etatDuChargement(MOT.measuring);
   try {
     reglerQuestionsSimultanees(await mesurerQuestionsSimultanees(pont, boites));
   } catch (e) {
-    console.warn("terra : la mesure des questions simultanées a échoué —",
-      e && e.message);
+    console.warn(
+      "terra : la mesure des questions simultanées a échoué — aucun groupe de "
+      + "décisions ne sera déclaré au rendez-vous, et les questions de mise en "
+      + "place y repasseront une par une, au fil de l'eau : c'est une fuite, "
+      + "pas une prudence.", e && e.message);
     reglerQuestionsSimultanees(new Set());
+    // ET ÇA SE VOIT. L'attribut se lit d'un contrôle, le mot se lit d'un joueur.
+    document.body.dataset.sansMesure = "oui";
+    direSansMesure();
   }
 
   document.getElementById("chargement")?.remove();
@@ -782,7 +829,7 @@ async function lancer({ graine, boites }, reprise = null) {
   } catch (e) {
     // La partie a été abandonnée : `retourAuMenu` a déjà vidé la table et remis
     // l'accueil. Il n'y a ni score à montrer ni fin à annoncer.
-    if (e === ABANDON) return;
+    if (e === ABANDON) { partieEnCours = null; return; }
     throw e;
   } finally {
     if (arretCourant === arret) arretCourant = null;
@@ -801,6 +848,10 @@ async function lancer({ graine, boites }, reprise = null) {
   document.body.dataset.phase = "fin";
   ecranFinal(partie.etat);
   son.sonFin();
+  // (les-sept-bancs-rouges) LA PARTIE EST FINIE : ON LÂCHE LA POIGNÉE. Sans
+  // cela, une page qui enchaîne deux parties garde celle d'avant sous la main —
+  // et c'est elle que la vente irait numéroter.
+  partieEnCours = null;
 }
 
 // ------------------------------------------------------------- l'écran d'entrée

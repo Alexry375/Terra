@@ -183,6 +183,10 @@ export const MOT = {
   // questions le moteur pose aux deux joueurs à la fois. Trois secondes pendant
   // lesquelles l'écran doit dire ce qu'il fait, et non rester muet.
   measuring: "Reading the engine…",
+  // (les-sept-bancs-rouges) Le repli de la mesure des questions simultanees,
+  // DIT a l'ecran : un ensemble vide veut dire aucun groupe declare au
+  // rendez-vous, donc les questions de mise en place y repassent une par une.
+  unmeasured: "Simultaneous questions could not be measured: none are grouped, and setup questions travel one by one.",
   broken: "The engine could not go on: ",
   start: "Start",
   seed: "Seed",

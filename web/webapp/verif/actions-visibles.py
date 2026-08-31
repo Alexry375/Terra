@@ -34,12 +34,32 @@ GRAINE = sys.argv[2] if len(sys.argv) > 2 else "909"
 sys.path.insert(0, os.path.join(RACINE, "verif"))
 from pilote import serveur, page as ouvrir, choix_simple, choix_montant  # noqa: E402
 
+# `data-vol="pose"` N'EST PAS LA MARQUE DU GESTE DE POSE, et c'est le piege de
+# ce banc. `vue/anim.js:185` ecrit `MOTIFS.has(motif) ? motif : "pose"` et
+# `vue/anim.js:219` declare `attraper(source, motif = "pose")` : « pose » est le
+# motif PAR DEFAUT de tout objet volant que personne n'a etiquete. `poserPhase`
+# (`vue/table.js:103`) appelle `voler(...)` sans `vol:` — la carte PHASE qui
+# rejoint son emplacement porte donc, elle aussi, `data-vol="pose"`.
+#
+# Mesure du 30-08 (`outputs/work/sonde-A2.log`, graine 909, 180 decisions) : sur
+# 63 vols « pose », TRENTE portaient l'image d'une carte Phase
+# (`assets/plateau/carte-phase-*.webp`). Le vivier etait deux fois trop grand, et
+# une carte posee sans geste y trouvait presque toujours le vol d'une carte
+# Phase voisine : en coupant la totalite de `lancer("pose", ...)` le banc ne
+# signalait que 5 orphelines sur 56 cartes.
+#
+# On ne touche pas la page : on donne a ces vols-la un motif a eux. Ils restent
+# comptes et nommes dans le bilan, ils ne nourrissent plus l'appariement.
 ESPION = """
 window.__m = [];
 new MutationObserver((ms) => {
   for (const m of ms) for (const n of m.addedNodes || []) {
-    if (n.nodeType === 1 && n.parentElement && n.parentElement.id === 'vol')
-      window.__m.push(n.dataset.vol === undefined ? '?' : n.dataset.vol);
+    if (n.nodeType === 1 && n.parentElement && n.parentElement.id === 'vol') {
+      let v = n.dataset.vol === undefined ? '?' : n.dataset.vol;
+      const im = v === 'pose' ? n.querySelector('img') : null;
+      if (im && /carte-phase-/.test(String(im.src))) v = 'pose-carte-phase';
+      window.__m.push(v);
+    }
   }
 }).observe(document, { childList: true, subtree: true });
 """
@@ -61,6 +81,19 @@ LECTURE = r"""
     ressources: Object.fromEntries([...document.querySelectorAll('[data-valeur]')]
       .filter((e) => /^players\.\d+\.played\.\d+\.resources$/.test(e.dataset.valeur))
       .map((e) => [e.dataset.valeur, e.textContent.trim()])),
+    // LES CARTES POSEES SUR UN PLATEAU, et elles seules. `vue/plateau.js:350`
+    // marque la carte posee ; `vue/scene.js:1118` marque AUSSI, du meme
+    // attribut, le bouton d'une question qui designe une carte deja en jeu.
+    // Compter toute la page melangeait les deux : une question faisait
+    // « apparaitre » des cartes que personne n'avait posees. Les deux
+    // plateaux sont `#piles-0` et `#piles-1` (`vue/plateau.js:129`).
+    posees: document.querySelectorAll(
+      '#piles-0 [data-carte-en-jeu], #piles-1 [data-carte-en-jeu]').length,
+    // Le compte de toute la page. Il n'entre dans AUCUN verdict — aucune
+    // famille ne le lit, et c'est voulu : il est la pour qu'on puisse, en
+    // relisant une trace, comparer a la main ce que la page marquait partout
+    // avec ce que les deux plateaux portaient vraiment. Le confondre avec
+    // `posees` etait le premier des deux defauts de ce banc.
     jeu: document.querySelectorAll('[data-carte-en-jeu]').length,
     defausse: v('decks.discard'),
     vols: window.__m.length,
@@ -117,7 +150,7 @@ FAMILLES = [
     ("des megacredits depenses", lambda a, b: baisse_joueur(a, b, "mc"), "mc", 10),
     ("un jeton Foret gagne", lambda a, b: monte_joueur(a, b, "forets"), "jeton", 4),
     ("une carte piochee", lambda a, b: b["main"] > a["main"], "pioche", 10),
-    ("une carte posee", lambda a, b: b["jeu"] > a["jeu"], "pose", 8),
+    ("une carte posee", lambda a, b: b["posees"] > a["posees"], "pose", 8),
     ("une carte defaussee", lambda a, b: monte(a, b, "defausse"), "defausse", 8),
     # LA SIXIEME ENTREE DE LA LISTE DICTEE, et celle que personne ne mesurait :
     # ni le contrôle 01 du contrat (sept familles, celle-ci n'y est pas) ni la
@@ -158,9 +191,46 @@ def repondre(pg, delai=15000):
     return rang
 
 
+POSE = "une carte posee"
+
+
+def apparier_les_poses(journal):
+    """CHAQUE CARTE QUI ENTRE EN JEU RECOIT SON VOL, ET UN SEUL.
+
+    `journal` : une entree par fenetre, `(rang, nombre de cartes entrees en jeu,
+    nombre de vols « pose » emis)`.
+
+    Pourquoi un appariement et non une presence. Le geste de la main
+    (`vue/geste.js`) fait voler la carte AU MOMENT OU ON LA LACHE, c'est-a-dire
+    en repondant a la decision N ; le moteur, lui, ne la fait entrer dans
+    `players[].played` qu'a la decision suivante (mesure : fenetres 498/499 et
+    502/503, graine 909). Un vol peut donc legitimement preceder d'une fenetre
+    la carte qu'il annonce — et, quand deux cartes se posent d'un coup, il en faut
+    DEUX. Chercher une simple presence rendait les deux verdicts faux a la fois :
+    vert quand le vol venait d'en face, rouge quand le sien etait parti trop tot.
+
+    Un vol sert au plus une carte, et seulement a distance d'une fenetre : une
+    carte posee sans geste reste sans geste, c'est ce que ce banc existe pour
+    dire.
+    """
+    libres = [e[2] for e in journal]
+    orphelines = []
+    for i, e in enumerate(journal):
+        rang, cartes = e[0], e[1]
+        for _ in range(cartes):
+            for k in (i - 1, i, i + 1):
+                if 0 <= k < len(libres) and libres[k] > 0:
+                    libres[k] -= 1
+                    break
+            else:
+                orphelines.append(rang)
+    return orphelines
+
+
 def main():
     occasions = {nom: 0 for nom, _, _, _ in FAMILLES}
     manques = {nom: [] for nom, _, _, _ in FAMILLES}
+    journal = []
     with serveur(RACINE) as url:
         page_url = f"{url}/?graine={GRAINE}&siege=0&boites=base,decouverte"
         with ouvrir(page_url) as (pg, erreurs, _):
@@ -184,15 +254,29 @@ def main():
                     if not eu_lieu:
                         continue
                     occasions[nom] += 1
-                    if motif not in motifs:
+                    # La pose est jugee plus loin, par appariement : son geste
+                    # peut avoir ete emis a la fenetre d'avant.
+                    if nom != POSE and motif not in motifs:
                         manques[nom].append(rang)
+                journal.append((rang, max(0, apres["posees"] - avant["posees"]),
+                                motifs.count("pose"),
+                                motifs.count("pose-carte-phase")))
                 avant = apres
                 rangs += 1
             if erreurs:
                 print(f"ECHEC : la page a leve {len(erreurs)} erreur(s) : {erreurs[0]}")
                 return 1
 
+    manques[POSE] = apparier_les_poses(journal)
+
     print(f"    {rangs} decision(s) jouees a l'ecran, graine {GRAINE}")
+    cartes = sum(e[1] for e in journal)
+    vols = sum(e[2] for e in journal)
+    phases = sum(e[3] for e in journal)
+    print(f"      dont mises de cote : {phases} vol(s) « pose » qui portaient "
+          f"l'image d'une carte Phase (voir la note de l'ESPION)")
+    print(f"      {cartes} carte(s) entrees sur un plateau, {vols} vol(s) « pose » "
+          f"emis, {len(manques[POSE])} carte(s) sans le leur")
     for nom, _, motif, mini in FAMILLES:
         n, m = occasions[nom], len(manques[nom])
         marque = "  <-- SANS SON GESTE" if m else ""

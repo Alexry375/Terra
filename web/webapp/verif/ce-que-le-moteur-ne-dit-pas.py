@@ -48,7 +48,31 @@ RACINE = os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else "web/webapp")
 # posaient AUCUNE carte a badge joker : le banc s'arretait sur « la mesure MOT-14
 # n'a pas eu lieu » — un rouge honnete, mais un rouge par defaut, donc un banc
 # que personne ne relance. Un garde-fou rouge par construction ne garde rien.
-GRAINES = (sys.argv[2] if len(sys.argv) > 2 else "6,4,10,14,23").split(",")
+# LA GRAINE 61 EST EN TETE, ET C'EST LA MOITIE DE TABLE QUI MANQUAIT. Sur les
+# cinq graines suivantes, aucune partie ne posait de carte a badge joker des DEUX
+# cotes : le banc terminait honnetement sur « observes sur le plateau du joueur N
+# seulement », et une moitie de table n'etait jamais couverte. Mesure du 30-08,
+# graine 61 seule, ce banc, 44 s :
+#
+#     jetons de badge joker vus : 189 sur le plateau du joueur 0,
+#                                 164 sur celui du joueur 1
+#
+# COMMENT ELLE A ETE TROUVEE, ET POURQUOI PAS AUTREMENT. Un balayage de 300
+# graines hors navigateur (3 politiques de jeu par graine) avait designe la
+# graine 200 ; passee a ce banc, elle n'a rien donne au joueur 0. Le fait ne
+# depend pas du tirage mais des CHOIX, et la politique de ce banc — le n-ieme
+# bouton `[data-choix]` VISIBLE, `verif/pilote.py:39` — n'est reproductible ni
+# par une politique aleatoire ni hors du navigateur (une reproduction a trois
+# decisions pres diverge des le premier clic different). Les graines candidates
+# ont donc ete essayees UNE A UNE par ce banc lui-meme : 11 -> joueur 0 seul,
+# 18 et 58 -> aucun des deux, 61 -> LES DEUX.
+GRAINES = (sys.argv[2] if len(sys.argv) > 2 else "61,6,4,10,14,23").split(",")
+# LE PLANCHER DE PARTIES. La sortie anticipee de la boucle (« tout a ete
+# mesure ») ne doit pas se declencher des la premiere graine : la graine 61
+# satisfait a elle seule toutes les conditions, et le banc tombait de 1185
+# decisions a 212, de 5 cartes agrandies a 1. On joue au moins trois parties
+# avant d'avoir le droit de s'arreter.
+MINIMUM_DE_PARTIES = 3
 
 sys.path.insert(0, os.path.join(RACINE, "verif"))
 from pilote import serveur, page, choix_simple, choix_montant  # noqa: E402
@@ -237,16 +261,54 @@ def loupe_sur(pg, avec_ressources):
     contraire une qui n'en porte pas (le temoin). Rend None si aucune carte de
     cette sorte n'est posee.
     """
+    # ON NE SURVOLE PAS LE CENTRE DE LA CARTE, ET C'EST TOUT LE SUJET.
+    # `vue/plateau.js:325-329,353-356` decale chaque carte d'une pile de 44 px
+    # pour 110 px de large, avec un `zIndex` croissant : le centre geometrique
+    # d'une carte empilee est RECOUVERT par la suivante. Survoler ce point
+    # ouvrait la loupe sur une AUTRE carte — celle du dessus — qui ne porte pas
+    # de ressources, donc pas de `.carte__pv`. Le banc rendait alors « la carte
+    # 90 porte des ressources mais ne dit pas ce qu'elles rapportent » : une
+    # accusation portee contre la page pour une carte qu'il n'avait jamais
+    # agrandie.
+    #
+    # ⚠️ LES DEUX TETIERES NE NAISSENT PAS DE LA MEME CONDITION, et il ne faut
+    # pas l'ecrire trop vite : `vue/cartes.js:137` cree `.carte__ressources` sur
+    # le seul `n.ressources`, tandis que `vue/cartes.js:185` demande
+    # `points && n.pv_ressources !== null && n.ressources` pour `.carte__pv`.
+    # Elles COINCIDENT sur ce depot, pour deux raisons verifiees et non pour une
+    # seule : `loupe.js` fabrique toujours la carte agrandie avec
+    # `points: true`, et `engine/src/observe.rs:200` publie `pv_ressources` par
+    # `json!(...)` d'un entier — jamais `null`, meme quand les effets sont
+    # eteints (il vaut alors 0). Si l'une de ces deux choses changeait, une
+    # carte a ressources pourrait legitimement n'avoir aucune ligne de points,
+    # et le message de ce banc redeviendrait faux.
+    #
+    # On cherche donc un point que `elementFromPoint` rend REELLEMENT a la carte
+    # visee (bande gauche libre, bande basse libre), et on ne se rabat sur
+    # aucune supposition : si aucune carte de la sorte voulue n'offre un point
+    # atteignable, on rend None et le bilan dira que la mesure n'a pas eu lieu.
     cible = pg.evaluate("""(avec) => {
       const cartes = [...document.querySelectorAll('.pile .carte--jeu')];
       const voulue = cartes.filter((c) => !!c.querySelector('.carte__ressources') === avec);
-      if (!voulue.length) return null;
-      const c = voulue[0];
-      const r = c.getBoundingClientRect();
-      const im = c.querySelector('img');
-      return {x: r.x + r.width * .5, y: r.y + r.height * .5,
-              id: c.getAttribute('data-carte-en-jeu'),
-              nom: (im && im.alt) || ''};
+      const points = [];
+      for (const fy of [0.5, 0.86, 0.14, 0.96]) {
+        for (const fx of [0.14, 0.06, 0.28, 0.5, 0.86]) points.push([fx, fy]);
+      }
+      for (const c of voulue) {
+        const r = c.getBoundingClientRect();
+        if (!r.width || !r.height) continue;
+        for (const [fx, fy] of points) {
+          const x = r.x + r.width * fx, y = r.y + r.height * fy;
+          if (x < 1 || y < 1 || x > innerWidth - 2 || y > innerHeight - 2) continue;
+          const sous = document.elementFromPoint(x, y);
+          if (!sous || sous.closest('.carte--jeu') !== c) continue;
+          const im = c.querySelector('img');
+          return {x: x, y: y, id: c.getAttribute('data-carte-en-jeu'),
+                  nom: (im && im.alt) || '',
+                  point: Math.round(fx * 100) + '%/' + Math.round(fy * 100) + '%'};
+        }
+      }
+      return null;
     }""", avec_ressources)
     if not cible:
         return None
@@ -312,7 +374,8 @@ with serveur(RACINE) as base:
     # « pour les DEUX joueurs » (prompt, MOT-14) : on continue tant qu'on n'a pas
     # vu un jeton sur CHAQUE plateau. Une partie n'en pose pas forcement des deux
     # cotes ; c'est pour cela qu'on donne plusieurs graines.
-    if (vu["loupes"] and vu["temoins"] and vu["derives"]
+    if (len(graines_jouees) >= MINIMUM_DE_PARTIES
+            and vu["loupes"] and vu["temoins"] and vu["derives"]
             and par_joueur[0] and par_joueur[1]):
         break
     with page(f"{base}/?graine={GRAINE}&siege=0&animations=non") as (pg, erreurs, _):
@@ -365,14 +428,21 @@ with serveur(RACINE) as base:
                                f"carte {avec['id']}")
                     else:
                         vu["loupes"] += 1
-                        if avec["pv"] is None:
+                        # L'ORDRE DES DEUX BRANCHES COMPTE. Si la loupe a
+                        # agrandi une AUTRE carte que celle survolee, il n'y a
+                        # evidemment pas de ligne de points a lire : tester
+                        # `pv is None` d'abord imprimait une faute de mesure
+                        # comme une faute de page (« la carte 90 ne dit pas ce
+                        # que ses ressources rapportent ») et cachait le vrai
+                        # motif. Ce qui empeche de lire passe donc en premier.
+                        if avec["cache"]:
+                            erreur(f"graine {GRAINE} : la ligne des points de la carte "
+                                   f"{avec['id']} n'est pas lisible — {avec['cache']}")
+                        elif avec["pv"] is None:
                             erreur(f"graine {GRAINE} : la carte {avec['id']} porte des "
                                    f"ressources, mais une fois AGRANDIE elle ne dit pas "
                                    f"ce qu'elles rapportent — c'est la moitie visible "
                                    f"de MOT-15 (texte lu : {avec['texte']!r})")
-                        elif avec["cache"]:
-                            erreur(f"graine {GRAINE} : la ligne des points de la carte "
-                                   f"{avec['id']} est recouverte par {avec['cache']!r}")
                     # Temoin en sens inverse, au meme instant : une carte SANS
                     # ressource ne doit RIEN annoncer. Sans lui, une page qui
                     # ecrirait « 0 point » partout passerait pour juste.

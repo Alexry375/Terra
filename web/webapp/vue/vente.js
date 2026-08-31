@@ -237,7 +237,7 @@ let occasionDeMonSiege = null;
  * @param {number} monSiege
  * @param {?{ouvertes: Array, compte: number}} occasions ce que la partie sait
  */
-function relevrOccasion(monSiege, occasions) {
+function releverOccasion(monSiege, occasions) {
   if (!occasions) return;
   const ouvertes = Array.isArray(occasions.ouvertes) ? occasions.ouvertes : [];
   const mienne = ouvertes.find((o) => o && o.joueur === monSiege);
@@ -341,7 +341,7 @@ export function apresMaReponse() {
  */
 export function majVente(etat, monSiege, occasions = null) {
   siege = monSiege;
-  relevrOccasion(monSiege, occasions);
+  releverOccasion(monSiege, occasions);
   const z = panneau;
   if (!z) return;
   const moi = etat.players && etat.players[monSiege];

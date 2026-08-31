@@ -106,9 +106,41 @@ const source = (chemin) => readFileSync(join(LIVRAISON, chemin), "utf8");
 function corps(texte, nom) {
   const i = texte.indexOf(`function ${nom}(`);
   if (i < 0) throw new Error(`la fonction ${nom} n'existe plus`);
-  const j = texte.indexOf("\n}", i);
-  if (j < 0) throw new Error(`la fonction ${nom} n'a pas de fin lisible`);
-  return texte.slice(i, j + 2);
+  // ⚠️ CORRIGE LE 28-08 (les-sept-bancs-rouges). La delimitation cherchait la
+  // premiere accolade fermante EN DEBUT DE LIGNE. Elle suffisait aux deux
+  // fonctions lues ici, et se trompait des qu'une accolade non indentee traine
+  // dans le corps — un objet aligne a la marge, une chaine, un commentaire :
+  // elle rendait alors un corps TRONQUE, et un motif cherche dedans manquait
+  // sans que rien ne le dise. On compte donc les accolades, en sautant ce qui
+  // n'est pas du code.
+  const debut = texte.indexOf("{", i);
+  if (debut < 0) throw new Error(`la fonction ${nom} n'a pas de corps lisible`);
+  let profondeur = 0;
+  for (let k = debut; k < texte.length; k++) {
+    const c = texte[k], d = texte[k + 1];
+    if (c === "/" && d === "/") {
+      const fin = texte.indexOf("\n", k);
+      if (fin < 0) break;
+      k = fin;
+      continue;
+    }
+    if (c === "/" && d === "*") {
+      const fin = texte.indexOf("*/", k + 2);
+      if (fin < 0) break;
+      k = fin + 1;
+      continue;
+    }
+    if (c === '"' || c === "'" || c === "`") {
+      for (k++; k < texte.length; k++) {
+        if (texte[k] === "\\") { k++; continue; }
+        if (texte[k] === c) break;
+      }
+      continue;
+    }
+    if (c === "{") profondeur++;
+    else if (c === "}" && --profondeur === 0) return texte.slice(i, k + 1);
+  }
+  throw new Error(`la fonction ${nom} n'a pas de fin lisible`);
 }
 
 /** Tous les fichiers de la livraison, hors binaire, hors bancs, hors sources Rust. */

@@ -80,7 +80,10 @@ const graine = 424242;
 const p1 = creerPartie(pont, { graine, boites });
 const journal = [];
 await jouerJusquAuBout(p1, [fournisseurAleatoire(11), fournisseurAleatoire(12)], (p) => {
-  journal.push({ decision: p.decision, etat: p.etat });
+  // LES OCCASIONS DE VENTE SONT RELEVÉES AVEC L'ÉTAT, au même instant : elles
+  // portent la main que le moteur offre à la vente, et c'est le seul endroit où
+  // cette main se lit hors d'une question (voir la concordance « vente »).
+  journal.push({ decision: p.decision, etat: p.etat, occasions: p.occasions });
 });
 ok("la partie se termine d'elle-même", p1.termine && p1.partieComplete);
 ok("elle a duré plusieurs manches", p1.manches > 1, `${p1.manches}`);
@@ -122,36 +125,72 @@ ok("les DEUX mains sont visibles (bac à sable)",
 // Concordance état ↔ descripteur : les valeurs que le moteur passe à la
 // politique au moment du choix doivent être celles de l'état rendu au même
 // moment. Un instantané pris plus tôt les ferait diverger.
-let vivants = { mc: 0, main: 0, phase: 0 };
+// ⚠️ LA PREMIÈRE FAMILLE A ÉTÉ DÉPLACÉE LE 28-08 (les-sept-bancs-rouges), et
+// c'est un déplacement, pas un retrait. Elle lisait le type
+// `discard_payment_count` — « combien de cartes le moteur doit-il prendre pour
+// compléter ce paiement ? » —, SUPPRIMÉ par le chantier `regles-de-la-vente` et
+// remplacé par la vente libre (`engine/src/policy.rs::vendre_librement`). Le
+// compteur ne pouvait donc plus jamais dépasser zéro : le test criait au loup à
+// chaque exécution alors que rien n'était cassé, et un banc qu'on n'écoute plus
+// ne garde plus rien.
+//
+// CE QUI A PRIS SA PLACE N'EST PAS UNE QUESTION, C'EST UNE OCCASION. Le moteur
+// ne demande jamais « voulez-vous vendre ? » : il fait savoir, avant chacun de
+// ses points de décision, qu'ici une vente serait recevable, et il publie avec
+// l'occasion LA MAIN du joueur à cet instant (`partie.occasions`). La propriété
+// mesurée est exactement la même qu'avant — ce que le moteur passe à la
+// politique est ce que l'état rendu montre — mesurée sur le mécanisme qui a
+// remplacé l'ancien.
+//
+// UNE QUATRIÈME FAMILLE S'Y AJOUTE, et elle ne nomme aucun type : toute décision
+// qui DIT la main (`d.main`) doit dire celle de l'état. Aujourd'hui c'est le
+// mulligan des projets ; demain ce sera ce qui viendra, sans qu'on ait à
+// réécrire ce test.
+let vivants = { vente: 0, main: 0, phase: 0, mainDite: 0 };
 let discordances = 0;
-for (const { decision: d, etat } of journal) {
+const ecarts = [];
+function ecart(quoi) {
+  discordances++;
+  if (ecarts.length < 5) ecarts.push(quoi);
+}
+/** La liste de cartes du moteur et la main de l'état sont-elles la même ? */
+function memeMain(cartes, joueur) {
+  return Array.isArray(cartes) && cartes.length === joueur.hand.length
+    && cartes.every((c, i) => c.nom === joueur.hand[i].name);
+}
+for (const { decision: d, etat, occasions } of journal) {
   const j = etat.players[d.joueur];
-  if (d.type === "discard_payment_count") {
-    vivants.mc++;
-    if (d.mc !== j.mc) discordances++;
-    // Le moteur a déjà retiré la carte posée de la main quand il demande le
-    // paiement : la main du descripteur et celle de l'état sont donc la même.
-    if (d.main.length !== j.hand.length) discordances++;
-    if (d.main.some((c, i) => c.nom !== j.hand[i].name)) discordances++;
+  for (const occ of occasions) {
+    vivants.vente++;
+    if (!memeMain(occ.main, etat.players[occ.joueur])) {
+      ecart(`occasion de vente ${occ.numero}, joueur ${occ.joueur}`);
+    }
+  }
+  if (Array.isArray(d.main)) {
+    vivants.mainDite++;
+    if (!memeMain(d.main, j)) ecart(`${d.type} rang ${d.rang} : le champ « main »`);
   }
   if (d.type === "choose_build") {
     vivants.main++;
     for (const o of d.options) {
-      if (!o.carte || o.carte.nom !== j.hand[o.indice_main].name) discordances++;
+      if (!o.carte || o.carte.nom !== j.hand[o.indice_main].name) {
+        ecart(`choose_build rang ${d.rang}, option ${o.indice_main}`);
+      }
     }
   }
   if (d.type === "pick_phase") {
     vivants.phase++;
     // La phase de la manche précédente est exclue par le moteur.
     if (d.options.some((o) => o.phase === j.previous_phase && j.previous_phase !== 0)) {
-      discordances++;
+      ecart(`pick_phase rang ${d.rang} : la phase précédente est encore offerte`);
     }
   }
 }
-ok("les trois familles de concordance ont été rencontrées",
-   vivants.mc > 0 && vivants.main > 0 && vivants.phase > 0, JSON.stringify(vivants));
+ok("les quatre familles de concordance ont été rencontrées",
+   vivants.vente > 0 && vivants.main > 0 && vivants.phase > 0 && vivants.mainDite > 0,
+   JSON.stringify(vivants));
 ok("aucune discordance entre l'état rendu et ce que le moteur passe à la politique",
-   discordances === 0, `${discordances} discordances`);
+   discordances === 0, `${discordances} discordances : ${ecarts.join(" | ")}`);
 
 ok("le score courant est rendu par le moteur pour les deux joueurs",
    journal.every((e) => e.etat.players.every((j) => Number.isInteger(j.score))));
@@ -166,17 +205,38 @@ console.log("4. les descripteurs de décision sont exploitables sans connaître 
 
 const types = new Set(journal.map((e) => e.decision.type));
 ok("plusieurs familles de décisions ont été traversées", types.size >= 6, [...types].join(","));
+// ⚠️ LE CAS « MULTIPLE » A ÉTÉ CORRIGÉ LE 28-08 (les-sept-bancs-rouges). Il
+// exigeait `Number.isInteger(d.a_choisir)` sur TOUTE décision multiple. Or le
+// mulligan des projets est à nombre LIBRE : son descripteur ne porte pas
+// `a_choisir`, et c'est précisément ainsi qu'il DIT « de 0 à n »
+// (`web/webapp/wasm/src/lib.rs::project_mulligan`, et le reste du dépôt le lit
+// déjà ainsi : `fournisseurs.js:62`, `verif/pilote.py:133`). Le test était donc
+// rouge sur toute partie complète, pour un descripteur parfaitement répondable.
+// L'exigence remise à l'endroit : des options exploitables toujours, et un
+// nombre COHÉRENT quand il y en a un.
+const echoueRepondable = [];
 ok("chaque décision est répondable à partir de son seul descripteur",
    journal.every(({ decision: d }) => {
-     switch (formeDeLaReponse(d)) {
-       case "montant": return Number.isInteger(d.minimum) && Number.isInteger(d.maximum) &&
-                              d.minimum <= d.maximum;
-       case "multiple": return Array.isArray(d.options) && Number.isInteger(d.a_choisir) &&
-                               d.a_choisir <= d.options.length;
-       default: return nombreDeChoix(d) > 0 && typeof d.question === "string" &&
-                       d.options.every((o) => typeof o.libelle === "string");
+     const bon = (() => {
+       switch (formeDeLaReponse(d)) {
+         case "montant": return Number.isInteger(d.minimum) && Number.isInteger(d.maximum) &&
+                                d.minimum <= d.maximum;
+         case "multiple":
+           if (!Array.isArray(d.options) || d.options.length === 0) return false;
+           if (!d.options.every((o) => typeof o.libelle === "string")) return false;
+           // Absent = nombre libre ; présent = il doit tenir dans les options.
+           return d.a_choisir === undefined
+             || (Number.isInteger(d.a_choisir) && d.a_choisir >= 0
+                 && d.a_choisir <= d.options.length);
+         default: return nombreDeChoix(d) > 0 && typeof d.question === "string" &&
+                         d.options.every((o) => typeof o.libelle === "string");
+       }
+     })();
+     if (!bon && echoueRepondable.length < 3) {
+       echoueRepondable.push(`${d.type} rang ${d.rang}`);
      }
-   }));
+     return bon;
+   }), echoueRepondable.join(" | "));
 
 // ---------------------------------------------------------------------------
 console.log("5. une réponse hors bornes est refusée par le moteur");
@@ -259,20 +319,65 @@ function fichiersServis(dir, acc = []) {
 }
 const servis = fichiersServis(RACINE);
 ok("des fichiers servis ont été trouvés", servis.length >= 5, `${servis.length}`);
-const remontees = [];
+
+// ⚠️ RÉÉCRIT LE 28-08 (les-sept-bancs-rouges), ET C'EST LA MESURE QUI CHANGE,
+// PAS LE VERDICT. Ce test comptait les REMONTÉES `../` et les confrontait à une
+// liste blanche de trois noms de fichiers. Dix-neuf remontées plus tard il était
+// rouge en permanence — alors que dix-huit d'entre elles pointent vers des
+// fichiers INTERNES au dossier servi (`verif/x.mjs` remonte vers
+// `web/webapp/pont.js`, qui est dedans). Ce n'est pas la remontée qu'il faut
+// interdire, c'est la SORTIE : on résout donc chaque chemin relatif et l'on
+// regarde OÙ IL TOMBE. Autoriser toutes les remontées aurait rendu ce test
+// vert et muet ; ceci le rend vert et parlant.
+//
+// DEUX CERCLES, PARCE QU'IL Y A DEUX SORTES DE FICHIERS ICI. Ceux que la page
+// sert et qu'un navigateur va chercher (tout sauf `verif/`) ne doivent RIEN
+// réclamer au-dessus de `web/webapp/` — à une exception nommée près, le fichier
+// de poids du joueur apprenti. Les bancs de `verif/`, eux, ne sont jamais servis
+// à une page : ils tournent depuis le dépôt et ont le droit d'aller chercher le
+// binaire natif ou les poids, mais pas de sortir du dépôt.
+const DEPOT = resolve(RACINE, "../..");
+/** La seule sortie légitime du dossier servi, nommée fichier par fichier. */
+const SORTIE_TOLEREE = new Set(["joueurs/apprenti.js"]);
+const relatifs = (t) => {
+  const out = [];
+  // Les chaînes qui SONT un chemin relatif, et les `url(...)` des feuilles de
+  // style, qui n'en sont pas une.
+  for (const m of t.matchAll(/["'`](\.\.?\/[^"'`\n]*)["'`]/g)) out.push(m[1]);
+  for (const m of t.matchAll(/url\(\s*(\.\.?\/[^)\s]*)\s*\)/g)) out.push(m[1]);
+  return out;
+};
+const sorties = [];
+const horsDepot = [];
 const externes = [];
+let chemins = 0;
 for (const f of servis) {
   const t = readFileSync(f, "utf8");
+  const rel = f.slice(RACINE.length + 1);
+  const banc = rel.startsWith("verif/");
   for (const l of t.split("\n")) {
     if (/^\s*(\/\/|\*|<!--)/.test(l)) continue;
-    if (/["'`]\.\.\//.test(l) && !l.includes("../pont.js") && !l.includes("../partie.js") &&
-        !l.includes("../fournisseurs.js")) remontees.push(`${f}: ${l.trim()}`);
+    for (const cible of relatifs(l)) {
+      chemins++;
+      const resolu = resolve(dirname(f), cible.split(/[?#]/)[0]);
+      const dedans = resolu === RACINE || resolu.startsWith(RACINE + "/");
+      if (!dedans && !banc && !SORTIE_TOLEREE.has(rel)) {
+        sorties.push(`${rel}: ${cible}`);
+      }
+      if (banc && resolu !== DEPOT && !resolu.startsWith(DEPOT + "/")) {
+        horsDepot.push(`${rel}: ${cible}`);
+      }
+    }
     if (/https?:\/\//.test(l) && !/w3\.org|localhost|127\.0\.0\.1/.test(l)) {
       externes.push(`${f}: ${l.trim()}`);
     }
   }
 }
-ok("aucun chemin ne remonte hors du dossier", remontees.length === 0, remontees.join(" | "));
+// Une mesure qui ne trouverait plus un seul chemin relatif ne prouverait rien :
+// elle serait verte pour n'avoir rien lu.
+ok("des chemins relatifs ont bien été résolus", chemins >= 15, `${chemins} chemins`);
+ok("aucun chemin ne sort du dossier servi", sorties.length === 0, sorties.join(" | "));
+ok("aucun banc de vérification ne sort du dépôt", horsDepot.length === 0, horsDepot.join(" | "));
 ok("aucune ressource externe n'est chargée", externes.length === 0, externes.join(" | "));
 
 // ---------------------------------------------------------------------------

@@ -31,10 +31,17 @@ ORDRE = """() => [...document.querySelectorAll('#mienne-rang > .carte--main')]
   .map((f) => f.dataset.carteCle || '?')"""
 
 fautes = []
+# COMBIEN DE GLISSERS ONT REELLEMENT EU LIEU. Ce banc-ci tombait en cinq
+# secondes AVANT d'avoir glisse quoi que ce soit, en accusant le tri d'avoir
+# repondu au moteur ; un banc vert qui n'aurait toujours rien glisse serait le
+# meme mensonge a l'envers. Le nombre est donc compte, imprime, et exige.
+glissers = 0
 
 
 def glisser(pg, depuis, vers):
     """Attrape une carte et la lache ailleurs, par evenements pointeur."""
+    global glissers
+    glissers += 1
     a = depuis.bounding_box()
     b = vers.bounding_box()
     pg.mouse.move(a["x"] + a["width"] / 2, a["y"] + a["height"] / 2)
@@ -55,9 +62,35 @@ with serveur(RACINE) as base:
 
         # On avance jusqu'a une main d'au moins quatre cartes : au demarrage la
         # main est vide, et il n'y a rien a trier.
+        #
+        # ⚠️ CORRIGE LE 28-08 (les-sept-bancs-rouges), ET C'EST LA MESURE QUI
+        # ETAIT FAUSSE, PAS LA PAGE. Cette boucle sortait des que la main
+        # atteignait quatre cartes, SANS regarder si une question etait posee.
+        # Or `data-decision-rang` n'existe que pendant qu'une scene est dessinee
+        # (`vue/scene.js`, retire par `fermerScene`) : entre deux decisions il
+        # n'y en a pas. On sortait donc dans le trou entre deux questions,
+        # `rang_avant` valait None, une question s'ouvrait pendant le glisser, et
+        # le banc annoncait « la decision a change de rang (None -> 3) : le tri a
+        # repondu au moteur » — un rouge permanent sur une mesure qui n'avait pas
+        # eu lieu. Le message accusait la page de ce que le banc n'avait pas su
+        # observer.
+        #
+        # Trois conditions pour sortir, et les trois sont necessaires :
+        #   1. quatre cartes en main — sinon il n'y a rien a trier ;
+        #   2. une question POSEE — sinon le rang n'existe pas et la mesure « le
+        #      rang n'a pas bouge » ne veut rien dire ;
+        #   3. la scene n'est pas posee EN GRAND par-dessus la table
+        #      (`superposition` : mise en place, choix de la corporation), ou la
+        #      main est recouverte a dessein et le geste ne l'atteindrait pas.
+        def pret(pg):
+            if len(pg.query_selector_all("#mienne-rang > .carte--main")) < 4:
+                return False
+            if pg.query_selector('#scene[data-mode="superposition"]'):
+                return False
+            return pg.query_selector("[data-decision-rang]") is not None
+
         for _ in range(200):
-            cartes = pg.query_selector_all("#mienne-rang > .carte--main")
-            if len(cartes) >= 4:
+            if pret(pg):
                 break
             porteur = pg.query_selector("[data-decision-rang]")
             if porteur is None:
@@ -92,34 +125,53 @@ with serveur(RACINE) as base:
             print(f"ECHEC : la main n'a jamais atteint quatre cartes "
                   f"({len(cartes)}) — la mesure n'a pas eu lieu")
             sys.exit(1)
+        if not pret(pg):
+            print("ECHEC : aucune question n'etait posee au moment de trier — "
+                  "la mesure n'a pas eu lieu (voir la note de l'amorce)")
+            sys.exit(1)
 
-        avant = pg.evaluate(ORDRE)
-        porteur = pg.query_selector("[data-decision-rang]")
-        rang_avant = porteur.get_attribute("data-decision-rang") if porteur else None
+        # DEUX GLISSERS, ET PAS UN. Un seul deplacement ne prouve pas qu'un ORDRE
+        # est conserve : il prouve qu'une carte peut bouger. Le second part d'une
+        # main deja rangee par le premier — c'est la seule facon de voir que le
+        # rangement precedent n'a pas ete efface au passage.
+        for numero in (1, 2):
+            cartes = pg.query_selector_all("#mienne-rang > .carte--main")
+            avant = pg.evaluate(ORDRE)
+            porteur = pg.query_selector("[data-decision-rang]")
+            rang_avant = porteur.get_attribute("data-decision-rang") if porteur else None
+            if rang_avant is None:
+                fautes.append(f"glisser {numero} : aucune question posee au moment de "
+                              "mesurer — la mesure n'a PAS eu lieu")
+                break
 
-        # La PREMIERE carte s'en va a la place de la DERNIERE.
-        glisser(pg, cartes[0], cartes[-1])
+            # La PREMIERE carte s'en va a la place de la DERNIERE.
+            glisser(pg, cartes[0], cartes[-1])
 
-        apres = pg.evaluate(ORDRE)
-        porteur = pg.query_selector("[data-decision-rang]")
-        rang_apres = porteur.get_attribute("data-decision-rang") if porteur else None
+            apres = pg.evaluate(ORDRE)
+            porteur = pg.query_selector("[data-decision-rang]")
+            rang_apres = porteur.get_attribute("data-decision-rang") if porteur else None
 
-        print(f"    avant : {avant}")
-        print(f"    apres : {apres}")
+            print(f"    glisser {numero} — avant : {avant}")
+            print(f"    glisser {numero} — apres : {apres}")
 
-        if len(apres) != len(avant):
-            fautes.append(f"la main a change de taille ({len(avant)} -> {len(apres)}) : "
-                          "une carte a ete JOUEE par le geste de tri")
-        elif sorted(apres) != sorted(avant):
-            fautes.append("la main ne contient plus les memes cartes")
-        elif apres == avant:
-            fautes.append("l'ordre de la main n'a pas bouge — le tri n'a rien fait")
-        elif apres[-1] != avant[0]:
-            fautes.append(f"la carte deplacee ({avant[0]}) n'est pas arrivee au bout "
-                          f"(la derniere est {apres[-1]})")
-        if rang_avant != rang_apres:
-            fautes.append(f"la decision a change de rang ({rang_avant} -> {rang_apres}) : "
-                          "le tri a repondu au moteur")
+            if len(apres) != len(avant):
+                fautes.append(f"la main a change de taille ({len(avant)} -> {len(apres)}) : "
+                              "une carte a ete JOUEE par le geste de tri")
+            elif sorted(apres) != sorted(avant):
+                fautes.append("la main ne contient plus les memes cartes")
+            elif apres == avant:
+                fautes.append("l'ordre de la main n'a pas bouge — le tri n'a rien fait")
+            elif apres[-1] != avant[0]:
+                fautes.append(f"la carte deplacee ({avant[0]}) n'est pas arrivee au bout "
+                              f"(la derniere est {apres[-1]})")
+            elif apres[:-1] != avant[1:]:
+                # LE RANGEMENT PRECEDENT SURVIT AU SUIVANT. Deplacer une carte ne
+                # doit rien deranger d'autre : les autres gardent leur ordre.
+                fautes.append(f"le reste de la main a bouge : {avant[1:]} est devenu "
+                              f"{apres[:-1]}")
+            if rang_avant != rang_apres:
+                fautes.append(f"la decision a change de rang ({rang_avant} -> {rang_apres}) : "
+                              "le tri a repondu au moteur")
 
         # L'ORDRE SURVIT-IL A UN RENDU ? On joue une decision de plus, ce qui
         # reconstruit la main, et on regarde si le rangement tient.
@@ -179,6 +231,10 @@ with serveur(RACINE) as base:
         if erreurs:
             fautes.append(f"erreurs de console : {erreurs[:2]}")
 
+print(f"    {glissers} glissers reellement effectues a l'ecran")
+if glissers < 2:
+    print(f"ECHEC : {glissers} glisser(s) : la mesure n'a pas vraiment eu lieu")
+    sys.exit(1)
 if fautes:
     for f in fautes:
         print("ECHEC :", f)

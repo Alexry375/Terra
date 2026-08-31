@@ -23,7 +23,7 @@
 // être lu à chaque redessin.
 
 /** Vrai quand l'extension « Découverte » est de la partie. */
-let decouverte = true;
+let decouverte = false;
 
 /**
  * Enregistre la composition de la partie qui commence.

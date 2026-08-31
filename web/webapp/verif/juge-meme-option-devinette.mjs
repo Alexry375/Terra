@@ -5,6 +5,9 @@
 //   node web/webapp/verif/juge-meme-option-devinette.mjs \
 //        [graines] [poids] [poids-adversaire] [boites]
 //
+// `graines` : un NOMBRE (« 3 » = les graines 1 à 3) ou une LISTE nommée
+// (« 1,3,5,71 » = ces quatre graines-là). Voir `listeDeGraines` plus bas.
+//
 // `juge-meme-option.mjs` couvre déjà le cas éteint et doit rester vert. Celui-ci
 // couvre le cas allumé, et il est plus exigeant qu'il n'y paraît.
 //
@@ -45,7 +48,49 @@ const RACINE = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DEPOT = resolve(RACINE, "../..");
 const BIN = resolve(DEPOT, "engine/target/release/jouer");
 
-const graines = Number(process.argv[2] ?? 3);
+/**
+ * **(les-sept-bancs-rouges) LA LISTE DE GRAINES EST HONORÉE TELLE QUELLE.**
+ *
+ * La ligne d'aide annonçait `[graines]`, au pluriel, et l'argument était lu
+ * comme un NOMBRE : `Number("11,12,13")` vaut `NaN`, la boucle
+ * `for (let g = 1; g <= NaN; g++)` ne tournait pas une seule fois, et le banc
+ * rendait « 0 partie(s), 0 décision(s) comparées » puis un KO sur son propre
+ * plancher. Il ne savait donc jouer que « les N premières graines », c'est-à-dire
+ * toujours les mêmes trois parties : un banc de concordance qui ne peut pas
+ * changer d'échantillon ne prouve rien sur le reste du jeu.
+ *
+ * Les deux formes cohabitent, et c'est voulu — le reste du dépôt appelle ce banc
+ * avec un nombre seul :
+ *
+ *   • `3`          → les graines 1, 2, 3 (« les trois premières »), comme avant ;
+ *   • `1,3,5,71`   → ces graines-là, dans cet ordre, et aucune autre.
+ *
+ * Une liste illisible n'est pas rabattue sur une valeur par défaut : elle est
+ * REFUSÉE. Un banc qui joue autre chose que ce qu'on lui a nommé est un banc qui
+ * ment sur son échantillon.
+ */
+function listeDeGraines(brut) {
+  const texte = String(brut).trim();
+  if (/^\d+$/.test(texte)) {
+    const n = Number(texte);
+    if (n < 1) {
+      console.log(`KO « ${texte} » : il faut au moins une graine`);
+      process.exit(1);
+    }
+    return Array.from({ length: n }, (_, i) => i + 1);
+  }
+  const morceaux = texte.split(",").map((m) => m.trim()).filter((m) => m !== "");
+  if (!morceaux.length || !morceaux.every((m) => /^\d+$/.test(m))) {
+    console.log(
+      `KO « ${texte} » n'est ni un nombre de graines ni une liste de graines ` +
+        "(exemples : « 3 » pour les graines 1 à 3, « 1,3,5,71 » pour celles-là)",
+    );
+    process.exit(1);
+  }
+  return morceaux.map(Number);
+}
+
+const graines = listeDeGraines(process.argv[2] ?? 3);
 const poids = process.argv[3] ?? resolve(DEPOT, "data/poids/apprenti.txt");
 const adversaire = process.argv[4] ?? resolve(DEPOT, "data/poids/apprenti-adversaire.txt");
 const boites = process.argv[5] ?? "base,decouverte";
@@ -74,7 +119,7 @@ let deplacees = 0;
 let parties = 0;
 const desaccords = [];
 
-for (let g = 1; g <= graines; g++) {
+for (const g of graines) {
   const rust = cotéRust(g, true);
   const rustEteint = cotéRust(g, false);
 

@@ -64,11 +64,25 @@ LECTURE = """
     phasesAllumees: [...new Set(montrees
       .filter(e => e.getAttribute('data-phase-en-cours') === 'oui')
       .map(e => Number(e.getAttribute('data-phase-choisie'))))].length,
+    // LE TEMOIN QU'UNE PHASE TOURNE, pris par un AUTRE chemin que celui
+    // qu'on mesure. `flow::occasion_de_vendre` (engine/src/flow.rs:2188,
+    // et sa variante `..._sous_reserve` ligne 2242) n'ouvre la vente que si
+    // `phase_depensable(phase_en_cours)` (`flow.rs:2167`) — les
+    // phases 1, 2 et 3 — et `vue/vente.js:367-373` pose ou retire alors le
+    // panneau `#vente` de la page. Sa presence prouve donc qu'une phase est
+    // en cours de resolution, sans rien lire de `data-phase-en-cours`.
+    vente: document.querySelector('[data-vendre]') !== null,
     annonce: document.querySelector('.annonce__phases') !== null
              && document.getElementById('annonce').classList.contains('annonce--vive'),
     adverse: z ? z.innerHTML : null,
     cartes: z ? z.getAttribute('data-cartes') : null,
     mienne: document.querySelectorAll('[data-main="mienne"] [data-carte-id]').length,
+    // LES CARTES QU'ON ME PRESENTE AU MILIEU DE L'ECRAN. A la mise en
+    // place, mes deux Corporations sont la : en contexte a `corp_mulligan`
+    // (`vue/scene.js:600`, `d.corporations`), en grand comme options a
+    // `pick_corporation` (`vue/scene.js:1080`). Jamais dans la main, que
+    // `vue/mains.js:139-147` reserve aux projets.
+    presentees: document.querySelectorAll('#scene .carte').length,
     // Ce que la barre d'equipage AFFICHE de la phase choisie, siege par siege.
     // C'est le nombre qu'un joueur assis devant l'ecran peut lire, pas l'etat.
     phaseAffichee: [0, 1].map(j => {
@@ -159,7 +173,14 @@ fautes = []
 eteintes_par_type = {}
 vides = []
 vu = {"decisions": 0, "montrees": 0, "eteintes": 0, "planif": 0, "mainVide": 0,
-      "barreMuette": 0, "fuiteProuvee": 0}
+      "barreMuette": 0, "fuiteProuvee": 0,
+      # La population qui se juge : bande montree ET une phase attestee en
+      # cours par le panneau de vente. `eteintesEnPhase` en est le defaut.
+      "enPhase": 0, "eteintesEnPhase": 0, "rallumees": 0}
+# (b) L'extinction est finale dans la manche : une fois la bande eteinte hors
+# planification, plus rien ne doit se rallumer avant la planification
+# suivante. Remis a faux a chaque `pick_phase`.
+eteinte_dans_la_manche = False
 # La derniere phase adverse LUE hors planification : c'est la valeur de fin de
 # manche precedente. `chosen_phase` etant remanent, un nombre affiche pendant la
 # planification ne prouve la fuite que s'il a change depuis celle-la.
@@ -181,6 +202,7 @@ with serveur(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")) as 
 
         def controle(p, rang, type_):
             global fin_de_manche, corpo_en_face, corpo_src_en_face, corpo_apres
+            global eteinte_dans_la_manche
             m = p.evaluate(LECTURE)
             m["type"] = type_
             vu["decisions"] += 1
@@ -221,6 +243,7 @@ with serveur(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")) as 
             # 1. Rien des phases pendant la planification : ni bande, ni annonce.
             if m["type"] == "pick_phase":
                 vu["planif"] += 1
+                eteinte_dans_la_manche = False
                 if m["montrees"]:
                     fautes.append(
                         f"decision {rang} : la bande montre {m['montrees']} alors que la "
@@ -235,6 +258,31 @@ with serveur(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")) as 
                     if m["allumees"] == 0:
                         vu["eteintes"] += 1
                         eteintes_par_type[type_] = eteintes_par_type.get(type_, 0) + 1
+                        eteinte_dans_la_manche = True
+                    elif eteinte_dans_la_manche:
+                        # (b) LA BANDE S'ETAIT ETEINTE, ELLE SE RALLUME. Le
+                        # moteur, lui, ne rallume jamais : il ecrit
+                        # `phase_en_cours` au debut de chaque phase
+                        # (`flow.rs:6085`) et ne le remet a zero qu'EN DEHORS
+                        # d'une phase : planification (`flow.rs:5993`), partie
+                        # terminee (`flow.rs:6109`), fin de manche
+                        # (`flow.rs:6119`). Aucun de ces trois points ne tombe
+                        # entre deux phases d'une meme manche. Une extinction
+                        # suivie d'un rallumage dans la MEME manche veut donc
+                        # dire que l'ecran s'est tu pendant qu'une phase se
+                        # resolvait — la faute meme que ce banc cherche.
+                        vu["rallumees"] += 1
+                        fautes.append(
+                            f"decision {rang} ({type_}) : la bande se rallume "
+                            f"({m['allumees']} carte(s)) apres s'etre eteinte "
+                            "plus tot dans la meme manche")
+                    # (a) LA POPULATION QUI SE JUGE. Le panneau de vente atteste
+                    # qu'une phase depensable tourne : sur ces ecrans-la, et sur
+                    # eux seuls, ne rien allumer est une faute certaine.
+                    if m["vente"]:
+                        vu["enPhase"] += 1
+                        if m["allumees"] == 0:
+                            vu["eteintesEnPhase"] += 1
                 if m["phasesAllumees"] > 1:
                     fautes.append(f"decision {rang} : {m['phasesAllumees']} phases "
                                   f"DIFFERENTES allumees en meme temps "
@@ -256,10 +304,17 @@ with serveur(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")) as 
             #    que l'adversaire repond a la meme question.
             #    Plus tard dans la partie, une main VIDE est legitime : on a tout
             #    pose ou tout vendu. On ne l'exige donc qu'a la mise en place.
-            if m["type"] in ("corp_mulligan", "pick_corporation") and m["mienne"] < 2:
+            # 3bis. MES DEUX CORPORATIONS SONT SOUS MES YEUX. C'est la
+            #    question simultanee de la mise en place : pendant que
+            #    l'adversaire repond a la meme, mon ecran doit continuer de
+            #    montrer les deux cartes entre lesquelles on me demande de
+            #    choisir. On les compte la ou la page les met — au milieu, dans
+            #    la scene — et non dans la main, qui ne tient que des projets.
+            if m["type"] in ("corp_mulligan", "pick_corporation") and m["presentees"] < 2:
                 fautes.append(
-                    f"decision {rang} ({m['type']}) : ma main montre {m['mienne']} carte(s) "
-                    "alors que je tiens mes deux Corporations")
+                    f"decision {rang} ({m['type']}) : l'ecran ne presente que "
+                    f"{m['presentees']} carte(s) alors qu'on me demande de choisir "
+                    f"entre mes deux Corporations (main de projets : {m['mienne']})")
             if m["mienne"] == 0:
                 vu["mainVide"] += 1
                 vides.append((rang, type_))
@@ -278,6 +333,9 @@ with serveur(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")) as 
 print(f"planification vue {vu['planif']} fois · "
       f"bande montree {vu['montrees']} fois · "
       f"dont eteinte {vu['eteintes']} · main vide {vu['mainVide']} fois")
+print(f"une phase ATTESTEE en cours (panneau de vente pose) sur "
+      f"{vu['enPhase']} de ces ecrans · dont eteints {vu['eteintesEnPhase']} · "
+      f"rallumages dans la manche : {vu['rallumees']}")
 print(f"barre d'equipage muette sur la phase d'en face : "
       f"{vu['barreMuette']}/{vu['planif']} planifications · "
       f"fuites PROUVEES (valeur changee depuis la manche precedente) : "
@@ -336,14 +394,32 @@ if vu["barreMuette"] < vu["planif"]:
     echec(f"la barre d'equipage a montre la phase d'en face sur "
           f"{vu['planif'] - vu['barreMuette']} planification(s) sur {vu['planif']}")
 
-# « Celle en cours allumee » : on tolere quelques ecrans eteints (les moments ou
-# le type de la decision ne nomme aucune phase), pas une part importante.
-part = vu["eteintes"] / max(vu["montrees"], 1)
+# « CELLE EN COURS EST ALLUMEE », MESURE LA OU LA QUESTION A UN SENS.
+#
+# La part brute reste imprimee — c'est le chiffre du 28-08, 12 % — mais elle ne
+# juge pas : elle melangeait les ecrans ou une phase se resout et ceux ou le
+# moteur n'en resout aucune (`phase_en_cours` remis a zero a l'etape de fin de
+# manche, `flow.rs:6119`). Ne rien allumer y est exact, et le compter en faute
+# punissait la page de dire vrai.
+#
+# Le seuil de 5 % ne bouge pas : c'est la POPULATION qui change. On le mesure
+# sur les ecrans ou une phase est ATTESTEE en cours par un chemin disjoint — le
+# panneau de vente, que `flow::occasion_de_vendre` n'ouvre que dans les phases
+# 1, 2 et 3. Sur ceux-la, une bande eteinte est une faute sans excuse.
+part_brute = vu["eteintes"] / max(vu["montrees"], 1)
+print(f"part brute d'ecrans eteints (toutes populations melangees) : {part_brute:.0%}")
+if vu["enPhase"] < 20:
+    echec(f"une phase n'a ete attestee en cours que sur {vu['enPhase']} ecrans : "
+          "la mesure « celle en cours est allumee » ne porte sur rien")
+part = vu["eteintesEnPhase"] / max(vu["enPhase"], 1)
 if part > 0.05:
-    echec(f"{part:.0%} des ecrans montrent une carte Phase sans qu'aucune soit allumee")
+    echec(f"{part:.0%} des ecrans ou une phase est ATTESTEE en cours (panneau de "
+          f"vente pose) montrent une carte Phase sans qu'aucune soit allumee "
+          f"({vu['eteintesEnPhase']}/{vu['enPhase']})")
 if fautes:
     for f in fautes[:5]:
         print("  " + f)
     echec(f"{len(fautes)} faute(s)")
 print(f"OK siege 1 : rien ne fuit, la phase en cours est allumee sur "
-      f"{1 - part:.0%} des ecrans qui en montrent une")
+      f"{1 - part:.0%} des {vu['enPhase']} ecrans ou une phase tourne pour de bon, "
+      f"et la bande ne s'est jamais rallumee apres s'etre eteinte")
