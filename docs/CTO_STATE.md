@@ -3,7 +3,7 @@
 > Source de vérité du projet. Ancrée au code (`fichier:ligne`) dès qu'il y aura du
 > code. [VÉRIFIÉ JJ-MM] = relu à la source ce jour-là. [DÉCLARÉ] = non re-vérifié.
 
-Dernière mise à jour : 2026-08-28
+Dernière mise à jour : 2026-08-31
 
 > **20-08 — LE DÉPÔT EST PUBLIC** : `github.com/Alexry375/Terra`. Les 65 Mo de
 > visuels du jeu ont été retirés de l'arbre **et de tout l'historique** ; le
@@ -12,6 +12,75 @@ Dernière mise à jour : 2026-08-28
 > le disque d'Alexis, hors suivi de version. Toutes les empreintes de commit
 > citées ci-dessous sont celles du **nouvel** historique. Détail :
 > `docs/JOURNAL.md`, entrée « 2026-08-20 (suite) ».
+
+## 🟢 31-08 — LE JOUEUR PASSE LA BARRE DES 98 %, ET LA MESURE DEVIENT INSTANTANÉE
+
+**Le fait de la journée** [VÉRIFIÉ 31-08] : l'entraînement porté à **400 000
+parties** (`data/poids/apprenti-400k.txt`, fini à 05 h 08) donne, en duel direct
+contre `reflechi` :
+
+```
+« apprenti » gagne 79 parties sur 80 (98,8 %)
+écart de score moyen : 73,29 points   —   167 743 décisions jouées
+verdict : écart significatif
+```
+
+**La réserve, et elle est sérieuse** : ce sont **40 donnes** jouées aux deux
+sièges, pas 80. Le seuil du contrat d'autonomie demande 80 donnes × 2 sièges. Une
+mesure à 40 donnes m'a déjà menti une fois (82,5 % devenus 76,3 % en doublant).
+Le duel de confirmation tourne depuis le 31-08 au soir. **Second point à
+regarder** : 15 parties sur 80 se sont arrêtées sur le plafond de manches, donc
+presque une sur cinq porte un score qui est un instantané et non un résultat.
+
+### Trois lots livrés et audités le 31-08
+
+| lot | ce qu'il apporte | verdict |
+|---|---|---|
+| **L7a** `les-sept-bancs-rouges` | les sept bancs de l'interface réparés | `ok`, commit `4ffb833` |
+| **L8** `la-largeur-reglable` | la largeur du réseau devient un réglage | `ok`, identité à l'octet prouvée |
+| **L10** `l-etalon-natif` | l'étalon `reflechi` porté en Rust, duels natifs | `ok`, commit `f1d7fbc` |
+
+**Le gain de L10 est le plus structurant du projet à ce jour** : un duel de quatre
+donnes passe de **546 secondes à 0,97 seconde — facteur 563**. La fidélité est
+prouvée et non déclarée : sur **60 parties entières et 59 247 décisions**,
+l'étalon Rust choisit la même option que l'étalon JavaScript à chaque décision.
+
+**L8, les deux chiffres** : identité à l'octet avec l'ancien programme à largeur
+cinquante (sans réglage et avec `--largeur 50`), et coût en vitesse mesuré côte à
+côte à **−0,2 %**.
+
+### Ce qui bloque encore la mesure rapide
+
+La balance native **refuse de démarrer** quand on lui demande le joueur muni de sa
+« devinette » — le second réseau qui devine la carte Phase de l'adversaire
+(`engine/src/bin/duel.rs`, `cervelle_de`). Elle ne sait pas encore la porter, et
+elle le dit plutôt que de mesurer un autre joueur en silence. Or la mesure de
+référence du projet se fait **avec** la devinette allumée.
+
+**Lot suivant, `la-devinette-en-natif`** : la lui apprendre. Après lui, toute
+mesure de progression se fera en secondes.
+
+### Une correction du moteur à connaître
+
+L10 a modifié `engine/src/rejeu.rs` : une réponse de rejeu qui n'est pas une liste
+est désormais une **faute déclarée** et non un silence — le moteur se rabattait
+sur la réponse par défaut et rendait un état qui passait pour jouable. Les quatre
+empreintes d'état ne bougent pas et les 1 194 tests restent verts, **mais cela
+change les parties d'essai du joueur artificiel, donc les entraînements à venir** :
+un entraînement lancé après cette correction peut consigner des fautes qu'il ne
+consignait pas, et ce n'est pas une régression du réseau.
+
+### Mes propres erreurs de la journée, pour ne pas les refaire
+
+- Mon contrôle 05 de L8 donnait **900 secondes** à un banc qui en demande 2 022 :
+  rouge de forme, pas de fond. Relancé sans cette contrainte, il rend **14 350
+  accords sur 14 350**.
+- Mon épreuve cachée h2 de L10 a échoué deux fois de suite pour deux défauts à
+  moi : un motif de recherche qui trouvait un compteur au lieu d'un réglage, puis
+  une compilation lancée depuis la racine alors que le projet Cargo vit dans
+  `engine/`. Corrigée, elle est verte dans les deux sens.
+- J'ai annoncé « plus de 7 minutes » pour un duel qui en prend 4,4 : j'avais lu un
+  journal encore vide.
 
 ## 🔴 30-08 — LE JOUEUR EN SERVICE EST TRÈS FAIBLE, ET JE NE L'AVAIS PAS ÉCRIT
 
