@@ -571,6 +571,40 @@ impl<'a> Joueur<'a> {
         self.occasions_au_debut_de_manche = self.occasions_partie;
     }
 
+    /// **(l-etalon-natif) CE QUE L'AUTRE SIÈGE VIENT DE RÉPONDRE.**
+    ///
+    /// Ce joueur-ci a été écrit pour tenir la table à lui seul : il répond aux
+    /// deux sièges, et ses deux listes — les réponses depuis le point de reprise
+    /// et le journal de la partie — se remplissent donc toutes seules. Assis face
+    /// à un AUTRE joueur, il n'entend plus que la moitié de la partie, et ses
+    /// essais de coups rejoueraient une partie amputée : le rejeu consomme les
+    /// réponses par leur RANG, sans regarder à qui elles appartiennent, et une
+    /// réponse manquante décale toutes les suivantes.
+    ///
+    /// La réponse est donnée telle qu'elle entre dans la liste des décisions du
+    /// pont — c'est le seul format que le rejeu sache relire.
+    pub fn reponse_de_l_autre(&mut self, reponse: Value) {
+        self.reponses.push(reponse.clone());
+        self.journal.push(reponse);
+    }
+
+    /// **(l-etalon-natif) LE RANG DE L'OCCASION QU'ON VA LUI OFFRIR.**
+    ///
+    /// Le numéro d'une occasion est un RANG dans la partie, tous sièges
+    /// confondus : c'est ainsi que le pont les numérote, et une entrée de vente
+    /// porte ce numéro-là. Assis face à un autre joueur, ce joueur-ci ne voit
+    /// passer que les occasions de son siège ; sans ce calage, ses entrées de
+    /// vente porteraient un numéro trop petit et le moteur les refuserait.
+    ///
+    /// On CALE le compteur plutôt que de l'avancer d'un cran : le pont recompte
+    /// les occasions depuis le début à chaque rejeu, si bien qu'une même occasion
+    /// offerte deux fois — le JavaScript la ré-offre après une vente de l'autre
+    /// siège — porte les deux fois le même numéro. Un compteur qui ne saurait
+    /// qu'avancer donnerait un numéro différent au second passage.
+    pub fn caler_les_occasions(&mut self, n: u64) {
+        self.occasions_partie = n;
+    }
+
     /// À appeler au début d'une partie neuve.
     pub fn nouvelle_partie(&mut self, seed: u64) {
         self.seed = seed;

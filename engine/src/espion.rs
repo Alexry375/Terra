@@ -51,6 +51,12 @@ impl<P: Policy, F: FnMut(&GameState, usize)> Policy for Espion<P, F> {
         self.inner.observe(game, player);
     }
 
+    /// (l-etalon-natif) Transmise telle quelle : une politique enveloppée doit
+    /// entendre qui va décider, comme si rien ne l'enveloppait.
+    fn observer_l_occasion(&mut self, game: &GameState, decideur: usize, question_posee: bool) {
+        self.inner.observer_l_occasion(game, decideur, question_posee);
+    }
+
     fn corp_mulligan(&mut self, rng: &mut StdRng, player: usize, corps: &[u16]) -> bool {
         self.inner.corp_mulligan(rng, player, corps)
     }

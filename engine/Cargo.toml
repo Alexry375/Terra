@@ -12,6 +12,13 @@ serde_json = "1"
 name = "simulate"
 path = "src/bin/simulate.rs"
 
+# (l-etalon-natif) LA BALANCE NATIVE. Déclarée à la main plutôt que laissée à la
+# découverte automatique : la liste des exécutables du moteur doit se lire ici,
+# et non dépendre du contenu d'un dossier.
+[[bin]]
+name = "duel"
+path = "src/bin/duel.rs"
+
 [profile.release]
 lto = true
 codegen-units = 1

@@ -392,7 +392,20 @@ impl<'a> Rejeu<'a> {
     }
 
     fn liste_libre(&mut self, r: &Value, n: usize) -> Option<Vec<usize>> {
-        let a = r.as_array()?;
+        // **(l-etalon-natif) UNE RÉPONSE QUI N'EST PAS UNE LISTE EST UNE FAUTE,
+        // PAS UN SILENCE.** La ligne d'avant écartait la valeur sans rien
+        // déclarer : le rejeu se rabattait alors sur la réponse par défaut, et
+        // l'état rendu passait pour jouable. Le pont, lui, déclare la faute
+        // (`Harnais::liste_libre`, `web/webapp/wasm/src/lib.rs`) et l'essai
+        // n'est pas noté. L'écart se voit dès qu'un rejeu d'essai décale les
+        // réponses — une entrée de vente sans numéro d'occasion suffit — et il
+        // fait diverger le joueur natif de son jumeau JavaScript à la première
+        // décision où il tombe (mesuré le 31-08 : graine 1, décision 595, le
+        // Rust notait quatre options que le JavaScript refusait toutes).
+        let Some(a) = r.as_array() else {
+            self.faute(format!("liste attendue, reçu {r}"));
+            return None;
+        };
         let mut v: Vec<usize> = Vec::with_capacity(a.len());
         for x in a {
             match x.as_u64() {

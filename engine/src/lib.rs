@@ -12,6 +12,10 @@ pub mod effects;
 pub mod flow;
 pub mod observe;
 pub mod policy;
+// (l-etalon-natif) **L'ÉTALON DE MESURE, EN RUST.** Dans la bibliothèque et non
+// dans un exécutable : c'est de lui que sortent tous les taux de victoire du
+// projet, les tests d'intégration doivent donc pouvoir l'atteindre.
+pub mod reflechi;
 pub mod probe;
 pub mod sim;
 pub mod state;

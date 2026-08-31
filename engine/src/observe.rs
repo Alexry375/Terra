@@ -550,6 +550,11 @@ impl<P: Policy> Policy for ObservingPolicy<'_, P> {
     // observé : elles passent la main, point.
     // ------------------------------------------------------------------
 
+    /// (l-etalon-natif) Transmise telle quelle, comme les décisions ci-dessous.
+    fn observer_l_occasion(&mut self, game: &GameState, decideur: usize, question_posee: bool) {
+        self.inner.observer_l_occasion(game, decideur, question_posee);
+    }
+
     fn corp_mulligan(&mut self, rng: &mut StdRng, player: usize, corps: &[u16]) -> bool {
         self.inner.corp_mulligan(rng, player, corps)
     }

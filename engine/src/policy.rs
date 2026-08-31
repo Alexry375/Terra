@@ -102,6 +102,48 @@ pub trait Policy {
         false
     }
 
+    /// **(l-etalon-natif) QUI VA DÉCIDER, JUSTE AVANT L'OCCASION DE VENDRE.**
+    ///
+    /// `flow::occasion_de_vendre` offre l'occasion AUX DEUX SIÈGES avant chaque
+    /// point de décision, sans dire lequel des deux va être interrogé ensuite —
+    /// et sans passer l'état, puisque `Policy::vendre_librement` ne reçoit que la
+    /// main. Or la page, elle, n'interroge que le fournisseur du siège qui
+    /// décide : un joueur porté du JavaScript vers le natif vendrait donc à des
+    /// occasions où son jumeau ne vend jamais, et les deux parties divergeraient
+    /// dès la première vente.
+    ///
+    /// Cette méthode est appelée une fois par occasion offerte — **toutes les
+    /// occasions, sans exception**, faute de quoi une politique qui s'y arme
+    /// garderait son armement d'une occasion à la suivante et vendrait au mauvais
+    /// endroit. Elle reçoit l'état tel qu'il est à cet instant, le siège dont la
+    /// décision est en préparation, et une chose que ce siège ne peut pas
+    /// deviner : `question_posee`.
+    ///
+    /// **`question_posee` — l'occasion débouche-t-elle sur une vraie question ?**
+    /// Le moteur ouvre des occasions à des points qui, parfois, ne demandent rien
+    /// : une défausse dont la main est déjà vide, une phase Action sans la
+    /// moindre action à offrir, une dette de défausse nulle. Le moteur y passe
+    /// sans un mot ; la page, elle, n'y affiche rien et n'interroge personne. Le
+    /// drapeau vaut donc `false` à ces points-là, jugé sur l'état d'AVANT la
+    /// vente — c'est bien celui-là qui décide, puisque c'est sur lui que la page
+    /// pose la question, ou non.
+    ///
+    /// Elle ne rend rien : une politique qui l'écoute ne peut pas, par elle,
+    /// infléchir le déroulement.
+    ///
+    /// **Corps par défaut vide, et c'est le point** : `RandomPolicy`,
+    /// `ProbePolicy`, `Joueur`, `Rejeu` et toutes les politiques scriptées des
+    /// tests l'héritent sans une ligne de changement, ne consomment pas le RNG de
+    /// la partie et décident exactement comme avant — les quatre empreintes
+    /// d'état de référence ne peuvent donc pas bouger.
+    fn observer_l_occasion(
+        &mut self,
+        _game: &GameState,
+        _decideur: usize,
+        _question_posee: bool,
+    ) {
+    }
+
     /// Mulligan corporations (règle maison n°1) : remplacer SES 2 corporations
     /// par 2 nouvelles — les 2 ou aucune. Avant la donne des cartes projets.
     fn corp_mulligan(&mut self, rng: &mut StdRng, player: usize, corps: &[u16]) -> bool;

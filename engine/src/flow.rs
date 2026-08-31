@@ -2331,6 +2331,10 @@ pub fn occasion_de_vendre_sous_reserve(
 /// aucun est qu'il n'existe plus aucun autre chemin vers `observe` —
 /// `grep 'policy.observe' src/flow.rs` ne doit rien rendre hors d'ici.
 fn avant_decision(game: &mut GameState, db: &CardsDb, p: usize, policy: &mut dyn Policy) {
+    // (l-etalon-natif) QUI VA DÉCIDER : dit avant que l'occasion ne soit
+    // offerte aux deux sièges, pour qu'un joueur porté du JavaScript ne
+    // vende qu'aux occasions où son jumeau vend (voir `Policy`).
+    policy.observer_l_occasion(game, p, true);
     occasion_de_vendre(game, db, policy);
     observer(game, p, policy);
 }
@@ -2575,6 +2579,10 @@ fn drain_pending_builds(
         // main d'APRÈS la vente, sinon leurs indices désigneraient d'autres
         // cartes que celles que le joueur a sous les yeux. Le point de décision
         // ne reçoit donc qu'une observation nue (voir `observer`).
+        // (l-etalon-natif) QUI VA DÉCIDER : dit avant que l'occasion ne soit
+        // offerte aux deux sièges, pour qu'un joueur porté du JavaScript ne
+        // vende qu'aux occasions où son jumeau vend (voir `Policy`).
+        policy.observer_l_occasion(game, p, true);
         occasion_de_vendre(game, db, policy);
         resolve_hand_jokers_posables(game, db, p, policy, &grant, disc);
         let opts = affordable(game, db, p, &grant, disc);
@@ -2951,6 +2959,11 @@ fn apply_eff(game: &mut GameState, db: &CardsDb, p: usize, eff: Eff, policy: &mu
             } else {
                 n_du
             };
+            // (l-etalon-natif) POINT DE DÉCISION VIVANT ? Rien n'est dû, donc
+            // aucune question ne sera posée plus bas (`n == 0`) : l'occasion est
+            // offerte quand même par le moteur, mais l'écran ne la montre à
+            // personne. Le décideur n'est annoncé que si la question a lieu.
+            policy.observer_l_occasion(game, p, n_du > 0);
             occasion_de_vendre_sous_reserve(
                 game,
                 db,
@@ -3639,6 +3652,13 @@ fn apply_trig_gain(
                     continue;
                 }
                 // (regles-de-la-vente) Hoistée au-dessus de l'instantané de main.
+                // (l-etalon-natif) QUI VA DÉCIDER : dit avant que l'occasion ne soit
+                // offerte aux deux sièges, pour qu'un joueur porté du JavaScript ne
+                // vende qu'aux occasions où son jumeau vend (voir `Policy`).
+                // (l-etalon-natif) POINT DE DÉCISION VIVANT ? Une main déjà
+                // vide avant toute vente ne posera aucune question (`continue`
+                // plus bas) : le décideur n'est annoncé que si elle en pose une.
+                policy.observer_l_occasion(game, p, !game.players[p].hand.is_empty());
                 occasion_de_vendre(game, db, policy);
                 let hand = game.players[p].hand.clone();
                 // ET LA MAIN PEUT AVOIR ÉTÉ VIDÉE PAR CETTE VENTE-LÀ. Le test
@@ -4532,6 +4552,10 @@ fn apply_action_spec(
             // pas de question à préparer, et une occasion de plus consommerait
             // une vente que le joueur destinait au point de décision suivant.
             if cost.iter().any(|c| matches!(c, ActionCost::DiscardCard(_))) {
+                // (l-etalon-natif) QUI VA DÉCIDER : dit avant que l'occasion ne soit
+                // offerte aux deux sièges, pour qu'un joueur porté du JavaScript ne
+                // vende qu'aux occasions où son jumeau vend (voir `Policy`).
+                policy.observer_l_occasion(game, p, true);
                 occasion_de_vendre(game, db, policy);
             }
             // Payabilité (Java : *ActionValidator).
@@ -4997,6 +5021,10 @@ fn phase_development(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy
         // main d'APRÈS la vente, sinon leurs indices désigneraient d'autres
         // cartes que celles que le joueur a sous les yeux. Le point de décision
         // ne reçoit donc qu'une observation nue (voir `observer`).
+        // (l-etalon-natif) QUI VA DÉCIDER : dit avant que l'occasion ne soit
+        // offerte aux deux sièges, pour qu'un joueur porté du JavaScript ne
+        // vende qu'aux occasions où son jumeau vend (voir `Policy`).
+        policy.observer_l_occasion(game, p, true);
         occasion_de_vendre(game, db, policy);
         resolve_hand_jokers_posables(game, db, p, policy, &GRANT_DEVELOPMENT, discount);
         let opts = affordable(game, db, p, &GRANT_DEVELOPMENT, discount);
@@ -5139,6 +5167,10 @@ fn phase_construction(game: &mut GameState, db: &CardsDb, policy: &mut dyn Polic
         // main d'APRÈS la vente, sinon leurs indices désigneraient d'autres
         // cartes que celles que le joueur a sous les yeux. Le point de décision
         // ne reçoit donc qu'une observation nue (voir `observer`).
+        // (l-etalon-natif) QUI VA DÉCIDER : dit avant que l'occasion ne soit
+        // offerte aux deux sièges, pour qu'un joueur porté du JavaScript ne
+        // vende qu'aux occasions où son jumeau vend (voir `Policy`).
+        policy.observer_l_occasion(game, p, true);
         occasion_de_vendre(game, db, policy);
         resolve_hand_jokers_posables(game, db, p, policy, &GRANT_CONSTRUCTION, 0);
         let opts = affordable(game, db, p, &GRANT_CONSTRUCTION, 0);
@@ -5209,6 +5241,10 @@ fn phase_construction(game: &mut GameState, db: &CardsDb, policy: &mut dyn Polic
                 // main d'APRÈS la vente, sinon leurs indices désigneraient d'autres
                 // cartes que celles que le joueur a sous les yeux. Le point de décision
                 // ne reçoit donc qu'une observation nue (voir `observer`).
+                // (l-etalon-natif) QUI VA DÉCIDER : dit avant que l'occasion ne soit
+                // offerte aux deux sièges, pour qu'un joueur porté du JavaScript ne
+                // vende qu'aux occasions où son jumeau vend (voir `Policy`).
+                policy.observer_l_occasion(game, p, true);
                 occasion_de_vendre(game, db, policy);
                 resolve_hand_jokers_posables(game, db, p, policy, grant, 0);
                 let opts = affordable(game, db, p, grant, 0);
@@ -5304,6 +5340,26 @@ fn phase_action(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
             // points de pose : `action_options` n'offre la vente de carte que si
             // la main n'est pas vide, et le joueur peut précisément être en train
             // de la vider ici.
+            // (l-etalon-natif) QUI VA DÉCIDER : dit avant que l'occasion ne soit
+            // offerte aux deux sièges, pour qu'un joueur porté du JavaScript ne
+            // vende qu'aux occasions où son jumeau vend (voir `Policy`).
+            // (l-etalon-natif) POINT DE DÉCISION VIVANT ? Sans la moindre action
+            // à offrir, `action_choice` ne pose aucune question et le joueur
+            // passe sans un mot. L'énumération est refaite ici sur la main
+            // d'AVANT la vente — c'est bien celle-là qui décide, puisque c'est
+            // sur elle que le jumeau JavaScript se voit poser la question, ou
+            // non. Elle ne remplace pas celle d'après la vente, qui suit.
+            action_options(
+                game,
+                db,
+                p,
+                &remaining_blue[p],
+                corp_action_left[p],
+                &rejouables[p],
+                corp_rejouable[p],
+                &mut options,
+            );
+            policy.observer_l_occasion(game, p, !options.is_empty());
             occasion_de_vendre(game, db, policy);
             action_options(
                 game,
@@ -6139,6 +6195,15 @@ pub fn play_round(game: &mut GameState, db: &CardsDb, policy: &mut dyn Policy) {
             // que le vide, et le moteur refusait le vide. Côté Rust, la même
             // situation faisait défausser sur des indices qui ne désignaient
             // plus les mêmes cartes.
+            // (l-etalon-natif) QUI VA DÉCIDER : dit avant que l'occasion ne soit
+            // offerte aux deux sièges, pour qu'un joueur porté du JavaScript ne
+            // vende qu'aux occasions où son jumeau vend (voir `Policy`).
+            // (l-etalon-natif) Ce point-ci est TOUJOURS vivant : la boucle
+            // ci-dessus ne l'atteint que si la main dépasse déjà la limite, donc
+            // une question sera posée — sauf si la vente elle-même ramène la
+            // main sous la limite, et c'est alors exactement ce que fait le
+            // jumeau JavaScript.
+            policy.observer_l_occasion(game, p, true);
             occasion_de_vendre(game, db, policy);
             let hand_snapshot = game.players[p].hand.clone();
             let over = hand_snapshot.len().saturating_sub(HAND_LIMIT);
