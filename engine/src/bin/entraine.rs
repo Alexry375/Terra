@@ -3,6 +3,14 @@
 //!     entraine --parties N --graine-debut G --sortie chemin
 //!              [--exploration x] [--boites …] [--instantanes "10000,50000"]
 //!              [--lambda 0.9] [--rythme 8] [--ouvriers 4] [--sans-optimisation]
+//!              [--largeur 50]
+//!
+//! `--largeur N` est le nombre de neurones de la couche cachée (50 par défaut,
+//! la valeur de tout ce que le dépôt a produit jusqu'ici). Elle est publiée dans
+//! la première ligne du journal et écrite en tête du fichier de poids : un
+//! réglage qu'on ne peut pas relire dans le journal d'un entraînement passé est
+//! un réglage qu'on ne peut pas reproduire. À 50, **le fichier produit est le
+//! même, octet pour octet, qu'avec l'option absente**.
 //!
 //! `--rythme K` est le rythme des corrections du §2.2 (une situation sur K,
 //! K = 8 livré) et `--lambda` le facteur d'influence par pas en arrière (0,9
@@ -329,12 +337,12 @@ struct Ouvrier {
 }
 
 impl Ouvrier {
-    fn neuf(taille: usize, avec_adversaire: bool) -> Ouvrier {
+    fn neuf(taille: usize, avec_adversaire: bool, largeur: usize) -> Ouvrier {
         Ouvrier {
-            reseau: Reseau::neuf(taille),
+            reseau: Reseau::neuf_largeur(taille, largeur),
             pile: Pile::new(taille),
             adversaire: if avec_adversaire {
-                Some(ReseauPhases::neuf(taille))
+                Some(ReseauPhases::neuf_largeur(taille, largeur))
             } else {
                 None
             },
@@ -547,6 +555,10 @@ fn main() {
     // (L5, §2.7) Le nombre d'ouvriers. Quatre par défaut : la machine a quatre
     // cœurs physiques, et le §2.7 les demande tous.
     let mut ouvriers: usize = 4;
+    // (la-largeur-reglable) La largeur de la couche cachée. `reseau::CACHES` par
+    // défaut : sans l'option, l'entraînement produit exactement le fichier
+    // d'avant ce chantier.
+    let mut largeur: usize = reseau::CACHES;
     // (il-devine) Les quatre options du point d'accroche n°1.
     let mut sortie_adversaire = String::new();
     let mut reprise = String::new();
@@ -588,6 +600,21 @@ fn main() {
                 ouvriers = val(i).parse().unwrap_or_else(|_| mourir("--ouvriers"));
                 if ouvriers == 0 {
                     mourir("--ouvriers 0 : il en faut au moins un");
+                }
+            }
+            "--largeur" => {
+                largeur = val(i).parse().unwrap_or_else(|_| mourir("--largeur"));
+                if largeur == 0 {
+                    mourir("--largeur 0 : la couche cachée a au moins un neurone");
+                }
+                // Le même plafond qu'en relecture : un entraînement dont le
+                // fichier serait ensuite refusé par `Reseau::lire` ne servirait
+                // à rien, et il vaut mieux le dire avant les heures de calcul.
+                if largeur > reseau::LARGEUR_MAX {
+                    mourir(&format!(
+                        "--largeur {largeur} : au plus {} neurones cachés (le fichier produit serait refusé en relecture)",
+                        reseau::LARGEUR_MAX
+                    ));
                 }
             }
             "--vente" => {
@@ -634,14 +661,15 @@ fn main() {
     let ligne_de_commande = args.join(" ");
     println!(
         "{{\"commande\": {}, \"graines\": \"{}..{}\", \"parties\": {}, \"boites\": \"{}\", \
-         \"ouvriers\": {}, \"amplitude_depart\": {}, \"lambda\": {}, \"rythme\": {}, \
-         \"exploration\": {}, \"reprise\": \"{}\"}}",
+         \"ouvriers\": {}, \"largeur\": {}, \"amplitude_depart\": {}, \"lambda\": {}, \
+         \"rythme\": {}, \"exploration\": {}, \"reprise\": \"{}\"}}",
         serde_json::to_string(&ligne_de_commande).unwrap_or_else(|_| "\"?\"".into()),
         graine_debut,
         graine_debut + parties.saturating_sub(1),
         parties,
         boites_txt,
         ouvriers,
+        largeur,
         amplitude,
         lambda,
         rythme,
@@ -691,9 +719,12 @@ fn main() {
     // l'amorçage pour dire « non ».
     // ------------------------------------------------------------------
     let mut reseau = if reprise.is_empty() {
-        Reseau::neuf_amplitude(desc.taille, amplitude)
+        Reseau::neuf_amplitude_largeur(desc.taille, amplitude, largeur)
     } else {
-        match Reseau::lire(&reprise, &noms) {
+        // **La reprise passe par le verrou de largeur** : reprendre des poids
+        // appris à cent neurones dans un entraînement lancé à cinquante donnerait
+        // un réseau qui a l'air de marcher et qui a tout appris de travers.
+        match Reseau::lire_largeur(&reprise, &noms, largeur) {
             Ok(r) => {
                 eprintln!("reprise : {reprise} — {} parties déjà vues", r.parties);
                 r
@@ -715,9 +746,9 @@ fn main() {
     let mut adversaire: Option<ReseauPhases> = if sortie_adversaire.is_empty() {
         None
     } else if reprise_adversaire.is_empty() {
-        Some(ReseauPhases::neuf_amplitude(desc.taille, amplitude))
+        Some(ReseauPhases::neuf_amplitude_largeur(desc.taille, amplitude, largeur))
     } else {
-        match ReseauPhases::lire(&reprise_adversaire, &noms) {
+        match ReseauPhases::lire_largeur(&reprise_adversaire, &noms, largeur) {
             Ok(r) => {
                 eprintln!(
                     "reprise du second réseau : {reprise_adversaire} — {} parties déjà vues",
@@ -835,14 +866,14 @@ fn main() {
         // depuis les mêmes poids au lieu de s'enchaîner. C'est le regroupement
         // par quatre, déclaré dans l'audit et accepté d'avance — et sa
         // conséquence sur la FORCE est mesurée en duel, pas supposée.
-        let mut base = Reseau::neuf(desc.taille);
+        let mut base = Reseau::neuf_largeur(desc.taille, largeur);
         let mut base_adversaire: Option<ReseauPhases> = if adversaire.is_some() {
-            Some(ReseauPhases::neuf(desc.taille))
+            Some(ReseauPhases::neuf_largeur(desc.taille, largeur))
         } else {
             None
         };
         let mut equipe: Vec<Ouvrier> = (0..ouvriers)
-            .map(|_| Ouvrier::neuf(desc.taille, adversaire.is_some()))
+            .map(|_| Ouvrier::neuf(desc.taille, adversaire.is_some(), largeur))
             .collect();
 
         let mut g: u64 = 0;
@@ -952,7 +983,7 @@ fn main() {
         "couche_cachee (derniere tranche, {} situations) : pente_moyenne {:.4}, \
          part_saturee {:.1} %, neurones_figes {} sur {}, amplitude_minimale {:.4}",
         releve.situations, releve.pente, releve.part_saturee, releve.figes,
-        reseau::CACHES, releve.amplitude_min
+        largeur, releve.amplitude_min
     );
     {
         use std::io::Write;

@@ -87,7 +87,25 @@ export const POIDS_PAR_DEFAUT = resolve(ICI, "../../../data/poids/apprenti.txt")
  */
 export const MARGE = 1e-12;
 
+/**
+ * **La largeur de couche cachée PAR DÉFAUT du dépôt : cinquante neurones.**
+ * Miroir exact de `reseau::CACHES` — les deux doivent changer ensemble, et un
+ * test du moteur le tient (`le_miroir_javascript_porte_la_meme_largeur_de_couche_cachee`).
+ *
+ * Depuis le lot « la largeur réglable », ce n'est plus la seule largeur possible :
+ * un fichier de poids porte la sienne en tête (§7 : `entrées caches sorties`) et
+ * `lirePoids` la lit de là, comme le fait `Reseau::lire` côté Rust. Cette
+ * constante reste la largeur du dépôt — celle de `data/poids/` — et c'est la
+ * largeur qu'exige `lirePoidsLargeur` quand on ne lui en nomme pas d'autre.
+ */
 const CACHES_ATTENDUS = 50;
+/**
+ * **Le plafond de largeur accepté en relecture**, même valeur et même raison que
+ * `reseau::LARGEUR_MAX` : la largeur d'un fichier est adoptée telle quelle, et un
+ * fichier corrompu qui annoncerait un milliard de neurones ferait demander des
+ * téraoctets avant qu'on s'aperçoive que le compte des poids ne suit pas.
+ */
+const LARGEUR_MAX = 10000;
 const SORTIES_ATTENDUES = 2;
 /**
  * **(il-devine §1) Le second réseau a CINQ sorties, une par carte Phase**, dans
@@ -161,19 +179,43 @@ export function reponseParDefaut(d) {
 /**
  * Lit un fichier de poids du §7 et **vérifie le verrou** : la table des noms du
  * fichier doit être exactement celle que ce dépôt régénère.
+ *
+ * **La largeur de la couche cachée est LUE dans le fichier**, jamais imposée :
+ * un couple de poids appris à cent neurones se rejoue ici à cent, comme côté
+ * Rust (`Reseau::lire`). Ce qui est refusé, c'est un fichier INCOHÉRENT — dont le
+ * nombre de poids ne correspond pas à la géométrie qu'il annonce — et, quand
+ * `cachesAttendus` est nommé, un fichier d'une autre largeur que celle attendue.
+ *
+ * Supprimer ce verrou plutôt que le rendre juste rendrait muette la seule chose
+ * qu'il protège : des poids appris sur une autre géométrie, relus sans un mot,
+ * donnent un joueur qui répond n'importe quoi.
+ *
  * @param {string} chemin
+ * @param {number} sortiesAttendues
+ * @param {?number} cachesAttendus  `null` : la largeur du fichier fait foi.
  */
-export function lirePoids(chemin, sortiesAttendues = SORTIES_ATTENDUES) {
+export function lirePoids(chemin, sortiesAttendues = SORTIES_ATTENDUES, cachesAttendus = null) {
   const lignes = readFileSync(chemin, "utf8").split("\n");
   const tete = (lignes[0] || "").trim().split(/\s+/).map(Number);
   const [nEntrees, caches, sorties] = tete;
   if (!Number.isInteger(nEntrees) || !Number.isInteger(caches) || !Number.isInteger(sorties)) {
     throw new Error(`poids illisibles : première ligne « ${lignes[0]} » (§7 : entrées caches sorties)`);
   }
-  if (caches !== CACHES_ATTENDUS || sorties !== sortiesAttendues) {
+  if (caches < 1 || caches > LARGEUR_MAX) {
     throw new Error(
-      `poids inattendus : ${caches} neurones cachés et ${sorties} sorties ` +
-        `(on en attendait 50 et ${sortiesAttendues}) — ${chemin}`,
+      `poids inattendus : ${caches} neurones cachés annoncés — une couche cachée en a au moins un ` +
+        `et au plus ${LARGEUR_MAX} (${chemin})`,
+    );
+  }
+  if (sorties !== sortiesAttendues) {
+    throw new Error(
+      `poids inattendus : ${sorties} sorties, ce réseau-là en attend ${sortiesAttendues} — ${chemin}`,
+    );
+  }
+  if (cachesAttendus !== null && caches !== cachesAttendus) {
+    throw new Error(
+      `poids inattendus : ${caches} neurones cachés, ce réseau-là en attend ${cachesAttendus} ` +
+        `— des poids appris sur une autre géométrie ne veulent rien dire ici (${chemin})`,
     );
   }
   const parties = Number((lignes[1] || "").trim());
@@ -201,13 +243,21 @@ export function lirePoids(chemin, sortiesAttendues = SORTIES_ATTENDUES) {
   const total = (nEntrees + 1) * caches + (caches + 1) * sorties;
   const nombres = new Float64Array(total);
   let k = 0;
-  for (let i = 2 + nEntrees; i < lignes.length && k < total; i++) {
+  // On parcourt le fichier JUSQU'AU BOUT, et pas seulement jusqu'à `total` : un
+  // fichier qui MENT sur sa largeur en annonce moins qu'il n'en porte, et
+  // s'arrêter au compte annoncé le laisserait passer sans un mot. C'est le
+  // verrou de cohérence — le même que `Reseau::lire` côté Rust.
+  for (let i = 2 + nEntrees; i < lignes.length; i++) {
     const t = lignes[i].trim();
     if (t === "") continue;
-    nombres[k++] = Number(t);
+    if (k < total) nombres[k] = Number(t);
+    k++;
   }
   if (k !== total) {
-    throw new Error(`le fichier de poids porte ${k} nombres, il en faut ${total} (${chemin})`);
+    throw new Error(
+      `le fichier de poids porte ${k} nombres, il en faut ${total} pour ${nEntrees} entrées, ` +
+        `${caches} neurones cachés et ${sorties} sorties (${chemin})`,
+    );
   }
   const nCache = (nEntrees + 1) * caches;
   return {
@@ -221,6 +271,24 @@ export function lirePoids(chemin, sortiesAttendues = SORTIES_ATTENDUES) {
     wCache: nombres.subarray(0, nCache),
     wSortie: nombres.subarray(nCache),
   };
+}
+
+/**
+ * **La relecture STRICTE : pour un juge dont la largeur est déjà fixée.**
+ * Miroir de `Reseau::lire_largeur` côté Rust. Sans troisième argument, la largeur
+ * exigée est celle du dépôt ([`CACHES_ATTENDUS`]) — un fichier appris à une autre
+ * largeur est alors refusé en nommant les deux nombres.
+ *
+ * @param {string} chemin
+ * @param {number} sortiesAttendues
+ * @param {number} cachesAttendus
+ */
+export function lirePoidsLargeur(
+  chemin,
+  sortiesAttendues = SORTIES_ATTENDUES,
+  cachesAttendus = CACHES_ATTENDUS,
+) {
+  return lirePoids(chemin, sortiesAttendues, cachesAttendus);
 }
 
 // ────────────────────────────────────────────────────────────────── le réseau

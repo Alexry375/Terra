@@ -53,7 +53,25 @@
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 
+/// **LA LARGEUR DE LA COUCHE CACHÉE PAR DÉFAUT : cinquante neurones.**
+///
+/// Depuis le lot « la largeur réglable », ce n'est plus une taille figée à la
+/// compilation mais **la valeur par défaut** : chaque réseau porte sa propre
+/// largeur ([`ReseauMulti::largeur`]), fixée à sa construction et relue en tête
+/// du fichier de poids du §7. `entraine --largeur N` la choisit ; sans l'option,
+/// c'est ce nombre, et tout ce que le dépôt produit ne bouge pas d'un octet.
 pub const CACHES: usize = 50;
+
+/// **Le plafond de largeur ACCEPTÉ EN RELECTURE : dix mille neurones.**
+///
+/// La largeur d'un fichier de poids est désormais adoptée telle quelle, et un
+/// fichier tronqué ou corrompu peut annoncer n'importe quel nombre : sans ce
+/// plafond, `1630 999999999 2` ferait demander deux téraoctets avant de
+/// s'apercevoir que le compte des poids ne suit pas. Dix mille, c'est deux cents
+/// fois la largeur livrée — la mesure que ce lot rend possible n'en approchera
+/// pas.
+pub const LARGEUR_MAX: usize = 10_000;
+
 pub const SORTIES: usize = 2;
 /// **(il-devine) Le nombre de sorties du SECOND réseau, celui qui devine la carte
 /// Phase de l'autre : cinq, une par carte Phase, dans l'ordre du moteur (§1).**
@@ -233,11 +251,16 @@ impl Pile {
 /// pile, et le code produit pour deux sorties est exactement celui d'avant.
 pub struct ReseauMulti<const S: usize> {
     pub n_entrees: usize,
+    /// **La largeur de la couche cachée de CE réseau, connue à l'exécution.**
+    /// [`CACHES`] par défaut ; `entraine --largeur N` la change. Elle fixe la
+    /// taille de tous les tampons ci-dessous et le PAS de parcours des deux
+    /// tableaux de poids — c'est elle qui remplace partout la constante.
+    caches: usize,
     /// Poids de la couche cachée, **rangés par entrée** :
-    /// `w_cache[i * CACHES + j]`. La ligne `i == n_entrees` porte le biais
+    /// `w_cache[i * caches + j]`. La ligne `i == n_entrees` porte le biais
     /// d'entrée (valeur fixe 1).
     pub w_cache: Vec<f64>,
-    /// Poids de sortie : `w_sortie[k * (CACHES + 1) + j]`, `j == CACHES` portant
+    /// Poids de sortie : `w_sortie[k * (caches + 1) + j]`, `j == caches` portant
     /// le biais de couche cachée (valeur fixe 1).
     pub w_sortie: Vec<f64>,
     /// Corrections de SORTIE accumulées, appliquées à la fin de la passe
@@ -256,7 +279,12 @@ pub struct ReseauMulti<const S: usize> {
     total_e: f64,
 
     // ---- tampons de la correction factorisée
-    ds: Vec<[f64; CACHES]>,
+    /// Les facteurs `d_j` d'une correction, **à plat** : `ds[m * caches + j]`.
+    /// La largeur n'étant plus connue à la compilation, ce n'est plus un
+    /// `Vec<[f64; CACHES]>` ; c'est un seul tampon, vidé par `clear` et donc
+    /// **réutilisé** d'une correction à l'autre — le §F interdit d'allouer à
+    /// chaque correction, et rien n'est alloué ici après les premières.
+    ds: Vec<f64>,
     rangs: Vec<usize>,
 
     /// Facteur d'influence par pas en arrière dans la pile. **La version livrée
@@ -333,6 +361,19 @@ impl<const S: usize> ReseauMulti<S> {
         ReseauMulti::neuf_amplitude(n_entrees, AMPLITUDE_DEPART)
     }
 
+    /// **Le même réseau neuf, à la largeur demandée** (`entraine --largeur N`).
+    /// `neuf` est exactement `neuf_largeur(n, CACHES)`.
+    pub fn neuf_largeur(n_entrees: usize, caches: usize) -> ReseauMulti<S> {
+        ReseauMulti::neuf_amplitude_largeur(n_entrees, AMPLITUDE_DEPART, caches)
+    }
+
+    /// **La largeur de la couche cachée de ce réseau.** Elle vaut [`CACHES`]
+    /// sauf si on l'a demandée autrement ; tout ce qui parcourt les poids en
+    /// dépend, et le fichier du §7 la porte en tête.
+    pub fn largeur(&self) -> usize {
+        self.caches
+    }
+
     /// **Le même réseau, avec une autre amplitude de départ — pour la MESURE que
     /// le préambule de la spécification autorise (« tu peux proposer mieux, mais
     /// tu livres d'abord la version spécifiée, tu mesures les deux »).**
@@ -351,24 +392,38 @@ impl<const S: usize> ReseauMulti<S> {
     /// où la mesure est écrite). `--amplitude-depart 0.1` reste le chemin par
     /// lequel l'ancien réglage se remesure, par la MÊME commande.
     pub fn neuf_amplitude(n_entrees: usize, amplitude: f64) -> ReseauMulti<S> {
+        ReseauMulti::neuf_amplitude_largeur(n_entrees, amplitude, CACHES)
+    }
+
+    /// **Le réseau neuf, amplitude ET largeur choisies.** Le seul endroit où les
+    /// poids d'un réseau neuf sont tirés : à `caches == CACHES`, la suite de
+    /// tirages est celle d'avant le lot « la largeur réglable », dans le même
+    /// ordre et en même nombre — c'est ce qui rend l'identité à l'octet possible.
+    pub fn neuf_amplitude_largeur(
+        n_entrees: usize,
+        amplitude: f64,
+        caches: usize,
+    ) -> ReseauMulti<S> {
+        assert!(caches > 0, "la couche cachée doit avoir au moins un neurone");
         let mut rng = StdRng::seed_from_u64(GRAINE_POIDS);
-        let mut w_cache = vec![0.0; (n_entrees + 1) * CACHES];
+        let mut w_cache = vec![0.0; (n_entrees + 1) * caches];
         for w in w_cache.iter_mut() {
             *w = rng.gen_range(-amplitude..amplitude);
         }
-        let mut w_sortie = vec![0.0; (CACHES + 1) * S];
+        let mut w_sortie = vec![0.0; (caches + 1) * S];
         for w in w_sortie.iter_mut() {
             *w = rng.gen_range(-amplitude..amplitude);
         }
         ReseauMulti {
             n_entrees,
+            caches,
             acc_sortie: vec![0.0; w_sortie.len()],
             w_cache,
             w_sortie,
             parties: 0,
             precedentes: Vec::new(),
-            sommes: vec![0.0; CACHES],
-            h: vec![0.0; CACHES],
+            sommes: vec![0.0; caches],
+            h: vec![0.0; caches],
             // Un réseau qui n'a rien évalué ne penche d'aucun côté : chaque
             // sortie vaut `1 / S`. Pour deux sorties c'est le `0,5` d'avant.
             p: [1.0 / S as f64; S],
@@ -384,8 +439,8 @@ impl<const S: usize> ReseauMulti<S> {
             pente_somme: 0.0,
             pente_compte: 0,
             pente_satures: 0,
-            h_min: vec![f64::INFINITY; CACHES],
-            h_max: vec![f64::NEG_INFINITY; CACHES],
+            h_min: vec![f64::INFINITY; caches],
+            h_max: vec![f64::NEG_INFINITY; caches],
         }
     }
 
@@ -402,19 +457,20 @@ impl<const S: usize> ReseauMulti<S> {
     pub fn evaluer(&mut self, entrees: &[f64]) -> [f64; S] {
         debug_assert_eq!(entrees.len(), self.n_entrees);
         let n = self.n_entrees;
+        let c = self.caches;
         if self.sans_optimisation || self.precedentes.len() != n {
             // Calcul complet : le premier de la partie, ou le premier après un
             // oubli. Boucle entrée par entrée : `w_cache` est rangé pour cela.
             self.sommes
-                .copy_from_slice(&self.w_cache[n * CACHES..(n + 1) * CACHES]);
+                .copy_from_slice(&self.w_cache[n * c..(n + 1) * c]);
             for i in 0..n {
                 let x = entrees[i];
                 if x == 0.0 {
                     continue;
                 }
-                let w = &self.w_cache[i * CACHES..(i + 1) * CACHES];
-                for j in 0..CACHES {
-                    self.sommes[j] += x * w[j];
+                let w = &self.w_cache[i * c..(i + 1) * c];
+                for (somme, wj) in self.sommes.iter_mut().zip(w.iter()) {
+                    *somme += x * wj;
                 }
             }
             self.precedentes.clear();
@@ -424,21 +480,21 @@ impl<const S: usize> ReseauMulti<S> {
             for i in 0..n {
                 let d = entrees[i] - self.precedentes[i];
                 if d != 0.0 {
-                    let w = &self.w_cache[i * CACHES..(i + 1) * CACHES];
-                    for j in 0..CACHES {
-                        self.sommes[j] += d * w[j];
+                    let w = &self.w_cache[i * c..(i + 1) * c];
+                    for (somme, wj) in self.sommes.iter_mut().zip(w.iter()) {
+                        *somme += d * wj;
                     }
                     self.precedentes[i] = entrees[i];
                 }
             }
         }
-        for j in 0..CACHES {
-            self.h[j] = self.sommes[j].tanh();
+        for (h, somme) in self.h.iter_mut().zip(self.sommes.iter()) {
+            *h = somme.tanh();
         }
         // (L5, livrable 5) Le relevé de la couche cachée, quand il est demandé.
         // Éteint, il ne coûte qu'un branchement prévisible par évaluation.
         if self.mesurer_couche {
-            for j in 0..CACHES {
+            for j in 0..c {
                 let pente = 1.0 - self.h[j] * self.h[j];
                 self.pente_somme += pente;
                 if pente < SEUIL_SATURATION {
@@ -458,10 +514,10 @@ impl<const S: usize> ReseauMulti<S> {
         // débordements.
         let mut s = [0.0f64; S];
         for k in 0..S {
-            let base = k * (CACHES + 1);
-            let mut x = self.w_sortie[base + CACHES]; // biais de couche cachée
-            for j in 0..CACHES {
-                x += self.h[j] * self.w_sortie[base + j];
+            let base = k * (c + 1);
+            let mut x = self.w_sortie[base + c]; // biais de couche cachée
+            for (h, w) in self.h.iter().zip(self.w_sortie[base..base + c].iter()) {
+                x += h * w;
             }
             s[k] = x;
         }
@@ -512,7 +568,15 @@ impl<const S: usize> ReseauMulti<S> {
     ///
     /// Le réseau doit venir d'évaluer la situation : `h`, `p` et les
     /// exponentielles en viennent.
-    fn accumuler_sortie(&mut self, cible: [f64; S], lambda: f64, taux: f64) -> [f64; CACHES] {
+    /// **(largeur réglable) `d` est FOURNI par l'appelant**, de longueur
+    /// [`largeur`](Self::largeur) : la largeur n'étant plus connue à la
+    /// compilation, on ne peut plus rendre un `[f64; CACHES]` sur la pile — et le
+    /// §F interdit d'allouer un tableau par correction. Les deux appelants
+    /// passent une tranche d'un tampon qu'ils réutilisent (`self.ds`). Chaque
+    /// case est ÉCRITE, jamais accumulée : le tampon n'a pas à être remis à zéro.
+    fn accumuler_sortie(&mut self, cible: [f64; S], lambda: f64, taux: f64, d: &mut [f64]) {
+        let c = self.caches;
+        debug_assert_eq!(d.len(), c);
         let mut erreur = [0.0f64; S];
         let mut derivee = [0.0f64; S];
         for k in 0..S {
@@ -539,7 +603,7 @@ impl<const S: usize> ReseauMulti<S> {
         // remontée vers la couche cachée : une seule formule, deux emplois.
         let t2 = self.total_e * self.total_e;
         for m in 0..S {
-            let base = m * (CACHES + 1);
+            let base = m * (c + 1);
             let mut somme = 0.0;
             for k in 0..S {
                 somme += erreur[k]
@@ -550,24 +614,23 @@ impl<const S: usize> ReseauMulti<S> {
                     };
             }
             let g = taux * somme;
-            for j in 0..CACHES {
-                self.acc_sortie[base + j] -= g * self.h[j];
+            for (a, h) in self.acc_sortie[base..base + c].iter_mut().zip(self.h.iter()) {
+                *a -= g * h;
             }
-            self.acc_sortie[base + CACHES] -= g; // biais : h vaut 1
+            self.acc_sortie[base + c] -= g; // biais : h vaut 1
         }
 
         // Erreur remontée vers chaque neurone caché. Le second terme est le
         // couplage propre à l'exponentielle normalisée : sans lui, on
         // entraînerait deux sorties indépendantes (§2.6).
-        let mut d = [0.0f64; CACHES];
-        for j in 0..CACHES {
+        for j in 0..c {
             let mut eh = 0.0;
             for k in 0..S {
-                let bk = k * (CACHES + 1);
+                let bk = k * (c + 1);
                 let mut g = derivee[k] * self.w_sortie[bk + j];
                 for l in 0..S {
                     if l != k {
-                        let bl = l * (CACHES + 1);
+                        let bl = l * (c + 1);
                         g -= self.w_sortie[bl + j] * (self.e[k] * self.e[l] / t2);
                     }
                 }
@@ -577,7 +640,6 @@ impl<const S: usize> ReseauMulti<S> {
             // dépend pas de l'entrée `i`.
             d[j] = taux * eh * (1.0 - self.h[j] * self.h[j]);
         }
-        d
     }
 
     /// Le produit externe d'une seule situation : `w[i][j] -= d[j] · x[i]`.
@@ -603,8 +665,10 @@ impl<const S: usize> ReseauMulti<S> {
     /// Le résultat n'est pas identique au dernier bit : `w += (a₁ + a₂)` et
     /// `(w += a₁) += a₂` ne donnent pas le même arrondi. Il l'est à la douzième
     /// décimale, c'est-à-dire au format d'écriture du §7.
-    fn produit_externe(&mut self, x: &[f64], d: &[f64; CACHES]) {
+    fn produit_externe(&mut self, x: &[f64], d: &[f64]) {
         let n = self.n_entrees;
+        let c = self.caches;
+        debug_assert_eq!(d.len(), c);
         for i in 0..n {
             let xi = x[i];
             if xi == 0.0 {
@@ -613,14 +677,14 @@ impl<const S: usize> ReseauMulti<S> {
                 // jamais : le raccourci est écrit, il ne mord pas.
                 continue;
             }
-            let w = &mut self.w_cache[i * CACHES..(i + 1) * CACHES];
-            for j in 0..CACHES {
-                w[j] -= d[j] * xi;
+            let w = &mut self.w_cache[i * c..(i + 1) * c];
+            for (wj, dj) in w.iter_mut().zip(d.iter()) {
+                *wj -= dj * xi;
             }
         }
-        let w = &mut self.w_cache[n * CACHES..(n + 1) * CACHES];
-        for j in 0..CACHES {
-            w[j] -= d[j]; // biais d'entrée : valeur fixe 1
+        let w = &mut self.w_cache[n * c..(n + 1) * c];
+        for (wj, dj) in w.iter_mut().zip(d.iter()) {
+            *wj -= dj; // biais d'entrée : valeur fixe 1
         }
     }
 
@@ -629,8 +693,16 @@ impl<const S: usize> ReseauMulti<S> {
     pub fn entrainer_une(&mut self, x: &[f64], cible: [f64; S], taux: f64) {
         self.oublier();
         self.evaluer(x);
-        let d = self.accumuler_sortie(cible, 1.0, taux);
-        self.produit_externe(x, &d);
+        // Le tampon de `self` est emprunté le temps de la passe puis rendu : une
+        // seule situation, donc une seule tranche de `caches` nombres, et aucune
+        // allocation dès la deuxième passe (`clear` garde la capacité).
+        let c = self.caches;
+        let mut ds = std::mem::take(&mut self.ds);
+        ds.clear();
+        ds.resize(c, 0.0);
+        self.accumuler_sortie(cible, 1.0, taux, &mut ds[..]);
+        self.produit_externe(x, &ds[..]);
+        self.ds = ds;
         self.appliquer();
     }
 
@@ -654,40 +726,52 @@ impl<const S: usize> ReseauMulti<S> {
         // situations de la pile : les poids ne bougent pas avant `appliquer`, la
         // mise à jour par différences reste donc exacte de l'une à l'autre.
         self.oublier();
+        let c = self.caches;
         let mut ds = std::mem::take(&mut self.ds);
         ds.clear();
+        // `ds` est plat : la tranche `m` occupe `[m * c, (m + 1) * c)`. Un seul
+        // redimensionnement, ici — et il n'ALLOUE qu'aux toutes premières
+        // corrections, la capacité du tampon survivant au `clear` ci-dessus. Le
+        // §F interdit d'allouer un tableau par correction ; il n'y en a aucun.
+        //
+        // Ce qu'il en coûte quand même, et il faut le dire : `resize` écrit `k · c`
+        // zéros que `accumuler_sortie` réécrit aussitôt, là où l'ancien `push`
+        // d'un `[f64; CACHES]` n'écrivait qu'une fois. C'est une passe de plus sur
+        // quelques centaines de nombres par correction — comptée dans les +0,55 %
+        // mesurés, et payée pour que la longueur du tampon soit toujours celle que
+        // les tranches supposent.
+        ds.resize(rangs.len() * c, 0.0);
         let mut lambda = 1.0;
-        for r in rangs.iter() {
+        for (m, r) in rangs.iter().enumerate() {
             self.evaluer(pile.situation(*r));
-            let d = self.accumuler_sortie(cible, lambda, taux);
-            ds.push(d);
+            self.accumuler_sortie(cible, lambda, taux, &mut ds[m * c..(m + 1) * c]);
             lambda *= self.lambda;
         }
 
         // Sommes suffixes : `S_m = Σ_{k ≥ m} d_k`.
-        let k = ds.len();
+        let k = rangs.len();
         for m in (0..k - 1).rev() {
-            for j in 0..CACHES {
-                ds[m][j] += ds[m + 1][j];
+            let (avant, apres) = ds.split_at_mut((m + 1) * c);
+            for (a, b) in avant[m * c..].iter_mut().zip(apres[..c].iter()) {
+                *a += b;
             }
         }
         // La situation la plus récente porte le produit externe complet…
-        let s0 = ds[0];
-        self.produit_externe(pile.situation(rangs[0]), &s0);
+        self.produit_externe(pile.situation(rangs[0]), &ds[0..c]);
         // … et chaque pas en arrière ne coûte que ce qui a changé.
         let n = self.n_entrees;
         for m in 1..k {
             let x = pile.situation(rangs[m]);
             let precedent = pile.situation(rangs[m - 1]);
-            let sm = &ds[m];
+            let sm = &ds[m * c..(m + 1) * c];
             for i in 0..n {
                 let d = x[i] - precedent[i];
                 if d != 0.0 {
                     // (§2.17.2) Directement dans les poids, comme le produit
                     // externe ci-dessus : aucune évaluation ne s'intercale.
-                    let w = &mut self.w_cache[i * CACHES..(i + 1) * CACHES];
-                    for j in 0..CACHES {
-                        w[j] -= sm[j] * d;
+                    let w = &mut self.w_cache[i * c..(i + 1) * c];
+                    for (wj, smj) in w.iter_mut().zip(sm.iter()) {
+                        *wj -= smj * d;
                     }
                 }
             }
@@ -740,7 +824,7 @@ impl<const S: usize> ReseauMulti<S> {
         self.pente_somme = 0.0;
         self.pente_compte = 0;
         self.pente_satures = 0;
-        for j in 0..CACHES {
+        for j in 0..self.caches {
             self.h_min[j] = f64::INFINITY;
             self.h_max[j] = f64::NEG_INFINITY;
         }
@@ -758,7 +842,7 @@ impl<const S: usize> ReseauMulti<S> {
         if self.pente_compte == 0 {
             0.0
         } else {
-            self.pente_somme / (self.pente_compte * CACHES as u64) as f64
+            self.pente_somme / (self.pente_compte * self.caches as u64) as f64
         }
     }
 
@@ -768,7 +852,7 @@ impl<const S: usize> ReseauMulti<S> {
         if self.pente_compte == 0 {
             0.0
         } else {
-            100.0 * self.pente_satures as f64 / (self.pente_compte * CACHES as u64) as f64
+            100.0 * self.pente_satures as f64 / (self.pente_compte * self.caches as u64) as f64
         }
     }
 
@@ -779,7 +863,7 @@ impl<const S: usize> ReseauMulti<S> {
         if self.pente_compte == 0 {
             return 0;
         }
-        (0..CACHES)
+        (0..self.caches)
             .filter(|j| self.h_max[*j] - self.h_min[*j] < AMPLITUDE_FIGEE)
             .count()
     }
@@ -790,7 +874,7 @@ impl<const S: usize> ReseauMulti<S> {
         if self.pente_compte == 0 {
             return 0.0;
         }
-        (0..CACHES)
+        (0..self.caches)
             .map(|j| self.h_max[j] - self.h_min[j])
             .fold(f64::INFINITY, f64::min)
     }
@@ -809,6 +893,10 @@ impl<const S: usize> ReseauMulti<S> {
     /// le sont toujours entre deux corrections) et sa mémoire de calcul est
     /// effacée : rien de la partie précédente ne franchit ce point.
     pub fn copier_les_poids_de(&mut self, maitre: &ReseauMulti<S>) {
+        assert_eq!(
+            self.caches, maitre.caches,
+            "un ouvrier ne peut pas recopier les poids d'un maître d'une AUTRE largeur"
+        );
         debug_assert_eq!(self.w_cache.len(), maitre.w_cache.len());
         self.w_cache.copy_from_slice(&maitre.w_cache);
         self.w_sortie.copy_from_slice(&maitre.w_sortie);
@@ -824,6 +912,11 @@ impl<const S: usize> ReseauMulti<S> {
     /// Verse dans le maître la différence qu'un ouvrier a produite depuis
     /// `base`. Appelée une fois par ouvrier, **dans l'ordre des graines**.
     pub fn ajouter_la_difference(&mut self, base: &ReseauMulti<S>, ouvrier: &ReseauMulti<S>) {
+        assert_eq!(
+            self.caches, base.caches,
+            "les différences d'un ouvrier d'une AUTRE largeur ne s'additionnent pas"
+        );
+        assert_eq!(self.caches, ouvrier.caches, "largeurs différentes entre maître et ouvrier");
         debug_assert_eq!(self.w_cache.len(), base.w_cache.len());
         for i in 0..self.w_cache.len() {
             self.w_cache[i] += ouvrier.w_cache[i] - base.w_cache[i];
@@ -842,7 +935,7 @@ impl<const S: usize> ReseauMulti<S> {
         self.pente_somme += ouvrier.pente_somme;
         self.pente_compte += ouvrier.pente_compte;
         self.pente_satures += ouvrier.pente_satures;
-        for j in 0..CACHES {
+        for j in 0..self.caches {
             if ouvrier.h_min[j] < self.h_min[j] {
                 self.h_min[j] = ouvrier.h_min[j];
             }
@@ -856,7 +949,37 @@ impl<const S: usize> ReseauMulti<S> {
     /// JavaScript : la table des noms du fichier doit être exactement celle que
     /// ce dépôt régénère. Au premier écart, on refuse — les poids auraient été
     /// appris sur une autre description.
+    ///
+    /// **La largeur, elle, est LUE dans le fichier** (§7 : `entrées caches
+    /// sorties`) et le réseau est construit à cette largeur-là : un fichier appris
+    /// à cent neurones se rejoue à cent. Ce qui est refusé, c'est un fichier
+    /// INCOHÉRENT — dont le compte de poids ne correspond pas à la géométrie qu'il
+    /// annonce — et, par [`lire_largeur`](Self::lire_largeur), un fichier dont la
+    /// largeur n'est pas celle que le réseau appelant attend.
     pub fn lire(chemin: &str, noms: &[String]) -> Result<ReseauMulti<S>, String> {
+        Self::lire_interne(chemin, noms, None)
+    }
+
+    /// **La même relecture, pour un réseau dont la largeur est DÉJÀ fixée** —
+    /// `entraine --largeur 50 --reprise poids-de-cent.txt`, par exemple.
+    ///
+    /// Le refus ne dit plus « ce n'est pas cinquante » mais « ce n'est pas ce que
+    /// ce réseau-là attend », et il nomme les deux nombres. Supprimer ce verrou
+    /// plutôt que le rendre juste donnerait un joueur qui relit des poids appris
+    /// sur une autre géométrie et répond n'importe quoi.
+    pub fn lire_largeur(
+        chemin: &str,
+        noms: &[String],
+        largeur_attendue: usize,
+    ) -> Result<ReseauMulti<S>, String> {
+        Self::lire_interne(chemin, noms, Some(largeur_attendue))
+    }
+
+    fn lire_interne(
+        chemin: &str,
+        noms: &[String],
+        largeur_attendue: Option<usize>,
+    ) -> Result<ReseauMulti<S>, String> {
         let texte = std::fs::read_to_string(chemin).map_err(|e| format!("{chemin} : {e}"))?;
         let mut lignes = texte.lines();
         let tete: Vec<usize> = lignes
@@ -869,10 +992,24 @@ impl<const S: usize> ReseauMulti<S> {
             return Err(format!("{chemin} : première ligne illisible (§7)"));
         }
         let (n, caches, sorties) = (tete[0], tete[1], tete[2]);
-        if caches != CACHES || sorties != S {
+        if caches == 0 || caches > LARGEUR_MAX {
             return Err(format!(
-                "{chemin} : {caches} neurones cachés et {sorties} sorties (le §1 en impose {CACHES} et {S})"
+                "{chemin} : {caches} neurones cachés annoncés — une couche cachée en a au moins un \
+                 et au plus {LARGEUR_MAX} (§7)"
             ));
+        }
+        if sorties != S {
+            return Err(format!(
+                "{chemin} : {sorties} sorties, ce réseau-là en a {S} (§7 : entrées caches sorties)"
+            ));
+        }
+        if let Some(attendue) = largeur_attendue {
+            if caches != attendue {
+                return Err(format!(
+                    "{chemin} : {caches} neurones cachés, ce réseau-là en attend {attendue} \
+                     — des poids appris sur une autre géométrie ne veulent rien dire ici"
+                ));
+            }
         }
         let parties: u64 = lignes.next().unwrap_or("0").trim().parse().unwrap_or(0);
         if n != noms.len() {
@@ -889,7 +1026,7 @@ impl<const S: usize> ReseauMulti<S> {
                 ));
             }
         }
-        let mut r = ReseauMulti::<S>::neuf(n);
+        let mut r = ReseauMulti::<S>::neuf_largeur(n, caches);
         r.parties = parties;
         let mut k = 0usize;
         let total = r.w_cache.len() + r.w_sortie.len();
@@ -908,7 +1045,14 @@ impl<const S: usize> ReseauMulti<S> {
             k += 1;
         }
         if k != total {
-            return Err(format!("{chemin} : {k} poids lus, {total} attendus"));
+            // **Le vrai verrou de cohérence.** Un fichier dont l'en-tête ment sur
+            // sa largeur passe tous les contrôles précédents : c'est ici qu'il
+            // tombe, et le message nomme la géométrie annoncée pour que la
+            // contradiction saute aux yeux.
+            return Err(format!(
+                "{chemin} : {k} poids lus, {total} attendus pour {n} entrées, \
+                 {caches} neurones cachés et {sorties} sorties (§7)"
+            ));
         }
         Ok(r)
     }
@@ -921,7 +1065,7 @@ impl<const S: usize> ReseauMulti<S> {
         use std::io::Write;
         let f = std::fs::File::create(chemin)?;
         let mut w = std::io::BufWriter::new(f);
-        writeln!(w, "{} {} {}", self.n_entrees, CACHES, S)?;
+        writeln!(w, "{} {} {}", self.n_entrees, self.caches, S)?;
         writeln!(w, "{}", self.parties)?;
         for nom in noms {
             writeln!(w, "{nom}")?;
