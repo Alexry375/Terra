@@ -3,7 +3,7 @@
 > Source de vérité du projet. Ancrée au code (`fichier:ligne`) dès qu'il y aura du
 > code. [VÉRIFIÉ JJ-MM] = relu à la source ce jour-là. [DÉCLARÉ] = non re-vérifié.
 
-Dernière mise à jour : 2026-08-31
+Dernière mise à jour : 2026-09-01
 
 > **20-08 — LE DÉPÔT EST PUBLIC** : `github.com/Alexry375/Terra`. Les 65 Mo de
 > visuels du jeu ont été retirés de l'arbre **et de tout l'historique** ; le
@@ -13,31 +13,81 @@ Dernière mise à jour : 2026-08-31
 > citées ci-dessous sont celles du **nouvel** historique. Détail :
 > `docs/JOURNAL.md`, entrée « 2026-08-20 (suite) ».
 
-## 🟢 31-08 — LE JOUEUR PASSE LA BARRE DES 98 %, ET LA MESURE DEVIENT INSTANTANÉE
+## 🟢 01-09 — LE JOUEUR PASSE LA BARRE DES 98 % SUR 800 PARTIES, ET LA MESURE DEVIENT INSTANTANÉE
 
-**Le fait de la journée** [VÉRIFIÉ 31-08] : l'entraînement porté à **400 000
-parties** (`data/poids/apprenti-400k.txt`, fini à 05 h 08) donne, en duel direct
-contre `reflechi` :
+**Le fait de la journée** [VÉRIFIÉ 01-09] : l'entraînement porté à **400 000
+parties** (`data/poids/apprenti-400k.txt`) donne, en duel direct contre
+`reflechi` sur **400 donnes jouées aux deux sièges** :
 
 ```
-« apprenti » gagne 79 parties sur 80 (98,8 %)
-écart de score moyen : 73,29 points   —   167 743 décisions jouées
+« apprenti » gagne 784 parties sur 800 (98,0 %)
+écart de score moyen : 69,46 points   —   1 852 378 décisions jouées
+on est à 27,15 écarts typiques de l'équilibre (seuil : 2)
 verdict : écart significatif
 ```
 
-**La réserve, et elle est sérieuse** : ce sont **40 donnes** jouées aux deux
-sièges, pas 80. Le seuil du contrat d'autonomie demande 80 donnes × 2 sièges. Une
-mesure à 40 donnes m'a déjà menti une fois (82,5 % devenus 76,3 % en doublant).
-Le duel de confirmation tourne depuis le 31-08 au soir. **Second point à
-regarder** : 15 parties sur 80 se sont arrêtées sur le plafond de manches, donc
-presque une sur cinq porte un score qui est un instantané et non un résultat.
+**Le seuil du contrat d'autonomie est atteint sur dix fois l'échantillon exigé.**
+
+**Correction du chiffre annoncé le 31-08** : la carte disait 98,8 %, mesuré sur
+40 donnes seulement. Les mesures larges le ramènent à 98,0 %. Le tableau complet :
+
+| mesure | joueur | donnes | résultat |
+|---|---|---|---|
+| JavaScript, avec devinette | `apprenti-b` | 40 × 2 | 79 / 80 = 98,8 % |
+| JavaScript, avec devinette | `apprenti-b` | 80 × 2 | 153 / 160 = **95,6 %** |
+| Rust natif, sans devinette | `apprenti` | 80 × 2 | 155 / 160 = **96,9 %** |
+| Rust natif, sans devinette | `apprenti` | 200 × 2 | 394 / 400 = 98,5 % |
+| Rust natif, sans devinette | `apprenti` | **400 × 2** | **784 / 800 = 98,0 %** |
+
+Trois lectures [VÉRIFIÉ 01-09] :
+
+1. **Les plages de donnes ne sont pas interchangeables** : les 80 premières
+   donnent 96,9 %, les 120 suivantes 99,6 %. Seul l'échantillon large compte.
+2. **La devinette n'apporte rien de mesurable** : sur les 80 mêmes donnes,
+   95,6 % avec, 96,9 % sans. L'écart est dans le bruit. Sa valeur reste à
+   démontrer, et elle coûte un second réseau.
+3. **192 parties sur 800 (24 %) se sont arrêtées sur le plafond de manches** —
+   voir la section « la partie qui tourne à vide » plus bas.
+
+### 🔴 Le joueur en service n'est PAS le joueur mesuré
+
+[VÉRIFIÉ 01-09] Le fichier chargé par défaut, `data/poids/apprenti.txt`, vient
+d'un entraînement de 12 000 parties. Sur les mêmes 80 donnes il fait **84
+victoires sur 160, soit 52,5 %, verdict « dans le bruit »** — il ne bat pas
+l'étalon. Le fichier à 400 000 parties fait 96,9 % sur ces mêmes donnes.
+
+**Décision en attente d'Alexis** : mettre `apprenti-400k.txt` en service à la
+place de `apprenti.txt`, et décider si les quatre fichiers de poids non suivis
+(1,5 Mo chacun) entrent dans le dépôt public ou restent hors suivi.
+
+### 🔴 La partie qui tourne à vide — un défaut du joueur, pas de la mesure
+
+[VÉRIFIÉ 01-09] Le phénomène n'apparaît **que** dans la rencontre entre le joueur
+artificiel et l'étalon. Sur 50 donnes (100 parties) par appariement :
+
+| appariement | parties non terminées |
+|---|---|
+| le joueur artificiel contre l'étalon | **24 %** |
+| le joueur artificiel contre lui-même | 0 |
+| l'étalon contre lui-même | 0 |
+| l'étalon contre le hasard | 0 |
+| le hasard contre le hasard | 0 |
+
+Le journal de la donne 4 montre les cinquante dernières manches identiques :
+**les deux mains sont vides**, les deux joueurs passent, plus rien ne bouge. Ce
+n'est pas une temporisation stratégique mais une impasse que le moteur ne détecte
+pas, et que le joueur artificiel provoque en vidant sa main sans repiocher.
+
+Le score est stable pendant ces manches mortes, donc les 98 % ne sont pas
+gonflés. Mais contre un humain qui continue de piocher, vider sa main est une
+faiblesse — c'est un lot à écrire.
 
 ### Trois lots livrés et audités le 31-08
 
 | lot | ce qu'il apporte | verdict |
 |---|---|---|
 | **L7a** `les-sept-bancs-rouges` | les sept bancs de l'interface réparés | `ok`, commit `4ffb833` |
-| **L8** `la-largeur-reglable` | la largeur du réseau devient un réglage | `ok`, identité à l'octet prouvée |
+| **L8** `la-largeur-reglable` | la largeur du réseau devient un réglage | `ok`, commit `bcc4681` |
 | **L10** `l-etalon-natif` | l'étalon `reflechi` porté en Rust, duels natifs | `ok`, commit `f1d7fbc` |
 
 **Le gain de L10 est le plus structurant du projet à ce jour** : un duel de quatre
