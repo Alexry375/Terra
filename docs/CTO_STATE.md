@@ -60,7 +60,44 @@ l'étalon. Le fichier à 400 000 parties fait 96,9 % sur ces mêmes donnes.
 place de `apprenti.txt`, et décider si les quatre fichiers de poids non suivis
 (1,5 Mo chacun) entrent dans le dépôt public ou restent hors suivi.
 
-### 🔴 La partie qui tourne à vide — un défaut du joueur, pas de la mesure
+### 🔴 NOS PARTIES DURENT DEUX FOIS TROP LONGTEMPS — le repère humain
+
+[VÉRIFIÉ 01-09] La partie à deux joueurs humains du 04-08, retrouvée sur une
+capture de son écran de fin, s'est terminée **à la manche 23**, Mars entièrement
+terraformée (température 19/19, oxygène 14/14, océans 9/9), sur les scores
+**72 contre 62** (terraformation 35 et 29, forêts 9 et 7).
+
+Nos parties, mesurées le même jour sur 20 donnes avec les réglages en service :
+
+| | la partie humaine du 04-08 | nos parties (20 donnes) |
+|---|---|---|
+| manches jouées | **23** | **50,3** — de 32 à 78 |
+| score du vainqueur | **72** | **128** |
+
+**Deux fois plus de manches, presque deux fois plus de points.** Et le sens de
+l'écart est contre-intuitif : deux humains qui découvraient l'interface
+terraforment Mars **deux fois plus vite** que nos deux joueurs artificiels. Un
+joueur fort devrait finir plus tôt, pas plus tard.
+
+Deux explications possibles, aucune écartée à ce jour :
+
+1. **Le moteur ralentit la terraformation** — un coût, un effet ou une règle qui
+   freine la montée des trois paramètres planétaires.
+2. **Nos deux joueurs négligent la terraformation** et accumulent des points par
+   d'autres voies, faisant durer la partie. La décomposition d'août appuie cette
+   piste : l'IA tirait 26,3 points de terraformation, l'étalon 14,0 ; les deux
+   humains, eux, en ont tiré 35 et 29.
+
+**C'est le chantier prioritaire.** Tant qu'il n'est pas tranché, tous nos
+chiffres de force portent sur une partie qui ne ressemble pas à une vraie partie.
+
+**Note d'outillage** : il n'existe **aucune sauvegarde de partie** dans le
+projet — la fonction a été demandée le 31-07 (retour n° 14) et n'a jamais été
+écrite ; l'interface n'écrit rien de persistant. Le repère humain ci-dessus ne
+survit que par une capture d'écran. **Écrire la sauvegarde de partie devient une
+priorité de mesure, pas seulement de confort.**
+
+### 🔴 La partie qui tourne à vide — le cas extrême du même problème
 
 [VÉRIFIÉ 01-09] Le phénomène n'apparaît **que** dans la rencontre entre le joueur
 artificiel et l'étalon. Sur 50 donnes (100 parties) par appariement :
