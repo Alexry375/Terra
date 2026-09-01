@@ -2843,3 +2843,117 @@ portent le mauvais motif. Les trois restaurations vérifiées à l'octet.
 L7b (campagne de sabotage systématique), L8 (largeur du réseau), L9 (dernier
 entraînement puis mesure des 98 %). Un entraînement de 120 000 parties avec
 devinette tourne en fond depuis 17 h 30, sur le moteur corrigé.
+
+## 2026-08-31 → 01-09 — Trois lots livrés, la mesure passe de dix-huit heures à quatre minutes, et le chiffre annoncé descend de 98,8 % à 98,0 %
+
+### Ce qui a été livré et scellé dans l'historique
+
+| lot | ce qu'il apporte | commit |
+|---|---|---|
+| **L7a** `les-sept-bancs-rouges` | les sept bancs de vérification de l'interface réparés | `4ffb833` |
+| **L10** `l-etalon-natif` | l'étalon de mesure `reflechi` porté en Rust, duels natifs | `f1d7fbc` |
+| **L8** `la-largeur-reglable` | la largeur du réseau devient un réglage | `bcc4681` |
+
+**Le gain de L10 est le plus structurant du projet à ce jour.** Un duel de quatre
+donnes passait par le programme JavaScript en **546 secondes** ; il en prend
+**0,97** en Rust — facteur 563. [VÉRIFIÉ 31-08] La fidélité n'est pas déclarée
+mais prouvée : sur **60 parties entières et 59 247 décisions**, l'étalon Rust
+choisit exactement la même option que l'étalon JavaScript, à chaque décision.
+
+Conséquence concrète mesurée le 01-09 : le duel de 80 donnes qui a tourné
+**26 546 secondes** (7 h 22) en JavaScript pendant la nuit se rejoue en Rust en
+**moins d'une minute**, et un duel dix fois plus gros en **3 min 57**.
+
+### Le chiffre de force, et sa correction
+
+La carte d'état annonçait **98,8 %** le 31-08. Ce chiffre venait de **40 donnes**.
+Trois mesures plus larges l'ont depuis encadré, toutes avec les poids issus de
+l'entraînement de 400 000 parties (`data/poids/apprenti-400k.txt`) :
+
+| mesure | joueur | donnes | résultat |
+|---|---|---|---|
+| JavaScript, avec devinette | `apprenti-b` | 80 × 2 sièges | 153 / 160 = **95,6 %** |
+| Rust natif, sans devinette | `apprenti` | 80 × 2 sièges | 155 / 160 = **96,9 %** |
+| Rust natif, sans devinette | `apprenti` | 200 × 2 sièges | 394 / 400 = **98,5 %** |
+| Rust natif, sans devinette | `apprenti` | **400 × 2 sièges** | **784 / 800 = 98,0 %** |
+
+[VÉRIFIÉ 01-09] La dernière ligne est le chiffre de référence : 800 parties,
+1 852 378 décisions, **27,15 écarts typiques de l'équilibre** (seuil : 2).
+
+Trois enseignements, tous inconfortables :
+
+1. **Les 40 donnes mentaient encore**, de 0,8 point. C'est la deuxième fois du
+   projet (la première : 82,5 % devenus 76,3 %). Le seuil du contrat d'autonomie
+   demande 80 donnes ; il faut le lire comme un plancher, pas comme une cible.
+2. **Les plages de graines ne sont pas interchangeables.** Les 80 premières
+   donnes donnent 96,9 %, les 120 suivantes 99,6 %. Une moyenne sur une
+   population hétérogène ne dit pas ce qu'on croit ; seul l'échantillon large
+   compte.
+3. **La faculté de deviner la carte de l'adversaire n'apporte rien de mesurable.**
+   Sur les 80 mêmes donnes : 95,6 % avec, 96,9 % sans. L'écart de deux parties
+   est dans le bruit. Cette faculté coûte un second réseau et un entraînement
+   séparé ; sa valeur reste à démontrer.
+
+### La découverte qui compte : une partie sur quatre ne se termine pas
+
+**192 parties sur 800** se sont arrêtées sur le plafond de manches, soit 24 %.
+[VÉRIFIÉ 01-09] Leur score est un instantané, pas un résultat.
+
+Le phénomène n'apparaît **que** dans la rencontre entre le joueur artificiel et
+l'étalon. Mesuré sur 50 donnes (100 parties) pour chaque appariement :
+
+| appariement | parties non terminées |
+|---|---|
+| le joueur artificiel contre l'étalon | **24 %** |
+| le joueur artificiel contre lui-même | 0 |
+| l'étalon contre lui-même | 0 |
+| l'étalon contre le hasard | 0 |
+| le hasard contre le hasard | 0 |
+
+Le journal d'une de ces parties (donne 4) montre les cinquante dernières manches
+rigoureusement identiques : **les deux mains sont vides**, les deux joueurs
+passent, plus rien ne bouge. Ce n'est pas une temporisation stratégique — c'est
+une impasse que le moteur ne sait pas détecter, et que le joueur artificiel
+provoque en vidant sa main sans repiocher.
+
+Ce n'est pas un défaut de la mesure (le score est stable pendant ces manches
+mortes, donc les 98 % ne sont pas gonflés), mais c'est un défaut du joueur :
+contre un humain qui continue de piocher, vider sa main est une faiblesse.
+
+### Le joueur en service est très en dessous du joueur mesuré
+
+[VÉRIFIÉ 01-09] Le fichier de poids que charge le programme par défaut,
+`data/poids/apprenti.txt`, vient d'un entraînement de 12 000 parties. Mesuré sur
+les mêmes 80 donnes : **84 victoires sur 160, soit 52,5 %, verdict « dans le
+bruit »**. Le joueur à 400 000 parties fait 96,9 % sur ces mêmes donnes.
+
+Autrement dit, tous les chiffres de force du projet portent sur un fichier de
+poids qui **n'est pas celui que l'interface utilise**. C'est une erreur de ma
+part de ne pas l'avoir vu plus tôt.
+
+### Mes propres erreurs de la journée
+
+- **Un chiffre faux annoncé à Alexis** : « plus de 7 minutes » pour un duel
+  JavaScript de 2 donnes ; c'est **261 secondes**. J'avais lu un journal encore
+  vide, le programme ne publiant qu'à la fin.
+- **Un contrôle de L8 rendu rouge par ma faute** : lancé sous une contrainte de
+  900 secondes alors que le banc en demande 2 022. Relancé sans contrainte :
+  vert, 14 350 accords sur 14 350 décisions.
+- **Un contrôle caché de L8 rendu rouge par ma faute** : copié hors de son
+  dossier alors qu'il cherche sa référence par le chemin de son propre fichier.
+- **Un contrôle caché de L10 rendu rouge deux fois par ma faute** : d'abord un
+  motif qui attrapait un compteur au lieu d'un réglage, puis une compilation
+  lancée à la racine du dépôt alors que le projet Rust vit dans `engine/`. Cette
+  dernière erreur est la troisième de la journée sur le même sujet.
+- **L'audit automatique de L8 a donc rendu deux échecs qui ne regardaient pas
+  l'agent.** Le verdict enregistré est `ok`, avec la raison de chaque échec
+  écrite dans la note.
+
+### Ce qui est prêt et n'a pas encore été lancé
+
+Le lot **`la-devinette-en-natif`** — apprendre à la balance Rust à porter la
+faculté de devinette, pour que même les mesures de référence se fassent en
+secondes — a son contrat écrit (207 lignes, 0 point laissé ouvert), ses cinq
+contrôles de progrès **tous rouges pour la bonne raison** (« joueur inconnu :
+apprenti-b »), ses quatre garde-fous verts et ses trois contrôles cachés. Il
+n'est **pas encore scellé**.
