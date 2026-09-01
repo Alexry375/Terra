@@ -63,3 +63,10 @@ web/demo-decor/
 # public. Trouvees non ignorees le 21-08 : 4,1 Mo de PNG a un `git add -A` de la
 # publication.
 web/webapp/verif/outputs/
+
+# Fichiers de reglages du reseau (1,5 Mo piece). Seul le joueur EN SERVICE est
+# versionne ; les essais d'entrainement restent sur le disque d'Alexis.
+# Decision d'Alexis, 01-09.
+data/poids/*
+!data/poids/apprenti.txt
+!data/poids/apprenti-adversaire.txt
