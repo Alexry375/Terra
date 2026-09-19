@@ -2957,3 +2957,34 @@ secondes — a son contrat écrit (207 lignes, 0 point laissé ouvert), ses cinq
 contrôles de progrès **tous rouges pour la bonne raison** (« joueur inconnu :
 apprenti-b »), ses quatre garde-fous verts et ses trois contrôles cachés. Il
 n'est **pas encore scellé**.
+
+### Complément du 01-09, matinée — ce qui s'est passé après l'entrée ci-dessus
+
+Écrit le 19-09, à la reprise, d'après la carte d'état et les commits `13cb991`
+et `7b62b25`. [VÉRIFIÉ 19-09 sur le dépôt]
+
+**Le joueur en service a été remplacé.** Le fichier chargé par défaut faisait
+52,5 % contre l'étalon (dans le bruit) ; il porte désormais les réglages à
+400 000 parties et fait 96,9 % sur les mêmes donnes, 98,0 % sur 800 parties,
+100 % contre le hasard. Suite complète relancée après le changement : 1 194
+tests verts. 36 fichiers de réglages sortis du suivi de version. Décision
+d'Alexis.
+
+**La faculté de devinette est mise de côté**, sans être effacée : elle n'apporte
+rien de mesurable (95,6 % avec, 96,9 % sans, sur les mêmes 80 donnes). Le lot
+`la-devinette-en-natif`, prêt à sceller, reste sur le disque, non lancé.
+Décision d'Alexis.
+
+**La découverte qui change l'ordre des priorités.** Aucune sauvegarde de partie
+n'existe (retour n° 14 du 31-07, jamais fait). Mais la capture d'écran de fin
+de la partie humaine du 04-08 a été retrouvée : **23 manches**, scores 72 et 62,
+Mars terraformée. Nos parties, mesurées le même jour sur 20 donnes : **50,3
+manches** en moyenne (32 à 78), score du vainqueur 128. Deux humains qui
+découvraient l'interface ont terraformé Mars deux fois plus vite que nos deux
+joueurs artificiels. L'impasse à 24 % n'est que la forme extrême de ce
+problème. Tant qu'il n'est pas tranché, nos chiffres de force portent sur une
+partie qui ne ressemble pas à une vraie partie.
+
+**Ce qui n'a PAS été fait.** J'avais annoncé « je lance le chantier sauf avis
+contraire ». La session s'est arrêtée là ; **aucun chantier n'a été écrit ni
+lancé** entre le 01-09 et le 19-09. Dix-huit jours sans travail sur le projet.
