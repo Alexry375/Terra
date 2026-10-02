@@ -7,7 +7,10 @@ neuf tournait avec un moteur compilé périmé, et l'écran affichait un mélang
 incohérent des deux versions. L'en-tête `Cache-Control: no-store` interdit cette
 réserve : chaque rechargement redemande tout.
 
-    python3 web/servir.py [port]        (défaut : 8020)
+    python3 web/servir.py [port] [adresse]   (défaut : 8020, 127.0.0.1)
+
+Sur le VPS, l'adresse est l'IP Tailscale, jamais 0.0.0.0 : la machine a une IP
+publique.
 
 La page ne fonctionne QUE servie en HTTP — jamais par un chemin de fichier, à
 cause des modules et du moteur compilé.
@@ -19,6 +22,9 @@ import sys
 
 RACINE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "webapp")
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8020
+HOTE = sys.argv[2] if len(sys.argv) > 2 else "127.0.0.1"
+if HOTE in ("0.0.0.0", "::", ""):
+    sys.exit("servir.py : adresse refusée (toutes les interfaces) : " + repr(HOTE))
 
 
 class Frais(http.server.SimpleHTTPRequestHandler):
@@ -32,6 +38,6 @@ class Frais(http.server.SimpleHTTPRequestHandler):
 
 
 socketserver.TCPServer.allow_reuse_address = True
-with socketserver.TCPServer(("127.0.0.1", PORT), Frais) as srv:
-    print(f"http://127.0.0.1:{PORT}/  ({RACINE})")
+with socketserver.TCPServer((HOTE, PORT), Frais) as srv:
+    print(f"http://{HOTE}:{PORT}/  ({RACINE})")
     srv.serve_forever()
