@@ -161,7 +161,7 @@ heures, pas à prendre pour une promesse.
 **Attention à l'unité** : les « ms par partie » des différentes mesures ne sont
 pas comparables entre elles, les parties n'ayant pas la même longueur selon le
 réglage et l'avancement. Seuls les **µs par essai d'option** le sont.
-### 🔴 La comparaison des largeurs n'est PAS valide en l'état
+### 🟠 La comparaison des largeurs n'était PAS valide — corrigé le 03-10
 
 [VÉRIFIÉ 03-10] Le témoin à largeur 50 (`apprenti.txt`) a été entraîné **avec la
 devinette allumée** : son second réseau `apprenti-adversaire.txt` compte aussi
@@ -173,10 +173,89 @@ devinette est **active pendant les parties d'entraînement** : allumée ou étei
 le joueur ne joue pas les mêmes coups, donc le réseau principal n'apprend pas
 sur les mêmes parties.
 
+**→ RÉSOLU le 03-10** par le lancement du témoin à largeur 50 sans devinette (section suivante).
+
 **Conséquence : comparer largeur 100 (sans devinette) à largeur 50 (avec
 devinette) mélangerait deux changements, et un écart ne se laisserait pas
 attribuer.** Il manque un **témoin à largeur 50 sans devinette**, ~8 h 30 de
-calcul, à lancer à la suite. Décision en attente d'Alexis.
+calcul, lancé le 03-10 sur accord d'Alexis (section suivante).
+
+
+### 🟢 03-10 — LES TROIS ENTRAÎNEMENTS TOURNENT CÔTE À CÔTE, EN PRIORITÉ BASSE
+
+Décision d'Alexis le 03-10 : lancer les trois en parallèle. Il travaille en même
+temps sur la même machine (notamment `~/Global/Agents_Projects/trading-lab/trade-center`,
+un projet Python), donc **les trois tournent en priorité basse** —
+`nice -n 19` (le plus effacé) et `ionice -c 3` (accès disque au ralenti). Ils
+prennent tout le processeur libre et s'effacent dès qu'un autre programme en
+demande ; aucun cœur n'est réservé, ce qui serait à la fois insuffisant et
+gaspilleur.
+
+| entraînement | fichier | ouvriers | graines | parties |
+|---|---|---|---|---|
+| témoin largeur 50 **sans devinette** | `data/poids/temoin-largeur50-sans-devinette.txt` | 2 | 2 000 001 … 2 400 000 | 0 → 400 000 |
+| largeur 100 (reprise) | `data/poids/apprenti-largeur100.txt` | 5 | 1 000 001 … 1 368 941 | 31 059 → 400 000 |
+| largeur 200 (reprise) | `data/poids/apprenti-largeur200.txt` | 2 | 3 000 001 … 3 376 087 | 23 913 → 400 000 |
+
+Commandes conservées dans `/home/alexis/.agentic-workspace/lancer-*.sh`,
+journaux dans `temoin-largeur50.log`, `largeur100.log`, `largeur200.log`.
+
+**Les plages de graines sont disjointes entre elles et toutes ≥ 1 000 000**,
+donc sans recoupement avec les graines de mesure (< 100 000) ni avec les
+contrôles des chantiers (820 000 … 870 000). Elles ne sont **pas identiques**
+d'un entraînement à l'autre : l'appariement parfait est hors de portée (les
+plages du 19-09 sont perdues avec les journaux du portable), et il n'est pas
+nécessaire — la comparaison finale se fait en duel contre `reflechi` sur des
+graines de test identiques.
+
+**Mesure du partage** [VÉRIFIÉ 03-10, delta de temps processeur sur 90 s] :
+
+| processus | cœurs utilisés |
+|---|---|
+| largeur 100 (5 ouvriers) | 2,30 |
+| largeur 200 (2 ouvriers) | 1,16 |
+| témoin largeur 50 (2 ouvriers) | 1,31 |
+| **total** | **4,77 sur 6** |
+
+Mémoire : **inchangée à 4,4 Go utilisés sur 11**, les trois entraînements pesant
+63 Mo à eux trois. 7 Go restent disponibles.
+
+**Le débit monte à mesure que le réseau apprend — hypothèse confirmée.** Largeur
+100 est passé de **218 ms par partie** (seul, réseau à 32 000 parties) à
+**135 ms** (à trois, réseau à 41 000 parties) : l'estimation de 22 h est tombée
+à 13,5 h **alors qu'il partage désormais la machine**. Un réseau peu entraîné
+fait traîner les parties.
+
+Estimations au rythme de l'instant, toutes des bornes hautes :
+
+| entraînement | restant |
+|---|---|
+| largeur 100 | **13,5 h** |
+| témoin largeur 50 | 17,0 h (part de poids au hasard, accélérera beaucoup) |
+| largeur 200 | 49,9 h |
+
+### Piloter les entraînements sans perdre de travail
+
+Trois scripts dans `/home/alexis/.agentic-workspace/` :
+
+| script | effet |
+|---|---|
+| `etat-entrainements.sh` | où en sont les trois, et combien de cœurs ils prennent |
+| `pause-entrainements.sh` | gèle les trois (`kill -STOP`) — rien n'est perdu |
+| `reprendre-entrainements.sh` | les reprend exactement où ils en étaient (`kill -CONT`) |
+
+Et même un arrêt brutal ne coûte que 30 secondes de calcul : la sauvegarde de
+sûreté réécrit les fichiers de poids toutes les 30 s
+(`engine/src/bin/entraine.rs:82-84`), et `--reprise` repart de là.
+
+### 🔴 Le vrai risque de cohabitation est la mémoire, pas le processeur
+
+11 Go et **aucune mémoire d'échange sur disque**. Un dépassement de mémoire ne
+ralentit pas la machine, il fait **tuer un programme net** par le noyau. Les
+entraînements n'en sont pas la cause (63 Mo) ; les gros consommateurs relevés le
+03-10 sont `next-server` (592 Mo) et trois sessions `claude` (~480 Mo chacune).
+À 4,4 Go sur 11, la marge est confortable, mais lancer Docker ou plusieurs
+serveurs en plus mérite un coup d'œil à `free -h`.
 
 ## 🟢 01-09 — LE JOUEUR PASSE LA BARRE DES 98 % SUR 800 PARTIES, ET LA MESURE DEVIENT INSTANTANÉE
 
