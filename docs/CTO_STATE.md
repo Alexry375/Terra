@@ -3,7 +3,7 @@
 > Source de vérité du projet. Ancrée au code (`fichier:ligne`) dès qu'il y aura du
 > code. [VÉRIFIÉ JJ-MM] = relu à la source ce jour-là. [DÉCLARÉ] = non re-vérifié.
 
-Dernière mise à jour : 2026-09-01
+Dernière mise à jour : 2026-10-03
 
 > **20-08 — LE DÉPÔT EST PUBLIC** : `github.com/Alexry375/Terra`. Les 65 Mo de
 > visuels du jeu ont été retirés de l'arbre **et de tout l'historique** ; le
@@ -12,6 +12,171 @@ Dernière mise à jour : 2026-09-01
 > le disque d'Alexis, hors suivi de version. Toutes les empreintes de commit
 > citées ci-dessous sont celles du **nouvel** historique. Détail :
 > `docs/JOURNAL.md`, entrée « 2026-08-20 (suite) ».
+
+## 🟢 03-10 — LE TRAVAIL PASSE SUR UN SERVEUR QUI TOURNE SANS INTERRUPTION, ET IL EST PLUS RAPIDE QUE LE PORTABLE
+
+**Le fait de la journée** [VÉRIFIÉ 03-10] : le projet a déménagé du portable
+d'Alexis vers un serveur loué (un « VPS », machine virtuelle louée chez un
+hébergeur, allumée en permanence). La machine n'a plus de carte graphique
+dédiée — **sans conséquence : le projet n'en a jamais utilisé.**
+
+**Preuve que la carte graphique ne servait pas** [VÉRIFIÉ 03-10] :
+`engine/Cargo.toml` ne déclare que trois dépendances (`rand`, `serde`,
+`serde_json`) ; recherche sur mots entiers de `cuda`, `opencl`, `wgpu`, `torch`,
+`candle`, `blas` dans `engine/Cargo.toml` et tout `engine/src/` → **zéro
+occurrence**. Le réseau de neurones est écrit à la main et tourne sur le
+processeur.
+
+### Les caractéristiques de la machine [VÉRIFIÉ 03-10]
+
+| | le serveur | le portable |
+|---|---|---|
+| processeur | Intel Haswell virtualisé (génération 2013) | Intel Tiger Lake (2021) |
+| cœurs | **6**, un fil d'exécution chacun | 4 physiques, 8 fils |
+| instructions de calcul vectoriel | AVX2 | AVX2 et AVX-512 |
+| mémoire vive | 11 Go, **aucune mémoire d'échange sur disque** | 16 Go |
+| disque | 96 Go, 79 utilisés, **17 libres (83 %)** | — |
+| carte graphique | Cirrus Logic GD 5446 (affichage virtuel) | NVIDIA RTX 3060 |
+
+### La vitesse : plus lent par cœur, plus rapide au total
+
+**Un cœur seul**, duel de référence
+(`APPRENTI_POIDS=data/poids/apprenti.txt ./engine/target/release/duel apprenti
+reflechi 80 base,decouverte`, 155/160, 389 759 décisions, résultat **identique à
+l'octet** à celui du 01-09 — le moteur est bien déterministe d'une machine à
+l'autre) :
+
+| machine | temps |
+|---|---|
+| le serveur | **76,9 s** |
+| le portable (déduit : 400 graines en 237 s le 01-09) | ≈ 50 s |
+
+→ le serveur est **1,54 fois plus lent par cœur**.
+
+**À pleine charge**, entraînement mesuré en microsecondes par essai d'option
+(seule unité comparable : les parties n'ont pas toutes la même longueur) :
+
+| machine et réglage | µs par essai |
+|---|---|
+| portable, 3 ouvriers (entraînement du 31-08 : 280 000 parties en 23 101 s) | 10,56 |
+| serveur, 1 ouvrier | 33,0 |
+| serveur, 5 ouvriers | 11,35 |
+| **serveur, 6 ouvriers** | **9,81 → +7,6 % contre le portable** |
+
+→ **le serveur abat 7,6 % de travail en plus que le portable**, sa lenteur par
+cœur étant compensée par six cœurs véritables contre quatre cœurs physiques à
+fils jumelés. Et il tourne 24 h sur 24 : le gain réel est du facteur deux ou
+trois, puisqu'un entraînement de 400 000 parties demande ~8 h 30 que le portable
+n'a jamais pu donner d'affilée.
+
+**Mémoire au pire cas** (largeur 200, 6 ouvriers, `/usr/bin/time -v`) : pic à
+**60 600 Ko = 60,6 Mo**, un cent-quatre-vingtième des 11 Go. L'absence de
+mémoire d'échange n'est donc pas un risque pour ce projet.
+
+### 🔴 Le disque est le seul vrai point d'attention
+
+96 Go dont **17 libres**. Ce n'est pas le projet qui remplit (dépôt 1,6 Go :
+`engine/target` 168 Mo, `data/poids` 78 Mo, `data/scans` 266 Mo) mais
+`/home/alexis/Global` (35 Go) et `/home/alexis/ateliers-isoles` (3,9 Go).
+**Alexis s'en occupe (dit le 03-10).**
+
+### 🔴 Le coût de la largeur est 3,2 fois, pas 2 fois
+
+[VÉRIFIÉ 03-10, serveur, 6 ouvriers]
+
+| largeur | µs par essai | rapport |
+|---|---|---|
+| 50 | 9,81 | référence |
+| 200 | **31,1** | **× 3,2** |
+
+`docs/AUDIT_ENTRAINEMENT.md:423` (§2.16) annonçait « × 1,8 à × 2,2 ». **Chiffre
+à corriger.** Un entraînement complet à largeur 200 demande donc ~25 h, contre
+~8 h 30 à largeur 50 — hors de portée du portable, faisable sur le serveur.
+
+### 03-10 — Reprise de l'entraînement à largeur 100
+
+Lancé le 03-10 sur accord d'Alexis, après la coupure du 19-09 due au
+déménagement. Commande conservée dans
+`/home/alexis/.agentic-workspace/lancer-largeur100.sh`, journal dans
+`largeur100.log`, instantané de départ sauvegardé sous
+`apprenti-largeur100-depart-31059.txt` :
+
+```
+entraine --reprise data/poids/apprenti-largeur100.txt
+         --sortie  data/poids/apprenti-largeur100.txt
+         --largeur 100 --parties 368941 --graine-debut 1000001
+         --ouvriers 5 --boites base,decouverte
+         --instantanes "50000,100000,200000,300000,400000"
+```
+
+Cinq ouvriers et non six : Alexis travaille sur la machine (rangement du
+disque), on lui en laisse un. Graines 1 000 001 à 1 368 941, plage neuve
+au-delà de tout ce qui a servi jusqu'ici (les contrôles vont de 820 000 à
+870 000).
+
+**État des deux entraînements de largeur** [VÉRIFIÉ 03-10 — ligne 1 du fichier
+de poids = entrées / neurones cachés / sorties, ligne 2 = parties vues] :
+
+| fichier | ligne 1 | parties vues | sur |
+|---|---|---|---|
+| `data/poids/apprenti.txt` | `1630 50 2` | 400 000 | terminé, joueur en service |
+| `data/poids/apprenti-adversaire.txt` | `1630 50 5` | 400 000 | terminé (second réseau de devinette) |
+| `data/poids/apprenti-largeur100.txt` | `1630 100 2` | 31 059 → en cours | 400 000 |
+| `data/poids/apprenti-largeur200.txt` | `1630 200 2` | 23 913 | 400 000, en attente |
+
+
+### 🔴 03-10 — L'ENTRAÎNEMENT N'UTILISE QUE DEUX CŒURS SUR SIX
+
+[VÉRIFIÉ 03-10, mesuré sur le processus en cours] Avec `--ouvriers 5` à largeur
+100, le relevé du temps processeur réellement consommé
+(`/proc/<pid>/stat` champs 14+15, delta sur 20 s) donne **2,06 cœurs**, pas 5.
+
+Ce n'est pas une anomalie de la reprise, c'est une limite connue du code :
+`engine/src/bin/entraine.rs:452-462` explique que les ouvriers travaillent par
+**tranches** et que leurs poids sont **fusionnés séquentiellement** entre deux
+tranches. Les mesures de vitesse du 03-10 le disaient déjà sans que je le
+nomme : 1 ouvrier = 33,0 µs par essai, 6 ouvriers = 9,81 µs → gain de 3,36 fois
+seulement sur six cœurs, soit **56 % d'efficacité**. À largeur 100 la fusion
+coûte deux fois plus cher, et l'efficacité tombe à **41 %**.
+
+**Conséquence exploitable : quatre cœurs dorment pendant un entraînement.**
+Plusieurs entraînements côte à côte utiliseraient la machine pleinement, pour un
+ralentissement individuel faible. Décision en attente d'Alexis.
+
+**Débit réellement mesuré** (ligne 2 du fichier de sortie, réécrite toutes les
+30 s par la sauvegarde de sûreté — `engine/src/bin/entraine.rs:82-84`) :
+
+| | valeur |
+|---|---|
+| parties à l'instant T | 32 009 |
+| 60 s plus tard | 32 284 |
+| débit | 4,5 parties/s → **218 ms par partie** |
+| restant | 367 716 parties → **22,2 heures** |
+
+**Cette estimation est une borne haute.** Les parties d'un réseau peu entraîné
+traînent en longueur (c'est le même phénomène que les « parties à vide ») : le
+débit devrait monter à mesure que le joueur apprend. À comparer dans quelques
+heures, pas à prendre pour une promesse.
+
+**Attention à l'unité** : les « ms par partie » des différentes mesures ne sont
+pas comparables entre elles, les parties n'ayant pas la même longueur selon le
+réglage et l'avancement. Seuls les **µs par essai d'option** le sont.
+### 🔴 La comparaison des largeurs n'est PAS valide en l'état
+
+[VÉRIFIÉ 03-10] Le témoin à largeur 50 (`apprenti.txt`) a été entraîné **avec la
+devinette allumée** : son second réseau `apprenti-adversaire.txt` compte aussi
+400 000 parties. Les deux entraînements de largeur, eux, ont été lancés **sans
+devinette** — aucun fichier `apprenti-largeur100-adversaire.txt` n'existe.
+
+Or `engine/src/bin/entraine.rs:833` (`j.devinette = devinette`) montre que la
+devinette est **active pendant les parties d'entraînement** : allumée ou éteinte,
+le joueur ne joue pas les mêmes coups, donc le réseau principal n'apprend pas
+sur les mêmes parties.
+
+**Conséquence : comparer largeur 100 (sans devinette) à largeur 50 (avec
+devinette) mélangerait deux changements, et un écart ne se laisserait pas
+attribuer.** Il manque un **témoin à largeur 50 sans devinette**, ~8 h 30 de
+calcul, à lancer à la suite. Décision en attente d'Alexis.
 
 ## 🟢 01-09 — LE JOUEUR PASSE LA BARRE DES 98 % SUR 800 PARTIES, ET LA MESURE DEVIENT INSTANTANÉE
 
