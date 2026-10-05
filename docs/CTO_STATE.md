@@ -3,7 +3,7 @@
 > Source de vérité du projet. Ancrée au code (`fichier:ligne`) dès qu'il y aura du
 > code. [VÉRIFIÉ JJ-MM] = relu à la source ce jour-là. [DÉCLARÉ] = non re-vérifié.
 
-Dernière mise à jour : 2026-10-03
+Dernière mise à jour : 2026-10-05
 
 > **20-08 — LE DÉPÔT EST PUBLIC** : `github.com/Alexry375/Terra`. Les 65 Mo de
 > visuels du jeu ont été retirés de l'arbre **et de tout l'historique** ; le
@@ -12,6 +12,139 @@ Dernière mise à jour : 2026-10-03
 > le disque d'Alexis, hors suivi de version. Toutes les empreintes de commit
 > citées ci-dessous sont celles du **nouvel** historique. Détail :
 > `docs/JOURNAL.md`, entrée « 2026-08-20 (suite) ».
+
+
+## 🟢 05-10 — LA LARGEUR DU RÉSEAU EST TRANCHÉE : CENT NEURONES, ET LE NOUVEAU JOUEUR BAT CELUI EN SERVICE
+
+**Le fait de la journée** [VÉRIFIÉ 05-10] : les trois entraînements de largeur
+(50 témoin, 100, 200) sont terminés à 400 000 parties chacun, et la balance sait
+désormais faire s'affronter deux réseaux différents. **Cent neurones est retenu.**
+
+### Contre `reflechi`, 400 donnes × 2 sièges = 800 parties
+
+| réseau | victoires | % | écart de score | décisions | plafonnées |
+|---|---|---|---|---|---|
+| `temoin-largeur50-sans-devinette.txt` | 758/800 | 94,8 % | 59,18 | 1 545 669 | 140 (17,5 %) |
+| **`apprenti-largeur100.txt`** | **800/800** | **100,0 %** | **110,52** | 682 934 | 22 (2,8 %) |
+| `apprenti-largeur200.txt` | 799/800 (+1 nul) | 99,9 % | 92,56 | 561 436 | 5 (0,6 %) |
+| `apprenti.txt` (en service) *[01-09]* | 784/800 | 98,0 % | 69,46 | 1 852 378 | 192 (24,0 %) |
+
+**Cette mesure a cessé de pouvoir choisir** : 100 et 200 battent `reflechi` à
+100 % et 99,9 %, l'étalon est devenu trop faible pour les séparer. D'où le duel
+direct, demandé par Alexis le 04-10.
+
+### 🟢 Les quatre duels croisés, 800 parties chacun [VÉRIFIÉ 05-10]
+
+| camp A | camp B | A | B | nuls | écart de score | écarts typiques | verdict |
+|---|---|---|---|---|---|---|---|
+| largeur 100 | largeur 50 | **480** | 303 | 17 | **+23,63** | 6,33 | **100 gagne** |
+| largeur 200 | largeur 50 | **509** | 280 | 11 | **+15,53** | 8,15 | **200 gagne** |
+| largeur 100 | largeur 200 | 386 | 397 | 17 | +1,59 | −0,39 | **dans le bruit** |
+| largeur 100 | `apprenti.txt` (en service) | **456** | 330 | 14 | **+9,46** | 4,49 | **100 gagne** |
+
+**Trois conclusions, toutes mesurées :**
+
+1. **Cinquante neurones est nettement battu** — par 100 (60,0 % contre 37,9 %) et
+   par 200 (63,6 % contre 35,0 %). La largeur était un vrai verrou.
+2. **Cent et deux cents sont indistinguables** sur 800 parties : 1,59 point
+   d'écart de score, −0,39 écart typique, en-dessous du seuil de 2.
+3. **Cent neurones bat le joueur actuellement en service** (57,0 % contre
+   41,3 %, 4,49 écarts typiques) : c'est le nouveau champion.
+
+**→ DÉCISION : on retient CENT neurones.** À force égale avec deux cents, il
+coûte **2,26 fois moins cher** à entraîner (42 698 s contre 96 432 s). Rien ne
+justifie de payer le double pour un écart dans le bruit.
+
+### Ce que la balance sait faire depuis le 04-10
+
+`engine/src/bin/duel.rs` ne pouvait charger qu'UN fichier de poids
+(`APPRENTI_POIDS`), appliqué à tout camp nommé `apprenti` : `duel apprenti
+apprenti` faisait jouer deux copies du même joueur. Modification de 48 lignes
+insérées, 10 retirées, un seul fichier :
+
+| élément | effet |
+|---|---|
+| `cervelle_de(..., second: bool)` | la fonction sait quel camp elle sert |
+| `APPRENTI_POIDS_B` | le fichier du second camp |
+| repli | variable absente ou vide → le second camp reprend `APPRENTI_POIDS`, comportement d'avant à l'identique |
+| `eprintln!` au chargement | chaque camp annonce son fichier, sa largeur et ses parties vues |
+
+**Le piège évité** : au second site d'appel, `noms` est permuté quand les sièges
+sont échangés, donc le siège 0 porte le camp B. Le fichier de poids suit le
+**camp**, pas la place — sinon les deux réseaux s'échangeraient à chaque partie
+retour et la mesure serait du bruit. D'où `cervelle_de(noms[0], …, echange)` et
+`cervelle_de(noms[1], …, !echange)`.
+
+**Les deux contrôles de non-régression, passés avant tout usage :**
+
+```
+APPRENTI_POIDS=data/poids/apprenti-largeur100.txt duel apprenti reflechi 20 base,decouverte
+  → 40/40, 26 078 décisions        identique à l'octet à la mesure d'avant
+APPRENTI_POIDS=data/poids/apprenti-largeur100.txt duel apprenti apprenti 20 base,decouverte
+  → 20/40 et 20/40 = 50,0 % exactement
+```
+
+Suite complète : **1 194 tests passés, 0 échoué** [VÉRIFIÉ 05-10].
+
+### 🔴 Ma faute du 04-10 : j'ai mesuré pendant que la machine était chargée
+
+Le premier passage de la suite de tests, lancé **en même temps que les quatre
+duels croisés**, a rendu un rouge : `the_speed_stays_above_the_contract_floor`
+(`engine/tests/lot7_tests.rs:1703`), qui exige 3 000 parties par seconde, a
+mesuré **1 944**. Faux rouge de bout en bout, dû à la charge. Relancé machine au
+repos : vert, et 1 194 tests au total au lieu des 502 comptés (`cargo test`
+s'arrête au premier binaire rouge sans `--no-fail-fast`).
+
+**La leçon est déjà écrite dans mes notes et je l'ai quand même commise.** Un
+banc de vitesse ne se lance pas pendant une campagne de mesure.
+
+### 🟠 Les trois entraînements, chiffres définitifs
+
+| | largeur 50 (témoin) | largeur 100 | largeur 200 |
+|---|---|---|---|
+| durée | 87 589 s = 24 h 20 | **42 698 s = 11 h 51** | 96 432 s = 26 h 47 |
+| ouvriers | 2 | 5 | 2 |
+| essais d'option | 3 705 M | 2 994 M | 2 908 M |
+| ms par partie | 219,0 | 115,7 | 256,4 |
+| `justes` (dernière tranche) | 0,7872 | **0,8365** | 0,8125 |
+| neurones saturés | 35,3 % | 23,3 % | 16,5 % |
+| corrections à contresens | 0 | 0 | 0 |
+| neurones figés | 0/50 | 0/100 | 0/200 |
+
+Les estimations de durée que j'avais données le 03-10 étaient toutes fausses,
+dans un sens ou dans l'autre (13,5 h annoncées / 11 h 51 réelles pour la 100 ;
+17 h / 24 h 20 pour le témoin ; 49,9 h / 26 h 47 pour la 200). **Cause :** elles
+supposaient une durée de partie constante, alors qu'elle dépend de la force du
+joueur — un réseau faible fait traîner ses parties, donc il y a plus à calculer.
+
+### 🔴 Nouvelle piste : s'entraîner AVEC la devinette rendrait plus fort
+
+[VÉRIFIÉ 05-10, mais à confirmer] Le témoin à largeur 50 **sans** devinette fait
+**94,8 %** contre `reflechi`, là où `apprenti.txt` — même largeur, entraîné
+**avec** devinette — fait **98,0 %** sur les mêmes 400 donnes. Trois points
+d'écart, soit environ 4,5 écarts typiques : ce n'est pas du bruit.
+
+**Ce n'est pas contradictoire avec la conclusion du 01-09**, qui comparait le
+*même* réseau joué avec ou sans devinette **au moment du duel** (95,6 % contre
+96,9 %) — et là, effectivement, elle ne sert à rien. Ce qui est comparé ici, ce
+sont deux réseaux **entraînés** différemment. Explication la plus probable :
+s'entraîner contre un adversaire qui devine, c'est s'entraîner contre un
+adversaire plus fort.
+
+**Si la piste tient, le meilleur joueur serait largeur 100 + devinette à
+l'entraînement** — un quatrième entraînement d'environ 12 h. Non lancé : une
+hypothèse ne justifie pas douze heures de calcul sans l'accord d'Alexis.
+
+### 🔴 Avant de mettre le champion en service — un point à vérifier
+
+`web/webapp/joueurs/apprenti.js:101` porte `CACHES_ATTENDUS = 50`, et
+`lirePoidsLargeur` impose cette largeur par défaut (ligne 286) tandis que
+`lirePoids` laisse le fichier décider (ligne 197). **Il faut établir lequel
+l'interface appelle réellement avant de remplacer `data/poids/apprenti.txt` par
+un fichier de largeur 100**, sinon le site refusera de charger le joueur. Aucun
+appel à ces deux fonctions n'a été trouvé hors d'un script d'ancien chantier
+(`workspaces/le-juge-apprend/outputs/work/amplitude.mjs:41`) : le chemin de
+chargement du navigateur reste à retrouver.
 
 ## 🟢 03-10 — LE TRAVAIL PASSE SUR UN SERVEUR QUI TOURNE SANS INTERRUPTION, ET IL EST PLUS RAPIDE QUE LE PORTABLE
 

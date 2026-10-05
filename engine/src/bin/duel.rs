@@ -984,7 +984,15 @@ fn une_partie(
 /// Le réseau d'un camp apprenti, ou rien pour les autres joueurs. Le chemin des
 /// poids est celui du contrat, et la même variable d'environnement que du côté
 /// JavaScript le déplace : les deux balances doivent peser le MÊME joueur.
-fn cervelle_de(nom: &str, desc: &Description, db: &CardsDb) -> Option<Cervelle> {
+///
+/// **`second` distingue les DEUX camps apprentis d'un même duel** (`duel apprenti
+/// apprenti`). Le premier camp lit `APPRENTI_POIDS`, le second `APPRENTI_POIDS_B`
+/// — et à défaut de celle-ci, le même fichier que le premier, ce qui est le
+/// contrôle de bonne santé de la balance : un joueur contre lui-même rend
+/// exactement 50 %. Sans ce second chemin, comparer deux réglages de réseau
+/// demandait de passer par un tiers (`reflechi`), et cette mesure sature dès que
+/// les deux le battent à 100 %.
+fn cervelle_de(nom: &str, desc: &Description, db: &CardsDb, second: bool) -> Option<Cervelle> {
     if nom != "apprenti" {
         return None;
     }
@@ -1006,7 +1014,23 @@ fn cervelle_de(nom: &str, desc: &Description, db: &CardsDb) -> Option<Cervelle> 
             );
         }
     }
-    let chemin = std::env::var("APPRENTI_POIDS").unwrap_or_else(|_| POIDS_PAR_DEFAUT.to_string());
+    // **LE CAMP ET SA VARIABLE.** Le second camp a la sienne ; sans elle il
+    // retombe sur celle du premier, pour que `duel apprenti apprenti` continue de
+    // peser un joueur contre lui-même comme avant ce changement.
+    let variable = if second {
+        "APPRENTI_POIDS_B"
+    } else {
+        "APPRENTI_POIDS"
+    };
+    let chemin = std::env::var(variable)
+        .ok()
+        .filter(|v| !v.is_empty())
+        .or_else(|| {
+            std::env::var("APPRENTI_POIDS")
+                .ok()
+                .filter(|v| !v.is_empty())
+        })
+        .unwrap_or_else(|| POIDS_PAR_DEFAUT.to_string());
     let chemin = if std::path::Path::new(&chemin).exists() {
         chemin
     } else {
@@ -1014,10 +1038,22 @@ fn cervelle_de(nom: &str, desc: &Description, db: &CardsDb) -> Option<Cervelle> 
     };
     let noms = desc.noms_avec(db);
     match Reseau::lire(&chemin, &noms) {
-        Ok(reseau) => Some(Cervelle {
-            reseau,
-            pile: Pile::new(desc.taille),
-        }),
+        Ok(reseau) => {
+            // **ON DIT QUEL FICHIER PÈSE DE QUEL CÔTÉ.** Le 01-09, tous les
+            // chiffres de force du projet portaient sur un fichier que personne
+            // n'avait voulu : la balance lisait son chemin par défaut sans le
+            // nommer. Avec deux camps apprentis, l'occasion de se tromper double.
+            eprintln!(
+                "camp {} : {chemin} — {} neurones cachés, {} parties vues",
+                if second { "B" } else { "A" },
+                reseau.largeur(),
+                reseau.parties
+            );
+            Some(Cervelle {
+                reseau,
+                pile: Pile::new(desc.taille),
+            })
+        }
         Err(e) => mourir(&format!("poids de l'apprenti illisibles ({chemin}) : {e}")),
     }
 }
@@ -1068,8 +1104,8 @@ fn main() {
     // réseau : lus UNE fois. La mesure de vitesse porte sur les parties, pas sur
     // la lecture d'un fichier de poids de plusieurs mégaoctets.
     let desc = Description::new(&db);
-    let mut cervelle_a = cervelle_de(&nom_a, &desc, &db);
-    let mut cervelle_b = cervelle_de(&nom_b, &desc, &db);
+    let mut cervelle_a = cervelle_de(&nom_a, &desc, &db, false);
+    let mut cervelle_b = cervelle_de(&nom_b, &desc, &db, true);
 
     let mut victoires_a = 0u32;
     let mut victoires_b = 0u32;
@@ -1294,8 +1330,10 @@ fn journal(args: &[String]) {
     } else {
         [graine_du_camp(graine, 0), graine_du_camp(graine, 1)]
     };
-    let mut cervelle_0 = cervelle_de(noms[0], &desc, &db);
-    let mut cervelle_1 = cervelle_de(noms[1], &desc, &db);
+    // `noms` est permuté par `echange` : le siège 0 porte le camp B quand les
+    // sièges sont échangés. Le fichier de poids suit le CAMP, pas la place.
+    let mut cervelle_0 = cervelle_de(noms[0], &desc, &db, echange);
+    let mut cervelle_1 = cervelle_de(noms[1], &desc, &db, !echange);
     let r = une_partie(
         &db,
         &desc,
