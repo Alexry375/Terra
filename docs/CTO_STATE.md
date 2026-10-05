@@ -146,6 +146,31 @@ appel à ces deux fonctions n'a été trouvé hors d'un script d'ancien chantier
 (`workspaces/le-juge-apprend/outputs/work/amplitude.mjs:41`) : le chemin de
 chargement du navigateur reste à retrouver.
 
+
+### 🟠 05-10 — EN COURS : largeur 100 AVEC devinette, pour trancher la piste
+
+Lancé le 05-10 sur décision d'Alexis. **Un seul changement** par rapport à
+`apprenti-largeur100.txt` : la devinette. Même largeur, mêmes 400 000 parties.
+Les deux s'affronteront en duel direct, ce que la balance sait faire depuis le
+04-10.
+
+```
+entraine --sortie            data/poids/apprenti-largeur100-devinette.txt
+         --sortie-adversaire data/poids/apprenti-largeur100-devinette-adversaire.txt
+         --devinette on --largeur 100 --parties 400000
+         --graine-debut 4000001 --ouvriers 5 --boites base,decouverte
+         --instantanes "50000,100000,200000,300000,400000"
+```
+
+Commande conservée dans
+`/home/alexis/.agentic-workspace/lancer-largeur100-devinette.sh`, journal dans
+`largeur100-devinette.log`. Graines 4 000 001 … 4 400 000 : plage neuve, disjointe
+de toutes les précédentes (1 M pour la 100, 2 M pour le témoin, 3 M pour la 200).
+
+Débit initial mesuré : **118,4 ms par partie, 2,32 cœurs sur 6, ≈ 13 h** — borne
+haute, le débit monte avec l'apprentissage. `nice -n 19` et `ionice -c 3` : Alexis
+travaille sur la même machine.
+
 ## 🟢 03-10 — LE TRAVAIL PASSE SUR UN SERVEUR QUI TOURNE SANS INTERRUPTION, ET IL EST PLUS RAPIDE QUE LE PORTABLE
 
 **Le fait de la journée** [VÉRIFIÉ 03-10] : le projet a déménagé du portable

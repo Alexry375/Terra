@@ -30,8 +30,14 @@
 
 ## Contraintes matérielles
 
-- Carte graphique locale : **RTX 3060**. L'entraînement lourd se fera peut-être
-  sur des machines louées en ligne — à arbitrer.
+- **Depuis le 03-10 : le travail tourne sur un serveur loué (« VPS »), allumé en
+  permanence.** 6 cœurs Intel Haswell virtualisés, 11 Go de mémoire vive, **aucune
+  mémoire d'échange sur disque**, 96 Go de disque. **Pas de carte graphique** —
+  sans conséquence : le projet n'en a jamais utilisé (`engine/Cargo.toml` ne
+  déclare que `rand`, `serde`, `serde_json`). Détail et mesures :
+  `docs/CTO_STATE.md`, section « 03-10 ».
+- ~~Carte graphique locale : RTX 3060~~ → le portable n'est plus la machine de
+  travail. L'arbitrage « machines louées en ligne » est tranché : c'est fait.
 
 ## Où sont les documents de pilotage
 

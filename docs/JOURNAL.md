@@ -2988,3 +2988,205 @@ partie qui ne ressemble pas à une vraie partie.
 **Ce qui n'a PAS été fait.** J'avais annoncé « je lance le chantier sauf avis
 contraire ». La session s'est arrêtée là ; **aucun chantier n'a été écrit ni
 lancé** entre le 01-09 et le 19-09. Dix-huit jours sans travail sur le projet.
+
+## 2026-10-03 → 05-10 — Le travail déménage sur un serveur, la largeur du réseau est tranchée à cent neurones, et deux de mes estimations étaient fausses
+
+Écrit le 05-10. Sources : commits `94af2be`, `cba8943`, `0faa4e1`, les journaux
+de `/home/alexis/.agentic-workspace/` et la carte d'état. [VÉRIFIÉ 05-10]
+
+### Le déménagement, et la carte graphique qui ne servait pas
+
+Le projet est passé du portable d'Alexis à un serveur loué qui tourne sans
+interruption. Sa première question : la carte graphique nous manquera-t-elle ?
+**Non, et c'est vérifié, pas supposé** : `engine/Cargo.toml` ne déclare que
+`rand`, `serde` et `serde_json`, et une recherche sur mots entiers de `cuda`,
+`opencl`, `wgpu`, `torch`, `candle` et `blas` dans tout `engine/src/` ne rend
+aucune occurrence. Le réseau de neurones est écrit à la main et tourne sur le
+processeur depuis le premier jour.
+
+Le serveur est **1,54 fois plus lent par cœur** (76,9 s contre ≈ 50 s sur le duel
+de référence, résultat identique à l'octet — le moteur est bien déterministe
+d'une machine à l'autre) mais il a six cœurs véritables contre quatre cœurs
+physiques à fils jumelés. À pleine charge il abat **7,6 % de travail en plus**
+(9,81 µs par essai d'option contre 10,56). Et il tourne 24 h sur 24, ce que le
+portable n'a jamais fait : les deux entraînements de largeur lancés le 19-09
+avaient été coupés au bout d'une heure vingt.
+
+### Ce que j'ai découvert sans le chercher : l'entraînement n'utilise que deux cœurs
+
+En lançant la reprise à largeur 100 avec `--ouvriers 5`, le relevé du temps
+processeur réellement consommé (`/proc/<pid>/stat`, champs 14 et 15, delta sur
+20 s) a donné **2,06 cœurs**, pas 5. Ce n'est pas une anomalie de la reprise
+mais une limite du code : `engine/src/bin/entraine.rs:451-462` fait travailler
+les ouvriers par tranches et **fusionne leurs poids séquentiellement** entre deux
+tranches. Mes propres mesures le disaient déjà sans que je l'aie nommé — 1 ouvrier
+33,0 µs par essai, 6 ouvriers 9,81 µs, soit un gain de 3,36 fois seulement sur six
+cœurs. À largeur 100 l'efficacité tombe à 41 %.
+
+**Conséquence exploitée le lendemain** : quatre cœurs dormaient. Les trois
+entraînements ont donc tourné **côte à côte** et ont consommé 4,77 cœurs sur 6.
+
+### La question d'Alexis sur la cohabitation, et la bonne réponse
+
+Il travaille sur la même machine (notamment `trading-lab/trade-center`, un projet
+Python) et demandait s'il fallait lui « laisser un cœur de libre ». **Non : on ne
+réserve pas un cœur, on règle une priorité.** Les trois entraînements tournent en
+`nice -n 19` (la valeur la plus effacée) et `ionice -c 3` : ils prennent tout le
+processeur libre et s'écartent dès qu'un autre programme en demande. Celui qui
+tournait déjà a été basculé par `renice` sans être relancé, donc sans rien perdre.
+
+**Le vrai risque de cohabitation est la mémoire, pas le processeur** : 11 Go et
+aucune mémoire d'échange sur disque, donc un dépassement fait tuer un programme
+net au lieu de ralentir. Les entraînements n'en sont pas la cause (63 Mo à eux
+trois) ; les gros consommateurs relevés étaient `next-server` (592 Mo) et trois
+sessions `claude` (~480 Mo chacune).
+
+Trois scripts de pilotage écrits pour qu'il garde la main sans dépendre de moi :
+`etat-entrainements.sh`, `pause-entrainements.sh` (`kill -STOP`, rien n'est perdu)
+et `reprendre-entrainements.sh` (`kill -CONT`).
+
+### Le défaut de méthode que j'avais introduit sans le voir
+
+Le témoin de comparaison à largeur 50 (`apprenti.txt`) a été entraîné **avec la
+devinette** : son second réseau `apprenti-adversaire.txt` compte lui aussi 400 000
+parties. Les deux entraînements de largeur, eux, avaient été lancés **sans** — il
+n'existe aucun fichier adversaire à largeur 100 ou 200. Et
+`engine/src/bin/entraine.rs:833` (`j.devinette = devinette`) montre que la
+devinette est **active pendant les parties d'entraînement** : allumée ou éteinte,
+le joueur ne joue pas les mêmes coups, donc le réseau n'apprend pas sur les mêmes
+parties.
+
+**Comparer largeur 100 sans devinette à largeur 50 avec devinette aurait mélangé
+deux changements**, et aucun écart ne se serait laissé attribuer. Corrigé le
+03-10 par le lancement d'un **témoin à largeur 50 sans devinette**, entraîné dans
+les mêmes conditions que les deux autres.
+
+### Les trois entraînements, et mes estimations toutes fausses
+
+| | largeur 50 (témoin) | largeur 100 | largeur 200 |
+|---|---|---|---|
+| durée réelle | 87 589 s = 24 h 20 | **42 698 s = 11 h 51** | 96 432 s = 26 h 47 |
+| ce que j'avais annoncé le 03-10 | 17 h | 13 h 30 | 49 h 54 |
+| ouvriers | 2 | 5 | 2 |
+| essais d'option | 3 705 M | 2 994 M | 2 908 M |
+| ms par partie | 219,0 | 115,7 | 256,4 |
+| `justes` (dernière tranche) | 0,7872 | **0,8365** | 0,8125 |
+| neurones saturés | 35,3 % | 23,3 % | 16,5 % |
+| corrections à contresens | 0 | 0 | 0 |
+| neurones figés | 0/50 | 0/100 | 0/200 |
+
+**Mes trois estimations étaient fausses, deux dans un sens et une dans l'autre.**
+Cause unique : elles supposaient une **durée de partie constante**, alors qu'elle
+dépend de la force du joueur. Un réseau faible fait traîner ses parties, donc il
+y a plus à calculer. J'avais même observé le phénomène en direct — largeur 100
+est passé de 218 ms à 135 ms par partie en gagnant 9 000 parties d'apprentissage,
+**alors même qu'il venait de se mettre à partager la machine** — et je n'en ai pas
+tiré la conséquence sur les deux autres chiffres.
+
+### La mesure contre `reflechi`, et le moment où elle cesse de servir
+
+| réseau | victoires sur 800 | % | écart de score | décisions | plafonnées |
+|---|---|---|---|---|---|
+| témoin largeur 50 sans devinette | 758 | 94,8 % | 59,18 | 1 545 669 | 140 (17,5 %) |
+| **largeur 100** | **800** | **100,0 %** | **110,52** | 682 934 | 22 (2,8 %) |
+| largeur 200 | 799 (+1 nul) | 99,9 % | 92,56 | 561 436 | 5 (0,6 %) |
+| `apprenti.txt` en service *[01-09]* | 784 | 98,0 % | 69,46 | 1 852 378 | 192 (24,0 %) |
+
+**Les parties bloquées tombent de 24 % à moins de 3 %.** Ce défaut, suivi depuis
+le 01-09, n'était pas un défaut du moteur : c'était un joueur trop petit pour
+comprendre quand cesser de piocher. L'explication d'Alexis du 01-09 — les parties
+longues peuvent être optimales — reste juste pour les parties *longues* ; elle ne
+couvrait pas celles qui ne finissaient pas du tout.
+
+**Mais 100 et 200 battent l'étalon à 100 % et 99,9 % : cette balance ne peut plus
+choisir.** C'est Alexis qui a posé la bonne question le 04-10 : « on ne peut pas
+faire jouer les réseaux les uns contre les autres ? »
+
+### La balance apprend à peser deux réseaux différents
+
+Elle ne savait pas le faire : `engine/src/bin/duel.rs` lisait le chemin des poids
+dans une seule variable (`APPRENTI_POIDS`) et l'appliquait à tout camp nommé
+`apprenti`, si bien que `duel apprenti apprenti` pesait **deux copies du même
+joueur** — ce qui était justement le contrôle de bonne santé rendant 50 %.
+
+Modification de 48 lignes insérées et 10 retirées, un seul fichier :
+
+| élément | effet |
+|---|---|
+| `cervelle_de(…, second: bool)` | la fonction sait quel camp elle sert |
+| `APPRENTI_POIDS_B` | le fichier du second camp |
+| repli | variable absente ou vide → le second camp reprend `APPRENTI_POIDS`, comportement d'avant à l'identique |
+| `eprintln!` au chargement | chaque camp annonce son fichier, sa largeur et ses parties vues |
+
+**Le piège, et c'est le seul endroit délicat** : au second site d'appel, le tableau
+`noms` est permuté quand les sièges sont échangés, donc le siège 0 porte le camp B.
+Le fichier de poids doit suivre le **camp**, pas la place — sinon les deux réseaux
+s'échangent à chaque partie retour et la mesure n'est que du bruit. D'où
+`cervelle_de(noms[0], …, echange)` et `cervelle_de(noms[1], …, !echange)`.
+
+L'affichage par camp n'est pas une coquetterie : le 01-09, tous les chiffres de
+force du projet portaient sur un fichier que personne n'avait choisi, parce que la
+balance lisait son chemin par défaut sans le nommer. Avec deux camps apprentis,
+l'occasion de se tromper double.
+
+Deux contrôles de non-régression passés **avant** tout usage : le duel contre
+`reflechi` redonne 40/40 et 26 078 décisions, identique à l'octet ; un réseau
+contre lui-même rend 20/40 et 20/40, soit 50,0 % exactement.
+
+### Les quatre duels croisés, et la décision
+
+| camp A | camp B | A | B | nuls | écart de score | écarts typiques | verdict |
+|---|---|---|---|---|---|---|---|
+| largeur 100 | largeur 50 | **480** | 303 | 17 | **+23,63** | 6,33 | 100 gagne |
+| largeur 200 | largeur 50 | **509** | 280 | 11 | **+15,53** | 8,15 | 200 gagne |
+| largeur 100 | largeur 200 | 386 | 397 | 17 | +1,59 | **−0,39** | dans le bruit |
+| largeur 100 | `apprenti.txt` | **456** | 330 | 14 | **+9,46** | 4,49 | 100 gagne |
+
+**→ DÉCISION : cent neurones.** Cinquante est nettement battu ; cent et deux cents
+sont indistinguables sur 800 parties ; cent bat le joueur en service. À force
+égale avec deux cents, cent coûte **2,26 fois moins** à entraîner. Rien ne
+justifie de payer le double pour un écart dans le bruit.
+
+### Ma faute : j'ai lancé un banc de vitesse pendant une campagne de mesure
+
+Le premier passage de la suite de tests, lancé **en même temps que les quatre
+duels croisés**, a rendu un rouge : `the_speed_stays_above_the_contract_floor`
+(`engine/tests/lot7_tests.rs:1703`) exige plus de 3 000 parties par seconde et en
+a mesuré **1 944**. Faux rouge de bout en bout, dû à ma propre charge de calcul.
+Et comme `cargo test` sans `--no-fail-fast` s'arrête au premier binaire rouge, je
+n'ai d'abord compté que 502 tests au lieu de 1 194.
+
+Relancé machine au repos : **1 194 tests passés, 0 échoué.** La leçon était écrite
+noir sur blanc dans mes notes et je l'ai commise quand même.
+
+### La piste ouverte, et le chantier du 05-10
+
+Le témoin à largeur 50 **sans** devinette fait 94,8 % contre `reflechi` ; le joueur
+en service — même largeur, entraîné **avec** — fait 98,0 % sur les mêmes 400 donnes.
+Trois points, environ 4,5 écarts typiques : ce n'est pas du bruit.
+
+**Ce n'est pas contradictoire avec la conclusion du 01-09**, qui comparait le *même*
+réseau joué avec ou sans devinette **au moment du duel** (95,6 % contre 96,9 %) — et
+là, effectivement, elle ne sert à rien. Ici ce sont deux réseaux **entraînés**
+différemment. Explication la plus probable : s'entraîner contre un adversaire qui
+devine, c'est s'entraîner contre un adversaire plus fort.
+
+**Alexis a tranché le 05-10 : on lance largeur 100 AVEC devinette**, pour
+l'affronter en duel direct à `apprenti-largeur100.txt` (même largeur, mêmes
+400 000 parties, sans devinette). **Un seul changement entre les deux**, ce qui est
+tout l'intérêt. Lancé le 05-10, graines 4 000 001 … 4 400 000, 5 ouvriers,
+`nice -n 19` ; débit initial 118,4 ms par partie, 2,32 cœurs, environ 13 h — borne
+haute, le débit monte avec l'apprentissage.
+
+### Écart au plan, honnêtement
+
+**Aucun chantier `aw` n'a été ouvert du 03 au 05 octobre** : tout a été fait en
+direct, contre ma propre règle de déléguer les longues tâches. C'est défendable
+ici — il s'agissait de mesures et d'une modification de 48 lignes, pas d'un lot —
+mais c'est à surveiller : la prochaine chose à faire est un vrai chantier.
+
+**Et le trou le plus grand du projet n'a pas bougé depuis le 01-09 : l'IA n'a
+jamais été mesurée contre un être humain.** Tous les chiffres de ces trois jours,
+y compris le 100 % sur 800 parties, sont obtenus contre nos propres programmes.
+L'objectif écrit dans `docs/CTO_PROJET.md` est une IA **imbattable par des
+humains** ; le seul repère humain du projet reste une capture d'écran du 04-08.
