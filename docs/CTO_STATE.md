@@ -3,7 +3,7 @@
 > Source de vérité du projet. Ancrée au code (`fichier:ligne`) dès qu'il y aura du
 > code. [VÉRIFIÉ JJ-MM] = relu à la source ce jour-là. [DÉCLARÉ] = non re-vérifié.
 
-Dernière mise à jour : 2026-10-05
+Dernière mise à jour : 2026-10-09
 
 > **20-08 — LE DÉPÔT EST PUBLIC** : `github.com/Alexry375/Terra`. Les 65 Mo de
 > visuels du jeu ont été retirés de l'arbre **et de tout l'historique** ; le
@@ -13,6 +13,78 @@ Dernière mise à jour : 2026-10-05
 > citées ci-dessous sont celles du **nouvel** historique. Détail :
 > `docs/JOURNAL.md`, entrée « 2026-08-20 (suite) ».
 
+
+## 🔴 09-10 — LA DEVINETTE À L'ENTRAÎNEMENT REND LE RÉSEAU PLUS FAIBLE. LE CHAMPION RESTE `apprenti-largeur100.txt`
+
+**Le fait de la journée** [VÉRIFIÉ 09-10] : l'hypothèse que j'avais formée le
+05-10 — « s'entraîner contre un adversaire qui devine la carte Phase de l'autre,
+c'est s'entraîner contre un adversaire plus fort » — est **fausse**. Mesurée dans
+les meilleures conditions possibles (un seul changement, même largeur, même
+nombre de parties, plages de graines disjointes), la devinette **coûte** de la
+force.
+
+### Le duel direct : 800 parties, 400 donnes × 2 sièges
+
+| camp | réseau | victoires | % |
+|---|---|---|---|
+| A | `apprenti-largeur100-devinette.txt` | 312 | 39,0 % |
+| **B** | **`apprenti-largeur100.txt`** | **467** | **58,4 %** |
+| | nuls | 21 | |
+
+Écart de score moyen (A − B) : **−8,62 point(s)**. On est à **−5,55 écarts
+typiques** de l'équilibre, pour un seuil de signification de 2 : **ce n'est pas
+du bruit**. Journal : `/home/alexis/.agentic-workspace/croise-devinette-contre-100.log`.
+
+### Contre l'étalon `reflechi`, mêmes 400 donnes
+
+| réseau | victoires | % | écart de score | décisions | plafonnées |
+|---|---|---|---|---|---|
+| **`apprenti-largeur100.txt`** | **800/800** | **100,0 %** | **110,52** | 682 934 | 22 (2,8 %) |
+| `apprenti-largeur100-devinette.txt` | 799/800 | 99,9 % | 92,85 | 1 036 136 | 64 (8,0 %) |
+
+Les deux colonnes de droite disent la même chose que le duel : le réseau entraîné
+avec devinette **traîne ses parties** — 1 036 136 décisions pour jouer les mêmes
+800 parties contre 682 934, et 64 parties arrêtées sur le plafond de manches
+contre 22. Jouer plus longtemps pour gagner moins est la signature d'un joueur
+qui sait moins bien quand s'arrêter.
+
+### Les chiffres des deux entraînements, côte à côte
+
+| | sans devinette | AVEC devinette |
+|---|---|---|
+| durée | 42 697,9 s = 11 h 51 | 60 862,7 s = **16 h 54** |
+| ms par partie | 115,7 | 152,2 |
+| essais d'option | 2 994 M | 3 222 M |
+| `justes` (dernière tranche) | **0,8365** | 0,8126 |
+| neurones saturés | 23,3 % | 25,9 % |
+| corrections à contresens | 0 | 0 |
+| neurones figés | 0 sur 100 | 0 sur 100 |
+
+L'indicateur interne `justes` (la proportion de parties dont le vainqueur est
+correctement désigné à mi-partie) **annonçait déjà le résultat** : 0,8126 contre
+0,8365. Il a eu raison, ce qui ne va pas de soi — il mesure la qualité de la
+prédiction, pas la force de jeu.
+
+### Une limite de la mesure, à écrire noir sur blanc
+
+`engine/src/bin/duel.rs:1008-1012` **refuse** la variable `APPRENTI_ADVERSAIRE` :
+la balance en Rust ne sait pas encore faire deviner un joueur **pendant** un duel.
+Les deux réseaux ont donc joué **sans deviner**. Ce qui est mesuré est donc exactement :
+« s'entraîner avec un partenaire qui devine rend-il plus fort celui qui, ensuite,
+joue sans deviner ? » → **non**. Ce qui n'est PAS mesuré : « deviner pendant la
+partie aide-t-il ? » → déjà répondu non le 01-09 (95,6 % contre 96,9 %) et le
+17-08, par un autre chemin. Dette correspondante : chantier `la-devinette-en-natif`,
+contrat écrit, **non scellé**.
+
+### Ce que cela change
+
+1. **Le champion reste `apprenti-largeur100.txt`** : 100 neurones, 400 000 parties,
+   sans devinette. 100,0 % contre `reflechi`, et il bat le joueur en service.
+2. **La devinette est close** (deuxième verdict négatif, après le 17-08).
+3. **Le prochain réglage à éprouver est `DOUCEUR`** (`engine/src/reseau.rs:154`,
+   `pub const DOUCEUR: f64 = 0.3;`) — la prudence contre « jouer pour gagner ».
+4. **Il n'y a plus d'obstacle technique à mettre le champion en service** (voir
+   ci-dessous, section « Mise en service »).
 
 ## 🟢 05-10 — LA LARGEUR DU RÉSEAU EST TRANCHÉE : CENT NEURONES, ET LE NOUVEAU JOUEUR BAT CELUI EN SERVICE
 
@@ -131,28 +203,35 @@ sont deux réseaux **entraînés** différemment. Explication la plus probable :
 s'entraîner contre un adversaire qui devine, c'est s'entraîner contre un
 adversaire plus fort.
 
-**Si la piste tient, le meilleur joueur serait largeur 100 + devinette à
-l'entraînement** — un quatrième entraînement d'environ 12 h. Non lancé : une
-hypothèse ne justifie pas douze heures de calcul sans l'accord d'Alexis.
+**Cette explication s'est révélée FAUSSE** : le quatrième entraînement a été
+lancé le 05-10 sur décision d'Alexis, et son verdict est en tête de cette carte
+(section « 09-10 »). S'entraîner contre un adversaire qui devine rend le réseau
+**plus faible**, pas plus fort. L'écart 94,8 % / 98,0 % observé à largeur 50
+reste donc **sans explication établie** ; il n'est pas causé par la devinette.
 
-### 🔴 Avant de mettre le champion en service — un point à vérifier
+### ✅ Mise en service : l'obstacle redouté n'existe pas [VÉRIFIÉ 09-10]
 
-`web/webapp/joueurs/apprenti.js:101` porte `CACHES_ATTENDUS = 50`, et
-`lirePoidsLargeur` impose cette largeur par défaut (ligne 286) tandis que
-`lirePoids` laisse le fichier décider (ligne 197). **Il faut établir lequel
-l'interface appelle réellement avant de remplacer `data/poids/apprenti.txt` par
-un fichier de largeur 100**, sinon le site refusera de charger le joueur. Aucun
-appel à ces deux fonctions n'a été trouvé hors d'un script d'ancien chantier
-(`workspaces/le-juge-apprend/outputs/work/amplitude.mjs:41`) : le chemin de
-chargement du navigateur reste à retrouver.
+Le chemin de chargement du navigateur a été retrouvé : `poidsEnCache`
+(`web/webapp/joueurs/apprenti.js:447-455`) est le **seul** lecteur de poids du
+joueur, et il appelle `lirePoids(chemin, sorties)` — donc avec `cachesAttendus`
+à sa valeur par défaut `null` (ligne 197), ce qui veut dire **la largeur écrite
+dans le fichier fait foi**. `lirePoidsLargeur` (ligne 286), la fonction qui
+impose `CACHES_ATTENDUS = 50` (ligne 101), **n'est appelée nulle part dans le
+dépôt** (seule occurrence hors dépôt : un script d'ancien chantier,
+`workspaces/le-juge-apprend/outputs/work/amplitude.mjs:41`).
+
+**Conséquence : mettre un réseau de largeur 100 en service ne demande aucune
+modification de code** — il suffit de copier le fichier sur
+`data/poids/apprenti.txt`. Attention cependant : ce fichier est l'un des deux
+seuls fichiers de poids suivis en version (`.gitignore:70-72`), et il passerait
+de 1,5 Mo à 3,0 Mo dans le dépôt public.
 
 
-### 🟠 05-10 — EN COURS : largeur 100 AVEC devinette, pour trancher la piste
+### 🔴 05-10 → 09-10 — LA PISTE DE LA DEVINETTE EST FERMÉE, POUR LA SECONDE FOIS
 
-Lancé le 05-10 sur décision d'Alexis. **Un seul changement** par rapport à
-`apprenti-largeur100.txt` : la devinette. Même largeur, mêmes 400 000 parties.
-Les deux s'affronteront en duel direct, ce que la balance sait faire depuis le
-04-10.
+L'entraînement a été lancé le 05-10 sur décision d'Alexis, **un seul changement**
+par rapport à `apprenti-largeur100.txt` : la devinette. Même largeur, mêmes
+400 000 parties, plage de graines neuve et disjointe (4 000 001 … 4 400 000).
 
 ```
 entraine --sortie            data/poids/apprenti-largeur100-devinette.txt
@@ -164,12 +243,20 @@ entraine --sortie            data/poids/apprenti-largeur100-devinette.txt
 
 Commande conservée dans
 `/home/alexis/.agentic-workspace/lancer-largeur100-devinette.sh`, journal dans
-`largeur100-devinette.log`. Graines 4 000 001 … 4 400 000 : plage neuve, disjointe
-de toutes les précédentes (1 M pour la 100, 2 M pour le témoin, 3 M pour la 200).
+`largeur100-devinette.log`. Terminé le 06-10 à 05 h 25 (heure du serveur), après
+**60 862,7 s = 16 h 54** — mon estimation annoncée était « ≈ 13 h », **fausse une
+quatrième fois**, du même défaut : elle supposait une durée de partie constante.
 
-Débit initial mesuré : **118,4 ms par partie, 2,32 cœurs sur 6, ≈ 13 h** — borne
-haute, le débit monte avec l'apprentissage. `nice -n 19` et `ionice -c 3` : Alexis
-travaille sur la même machine.
+**Le verdict, mesuré le 09-10** [VÉRIFIÉ 09-10] : voir la section de tête de
+cette carte. Le réseau entraîné avec devinette perd le duel direct 312 à 467
+(−5,55 écarts typiques) et tombe à 99,9 % contre `reflechi` au lieu de 100,0 %.
+
+**C'est la seconde fois que la devinette est mesurée perdante** : le 17-08 l'avait
+déjà conclu au million de parties (section « 17-08 — LE VERDICT DU MILLION »).
+La relancer était défendable — l'écart 94,8 % / 98,0 % observé le 05-10 était
+nouveau et semblait la contredire — mais le résultat est le même. **La devinette
+est désormais tenue pour close : ne pas la relancer sans un fait nouveau et
+mesuré.**
 
 ## 🟢 03-10 — LE TRAVAIL PASSE SUR UN SERVEUR QUI TOURNE SANS INTERRUPTION, ET IL EST PLUS RAPIDE QUE LE PORTABLE
 

@@ -3190,3 +3190,124 @@ jamais été mesurée contre un être humain.** Tous les chiffres de ces trois j
 y compris le 100 % sur 800 parties, sont obtenus contre nos propres programmes.
 L'objectif écrit dans `docs/CTO_PROJET.md` est une IA **imbattable par des
 humains** ; le seul repère humain du projet reste une capture d'écran du 04-08.
+
+## 2026-10-06 → 09-10 — La devinette perd une seconde fois, mon estimation de durée est fausse une quatrième fois, et l'obstacle de mise en service n'existait pas
+
+### Ce qui a été fait
+
+L'entraînement « largeur 100 **avec** devinette », lancé le 05-10 sur décision
+d'Alexis, s'est terminé seul le **06-10 à 05 h 25** (heure du serveur) à
+400 000 parties. Les trois jours suivants, personne n'a travaillé sur le projet :
+la session s'était arrêtée et le duel attendait. Il a été lancé le **09-10**.
+
+### Le verdict : la devinette à l'entraînement rend le réseau PLUS FAIBLE [VÉRIFIÉ 09-10]
+
+Duel direct, 400 donnes × 2 sièges = 800 parties, les deux réseaux de largeur 100
+et de 400 000 parties, le seul changement étant la devinette :
+
+| camp | réseau | victoires | % |
+|---|---|---|---|
+| A | `apprenti-largeur100-devinette.txt` | 312 | 39,0 % |
+| **B** | **`apprenti-largeur100.txt`** | **467** | **58,4 %** |
+| | nuls | 21 | |
+
+Écart de score moyen (A − B) : **−8,62**. **−5,55 écarts typiques** pour un seuil
+de 2 : significatif. Contre l'étalon `reflechi`, le réseau à devinette tombe à
+**99,9 %** (écart de score 92,85) là où celui sans devinette fait **100,0 %**
+(110,52). Journaux :
+`/home/alexis/.agentic-workspace/croise-devinette-contre-100.log` et
+`duel-largeur100-devinette.log`.
+
+Deux colonnes racontent la même histoire d'une autre manière : pour jouer les
+mêmes 800 parties contre `reflechi`, le réseau à devinette a pris **1 036 136
+décisions contre 682 934**, et **64** de ses parties ont été arrêtées sur le
+plafond de manches contre **22**. Il traîne ses parties. C'est la signature d'un
+joueur qui sait moins bien quand cesser de piocher.
+
+### Mon hypothèse du 05-10 était fausse, et je l'avais écrite comme « la plus probable »
+
+J'avais écrit dans la carte d'état : « Explication la plus probable : s'entraîner
+contre un adversaire qui devine, c'est s'entraîner contre un adversaire plus
+fort. » **C'est faux.** L'écart qui l'avait motivée — témoin largeur 50 sans
+devinette à 94,8 %, `apprenti.txt` de même largeur avec devinette à 98,0 % sur
+les mêmes 400 donnes, soit ≈ 4,5 écarts typiques — **reste sans explication
+établie**. Ce n'est pas la devinette. Les candidats restants, non mesurés :
+les plages de graines d'entraînement, le nombre d'ouvriers (2 pour le témoin,
+5 pour les autres), ou le simple bruit entre deux entraînements de même recette.
+**Je n'en retiens aucun comme établi.**
+
+### C'est la seconde fois que la devinette est mesurée perdante
+
+Le 17-08, section « LE VERDICT DU MILLION : LA DEVINETTE NE PAYE PAS », l'avait
+déjà conclu au million de parties. Le 01-09 l'avait reconfirmé par un autre
+chemin (le *même* réseau joué avec ou sans devinette au moment du duel : 95,6 %
+contre 96,9 %). La relancer était défendable, parce que l'écart 94,8 / 98,0 du
+05-10 était un fait nouveau qui semblait les contredire et qu'il fallait trancher.
+Mais le bilan est clair : **17 heures de calcul pour reconfirmer un verdict déjà
+écrit deux fois.** La devinette est désormais close : ne pas la relancer sans un
+fait nouveau ET mesuré.
+
+### Une limite de la mesure, écrite noir sur blanc
+
+`engine/src/bin/duel.rs:1008-1012` **refuse** la variable `APPRENTI_ADVERSAIRE` :
+la balance en Rust ne sait pas faire deviner un joueur **pendant** un duel. Les
+deux réseaux ont donc joué **sans deviner**. Ce qui est mesuré est précisément :
+« s'entraîner avec un partenaire qui devine rend-il plus fort celui qui joue
+ensuite sans deviner ? » → non. Ce qui n'est pas mesuré ici : « deviner pendant
+la partie aide-t-il ? » → déjà répondu non les 17-08 et 01-09. Dette :
+chantier `la-devinette-en-natif`, contrat écrit, **non scellé**.
+
+### MA QUATRIÈME ESTIMATION DE DURÉE FAUSSE, DU MÊME DÉFAUT
+
+Annoncé « ≈ 13 h ». Réel : **60 862,7 s = 16 h 54**, soit **+30 %**. La cause est
+exactement celle que j'avais identifiée et écrite le 05-10 : l'estimation suppose
+une durée de partie constante, alors qu'elle dépend de la force du joueur — et
+ici, en plus, d'un réseau qui traîne ses parties. **J'avais écrit la leçon dans le
+journal trois jours plus tôt et je l'ai recommise.** Bilan des quatre : annoncé
+13 h 30 / réel 11 h 51 ; annoncé 17 h / réel 24 h 20 ; annoncé 49 h 54 / réel
+26 h 47 ; annoncé 13 h / réel 16 h 54. **Conclusion pratique : je cesse d'annoncer
+une durée à Alexis sans une fourchette large, et je donne l'avancement réel par
+la ligne 2 du fichier de poids plutôt qu'une prévision.**
+
+### Bonne nouvelle : l'obstacle de mise en service n'existait pas [VÉRIFIÉ 09-10]
+
+Le point que j'avais marqué 🔴 dans la carte d'état le 05-10 — « le site refusera
+peut-être de charger un réseau de largeur 100 » — est levé. Le chemin de
+chargement du navigateur a été retrouvé : `poidsEnCache`
+(`web/webapp/joueurs/apprenti.js:447-455`) est le **seul** lecteur de poids du
+joueur et il appelle `lirePoids(chemin, sorties)`, donc avec `cachesAttendus`
+à sa valeur par défaut `null` (ligne 197) : **la largeur écrite dans le fichier
+fait foi**. `lirePoidsLargeur` (ligne 286), celle qui impose `CACHES_ATTENDUS = 50`
+(ligne 101), **n'est appelée nulle part dans le dépôt**. Mettre le champion en
+service ne demande donc **aucune modification de code** : il suffit de copier le
+fichier sur `data/poids/apprenti.txt`. Une seule conséquence à peser : ce fichier
+est l'un des deux seuls fichiers de poids suivis en version (`.gitignore:70-72`)
+et il passerait de 1,5 Mo à 3,0 Mo dans un dépôt public.
+
+### L'incident de mémoire du 06-10
+
+Trois de mes commandes de surveillance en arrière-plan ont été arrêtées par le
+harnais pour manque de mémoire vive. Aucune ne portait de travail : elles
+guettaient des duels et des tests déjà terminés et dépouillés. **L'entraînement a
+survécu et s'est terminé seul.** Le relevé a montré que nous n'étions pas la
+cause : `entraine` occupait **36 Mo**, contre 2 133 Mo pour sept sessions Claude
+Code, 716 Mo pour un serveur Next.js, 446 Mo pour une passerelle Java et
+plusieurs `ffmpeg` d'un autre projet d'Alexis. La pression s'est résorbée seule.
+`dmesg` ne montre aucun programme tué par le noyau. **C'est exactement le risque
+signalé le 03-10 : 11 Go sans mémoire d'échange, donc un dépassement tue un
+programme net au lieu de ralentir.**
+
+### Écart au plan
+
+**Toujours aucun chantier `aw` ouvert depuis le 31-08** — six semaines. C'était
+défendable du 03 au 05 (des mesures), ça l'est encore pour le 09-10 (deux duels),
+mais la dette s'accumule : les lots en souffrance (`les-tests-en-force`,
+`la-mise-en-scene-dit-vrai`, MOT-8, VIE-1, VIE-3, GRO-3) n'avancent pas.
+
+**Et le trou le plus grand du projet n'a pas bougé depuis le 01-09 : l'IA n'a
+jamais été mesurée contre un être humain.** Le champion fait 100 % contre nos
+programmes ; nous ne savons pas ce qu'il fait contre Alexis, et encore moins
+contre Corentin. L'objectif écrit dans `docs/CTO_PROJET.md` est une IA
+**imbattable par des humains**. **Avec la devinette close et la largeur tranchée,
+plus aucune mesure interne ne bloque cette étape : c'est désormais la seule chose
+à faire.**
