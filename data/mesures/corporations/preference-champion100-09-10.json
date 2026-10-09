@@ -1,0 +1,108 @@
+{
+ "joueur": "apprenti",
+ "poids": "data/poids/apprenti-largeur100.txt",
+ "donnes": 1000,
+ "choix": 2000,
+ "mulligan": {
+  "garde": 1106,
+  "remplace": 894
+ },
+ "corporations": [
+  {
+   "nom": "Tharsis Republic",
+   "propose": 447,
+   "prise": 447,
+   "taux": 1
+  },
+  {
+   "nom": "Exocorp",
+   "propose": 428,
+   "prise": 389,
+   "taux": 0.909
+  },
+  {
+   "nom": "Apollo Industries",
+   "propose": 353,
+   "prise": 299,
+   "taux": 0.847
+  },
+  {
+   "nom": "Interplanetary Cinematics",
+   "propose": 302,
+   "prise": 206,
+   "taux": 0.682
+  },
+  {
+   "nom": "Credicor",
+   "propose": 323,
+   "prise": 205,
+   "taux": 0.635
+  },
+  {
+   "nom": "Saturn Systems",
+   "propose": 283,
+   "prise": 165,
+   "taux": 0.583
+  },
+  {
+   "nom": "Inventrix",
+   "propose": 239,
+   "prise": 68,
+   "taux": 0.285
+  },
+  {
+   "nom": "Thorgate Corporation",
+   "propose": 178,
+   "prise": 48,
+   "taux": 0.27
+  },
+  {
+   "nom": "Teractor Corporation",
+   "propose": 203,
+   "prise": 48,
+   "taux": 0.236
+  },
+  {
+   "nom": "Phobolog",
+   "propose": 169,
+   "prise": 39,
+   "taux": 0.231
+  },
+  {
+   "nom": "Sultira",
+   "propose": 194,
+   "prise": 38,
+   "taux": 0.196
+  },
+  {
+   "nom": "Mining Guild",
+   "propose": 169,
+   "prise": 19,
+   "taux": 0.112
+  },
+  {
+   "nom": "Hyperion Systems",
+   "propose": 173,
+   "prise": 14,
+   "taux": 0.081
+  },
+  {
+   "nom": "Helion Corporation",
+   "propose": 161,
+   "prise": 8,
+   "taux": 0.05
+  },
+  {
+   "nom": "Ecoline",
+   "propose": 203,
+   "prise": 4,
+   "taux": 0.02
+  },
+  {
+   "nom": "Unmi",
+   "propose": 175,
+   "prise": 3,
+   "taux": 0.017
+  }
+ ]
+}

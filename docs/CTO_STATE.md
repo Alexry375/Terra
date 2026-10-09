@@ -14,6 +14,116 @@ Dernière mise à jour : 2026-10-09
 > `docs/JOURNAL.md`, entrée « 2026-08-20 (suite) ».
 
 
+## 📊 09-10 — LE CLASSEMENT DES CORPORATIONS SELON LE CHAMPION : SON TRIO DE TÊTE EST JUSTE, LE RESTE N'EST PAS DISTINGUÉ
+
+**Demande d'Alexis.** Première question posée, et répondue par le code
+[VÉRIFIÉ 09-10] : **l'IA choisit bien sa corporation elle-même.**
+`engine/src/joueur.rs:1248` — `pick_corporation` passe par `self.choisir(...)`,
+le même mécanisme que toute autre décision ; `joueur.rs:1233` — `corp_mulligan`
+aussi (la règle maison d'Alexis, les deux corporations ou aucune) ; et le choix
+final se fait cartes projets en main (`engine/src/flow.rs:280`). Rien n'est
+câblé à la main.
+
+### La méthode, et le piège qu'elle corrige
+
+Le taux de choix brut ne vaut **rien** seul : chaque joueur ne voit que deux
+corporations, donc une corporation médiocre tirée face à une épouvantable est
+prise souvent et paraît excellente. On mesurerait le voisinage, pas la
+corporation. **La correction : enregistrer la paire entière, pas le choix seul**
+(`data/mesures/corporations/paires-corpos.mjs`, écrit le 17-08), puis ajuster un
+classement par affrontements deux à deux — méthode de Bradley-Terry : on cherche
+pour chaque corporation une force `f` telle que la probabilité qu'elle soit
+préférée à une autre vaille `f(X) / (f(X) + f(Y))`, et on ajuste les seize
+forces pour coller au mieux aux choix observés
+(`data/mesures/corporations/classement-par-paires.py`).
+
+1 000 donnes × 2 sièges = **2 000 choix**, avec `apprenti-largeur100.txt`.
+**Les 120 paires possibles ont toutes été rencontrées.** Données brutes
+conservées : `paires-champion100-09-10.jsonl`,
+`preference-champion100-09-10.json`.
+
+### Le classement selon lui [VÉRIFIÉ 09-10]
+
+La note est en centièmes de décade : +100 veut dire « dix fois plus souvent
+préférée, à voisinage égal ». La colonne « brut » est le taux de choix non
+corrigé, donnée pour montrer que les deux classements concordent ici.
+
+| rang | corporation | note | crédits | brut | occasions |
+|---|---|---|---|---|---|
+| 1 | **Tharsis Republic** | **+393** | 40 | **100,0 %** | 447 |
+| 2 | Exocorp | +252 | 26 | 90,9 % | 428 |
+| 3 | Apollo Industries | +162 | 33 | 84,7 % | 353 |
+| 4 | Interplanetary Cinematics | +68 | 46 | 68,2 % | 302 |
+| 5 | Saturn Systems | +58 | 24 | 58,3 % | 283 |
+| 6 | Credicor | +47 | 48 | 63,5 % | 323 |
+| 7 | Sultira | −35 | 38 | 19,6 % | 194 |
+| 8 | Thorgate Corporation | −42 | 45 | 27,0 % | 178 |
+| 9 | Teractor Corporation | −45 | **51** | 23,6 % | 203 |
+| 10 | Inventrix | −47 | 33 | 28,5 % | 239 |
+| 11 | Phobolog | −49 | **20** | 23,1 % | 169 |
+| 12 | Mining Guild | −75 | 27 | 11,2 % | 169 |
+| 13 | Hyperion Systems | −120 | 30 | 8,1 % | 173 |
+| 14 | Helion Corporation | −142 | 28 | 5,0 % | 161 |
+| 15 | Unmi | −209 | 35 | 1,7 % | 175 |
+| 16 | Ecoline | −215 | 27 | 2,0 % | 203 |
+
+**Tharsis Republic n'a jamais été refusée : 447 fois proposée, 447 fois prise.**
+
+### Trois contrôles, tous les trois concluants
+
+1. **Cohérence parfaite.** Sur **422 triplets** exploitables, **zéro cycle** : il
+   n'existe aucun cas où l'IA préfère A à B, B à C et C à A. Son classement est
+   un ordre total, pas un assemblage de préférences locales contradictoires.
+2. **L'argent de départ ne guide pas son jugement** : lien de **+0,158** entre le
+   revenu affiché et sa note, c'est-à-dire presque rien. Teractor, la plus riche
+   (51), est 9ᵉ ; Saturn Systems (24) est 5ᵉ ; Exocorp (26) est 2ᵉ.
+3. **Le mulligan est actif** : elle remplace ses deux corporations **894 fois sur
+   2 000**, soit 44,7 % du temps. Elle ne subit pas son tirage.
+
+### Confronté à la force réelle : le trio de tête est juste, le reste ne l'est pas
+
+Comparaison avec le tournoi à corporation **imposée** d'août
+(`tournoi-corpos.jsonl` + `-2.jsonl`, 800 parties, ≈ 100 par corporation) :
+
+| | lien |
+|---|---|
+| note du champion ↔ force réelle, 16 corporations | **+0,796** |
+| rangs | +0,441 |
+| **hors trio de tête (13 corporations)** | **−0,058** |
+
+**Son trio de tête — Tharsis Republic, Exocorp, Apollo Industries — est
+exactement le trio de tête réel** (rangs réels 1, 3, 2 ; 75,0 %, 68,3 %, 68,6 %
+de victoires). **Hors de ce trio, son jugement ne distingue rien.** C'est le même
+motif qu'au 17-08 (0,66 / 0,39 / −0,12 avec l'ancien réseau) : le fait est stable.
+
+### ⚠️ Pourquoi on ne peut PAS encore dire qu'elle se trompe
+
+Deux réserves, et elles sont décisives :
+
+1. **La force réelle a été mesurée avec l'ANCIEN réseau** (50 neurones, août).
+   La force d'une corporation dépend du joueur qui la joue : le champion peut
+   rentabiliser une corporation que l'ancien gâchait.
+2. **Hors trio de tête, les taux réels d'août tiennent tous entre 38,6 % et
+   52,1 %** — 13 points d'amplitude pour une incertitude de ±7 points à
+   100 parties. **Ce classement-là est à peine distinguable du bruit.** La
+   corrélation nulle hors trio peut donc vouloir dire « l'IA ne distingue rien »
+   **ou** « il n'y a rien à distinguer » — les deux sont compatibles avec ces
+   données.
+
+**Conclusion : le classement selon lui est établi. Dire s'il a raison exige de
+refaire le tournoi à corporation imposée avec le champion, et avec assez de
+parties.** En JavaScript le banc existant demanderait plusieurs heures ; le
+porter en Rust est le chantier proposé à Alexis.
+
+### Information de jeu directement utile contre un humain
+
+L'argent de départ ne prédit pas la force d'une corporation (lien ≈ 0,10 mesuré
+le 17-08). Or c'est le critère humain spontané. Notre témoin `reflechi`, qui ne
+juge que là-dessus, choisit **moins bien que le hasard** sur les paires où le bon
+choix est sûr : **45,6 % contre 50,0 %**, et il se lèse de **8,95 points** par
+partie. Un adversaire qui prend la corporation la plus riche se trompe
+systématiquement.
+
 ## 🔴 09-10 — LA DEVINETTE À L'ENTRAÎNEMENT REND LE RÉSEAU PLUS FAIBLE. LE CHAMPION RESTE `apprenti-largeur100.txt`
 
 **Le fait de la journée** [VÉRIFIÉ 09-10] : l'hypothèse que j'avais formée le
