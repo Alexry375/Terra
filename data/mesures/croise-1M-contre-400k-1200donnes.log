@@ -1,0 +1,13 @@
+camp A : data/poids/apprenti-largeur100-1M.txt — 100 neurones cachés, 1000000 parties vues
+camp B : data/poids/apprenti-largeur100.txt — 100 neurones cachés, 400000 parties vues
+duel : « apprenti » contre « apprenti » — 1200 graines × 2 sièges = 2400 parties (boîtes base,decouverte)
+« apprenti » gagne 1222 parties sur 2400 (50.9 %)
+« apprenti » gagne 1114 parties sur 2400 (46.4 %)
+nuls : 64
+écart de score moyen (« apprenti » − « apprenti ») : 9.46 point(s)
+décisions jouées : 939634
+parties arrêtées sur le plafond de manches : 2 — leur score est un instantané, il compte quand même dans le total
+parties interrompues par le moteur : 0
+parties décisives : 2336 — attendu à l'équilibre : 1168.0 victoires, écart typique : 24.2
+on est à 2.23 écart(s) typique(s) de l'équilibre (seuil : 2)
+verdict : écart significatif — « apprenti » est le meilleur des deux

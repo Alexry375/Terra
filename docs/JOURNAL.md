@@ -3311,3 +3311,122 @@ contre Corentin. L'objectif écrit dans `docs/CTO_PROJET.md` est une IA
 **imbattable par des humains**. **Avec la devinette close et la largeur tranchée,
 plus aucune mesure interne ne bloque cette étape : c'est désormais la seule chose
 à faire.**
+
+## 2026-10-09 → 13-10 — Le classement des corporations, le million de parties, et deux de mes jugements corrigés par la mesure
+
+### Ce qui a été fait
+
+Trois choses, toutes sur demande d'Alexis : le prolongement du champion de
+400 000 à 1 000 000 de parties (lancé le 09-10, terminé le 10-10 après
+46 602,5 s = 12 h 57), le classement des corporations selon le champion, et la
+mesure du million contre le 400 000.
+
+### Le classement des corporations [VÉRIFIÉ 09-10]
+
+**Réponse à la question d'Alexis : oui, l'IA choisit bien sa corporation
+elle-même.** `engine/src/joueur.rs:1248` — `pick_corporation` passe par
+`self.choisir(...)`, le même mécanisme que toute autre décision ; `joueur.rs:1233`
+pour le mulligan des corporations ; `engine/src/flow.rs:280` pour le choix final
+cartes en main. Rien n'est câblé à la main.
+
+Méthode : 1 000 donnes × 2 sièges = 2 000 choix, en enregistrant **la paire
+entière** et non le choix seul — sans quoi on mesure le voisinage et non la
+corporation. Classement ajusté par affrontements deux à deux (Bradley-Terry).
+**Les 120 paires possibles ont toutes été rencontrées.** Scripts :
+`data/mesures/corporations/classement-par-paires.py` et
+`comparer-opinion-et-force.py` ; données brutes
+`paires-champion100-09-10.jsonl`.
+
+Son trio de tête : **Tharsis Republic** (jamais refusée, 447 fois sur 447),
+**Exocorp**, **Apollo Industries**. Son bas de tableau : Unmi, Ecoline, Helion,
+Hyperion Systems.
+
+**Trois contrôles, tous concluants** : zéro cycle sur 422 triplets (son classement
+est un ordre total, sans contradiction interne) ; lien de +0,158 seulement entre
+l'argent de départ et sa note (il ne se laisse pas acheter par le revenu
+affiché) ; mulligan actif, 894 remplacements sur 2 000.
+
+**Confronté à la force réelle mesurée en août** (corporation imposée, ancien
+réseau) : lien de **+0,796** sur les 16, mais **−0,058 hors du trio de tête**.
+Même motif qu'au 17-08 (0,66 / 0,39 / −0,12) : le fait est stable. **Mais on ne
+peut pas en conclure qu'il se trompe** : hors trio, les taux réels d'août tiennent
+tous entre 38,6 % et 52,1 % pour une incertitude de ±7 points, donc ce
+classement-là est à peine distinguable du bruit. « Il ne distingue rien » et « il
+n'y a rien à distinguer » sont tous deux compatibles avec les données.
+
+Observation sur les pouvoirs, relevée en réponse à une seconde question
+d'Alexis : **ses trois préférées sont les trois seules qui lui donnent davantage
+de cartes de façon répétée** (Tharsis pioche et garde une carte de plus à chaque
+Recherche ; Apollo pioche sur chaque badge Science ; Exocorp améliore la phase de
+Recherche et rend les défausses plus rentables). Inventrix donne aussi des cartes
+mais **une seule fois** (3 au départ) et n'est que 10ᵉ : il valorise un avantage
+qui revient, pas un gain unique. Les quatre dernières ne donnent que des
+ressources fixes ou de petites sommes.
+
+### Le million de parties : meilleur, mais faiblement [VÉRIFIÉ 13-10]
+
+| échantillon | 1 M | 400 k | nuls | écart de score | écarts typiques |
+|---|---|---|---|---|---|
+| 400 donnes | 419 (52,4 %) | 357 (44,6 %) | 24 | +10,05 | 2,23 |
+| **1 200 donnes** | **1 222 (50,9 %)** | 1 114 (46,4 %) | 64 | +9,46 | **2,23** |
+
+Le premier résultat tombait juste au-dessus du seuil de 2 écarts typiques.
+**J'ai triplé l'échantillon avant de conclure** — application directe de la leçon
+d'août où un duel trop court m'avait fait annoncer une régression inexistante.
+Le second donne le même nombre d'écarts typiques : **le résultat est stable**.
+
+### MON JUGEMENT DU 09-10 ÉTAIT FAUX : PROLONGER N'EST PLUS RENTABLE
+
+J'avais écrit à Alexis que prolonger l'entraînement était « probablement la
+meilleure piste qui reste », en m'appuyant sur la courbe d'août (aucun plafond en
+vue au million, pente de +3,7 à +3,9 points d'écart de score par 100 000 parties).
+**Démenti par la mesure.**
+
+| comparaison | date | résultat | écarts typiques |
+|---|---|---|---|
+| 1 M contre 600 k, largeur 50 | 16-08 | 66,9 % – 30,0 % | **4,74** |
+| 1 M contre 400 k, largeur 100 | **13-10** | 50,9 % – 46,4 % | **2,23** |
+
+Treize heures de calcul pour +4,5 points de taux de victoire. **J'avais pourtant
+écrit moi-même la réserve le 09-10** (« cette courbe a été mesurée sur un réseau
+de cinquante neurones et une fiche plus petite, je ne peux pas affirmer qu'elle
+sera identique à cent neurones ») — la réserve était bonne, et c'est elle qui
+s'est réalisée. Conclusion : **prolonger l'entraînement n'est plus une piste
+rentable**, le point de départ est déjà trop fort.
+
+### LE DÉFAUT DES PARTIES QUI N'EN FINISSENT PAS N'EST PAS RÉGLÉ
+
+Je l'avais déclaré résolu le 05-10 : de 24 % à 2,8 % de parties plafonnées avec le
+passage à cent neurones. **C'était prématuré.** Contre `reflechi`, le réseau au
+million plafonne **169 parties sur 800, soit 21,1 %**, et prend 2 049 décisions par
+partie contre 854 pour le 400 000.
+
+**Mais contre un adversaire de sa force, le comportement est propre** : 2 parties
+plafonnées sur 2 400 dans le duel direct, 392 décisions par partie ; et à
+l'entraînement, contre une copie de lui-même, il est plus rapide que le 400 000
+(77,7 ms par partie contre 115,7). **Le défaut n'a donc pas disparu : il est
+devenu conditionnel à la faiblesse de l'adversaire.** Explication la plus
+probable : le réseau maximise son avance au score et, la victoire acquise,
+continue d'accumuler au lieu de conclure — ce que confirme l'écart de score qui
+monte de 110,52 à 121,17 contre `reflechi`. Corollaire gênant : **cet écart de
+121 est en partie fabriqué par des scores d'instantané**, donc moins fiable qu'il
+n'y paraît. Réglage soupçonné : `DOUCEUR` (`engine/src/reseau.rs:154`).
+
+### LE BLOCAGE PRINCIPAL A CHANGÉ DE NATURE
+
+`reflechi` perd 100 % de ses parties contre les deux derniers réseaux : **il ne
+peut plus mesurer aucun progrès.** Et les duels entre nos propres réseaux
+plafonnent aussi — 2,23 écarts typiques pour 600 000 parties d'écart
+d'entraînement. **Sans adversaire de référence plus fort, le projet est aveugle**,
+et c'est désormais un blocage de méthode qui passe devant tous les réglages.
+
+**Le trou le plus grand reste le même qu'au 01-09 : l'IA n'a jamais été mesurée
+contre un être humain.** Quatre entrées de journal de suite le signalent. Rien
+dans les mesures internes ne bloque plus cette étape.
+
+### Écart au plan
+
+**Toujours aucun chantier `aw` ouvert depuis le 31-08** — six semaines et demie.
+Tout a été fait en direct : mesures, dépouillements, deux scripts Python. Le
+chantier « porter le tournoi des corporations en Rust » a été proposé à Alexis le
+09-10 et **attend sa réponse**, de même que la mise en service du champion.

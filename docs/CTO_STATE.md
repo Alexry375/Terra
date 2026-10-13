@@ -3,7 +3,7 @@
 > Source de vérité du projet. Ancrée au code (`fichier:ligne`) dès qu'il y aura du
 > code. [VÉRIFIÉ JJ-MM] = relu à la source ce jour-là. [DÉCLARÉ] = non re-vérifié.
 
-Dernière mise à jour : 2026-10-09
+Dernière mise à jour : 2026-10-13
 
 > **20-08 — LE DÉPÔT EST PUBLIC** : `github.com/Alexry375/Terra`. Les 65 Mo de
 > visuels du jeu ont été retirés de l'arbre **et de tout l'historique** ; le
@@ -13,6 +13,104 @@ Dernière mise à jour : 2026-10-09
 > citées ci-dessous sont celles du **nouvel** historique. Détail :
 > `docs/JOURNAL.md`, entrée « 2026-08-20 (suite) ».
 
+
+## 🟠 13-10 — LE MILLION DE PARTIES EST MEILLEUR, MAIS LE RENDEMENT DU PROLONGEMENT S'EST EFFONDRÉ
+
+**Le fait de la journée** [VÉRIFIÉ 13-10] : le prolongement de 400 000 à
+1 000 000 de parties, lancé le 09-10, a produit un gain **réel, confirmé, et
+faible**. Treize heures de calcul pour +4,5 points de taux de victoire.
+
+### Le duel direct, mesuré deux fois
+
+| échantillon | 1 M | 400 k | nuls | écart de score | écarts typiques |
+|---|---|---|---|---|---|
+| 400 donnes (800 parties) | 419 (52,4 %) | 357 (44,6 %) | 24 | +10,05 | **2,23** |
+| **1 200 donnes (2 400 parties)** | **1 222 (50,9 %)** | 1 114 (46,4 %) | 64 | **+9,46** | **2,23** |
+
+Le premier résultat tombait juste au-dessus du seuil de signification de 2 écarts
+typiques : **j'ai triplé l'échantillon avant de conclure**, par application de la
+leçon d'août (un duel trop court m'avait fait annoncer une régression
+inexistante). Le second donne **exactement le même nombre d'écarts typiques** —
+le taux baisse un peu, l'échantillon triple, les deux effets se compensent.
+**Le résultat est donc stable : le million est meilleur, de façon crédible mais
+faible.** Journaux : `data/mesures/croise-1M-contre-400k.log` et
+`croise-1M-contre-400k-1200donnes.log`.
+
+### Contre `reflechi` : l'étalon ne distingue plus rien, et un défaut réapparaît
+
+| réseau | victoires | % | écart de score | décisions | plafonnées |
+|---|---|---|---|---|---|
+| 400 000 | 800/800 | 100,0 % | 110,52 | 682 934 | 22 (2,8 %) |
+| **1 000 000** | 800/800 | 100,0 % | **121,17** | **1 638 979** | **169 (21,1 %)** |
+
+**Les deux gagnent tout : le taux de victoire ne sépare plus les réseaux.** Seule
+l'épaisseur parle, et elle monte de 110 à 121 — mais **ce chiffre est à prendre
+avec prudence, parce qu'une partie sur cinq a été arrêtée sur le plafond de
+manches**, donc son score est un instantané pris de force et non un score de fin
+de partie.
+
+### ⚠️ LE DÉFAUT DES PARTIES QUI N'EN FINISSENT PAS N'EST PAS RÉGLÉ : IL EST DEVENU CONDITIONNEL
+
+Je l'avais déclaré résolu le 05-10 (de 24 % à 2,8 % de parties plafonnées avec le
+passage à cent neurones). **C'était faux.** Le réseau au million étire ses parties
+**quand il écrase son adversaire** : 2 049 décisions par partie contre `reflechi`,
+contre 854 pour le réseau à 400 000.
+
+**Mais contre un adversaire de sa force, le comportement est propre** : dans le
+duel direct sur 2 400 parties, **2 parties plafonnées sur 2 400** et 392 décisions
+par partie. Et à l'entraînement, où il affronte une copie de lui-même, il est
+**plus rapide** que le 400 000 (77,7 ms par partie contre 115,7).
+
+**Explication la plus probable** : le réseau maximise son avance au score ; une
+fois la victoire acquise, il continue d'accumuler au lieu de conclure. L'écart de
+score qui monte de 110 à 121 est cohérent avec cette lecture. **Conséquence
+pratique pour la partie contre Alexis : si elle n'en finit pas, c'est ce
+défaut-là.** Le réglage soupçonné est `DOUCEUR` (`engine/src/reseau.rs:154`,
+`pub const DOUCEUR: f64 = 0.3;`).
+
+### LE RENDEMENT DU PROLONGEMENT S'EST EFFONDRÉ — JE M'ÉTAIS TROMPÉ
+
+| comparaison | date | résultat | écarts typiques |
+|---|---|---|---|
+| 1 000 000 contre 600 000, largeur 50 | 16-08 | 66,9 % – 30,0 % | **4,74** |
+| 600 000 contre 400 000, largeur 50 | 16-08 | 53,8 % | 1,37 — bruit |
+| **1 000 000 contre 400 000, largeur 100** | **13-10** | **50,9 % – 46,4 %** | **2,23** |
+
+Le 09-10 j'avais écrit à Alexis que prolonger était « probablement la meilleure
+piste qui reste », en m'appuyant sur la courbe d'août (aucun plafond en vue au
+million, pente de +3,7 à +3,9 points d'écart de score par 100 000 parties).
+**La mesure le dément** : à largeur 100, 600 000 parties supplémentaires valent
+2,23 écarts typiques, pas 4,74. Le point de départ était déjà trop fort.
+**Conclusion : prolonger l'entraînement n'est plus une piste rentable.**
+
+### 🔴 LE VRAI BLOCAGE EST DEVENU L'ÉTALON DE MESURE
+
+`reflechi` perd 100 % de ses parties contre les deux derniers réseaux. **Il ne
+peut plus mesurer aucun progrès futur.** Les duels entre nos propres réseaux ne
+mesurent que des écarts relatifs, et ils plafonnent eux aussi (2,23 écarts
+typiques pour 600 000 parties d'écart). **Sans adversaire de référence plus fort,
+le projet est aveugle.** C'est un blocage de méthode, pas un détail de confort,
+et il passe devant les réglages dans l'ordre des priorités.
+
+### Chiffres d'entraînement du million
+
+| | 400 000 | 1 000 000 |
+|---|---|---|
+| durée de l'étape | 42 697,9 s = 11 h 51 | 46 602,5 s = **12 h 57** |
+| parties ajoutées | — | 600 000 |
+| ms par partie | 115,7 | **77,7** |
+| essais d'option | 2 994 M | 4 658 M |
+| neurones saturés | 23,3 % | **29,4 %** |
+| pente moyenne | 0,4969 | 0,4482 |
+| amplitude minimale | 0,5032 | **1,2739** |
+| neurones figés | 0 / 100 | 0 / 100 |
+| corrections à contresens | 0 | 0 |
+
+Photographies conservées à 500 000, 600 000, 700 000, 800 000 et 900 000 parties :
+la courbe de rendement peut être tracée si besoin. Commande conservée dans
+`/home/alexis/.agentic-workspace/lancer-prolongement-1M.sh`, journal
+`prolongement-1M.log`. Copie de sûreté du champion à 400 000 :
+`apprenti-largeur100-champion-400k.txt`.
 
 ## 📊 09-10 — LE CLASSEMENT DES CORPORATIONS SELON LE CHAMPION : SON TRIO DE TÊTE EST JUSTE, LE RESTE N'EST PAS DISTINGUÉ
 
