@@ -62,17 +62,39 @@
 // qui lui repose la même question avec une autre main adverse obtient donc
 // exactement la même réponse.
 
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { dirname, resolve } from "node:path";
+// ─────────────────────────────────────────────────────────────────────────────
+// **(jouer-contre-l-apprenti) LES RÉGLAGES ARRIVENT PAR LE MÊME CHEMIN DANS LES
+// DEUX MONDES.** Ce module lisait le disque avec `node:fs` : un navigateur ne sait
+// pas charger un tel import, et le joueur était inatteignable depuis la page. Les
+// octets passent désormais par `chargerOctets` (`pont.js`) — la lecture du fichier
+// sous Node, `fetch` dans un navigateur, exactement comme le moteur compilé — et
+// le texte est relu par la même `lirePoidsTexte`, ligne pour ligne. Rien de ce qui
+// DÉCIDE n'a bougé : ni le réseau, ni le verrou, ni la marge, ni l'ordre des essais.
+//
+// Une lecture par le réseau est ASYNCHRONE, alors que `fournisseurApprenti` est
+// construit d'un appel ordinaire. La règle est donc la suivante, et elle est
+// simple : **si les poids sont déjà en mémoire quand on construit le joueur** (un
+// objet rendu par `chargerPoids`, ou un chemin déjà chargé), `decider` et
+// `vendre` rendent leur réponse directement, comme avant ; **sinon** ils rendent
+// une promesse, qui attend les poids puis décide de la même façon. Tous les
+// appelants asynchrones (`jouerJusquAuBout`, `offrirLesOccasions`) les attendent
+// déjà ; un appelant synchrone doit charger d'abord (`await chargerPoids(...)`).
+
+import { chargerOctets } from "../pont.js";
 import { formeDeLaReponse, nombreDeChoix } from "../fournisseurs.js";
 import { decrire, nomsDesEntrees } from "./description.js";
 
-const ICI = dirname(fileURLToPath(import.meta.url));
 /** Le chemin est calculé depuis L'EMPLACEMENT DU MODULE, jamais depuis le
  *  répertoire courant : la balance, les bancs et la page ne sont pas lancés du
- *  même endroit (§9). */
-export const POIDS_PAR_DEFAUT = resolve(ICI, "../../../data/poids/apprenti.txt");
+ *  même endroit (§9).
+ *
+ *  **(jouer-contre-l-apprenti) Il ne sort plus du dossier servi.**
+ *  `web/webapp/poids/apprenti.txt` est un LIEN SYMBOLIQUE vers le fichier du
+ *  dépôt, `data/poids/apprenti.txt` — pas une copie : un nouveau champion mis en
+ *  service y est vu tout de suite, des deux côtés. Sous Node, cette adresse
+ *  `file:` se lit à travers le lien ; dans un navigateur, elle désigne
+ *  `poids/apprenti.txt` sous la livraison, que le serveur sert sans réserve. */
+export const POIDS_PAR_DEFAUT = new URL("../poids/apprenti.txt", import.meta.url);
 
 /**
  * **La marge de départage.** Deux options peuvent mener à des situations
@@ -190,12 +212,40 @@ export function reponseParDefaut(d) {
  * qu'il protège : des poids appris sur une autre géométrie, relus sans un mot,
  * donnent un joueur qui répond n'importe quoi.
  *
- * @param {string} chemin
+ * **(jouer-contre-l-apprenti)** Les octets arrivent par `chargerOctets` — le
+ * disque sous Node, le réseau dans un navigateur — et la lecture rend donc une
+ * promesse. Le texte est relu par [`lirePoidsTexte`], qui est l'ancienne lecture
+ * à l'identique.
+ *
+ * @param {string|URL} chemin
  * @param {number} sortiesAttendues
  * @param {?number} cachesAttendus  `null` : la largeur du fichier fait foi.
+ * @returns {Promise<object>}
  */
-export function lirePoids(chemin, sortiesAttendues = SORTIES_ATTENDUES, cachesAttendus = null) {
-  const lignes = readFileSync(chemin, "utf8").split("\n");
+export async function lirePoids(chemin, sortiesAttendues = SORTIES_ATTENDUES, cachesAttendus = null) {
+  const octets = await chargerOctets(chemin);
+  return lirePoidsTexte(DECODEUR.decode(octets), chemin, sortiesAttendues, cachesAttendus);
+}
+
+/**
+ * Le décodage des octets, réglé pour rendre EXACTEMENT ce que rendait
+ * `readFileSync(chemin, "utf8")` : `ignoreBOM` garde une éventuelle marque d'ordre
+ * en tête au lieu de l'avaler, comme le faisait Node.
+ */
+const DECODEUR = new TextDecoder("utf-8", { ignoreBOM: true });
+
+/**
+ * La relecture du texte d'un fichier de poids — le corps de l'ancienne
+ * `lirePoids`, sans un caractère de changé : en-tête, verrou des noms, verrou de
+ * cohérence, rangement par entrée.
+ *
+ * @param {string} texte
+ * @param {string|URL} chemin  pour les messages seulement
+ * @param {number} sortiesAttendues
+ * @param {?number} cachesAttendus
+ */
+export function lirePoidsTexte(texte, chemin, sortiesAttendues = SORTIES_ATTENDUES, cachesAttendus = null) {
+  const lignes = texte.split("\n");
   const tete = (lignes[0] || "").trim().split(/\s+/).map(Number);
   const [nEntrees, caches, sorties] = tete;
   if (!Number.isInteger(nEntrees) || !Number.isInteger(caches) || !Number.isInteger(sorties)) {
@@ -279,9 +329,10 @@ export function lirePoids(chemin, sortiesAttendues = SORTIES_ATTENDUES, cachesAt
  * exigée est celle du dépôt ([`CACHES_ATTENDUS`]) — un fichier appris à une autre
  * largeur est alors refusé en nommant les deux nombres.
  *
- * @param {string} chemin
+ * @param {string|URL} chemin
  * @param {number} sortiesAttendues
  * @param {number} cachesAttendus
+ * @returns {Promise<object>}
  */
 export function lirePoidsLargeur(
   chemin,
@@ -441,18 +492,55 @@ function espionner(pont) {
  * différents se chasseraient l'un l'autre et chaque partie relirait un fichier de
  * 1,4 Mo deux fois. Une table par chemin coûte quelques mégaoctets et supprime
  * trois cents relectures sur un duel de 150 graines.
+ *
+ * **(jouer-contre-l-apprenti) Deux tables, parce que la lecture est devenue
+ * asynchrone** : la promesse de chaque chemin (deux demandes simultanées n'en
+ * font qu'une), et les poids eux-mêmes une fois arrivés — c'est cette seconde
+ * table qui permet de construire un joueur SYNCHRONE sur un chemin déjà chargé.
+ * Une lecture qui échoue n'est pas gardée : la demande suivante réessaie.
  */
 const _poidsParChemin = new Map();
+const _poidsLus = new Map();
 
-function poidsEnCache(chemin, sorties) {
-  const cle = `${sorties}:${chemin}`;
-  let p = _poidsParChemin.get(cle);
-  if (p === undefined) {
-    p = lirePoids(chemin, sorties);
-    _poidsParChemin.set(cle, p);
+const cleDesPoids = (chemin, sorties) => `${sorties}:${chemin}`;
+
+/**
+ * **Les poids d'un fichier, lus une seule fois par chemin.** C'est la porte
+ * d'entrée des réglages, des deux côtés : sans argument, le fichier par défaut
+ * (`APPRENTI_POIDS` sous Node s'il est nommé, [`POIDS_PAR_DEFAUT`] sinon).
+ *
+ * @param {string|URL} [chemin]
+ * @param {number} [sorties]
+ * @returns {Promise<object>}
+ */
+export function chargerPoids(chemin = cheminParDefaut(), sorties = SORTIES_ATTENDUES) {
+  const cle = cleDesPoids(chemin, sorties);
+  let promesse = _poidsParChemin.get(cle);
+  if (promesse === undefined) {
+    promesse = lirePoids(chemin, sorties).then((p) => {
+      _poidsLus.set(cle, p);
+      return p;
+    });
+    _poidsParChemin.set(cle, promesse);
+    promesse.catch(() => _poidsParChemin.delete(cle));
   }
-  return p;
+  return promesse;
 }
+
+/**
+ * **Le défaut du contrat est `data/poids/apprenti.txt`, et il le reste.**
+ * `APPRENTI_POIDS` n'est là que pour la MESURE : le §2.2 demande de comparer
+ * trois rythmes croisés avec trois facteurs d'influence, soit neuf jeux de
+ * poids. La balance lisant toujours le même fichier, il faudrait sinon les
+ * essayer un par un en se les recopiant dessus — une demi-journée de
+ * calendrier sur une machine à huit cœurs. Sans cette variable, le
+ * comportement est celui que le point d'accroche n°4 décrit, au mot près.
+ */
+function cheminParDefaut() {
+  return globalThis.process?.env?.APPRENTI_POIDS || POIDS_PAR_DEFAUT;
+}
+
+const estUnChemin = (x) => typeof x === "string" || x instanceof URL;
 
 /**
  * Le fournisseur `apprenti`, de la même forme que `fournisseurReflechi`.
@@ -461,8 +549,9 @@ function poidsEnCache(chemin, sorties) {
  *   fournisseurs ; ce joueur ne tire rien au sort (l'exploration du §5 ne sert
  *   qu'à l'entraînement, jamais à la mesure).
  * @param {string} nom
- * @param {object|string} [poids]  poids déjà lus, ou chemin d'un fichier ;
- *   par défaut `data/poids/apprenti.txt`.
+ * @param {object|string|URL} [poids]  poids déjà lus (`chargerPoids`), ou chemin
+ *   d'un fichier ; par défaut `data/poids/apprenti.txt`. Voir l'en-tête : un
+ *   chemin pas encore chargé rend `decider` et `vendre` asynchrones.
  * @param {object} [pont]   le pont, pour essayer les options (voir l'en-tête).
  * @param {string} [boites] la composition des boîtes de la partie.
  * @param {string} [adversaire] **(il-devine §4)** chemin du fichier du SECOND
@@ -482,20 +571,19 @@ export function fournisseurApprenti(
   adversaire,
   graineEssais,
 ) {
-  let p = poids;
-  if (p === undefined || typeof p === "string") {
-    // **Le défaut du contrat est `data/poids/apprenti.txt`, et il le reste.**
-    // `APPRENTI_POIDS` n'est là que pour la MESURE : le §2.2 demande de comparer
-    // trois rythmes croisés avec trois facteurs d'influence, soit neuf jeux de
-    // poids. La balance lisant toujours le même fichier, il faudrait sinon les
-    // essayer un par un en se les recopiant dessus — une demi-journée de
-    // calendrier sur une machine à huit cœurs. Sans cette variable, le
-    // comportement est celui que le point d'accroche n°4 décrit, au mot près.
-    const chemin =
-      typeof p === "string"
-        ? p
-        : (globalThis.process?.env?.APPRENTI_POIDS || POIDS_PAR_DEFAUT);
-    p = poidsEnCache(chemin, SORTIES_ATTENDUES);
+  // (jouer-contre-l-apprenti) Les poids en mémoire tout de suite s'ils y sont
+  // déjà ; sinon leur chargement est lancé ici, et attendu par `decider`/`vendre`.
+  const attentes = [];
+  const lesPoids = (chemin, sorties, recevoir) => {
+    const deja = _poidsLus.get(cleDesPoids(chemin, sorties));
+    if (deja) recevoir(deja);
+    else attentes.push(chargerPoids(chemin, sorties).then(recevoir));
+  };
+  let p = null;
+  if (poids === undefined || estUnChemin(poids)) {
+    lesPoids(poids === undefined ? cheminParDefaut() : poids, SORTIES_ATTENDUES, (x) => { p = x; });
+  } else {
+    p = poids;
   }
 
   // **(il-devine §4) L'INTERRUPTEUR, CÔTÉ JAVASCRIPT.**
@@ -508,7 +596,14 @@ export function fournisseurApprenti(
     adversaire === undefined
       ? (globalThis.process?.env?.APPRENTI_ADVERSAIRE || "")
       : (adversaire || "");
-  const pAdversaire = cheminAdversaire ? poidsEnCache(cheminAdversaire, PHASES) : null;
+  let pAdversaire = null;
+  if (cheminAdversaire) lesPoids(cheminAdversaire, PHASES, (x) => { pAdversaire = x; });
+  // Tant que des poids sont en route, chaque réponse passe par cette attente.
+  // Un échec de chargement remonte à la PREMIÈRE question posée, bruyamment ; le
+  // `catch` muet n'est là que pour qu'un joueur construit puis jamais consulté ne
+  // laisse pas un rejet orphelin.
+  const enRoute = attentes.length > 0 ? Promise.all(attentes) : null;
+  if (enRoute) enRoute.catch(() => {});
 
   const espion = pont ? espionner(pont) : null;
   let degradeDit = false;
@@ -740,9 +835,8 @@ export function fournisseurApprenti(
     return pris;
   }
 
-  return {
-    nom,
-    poids: p,
+  // (jouer-contre-l-apprenti) Le joueur proprement dit, une fois ses poids là.
+  const pret = {
     decider(d) {
       const siege = d.joueur ?? 0;
       const forme = formeDeLaReponse(d);
@@ -813,5 +907,17 @@ export function fournisseurApprenti(
       }
       return choix === null ? [] : [choix];
     },
+  };
+
+  /** Une réponse, tout de suite si les poids sont là, après eux sinon. */
+  const quandPret = (fn) => (enRoute ? enRoute.then(fn) : fn());
+
+  return {
+    nom,
+    get poids() {
+      return p;
+    },
+    decider: (d) => quandPret(() => pret.decider(d)),
+    vendre: (occ) => quandPret(() => pret.vendre(occ)),
   };
 }

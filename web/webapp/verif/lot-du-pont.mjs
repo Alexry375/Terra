@@ -32,7 +32,7 @@ import { createHash } from "node:crypto";
 import { ouvrirPontDepuis } from "../pont.js";
 import { creerPartie, jouerJusquAuBout, offrirLesOccasions } from "../partie.js";
 import { fournisseurAleatoire } from "../fournisseurs.js";
-import { fournisseurApprenti } from "../joueurs/apprenti.js";
+import { chargerPoids, fournisseurApprenti } from "../joueurs/apprenti.js";
 
 const LIVRAISON = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DEPOT = resolve(LIVRAISON, "..", "..");
@@ -408,7 +408,7 @@ test("le pont APPELLE le rebattage Rust du moteur", () => {
   return null;
 });
 
-test("le moteur natif et le navigateur essaient sur le MÊME paquet rebattu", () => {
+test("le moteur natif et le navigateur essaient sur le MÊME paquet rebattu", async () => {
   // La preuve courte de ce que `juge-l-avenir-cache.mjs` mesure en grand : à
   // graine de partie ET graine d'essais égales, les deux joueurs choisissent la
   // même option. Un seul essai vu sur un autre paquet ferait diverger la suite.
@@ -434,6 +434,10 @@ test("le moteur natif et le navigateur essaient sur le MÊME paquet rebattu", ()
       .split("\n")
       .pop(),
   );
+  // (jouer-contre-l-apprenti) Les poids arrivent désormais par `chargerOctets`, donc
+  // de façon asynchrone : chargés d'abord, et chaque réponse est ATTENDUE — un
+  // second réseau nommé par `APPRENTI_ADVERSAIRE` peut encore être en route.
+  await chargerPoids(POIDS);
   const a = fournisseurApprenti(1, "apprenti", POIDS, pont, BOITES, undefined, E);
   const b = fournisseurApprenti(2, "apprenti", POIDS, pont, BOITES, undefined, E);
   const p = creerPartie(pont, { graine: G, boites: BOITES });
@@ -441,11 +445,11 @@ test("le moteur natif et le navigateur essaient sur le MÊME paquet rebattu", ()
   let garde = 0;
   while (!p.termine && p.decisions.length < N) {
     if (++garde > 100000) throw new Error("boucle anormalement longue");
-    offrirLesOccasionsSync(p, [a, b]);
+    await offrirLesOccasions(p, [a, b]);
     if (p.termine || p.decisions.length >= N) break;
     const d = p.decision;
     if (!d) break;
-    p.repondre([a, b][d.joueur].decider(d, p.etat));
+    p.repondre(await [a, b][d.joueur].decider(d, p.etat));
   }
   for (let i = 0; i < Math.min(N, p.decisions.length); i++) {
     if (jsonDe(p.decisions[i]) !== jsonDe(rust.decisions[i])) {
@@ -456,26 +460,6 @@ test("le moteur natif et le navigateur essaient sur le MÊME paquet rebattu", ()
   }
   return `${Math.min(N, p.decisions.length)} décisions identiques (graine ${G}, essais ${E})`;
 });
-
-/** `offrirLesOccasions` sans `await` : les fournisseurs de ce banc sont synchrones. */
-function offrirLesOccasionsSync(p, fournisseurs) {
-  let garde = 0;
-  let encore = true;
-  while (encore) {
-    encore = false;
-    if (++garde > 5000) throw new Error("boucle d'occasions anormalement longue");
-    for (const occ of p.occasions) {
-      const f = fournisseurs[occ.joueur];
-      if (!f || typeof f.vendre !== "function") continue;
-      const cartes = f.vendre(occ, p.etat);
-      if (Array.isArray(cartes) && cartes.length > 0) {
-        p.vendre({ cartes, joueur: occ.joueur, occasion: occ.numero });
-        encore = true;
-        break;
-      }
-    }
-  }
-}
 
 // ════════════════════════════════════════════════════════════════════════════
 // III. L'OCCASION DE VENTE NUMÉROTÉE

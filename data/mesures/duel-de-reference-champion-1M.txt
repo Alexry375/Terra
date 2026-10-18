@@ -1,0 +1,11 @@
+duel : « apprenti » contre « hasard » — 1 graines × 2 sièges = 2 parties (boîtes base,decouverte)
+« apprenti » gagne 2 parties sur 2 (100.0 %)
+« hasard » gagne 0 parties sur 2 (0.0 %)
+nuls : 0
+écart de score moyen (« apprenti » − « hasard ») : 103.00 point(s)
+décisions jouées : 795
+parties arrêtées sur le plafond de manches : 0 — leur score est un instantané, il compte quand même dans le total
+parties interrompues par le moteur : 0
+parties décisives : 2 — attendu à l'équilibre : 1.0 victoires, écart typique : 0.7
+on est à 1.41 écart(s) typique(s) de l'équilibre (seuil : 2)
+verdict : dans le bruit — cet écart ne distingue pas les deux joueurs

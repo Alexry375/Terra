@@ -332,13 +332,15 @@ ok("des fichiers servis ont été trouvés", servis.length >= 5, `${servis.lengt
 //
 // DEUX CERCLES, PARCE QU'IL Y A DEUX SORTES DE FICHIERS ICI. Ceux que la page
 // sert et qu'un navigateur va chercher (tout sauf `verif/`) ne doivent RIEN
-// réclamer au-dessus de `web/webapp/` — à une exception nommée près, le fichier
-// de poids du joueur apprenti. Les bancs de `verif/`, eux, ne sont jamais servis
+// réclamer au-dessus de `web/webapp/`. (Il y avait une exception nommée, le
+// fichier de poids du joueur apprenti ; depuis `jouer-contre-l-apprenti` il est
+// servi à `poids/apprenti.txt`, lien symbolique vers `data/poids/`, et la liste
+// est vide.) Les bancs de `verif/`, eux, ne sont jamais servis
 // à une page : ils tournent depuis le dépôt et ont le droit d'aller chercher le
 // binaire natif ou les poids, mais pas de sortir du dépôt.
 const DEPOT = resolve(RACINE, "../..");
 /** La seule sortie légitime du dossier servi, nommée fichier par fichier. */
-const SORTIE_TOLEREE = new Set(["joueurs/apprenti.js"]);
+const SORTIE_TOLEREE = new Set([]);
 const relatifs = (t) => {
   const out = [];
   // Les chaînes qui SONT un chemin relatif, et les `url(...)` des feuilles de

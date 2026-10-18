@@ -62,6 +62,13 @@ import { fournisseurHumain, fournisseurAleatoire } from "./fournisseurs.js";
 import {
   ouvrirRendezVous, brancherEnLigne, finDeLaPartieEnLigne,
 } from "./distant.js";
+// JOUER CONTRE L'APPRENTI — un module neuf, lui aussi. `?adversaire=apprenti` met
+// le joueur entraîné en face ; sans ce réglage, rien de ce module ne s'exécute et
+// l'adversaire reste le tireur au hasard, au tirage près.
+import {
+  ADVERSAIRES, chargerReglagesApprenti, cerveauApprenti, avecSesVentes,
+  rejouerLesOccasions,
+} from "./adversaire-entraine.js";
 
 import { chargerMateriel } from "./vue/materiel.js";
 import { construireMonde, majMonde, oublier } from "./vue/monde.js";
@@ -169,6 +176,10 @@ function lireCadre() {
     // vérifier que l'extinction éteint vraiment. Il ne change RIEN de ce qui
     // est décidé ni affiché.
     sons: p.get("sons") !== "non",
+    // (jouer-contre-l-apprenti) QUI EST EN FACE : le tireur au hasard, sauf si
+    // l'adresse demande `?adversaire=apprenti`. Une partie reprise impose le
+    // sien, comme le siège : c'est lui qui a joué la moitié des coups.
+    adversaire: ADVERSAIRES.has(p.get("adversaire")) ? p.get("adversaire") : "hasard",
   };
 }
 
@@ -177,7 +188,9 @@ const cadre = lireCadre();
 // sien (c'est le sien qui distribue les tirages), mais si son enregistrement
 // finit par être écarté, c'est celui-ci qui doit reprendre la main : on ne joue
 // pas au siège d'un enregistrement qu'on vient de déclarer illisible.
-const CADRE_DE_L_ADRESSE = { siege: cadre.siege, decide: cadre.decide };
+const CADRE_DE_L_ADRESSE = {
+  siege: cadre.siege, decide: cadre.decide, adversaire: cadre.adversaire,
+};
 
 // Le point de rendez-vous, quand l'adresse porte un code de partie ; `null`
 // sinon — et alors absolument rien ne change.
@@ -559,13 +572,23 @@ function coupeCircuit() {
 
 /** Le même fournisseur, mais qui rend la main dès que la partie est abandonnée. */
 function sousCoupeCircuit(f, arret) {
-  return {
+  const coupe = {
     nom: f.nom,
     decider: (d, etat) => Promise.race([
       (async () => f.decider(d, etat))(),
       arret.attente,
     ]),
   };
+  // (jouer-contre-l-apprenti) Un fournisseur qui saisit les occasions de vente
+  // garde sa méthode `vendre` — sous le même coupe-circuit. Le tireur au hasard
+  // et l'humain n'en ont pas : pour eux, rien ne change.
+  if (typeof f.vendre === "function") {
+    coupe.vendre = (occ, etat) => Promise.race([
+      (async () => f.vendre(occ, etat))(),
+      arret.attente,
+    ]);
+  }
+  return coupe;
 }
 
 /**
@@ -613,13 +636,24 @@ function sousCoupeCircuit(f, arret) {
  * liste enregistrée qui fait foi, jamais lui. Reprendre au bon rang mais
  * diverger ensuite, ce serait rejouer « à peu près ».
  *
+ * (jouer-contre-l-apprenti) **LES VENTES D'UN CERVEAU VENDEUR SONT REJOUÉES À
+ * LEUR OCCASION**, et non comme des réponses : la boucle de jeu ne les a pas
+ * obtenues d'une question, mais d'`offrirLesOccasions`, avant la question —
+ * et sans replier l'empreinte. `rejouerLesOccasions` refait ce geste-là au même
+ * point, en consultant le cerveau à chaque occasion comme la partie coupée
+ * l'avait fait. Pour un tireur au hasard (qui ne vend pas), elle ne fait rien.
+ *
  * @param {Array} cerveaux  un tirage par siège (`null` pour un siège humain)
  * @returns {?number} l'empreinte repliée si la reprise est fidèle, `null` sinon
  */
 function rejouerLesDecisions(partie, enregistree, cerveaux) {
   let empreinte = 0;
   try {
-    for (const reponse of enregistree.decisions) {
+    const entrees = enregistree.decisions;
+    for (let i = 0; ;) {
+      i = rejouerLesOccasions(partie, entrees, i, cerveaux);
+      if (i >= entrees.length) break;
+      const reponse = entrees[i++];
       if (partie.termine) {
         console.warn("terra : l'enregistrement dit plus de décisions que la "
           + "partie n'en a — écarté");
@@ -681,7 +715,16 @@ async function lancer({ graine, boites }, reprise = null) {
   document.body.dataset.phase = "chargement";
   etatDuChargement(MOT.waking);
 
-  const pont = await ouvrirPontDepuis(".");
+  // (jouer-contre-l-apprenti) LES RÉGLAGES DE L'ADVERSAIRE ENTRAÎNÉ voyagent EN
+  // MÊME TEMPS que le moteur compilé, pas après lui : sur une mauvaise connexion,
+  // ce sont deux attentes qui se recouvrent au lieu de s'ajouter. Et s'ils ne
+  // viennent pas, la partie ne commence pas — l'erreur remonte jusqu'à `panne`.
+  // En ligne, l'adversaire est un humain : on ne charge rien.
+  const contreLApprenti = cadre.adversaire === "apprenti" && !rendezVous;
+  const [pont] = await Promise.all([
+    ouvrirPontDepuis("."),
+    contreLApprenti ? chargerReglagesApprenti() : null,
+  ]);
 
   // (les-ecrans-manquants) **QUELLES QUESTIONS LE MOTEUR POSE-T-IL AUX DEUX
   // JOUEURS EN MÊME TEMPS ?** On ne l'écrit pas, on le MESURE — six parties
@@ -737,6 +780,16 @@ async function lancer({ graine, boites }, reprise = null) {
   delete document.body.dataset.fin;
   dejaVu = { manche: null, phases: null };
 
+  // (jouer-contre-l-apprenti) LE CERVEAU D'EN FACE EST CONSTRUIT AVANT LA PARTIE.
+  // Le joueur entraîné relève la partie en observant `pont.pas` ; construit après
+  // `creerPartie`, il manquerait le premier appel et répondrait la première
+  // question sans rien essayer. Le tireur au hasard, lui, ne touche pas au pont :
+  // le construire ici ne change aucun de ses tirages.
+  const cerveauDEnFace = async () => (cadre.adversaire === "apprenti" && !rendezVous
+    ? cerveauApprenti(await chargerReglagesApprenti(), graine * 2 + 2, "adversaire", pont, boites)
+    : fournisseurAleatoire(graine * 2 + 2, "adversaire"));
+  let enFace = await cerveauDEnFace();
+
   let partie = creerPartie(pont, { graine, boites });
   partieEnCours = partie;
 
@@ -749,7 +802,7 @@ async function lancer({ graine, boites }, reprise = null) {
   cerveaux[cadre.siege] = cadre.decide === "programme"
     ? fournisseurAleatoire(graine * 2 + 1, "programme au siège")
     : null;
-  cerveaux[1 - cadre.siege] = fournisseurAleatoire(graine * 2 + 2, "adversaire");
+  cerveaux[1 - cadre.siege] = enFace;
 
   // (CNF-6) LA PARTIE REPRISE. Si le rejeu échoue, l'enregistrement est écarté
   // — et la partie repart de zéro, sur la même graine, plutôt que de laisser le
@@ -770,14 +823,16 @@ async function lancer({ graine, boites }, reprise = null) {
       // qu'on vient d'écarter.
       cadre.siege = CADRE_DE_L_ADRESSE.siege;
       cadre.decide = CADRE_DE_L_ADRESSE.decide;
+      cadre.adversaire = CADRE_DE_L_ADRESSE.adversaire;
       document.body.dataset.siege = String(cadre.siege);
       document.body.dataset.decide = cadre.decide;
+      enFace = await cerveauDEnFace();
       partie = creerPartie(pont, { graine, boites });
       partieEnCours = partie;
       cerveaux[cadre.siege] = cadre.decide === "programme"
         ? fournisseurAleatoire(graine * 2 + 1, "programme au siège")
         : null;
-      cerveaux[1 - cadre.siege] = fournisseurAleatoire(graine * 2 + 2, "adversaire");
+      cerveaux[1 - cadre.siege] = enFace;
     } else {
       empreinte = repliee;
     }
@@ -796,7 +851,10 @@ async function lancer({ graine, boites }, reprise = null) {
   fournisseurs[cadre.siege] = cadre.decide === "programme"
     ? siegeProgramme(cerveaux[cadre.siege], arret)
     : siegeHumain();
-  fournisseurs[1 - cadre.siege] = adversaire(cerveaux[1 - cadre.siege]);
+  // (jouer-contre-l-apprenti) `adversaire()` ne porte que `decider` : la méthode
+  // `vendre` du cerveau, s'il en a une, lui est rendue ici.
+  fournisseurs[1 - cadre.siege] = avecSesVentes(
+    adversaire(cerveaux[1 - cadre.siege]), cerveaux[1 - cadre.siege]);
   // LA SEULE LIGNE DE COMPOSITION QUI CHANGE. En ligne, le siège d'en face
   // n'est plus tenu par le programme mais par un humain devant un autre écran,
   // et mes propres réponses passent par le point de rendez-vous. `partie.js`
@@ -931,6 +989,10 @@ async function demarrer() {
     // est donc adopté ICI, avant que `batir` ne s'en serve.
     cadre.siege = reprise.siege;
     cadre.decide = reprise.decide;
+    // (jouer-contre-l-apprenti) Et l'adversaire : reprendre contre le hasard une
+    // partie commencée contre l'apprenti rejouerait le bon préfixe, puis
+    // continuerait contre un autre joueur.
+    cadre.adversaire = reprise.adversaire;
   }
 
   // Le manifeste : tout le décor est bâti à partir des images qu'il désigne, il

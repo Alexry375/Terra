@@ -3,7 +3,7 @@
 > Source de vérité du projet. Ancrée au code (`fichier:ligne`) dès qu'il y aura du
 > code. [VÉRIFIÉ JJ-MM] = relu à la source ce jour-là. [DÉCLARÉ] = non re-vérifié.
 
-Dernière mise à jour : 2026-10-13
+Dernière mise à jour : 2026-10-18
 
 > **20-08 — LE DÉPÔT EST PUBLIC** : `github.com/Alexry375/Terra`. Les 65 Mo de
 > visuels du jeu ont été retirés de l'arbre **et de tout l'historique** ; le
@@ -12,6 +12,171 @@ Dernière mise à jour : 2026-10-13
 > le disque d'Alexis, hors suivi de version. Toutes les empreintes de commit
 > citées ci-dessous sont celles du **nouvel** historique. Détail :
 > `docs/JOURNAL.md`, entrée « 2026-08-20 (suite) ».
+
+## 🟢 18-10 — LA PAGE SAIT ENFIN FAIRE JOUER L'IA. ALEXIS PEUT L'AFFRONTER DEPUIS SON NAVIGATEUR
+
+**Le fait de la journée** [VÉRIFIÉ 18-10] : jusqu'à ce matin, **la page web ne
+savait pas faire jouer le réseau entraîné**. `web/webapp/interface.js:57`
+n'importait que `fournisseurHumain` et `fournisseurAleatoire` ; le seul adversaire
+qu'on pouvait affronter dans un navigateur était un tireur au hasard. Et
+`web/webapp/joueurs/apprenti.js` lisait ses réglages par `readFileSync` de
+`node:fs`, un module qui n'existe pas dans un navigateur : il était impossible de
+le charger dans la page, même en le branchant.
+
+**Ma correction d'une erreur du 09-10** : j'avais écrit « mettre un réseau de
+largeur 100 en service ne demande aucune modification de code ». Vrai sur la
+largeur (le format du fichier de réglages porte sa propre taille), **faux sur le
+branchement dans la page** : je n'avais pas vérifié qui appelle l'apprenti depuis
+`interface.js`. Personne.
+
+### Le chantier `jouer-contre-l-apprenti`, livré en 1 h 22 et audité
+
+Délégué à un agent sur Opus, contrat scellé de 6 contrôles visibles tous rouges au
+départ, plus un contrôle caché hors dépôt. Résultat de `aw audit --mode code` :
+`inputs/` intact (`tamper=false`), **visible 5/6**, **hold-out 1/1**. Rapport
+déposé : `aw report jouer-contre-l-apprenti ok`.
+
+Ce qui existe maintenant [VÉRIFIÉ 18-10] :
+
+| chemin | ce que c'est |
+|---|---|
+| `?adversaire=apprenti` dans l'adresse | met le réseau entraîné en face, au lieu du hasard |
+| `web/webapp/poids/apprenti.txt` | lien symbolique vers `data/poids/apprenti.txt` — un seul chemin pour les deux mondes |
+| `chargerOctets` (`web/webapp/pont.js:130`) | `readFile` sous Node, `fetch` dans un navigateur ; plus aucun `import "node:*"` dans un fichier servi |
+| `web/webapp/verif/empreinte-navigateur.mjs` | prouve que la page décide comme Node |
+| `web/webapp/verif/partie-entiere-au-navigateur.mjs` | joue une partie entière dans un vrai Chromium et mesure la réflexion |
+| `web/webapp/verif/navigateur-de-controle.mjs` | le montage commun (Chromium + `servir.py` sur un port de 8030 à 8099) |
+
+### Les preuves que la page décide exactement comme le moteur de référence
+
+- **L'empreinte de décisions** (chaque décision repliée par
+  `empreinte = empreinte*31 + codePoint` sur `joueur|options|indice;`) :
+  `646347212` dans la page comme sous Node (sur une graine que le contrôle garde pour lui, 60 décisions) ;
+  `868615057` sur 200 décisions.
+- **Une partie entière** (graine 880002, boîtes `base,decouverte`) : scores
+  **73/168**, **710 décisions**, **825 entrées** identiques entre la page et un
+  oracle Node écrit séparément.
+- **L'IA gagne** sur trois graines jamais vues : `[56,99]`, `[60,111]`, `[58,108]`.
+- **Les parcours existants ne changent pas** : l'ancienne page reconstruite depuis
+  git et la nouvelle rendent les mêmes scores (`[50,57]`, `[61,61]`).
+- **La reprise est fidèle** : partie coupée à 422 entrées, rouverte **sans**
+  `adversaire=apprenti`, l'enregistrement ramène l'apprenti, fin à 73/168, 825
+  entrées identiques, et 342 des 433 consultations de cerveau rejouées à
+  l'identique de la partie jamais coupée.
+
+### 🟢 LE CHAMPION EST EN SERVICE DEPUIS LE 18-10 [VÉRIFIÉ 18-10]
+
+`data/poids/apprenti.txt` porte désormais **le réseau de cent neurones entraîné
+sur un million de parties** (`apprenti-largeur100-1M.txt`), à la place du réseau
+de cinquante neurones et 400 000 parties. En-tête `1630 100 2`, 3 051 074 octets.
+La sauvegarde de l'ancien existait déjà et est identique
+(`apprenti-400k.txt`, md5 `fb387369578aa45089776519de71d44b` des deux côtés).
+
+Vérifié après la bascule :
+
+- le serveur envoie bien ce fichier-là : code 200, 3 051 074 octets, `cmp`
+  identique au fichier du dépôt — par le lien symbolique et **sans redémarrer le
+  service** (le lien est relu à chaque demande) ;
+- **le service réel d'Alexis** (`http://100.71.58.119:3793/poids/apprenti.txt`)
+  sert le champion, vérifié directement ;
+- **mon contrôle caché est VERT sur le champion** : empreinte de décisions
+  `618519958` dans la page comme sous Node (60 décisions sur une graine que le contrôle garde pour lui ; la
+  référence est recalculée par le contrôle lui-même avec le fichier en service),
+  parcours existants inchangés (`[50,57]`, `[61,61]`), et **3 victoires sur 3**
+  sur graines neuves : `[57,167]`, `[62,114]`, `[72,206]`.
+
+Les écarts de score contre le tireur au hasard sont plus larges qu'avec l'ancien
+réseau sur les trois mêmes graines (110, 52 et 134 points contre 43, 51 et 50),
+ce qui va dans le sens attendu — mais trois graines ne prouvent rien, c'est une
+indication, pas une mesure.
+
+### La vitesse dans un navigateur, et le poids du chargement
+
+Largeur 50, dans Chromium [VÉRIFIÉ 18-10] : **85,0 ms** par décision en moyenne,
+**1 050,8 ms** au pire ; les consultations de vente à part, 117,8 ms en moyenne et
+1 207,1 ms au pire. Une partie demande environ 355 décisions par siège.
+
+Le champion, largeur 100, même graine 880002 [VÉRIFIÉ 18-10] : **73,6 ms** par
+décision en moyenne, **706,0 ms** au pire ; ventes à part, 84,5 ms en moyenne et
+612,5 ms au pire sur 275 consultations.
+
+🔴 **MON PRONOSTIC ÉTAIT FAUX, ET LA COMPARAISON NE VAUT RIEN.** J'avais annoncé
+à Alexis « environ 170 ms en moyenne, pire cas vers deux secondes », en doublant
+simplement le coût d'une évaluation du réseau (1630 × 100 au lieu de 1630 × 50).
+Le chiffre mesuré est plus bas, pas plus haut — mais **on ne peut pas en conclure
+que le champion réfléchit plus vite** : les deux mesures ne portent pas sur les
+mêmes décisions. Le réseau décide autrement, donc la partie se déroule autrement :
+466 décisions et 41/111 au score pour le champion, contre 710 décisions et 73/168
+pour l'ancien, sur la même graine. Le temps moyen par décision mélange des
+questions à deux options et des questions à trente ; changer la population change
+la moyenne sans que la vitesse d'une évaluation ait bougé. Pour trancher il
+faudrait mesurer le temps par **évaluation du réseau**, ou le temps moyen à nombre
+d'options égal — ce n'est pas fait.
+
+Ce qui est sûr et suffit pour jouer : **aucune attente perceptible**, 74 ms en
+moyenne et 0,7 s au pire.
+
+Sous une connexion émulée à 1,6 Mbit/s et 150 ms de latence, la première question
+arrive à **42,1 s** contre l'apprenti et 34,3 s contre le hasard : les 1,54 Mo de
+réglages du réseau coûtent 8 secondes, et ils sont redemandés à chaque chargement
+(`no-store` volontaire : un réseau périmé en réserve ferait jouer un autre joueur
+que celui annoncé).
+
+**Correctif du chargement** : `web/servir.py` donne désormais
+`public, max-age=604800` aux **seules images** réellement servies sous `/assets/`
+(code 200 ou 304), et garde `no-store` sur tout le reste. Un rechargement d'onglet
+passe de **6,11 Mo à 3,60 Mo** (les 2,50 Mo de visuels tombent à 0).
+⚠️ Le service `connex-terra` tourne depuis le 02-10 : il porte l'ancien `servir.py`
+en mémoire, donc **la réserve n'est pas encore active** — il faut le redémarrer
+(5 secondes de coupure, décision en attente d'Alexis).
+
+### 🔴 Mes deux fautes de la journée, écrites noir sur blanc
+
+1. **J'ai contaminé le dépôt pendant une épreuve de sabotage.** Pour vérifier que
+   mon contrôle caché devenait bien rouge sur un faux joueur, j'ai copié le dépôt
+   avec `cp -al` — **`-l` crée des liens durs**, un seul contenu sous deux noms. Mon
+   script a donc écrit le sabotage dans le vrai fichier (inode `1848545` des deux
+   côtés). Pendant une dizaine de minutes, l'adresse que je venais de donner à
+   Alexis faisait jouer un tireur au hasard. Restauration vérifiée par trois
+   mesures (empreinte `868615057` retrouvée, `grep -c "__SABOTAGE"` à 0, 151
+   lignes), puis épreuve refaite avec `cp -a` (inodes 274899 contre 1848545).
+2. **Mon contrôle 02 était impossible à satisfaire.** Il comparait
+   `printf '%s' "$(curl …)" | md5sum` au md5 du fichier entier : une substitution
+   de commande du shell retire le saut de ligne final. La même formule appliquée au
+   fichier du dépôt donne `1631f43e…` au lieu de `fb387369…`. C'est **l'agent** qui
+   l'a diagnostiqué. Vérification de remplacement : `curl -o` puis `cmp` →
+   identique, 1 541 014 octets des deux côtés. **J'ai décidé de laisser le contrôle
+   rouge** plutôt que de retoucher un contrat scellé après la livraison.
+
+Mon contrôle caché est aussi tombé deux fois **pour la mauvaise raison** (une
+expiration de 600 s sur une partie entre deux tireurs au hasard qui n'en finit
+pas, puis une exception `f.vendre is not a function`). Trois correctifs : toute
+expiration et toute panne portent maintenant un message qui les distingue d'un
+faux joueur, et le volet le plus net (l'empreinte, quelques secondes) passe en
+premier avec sortie immédiate. Éprouvé ensuite sur un sabotage fin (une décision
+retournée sur les questions à deux options) → rouge, code de sortie 1.
+
+### Les défauts connus, non réglés
+
+- **Le rejeu d'une reprise fige la page** : 22,6 s et 23,2 s mesurées, environ une
+  minute estimée en fin de partie. Pistes : rendre `rejouerLesDecisions`
+  asynchrone, ou déclarer le joueur sans état et ne pas le consulter au rejeu.
+- **Un contrôle scellé d'un chantier d'août passe au rouge** :
+  `workspaces/la-largeur-reglable/inputs/checks/04-les-verrous-disent-la-verite.sh`
+  appelle `lirePoids(...)` sans l'attendre, et `lirePoids` est devenue asynchrone.
+  L'agent a vérifié qu'avec `await` les deux verrous tiennent. À trancher.
+- **Le menu de la page ne propose pas l'adversaire entraîné** : il faut écrire
+  `?adversaire=apprenti` dans l'adresse.
+- **Les polices** (1,69 Mo retransférés à chaque rechargement) et la compression
+  `gzip` restent à faire.
+- **Une partie contre le hasard où l'humain a vendu** reste non reprenable, comme
+  avant ce chantier (volontaire : ne rien changer aux parcours existants).
+
+### L'adresse pour jouer [VÉRIFIÉ 18-10]
+
+`http://100.71.58.119:3793/index.html?adversaire=apprenti` — et `&siege=1` pour
+jouer en second. Essayée sur le service en cours avant d'être donnée : phase
+« partie » atteinte, une demande de réglages, aucune erreur de page.
 
 
 ## 🟠 13-10 — LE MILLION DE PARTIES EST MEILLEUR, MAIS LE RENDEMENT DU PROLONGEMENT S'EST EFFONDRÉ
@@ -1556,7 +1721,7 @@ vaut une architecture. [VÉRIFIÉ 16-08, `outputs/result.md` du workspace]
 ordre que le bruit de la donne (19,4 points). C'est cela qui explique les 18 % de
 défaites, et non un défaut de jugement. Le plafond de 88,8 % vaut **contre
 `reflechi`** ; contre un adversaire de force égale, toutes les parties suivraient
-le siège, donc contre Corentin le plafond sera plus bas.
+le siège, donc contre son adversaire humain le plafond sera plus bas.
 
 ### D'où viennent ses points (24 parties, décomposition du moteur)
 
@@ -2539,7 +2704,7 @@ plutôt qu'une **propriété** :
 ### Ce qui est entré dans le dépôt
 
 **Le lot moteur A1 est fusionné** (`e8edf8a` + `9949dcd`) — quatre points de la
-liste de Corentin, tous mesurés :
+liste de l'adversaire humain d'Alexis, tous mesurés :
 
 - **MOT-1 / MOT-6** : la question de pose se pose désormais **même quand aucune
   carte n'est payable**, avec sa propre phrase (« No card can be built this
@@ -2596,20 +2761,20 @@ désaccords par partie**, tous dans le même sens : des cartes entourées de ver
 le moteur refuse. [VÉRIFIÉ 05-08] **Ce n'est pas une régression du lot moteur** —
 mesuré identique sur `7d06370`, avant la fusion, dans une copie de travail
 temporaire. Le contour trompeur ne se remarque qu'en essayant de jouer la carte,
-ce qui explique que ni Alexis ni Corentin ne l'aient vu. À traiter dans un lot
+ce qui explique que ni Alexis ni son adversaire ne l'aient vu. À traiter dans un lot
 d'affichage ultérieur.
 
-### Les décisions de Corentin intégrées
+### Les décisions de l'adversaire humain intégrées
 
 - **Les jauges** (LIS-1) : retirer le nombre porté par la température **et** par
   l'oxygène. Vérifié dans le code avant d'agir : les crans ne portent aucun texte
   et le seul nombre est un doublon de la barre du haut — **aucune information
   n'est perdue**. Conséquence : le repère devait devenir visible (LIS-2), les deux
   points se font donc ensemble.
-- **LIS-9 abandonné** (« retirer interface au milieu ») : Corentin a dit de
+- **LIS-9 abandonné** (« retirer interface au milieu ») : son adversaire a dit de
   laisser tomber. La trace est gardée pour ne pas défaire par mégarde le travail
   du 04-08 sur les cartes non prenables.
-- **Plus aucune question n'attend Corentin.**
+- **Plus aucune question n'attend son adversaire.**
 
 ### Deux chantiers délégués, territoires strictement disjoints
 

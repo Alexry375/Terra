@@ -23,7 +23,7 @@ import { dirname, resolve } from "node:path";
 import { ouvrirPontDepuis } from "../pont.js";
 import { creerPartie, jouerJusquAuBout } from "../partie.js";
 import { fournisseurAleatoire } from "../fournisseurs.js";
-import { fournisseurApprenti } from "../joueurs/apprenti.js";
+import { chargerPoids, fournisseurApprenti } from "../joueurs/apprenti.js";
 import { decrire } from "../joueurs/description.js";
 
 const RACINE = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -52,6 +52,10 @@ let vecteursDifferents = 0;
 const exemples = [];
 
 for (let g = 1; compares < combien && g <= 40; g++) {
+  // (jouer-contre-l-apprenti) Chargés d'abord, et chaque réponse est ATTENDUE : un
+  // second réseau nommé par `APPRENTI_ADVERSAIRE` peut encore être en route, et
+  // deux promesses se sérialisent toutes deux en « {} » — un faux « rien ne change ».
+  await chargerPoids(poids);
   const joueur = fournisseurApprenti(1, "apprenti", poids, pont, "base,decouverte");
   const temoin = fournisseurAleatoire(g * 31 + 7, "hasard");
   const partie = creerPartie(pont, { graine: g, boites: "base,decouverte" });
@@ -79,8 +83,8 @@ for (let g = 1; compares < combien && g <= 40; g++) {
       if (exemples.length < 3) exemples.push(`description : rang ${ecart} change quand la main d'en face change`);
     }
     // 2. la RÉPONSE ne doit pas bouger non plus
-    const r1 = JSON.stringify(joueur.decider(d, etat));
-    const r2 = JSON.stringify(joueur.decider(d, truque));
+    const r1 = JSON.stringify(await joueur.decider(d, etat));
+    const r2 = JSON.stringify(await joueur.decider(d, truque));
     compares++;
     if (r1 !== r2) {
       differences++;

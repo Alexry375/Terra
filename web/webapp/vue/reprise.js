@@ -40,6 +40,7 @@
 // reprise en ligne existe donc déjà, et elle ne passe pas par ici.
 
 import { lireRendezVous } from "../distant.js";
+import { ADVERSAIRES } from "../adversaire-entraine.js";
 
 /** La clé, et le numéro de forme de l'enregistrement. */
 const CLE = "terra.partie-en-cours";
@@ -138,7 +139,12 @@ function coffre() {
  * siège d'en face. Deux mots enregistrés valent mieux qu'une partie fausse.
  *
  * @param {object} partie    l'objet rendu par `creerPartie`
- * @param {object} cadre     `{ siege, decide }`, le cadre de CETTE partie
+ * (jouer-contre-l-apprenti) **L'ADVERSAIRE AUSSI.** Une partie commencée contre
+ * le joueur entraîné et reprise contre le hasard rejouerait le bon préfixe, puis
+ * continuerait contre un autre joueur. Un enregistrement d'avant ce champ n'a
+ * jamais connu que le hasard : son absence vaut « hasard », et il reste lisible.
+ *
+ * @param {object} cadre     `{ siege, decide, adversaire }`, le cadre de CETTE partie
  * @param {number} empreinte le repli des questions déjà rencontrées
  */
 export function sauverPartie(partie, cadre, empreinte) {
@@ -156,6 +162,7 @@ export function sauverPartie(partie, cadre, empreinte) {
       boites: partie.boites,
       siege: cadre.siege,
       decide: cadre.decide,
+      adversaire: cadre.adversaire ?? "hasard",
       decisions: partie.decisions,
       empreinte: empreinte >>> 0,
     }));
@@ -193,7 +200,7 @@ export function oublierPartie() {
  * le fait, en repliant l'empreinte au fil du rejeu.
  *
  * @returns {{graine:number, boites:string, siege:number, decide:string,
- *            decisions:Array, empreinte:number}|null}
+ *            adversaire:string, decisions:Array, empreinte:number}|null}
  */
 export function partieEnregistree() {
   if (enLigne()) return null;
@@ -229,6 +236,7 @@ export function partieEnregistree() {
     boites: o.boites,
     siege: o.siege,
     decide: o.decide,
+    adversaire: o.adversaire ?? "hasard",
     decisions: o.decisions,
     empreinte: o.empreinte >>> 0,
   };
@@ -255,6 +263,7 @@ function formeFautive(o) {
   if (typeof o.boites !== "string" || !BOITES.has(o.boites)) return "boîtes inconnues";
   if (o.siege !== 0 && o.siege !== 1) return "siège inconnu";
   if (typeof o.decide !== "string" || !DECIDE.has(o.decide)) return "décideur inconnu";
+  if (o.adversaire !== undefined && !ADVERSAIRES.has(o.adversaire)) return "adversaire inconnu";
   // L'empreinte est EXIGÉE, jamais facultative. Tolérer son absence, c'est
   // rouvrir en grand la porte qu'elle ferme : un enregistrement sans empreinte
   // — écrit par une version antérieure, tronqué, ou fabriqué — serait rejoué
@@ -273,9 +282,32 @@ function formeFautive(o) {
   for (const r of o.decisions) {
     if (Number.isInteger(r)) continue;
     if (Array.isArray(r) && r.every((x) => Number.isInteger(x))) continue;
+    if (o.adversaire === "apprenti" && estUneVente(r)) continue;
     return "une réponse n'a pas la forme d'une réponse";
   }
   return null;
+}
+
+/**
+ * (jouer-contre-l-apprenti) **UNE VENTE EST AUSSI UNE ENTRÉE DE LA LISTE**, de la
+ * forme exacte que la page et `partie.vendre` écrivent :
+ * `{ vendre: { joueur, occasion, cartes } }`. Les refuser rendait non reprenable
+ * toute partie où quelqu'un a vendu — c'est-à-dire, contre le joueur entraîné,
+ * toutes (il vend dès la première occasion). Comme pour les autres réponses, on
+ * ne juge que la forme ; la légalité, c'est le moteur qui la dira au rejeu.
+ *
+ * SEULEMENT DANS UNE PARTIE CONTRE L'APPRENTI. Contre le hasard, rien ne change :
+ * un enregistrement où l'humain a vendu reste écarté, comme avant ce chantier.
+ */
+function estUneVente(r) {
+  if (!r || typeof r !== "object" || Array.isArray(r)) return false;
+  if (Object.keys(r).length !== 1) return false;
+  const v = r.vendre;
+  if (!v || typeof v !== "object" || Array.isArray(v)) return false;
+  return (v.joueur === 0 || v.joueur === 1)
+    && Number.isInteger(v.occasion) && v.occasion >= 0
+    && Array.isArray(v.cartes) && v.cartes.length > 0
+    && v.cartes.every((x) => Number.isInteger(x));
 }
 
 // ------------------------------------------------------------ la proposition
